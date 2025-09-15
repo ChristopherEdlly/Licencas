@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Cronogramas de Licenças</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>
+                <span class="icon">📊</span>
+                Dashboard de Cronogramas de Licenças
+            </h1>
+            <p class="subtitle">Processe e visualize cronogramas de licenças de servidores</p>
+        </header>
+
+        <!-- Upload Section -->
+        <section class="upload-section">
+            <div class="upload-card">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <h3>Arraste seus arquivos aqui</h3>
+                    <p>Ou clique para selecionar arquivos CSV/Excel</p>
+                    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" multiple hidden>
+                    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                        Selecionar Arquivos
+                    </button>
+                </div>
+                <div class="upload-info">
+                    <h4>Formato esperado:</h4>
+                    <p><strong>Colunas:</strong> Nome, Data Nascimento, Idade, Data Admissão, Departamentos, <strong>Cronograma</strong></p>
+                    <div class="examples">
+                        <p><strong>Exemplos de cronogramas:</strong></p>
+                        <ul>
+                            <li>09/2026; 09/2027; 09/2028</li>
+                            <li>A partir de 01/04/2026</li>
+                            <li>Início em 10/2025 (12 meses consecutivos)</li>
+                            <li>Um mês (janeiro) a cada ano</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Processing Status -->
+        <section class="processing-section" id="processingSection" style="display: none;">
+            <div class="processing-card">
+                <div class="spinner"></div>
+                <h3>Processando dados...</h3>
+                <p id="processingStatus">Analisando arquivo...</p>
+            </div>
+        </section>
+
+        <!-- Dashboard Section -->
+        <section class="dashboard-section" id="dashboardSection" style="display: none;">
+            <!-- KPIs -->
+            <div class="kpis-grid">
+                <div class="kpi-card">
+                    <div class="kpi-icon">👥</div>
+                    <div class="kpi-content">
+                        <h3 id="totalServidores">0</h3>
+                        <p>Total de Servidores</p>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">📅</div>
+                    <div class="kpi-content">
+                        <h3 id="totalLicencas">0</h3>
+                        <p>Total de Licenças</p>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">⏳</div>
+                    <div class="kpi-content">
+                        <h3 id="proximasLicencas">0</h3>
+                        <p>Próximas 90 dias</p>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">🏢</div>
+                    <div class="kpi-content">
+                        <h3 id="totalDepartamentos">0</h3>
+                        <p>Departamentos</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Licenças por Mês</h3>
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Licenças por Departamento</h3>
+                    <canvas id="departmentChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Timeline de Licenças</h3>
+                    <canvas id="timelineChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Distribuição por Ano</h3>
+                    <canvas id="yearlyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Filters and Controls -->
+            <div class="controls-section">
+                <div class="filters">
+                    <div class="filter-group">
+                        <label for="departmentFilter">Departamento:</label>
+                        <select id="departmentFilter">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="yearFilter">Ano:</label>
+                        <select id="yearFilter">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="monthsLimit">Limite de Meses:</label>
+                        <input type="number" id="monthsLimit" value="60" min="1" max="120">
+                    </div>
+                </div>
+                <div class="actions">
+                    <button class="btn secondary" onclick="resetFilters()">Limpar Filtros</button>
+                    <button class="btn primary" onclick="exportData()">Exportar Dados</button>
+                    <button class="btn secondary" onclick="location.reload()">Novo Upload</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Data Table Section -->
+        <section class="table-section" id="tableSection" style="display: none;">
+            <div class="table-card">
+                <div class="table-header">
+                    <h3>Dados Processados</h3>
+                    <div class="table-controls">
+                        <input type="text" id="searchInput" placeholder="Pesquisar..." class="search-input">
+                        <button class="btn secondary" onclick="toggleTableView()">Ver Cronogramas</button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table id="dataTable">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Data Nascimento</th>
+                                <th>Idade</th>
+                                <th>Data Admissão</th>
+                                <th>Departamento</th>
+                                <th>Cronograma Original</th>
+                                <th>Licenças Processadas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2024 Dashboard de Cronogramas de Licenças | Desenvolvido com HTML5, CSS3 e JavaScript</p>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="cronogramaParser.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>
