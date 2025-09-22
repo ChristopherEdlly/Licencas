@@ -313,10 +313,8 @@
                 <!-- Timeline Page -->
                 <div class="page-content" id="timelinePage">
                     <div class="timeline-header">
-                        <h2>Timeline de Licenças</h2>
                         <div class="timeline-controls">
                             <div class="control-group">
-                                <label for="timelineView">Visualização:</label>
                                 <select id="timelineView" class="form-select">
                                     <option value="daily">Diário</option>
                                     <option value="monthly" selected>Mensal</option>
@@ -324,13 +322,11 @@
                                 </select>
                             </div>
                             <div class="control-group" id="timelineYearGroup">
-                                <label for="timelineYear">Ano:</label>
                                 <select id="timelineYear" class="form-select">
                                     <!-- Options will be populated by JavaScript -->
                                 </select>
                             </div>
                             <div class="control-group" id="timelineMonthGroup" style="display: none;">
-                                <label for="timelineMonth">Mês:</label>
                                 <select id="timelineMonth" class="form-select">
                                     <option value="0">Janeiro</option>
                                     <option value="1">Fevereiro</option>
@@ -358,56 +354,8 @@
                     </div>
                     
                     <div class="timeline-content">
-                        <div class="timeline-stats">
-                            <div class="stat-card timeline-stat">
-                                <div class="card-icon">
-                                    <i class="bi bi-calendar-event"></i>
-                                </div>
-                                <div class="card-content">
-                                    <h3 id="totalLicensesCount">0</h3>
-                                    <p>Total de Licenças</p>
-                                </div>
-                            </div>
-                            <div class="stat-card timeline-stat">
-                                <div class="card-icon">
-                                    <i class="bi bi-person-check"></i>
-                                </div>
-                                <div class="card-content">
-                                    <h3 id="activeServersCount">0</h3>
-                                    <p>Servidores Ativos</p>
-                                </div>
-                            </div>
-                            <div class="stat-card timeline-stat">
-                                <div class="card-icon">
-                                    <i class="bi bi-graph-up-arrow"></i>
-                                </div>
-                                <div class="card-content">
-                                    <h3 id="peakPeriod">-</h3>
-                                    <p>Pico de Licenças</p>
-                                </div>
-                            </div>
-                            <div class="stat-card timeline-stat">
-                                <div class="card-icon">
-                                    <i class="bi bi-bar-chart"></i>
-                                </div>
-                                <div class="card-content">
-                                    <h3 id="averageLicenses">0</h3>
-                                    <p>Média por Período</p>
-                                </div>
-                            </div>
-                        </div>
-                        
                         <div class="timeline-chart-container">
                             <canvas id="timelineChart"></canvas>
-                        </div>
-                        
-                        <div class="timeline-insights">
-                            <div class="insight-card">
-                                <h4><i class="bi bi-lightbulb"></i> Insights</h4>
-                                <div id="timelineInsights" class="insights-content">
-                                    <!-- Dynamic insights will be added here -->
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>

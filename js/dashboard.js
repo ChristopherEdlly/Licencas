@@ -1330,7 +1330,7 @@ class DashboardMultiPage {
     }
 
     updateTimelineStats(timelineData) {
-        // Atualizar estatísticas
+        // Calcular estatísticas
         const totalLicenses = timelineData.data.reduce((sum, val) => sum + val, 0);
         const activeServers = new Set();
         
@@ -1345,75 +1345,31 @@ class DashboardMultiPage {
         const peakPeriod = timelineData.labels[peakIndex] || '-';
         const averageLicenses = totalLicenses / timelineData.data.length || 0;
         
-        // Atualizar elementos DOM
-        document.getElementById('totalLicensesCount').textContent = totalLicenses;
-        document.getElementById('activeServersCount').textContent = activeServers.size;
-        document.getElementById('peakPeriod').textContent = peakPeriod;
-        document.getElementById('averageLicenses').textContent = averageLicenses.toFixed(1);
+        // Determinar o tipo de período atual
+        const selectedView = document.getElementById('timelineView')?.value || 'monthly';
+        let periodLabel = 'Média por Período';
+        switch (selectedView) {
+            case 'daily':
+                periodLabel = 'Média por Dia';
+                break;
+            case 'monthly':
+                periodLabel = 'Média por Mês';
+                break;
+            case 'yearly':
+                periodLabel = 'Média por Ano';
+                break;
+            default:
+                periodLabel = 'Média por Período';
+        }
         
-        // Gerar insights
-        this.generateTimelineInsights(timelineData, {
+        // Armazenar estatísticas para uso no modal
+        this.currentTimelineStats = {
             totalLicenses,
-            activeServers: activeServers.size,
+            activeServersCount: activeServers.size,
             peakPeriod,
-            averageLicenses
-        });
-    }
-
-    generateTimelineInsights(timelineData, stats) {
-        const insightsContainer = document.getElementById('timelineInsights');
-        if (!insightsContainer) return;
-        
-        const insights = [];
-        
-        // Insight sobre pico de licenças
-        if (stats.peakPeriod !== '-') {
-            insights.push({
-                title: 'Período de Maior Demanda',
-                description: `O período ${stats.peakPeriod} registrou o maior número de licenças, com ${Math.max(...timelineData.data)} servidores em licença. Considere planejar recursos adicionais para períodos similares.`,
-                type: 'warning'
-            });
-        }
-        
-        // Insight sobre média
-        if (stats.averageLicenses > 0) {
-            const aboveAverage = timelineData.data.filter(val => val > stats.averageLicenses).length;
-            const percentage = ((aboveAverage / timelineData.data.length) * 100).toFixed(0);
-            
-            insights.push({
-                title: 'Distribuição de Licenças',
-                description: `${percentage}% dos períodos ficaram acima da média (${stats.averageLicenses.toFixed(1)} licenças). ${percentage > 50 ? 'Há uma tendência de concentração em períodos específicos.' : 'A distribuição está bem equilibrada ao longo do tempo.'}`,
-                type: 'info'
-            });
-        }
-        
-        // Insight sobre tendência
-        const firstHalf = timelineData.data.slice(0, Math.floor(timelineData.data.length / 2));
-        const secondHalf = timelineData.data.slice(Math.floor(timelineData.data.length / 2));
-        const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
-        const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
-        
-        if (secondAvg > firstAvg * 1.2) {
-            insights.push({
-                title: 'Tendência Crescente',
-                description: `Há um aumento de ${((secondAvg - firstAvg) / firstAvg * 100).toFixed(0)}% nas licenças comparando a primeira e segunda metade do período. Monitore esta tendência para futuro planejamento.`,
-                type: 'warning'
-            });
-        } else if (firstAvg > secondAvg * 1.2) {
-            insights.push({
-                title: 'Tendência Decrescente',
-                description: `Há uma redução de ${((firstAvg - secondAvg) / firstAvg * 100).toFixed(0)}% nas licenças comparando a primeira e segunda metade do período. Isso pode indicar melhoria na gestão.`,
-                type: 'success'
-            });
-        }
-        
-        // Renderizar insights
-        insightsContainer.innerHTML = insights.map(insight => `
-            <div class="insight-item ${insight.type}">
-                <div class="insight-title">${insight.title}</div>
-                <div class="insight-description">${insight.description}</div>
-            </div>
-        `).join('');
+            averageLicenses: averageLicenses.toFixed(1),
+            periodLabel
+        };
     }
 
     initializeTimelineControls() {
@@ -1458,8 +1414,8 @@ class DashboardMultiPage {
         // Timeline month selector
         const monthSelect = document.getElementById('timelineMonth');
         if (monthSelect) {
-            // Ajustar para mês baseado em 1 (HTML)
-            const currentMonth = new Date().getMonth() + 1;
+            // HTML values are 0-based (0=Janeiro, 1=Fevereiro, etc.) which matches JavaScript months
+            const currentMonth = new Date().getMonth();  // 0-based month (0-11)
             monthSelect.value = currentMonth;
             
             monthSelect.addEventListener('change', () => {
@@ -1522,11 +1478,10 @@ class DashboardMultiPage {
     showCurrentPeriodStats() {
         const viewType = document.getElementById('timelineView')?.value || 'monthly';
         const selectedYear = parseInt(document.getElementById('timelineYear')?.value) || new Date().getFullYear();
-        // Ajustar para mês baseado em 0 (JavaScript)
-        const selectedMonthFromHTML = parseInt(document.getElementById('timelineMonth')?.value) || (new Date().getMonth() + 1);
-        const selectedMonth = selectedMonthFromHTML - 1; // Converter de 1-12 para 0-11
+        // HTML month values are already 0-based (0=Janeiro, 1=Fevereiro, etc.)
+        const selectedMonth = parseInt(document.getElementById('timelineMonth')?.value) || new Date().getMonth();
         
-        console.log('Period stats debug:', { viewType, selectedYear, selectedMonth: selectedMonth + 1, selectedMonthFromHTML });
+        console.log('Period stats debug:', { viewType, selectedYear, selectedMonth: selectedMonth, selectedMonthName: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth] });
         
         let periodLabel = '';
         let periodFilter = {};
@@ -1703,8 +1658,52 @@ class DashboardMultiPage {
         const criticalUrgency = urgencyStats['Crítico'] + urgencyStats['Alto'];
         const totalMonthsWithLicenses = monthsWithLicenses.size;
 
+        // Incluir estatísticas da timeline se disponíveis
+        let timelineStatsCards = '';
+        if (this.currentTimelineStats) {
+            timelineStatsCards = `
+                <div class="stats-card modal-timeline-stat">
+                    <div class="stats-card-icon">
+                        <i class="bi bi-calendar-event"></i>
+                    </div>
+                    <div class="stats-card-value">${this.currentTimelineStats.totalLicenses}</div>
+                    <div class="stats-card-label">Total de Licenças</div>
+                    <div class="stats-card-description">Licenças no período selecionado</div>
+                </div>
+
+                <div class="stats-card modal-timeline-stat">
+                    <div class="stats-card-icon">
+                        <i class="bi bi-person-check"></i>
+                    </div>
+                    <div class="stats-card-value">${this.currentTimelineStats.activeServersCount}</div>
+                    <div class="stats-card-label">Servidores Ativos</div>
+                    <div class="stats-card-description">Servidores com licenças ativas</div>
+                </div>
+
+                <div class="stats-card modal-timeline-stat">
+                    <div class="stats-card-icon">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </div>
+                    <div class="stats-card-value">${this.currentTimelineStats.peakPeriod}</div>
+                    <div class="stats-card-label">Pico de Licenças</div>
+                    <div class="stats-card-description">Período com mais licenças</div>
+                </div>
+
+                <div class="stats-card modal-timeline-stat">
+                    <div class="stats-card-icon">
+                        <i class="bi bi-bar-chart"></i>
+                    </div>
+                    <div class="stats-card-value">${this.currentTimelineStats.averageLicenses}</div>
+                    <div class="stats-card-label">${this.currentTimelineStats.periodLabel}</div>
+                    <div class="stats-card-description">Distribuição média das licenças</div>
+                </div>
+            `;
+        }
+
         // Create stats cards
         statsGrid.innerHTML = `
+            ${timelineStatsCards}
+            
             <div class="stats-card servers">
                 <div class="stats-card-icon">
                     <i class="bi bi-people"></i>
@@ -2560,16 +2559,15 @@ class DashboardMultiPage {
         const viewType = document.getElementById('timelineView') ? 
                          document.getElementById('timelineView').value : 'monthly';
         const selectedYear = parseInt(document.getElementById('timelineYear')?.value) || new Date().getFullYear();
-        // Ajustar para mês baseado em 0 (JavaScript)
-        const selectedMonthFromHTML = parseInt(document.getElementById('timelineMonth')?.value) || (new Date().getMonth() + 1);
-        const selectedMonth = selectedMonthFromHTML - 1; // Converter de 1-12 para 0-11
+        // HTML month values are already 0-based (0=Janeiro, 1=Fevereiro, etc.)
+        const selectedMonth = parseInt(document.getElementById('timelineMonth')?.value) || new Date().getMonth();
         const data = {};
         
         console.log('Timeline Data Debug:', { 
             viewType, 
             selectedYear, 
-            selectedMonth: selectedMonth + 1, 
-            selectedMonthFromHTML,
+            selectedMonth: selectedMonth, 
+            selectedMonthName: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth],
             filteredServidoresCount: this.filteredServidores.length,
             allServidoresCount: this.allServidores.length
         });
