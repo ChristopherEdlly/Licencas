@@ -93,10 +93,6 @@
                 </div>
 
                 <div class="filter-actions">
-                                        <button class="btn-primary" onclick="window.dashboard && dashboard.applyAgeFilter()">
-                        <i class="bi bi-check"></i>
-                        Aplicar
-                    </button>
                     <button class="btn-secondary" onclick="window.dashboard && dashboard.clearAllFilters()">
                         <i class="bi bi-x-circle"></i>
                         Limpar Filtros
@@ -128,10 +124,15 @@
                 
                 <!-- Actions do Header -->
                 <div class="header-actions">
-                    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" hidden>
-                    <label for="fileInput" class="btn-upload-header" title="Carregar Dados">
-                        <i class="bi bi-cloud-upload"></i>
-                    </label>
+                    <div class="upload-buttons">
+                        <button class="btn-upload-header" title="Selecionar Arquivo" id="uploadButton">
+                            <i class="bi bi-folder2-open"></i>
+                            <span class="stored-file-indicator" id="storedFileIndicator" style="display: none;" title="Arquivo anterior disponível">●</span>
+                        </button>
+                        <button class="btn-clear-stored" id="clearStoredBtn" title="Limpar arquivo armazenado" style="display: none;">
+                            <i class="bi bi-trash3"></i>
+                        </button>
+                    </div>
                     <button class="theme-toggle" id="themeToggle" title="Alternar tema">
                         <i class="bi bi-sun theme-icon sun-icon"></i>
                         <i class="bi bi-moon theme-icon moon-icon"></i>
@@ -442,9 +443,9 @@
                     <!-- Seção: Dados Originais -->
                     <div class="modal-section" id="originalDataSection">
                         <div class="section-header">
-                            <i class="bi bi-file-text section-icon"></i>
-                            <h4 class="section-title">Dados Originais da Planilha</h4>
-                            <span class="section-badge">Como fornecido</span>
+                            <i class="bi bi-table section-icon"></i>
+                            <h4 class="section-title">Registros da Planilha</h4>
+                            <span class="section-badge">Dados importados</span>
                         </div>
                         <div class="section-content" id="originalDataContent">
                             <!-- Conteúdo dinâmico -->

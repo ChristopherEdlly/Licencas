@@ -833,6 +833,47 @@ body {
     color: var(--primary);
 }
 
+/* File System Access API button */
+.btn-upload-header {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.btn-upload-header:hover {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.fs-api-indicator {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    font-size: 10px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.upload-buttons {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .upload-status {
     display: flex;
     align-items: center;
@@ -2590,14 +2631,24 @@ body {
 .info-label {
     font-weight: 600;
     color: var(--text-secondary);
-    font-size: var(--font-size-sm);
-    white-space: nowrap;
+    font-size: var(--font-size-sm);;
 }
 
 .info-value {
     color: var(--text-primary);
     font-size: var(--font-size-sm);
-    word-break: break-word;
+    word-break: word-wrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    hyphens: none;
+    line-height: 1.4;
+}
+
+/* Valores numéricos e IDs longos */
+.info-value.numeric {
+    font-family: 'JetBrains Mono', Monaco, 'Courier New', monospace;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
 }
 
 .info-value.highlight {
@@ -3261,5 +3312,571 @@ body {
     
     .stats-card.modal-timeline-stat .stats-card-value {
         font-size: 1.5rem;
+    }
+}
+
+/* Auto-load notification styles */
+.auto-load-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 350px;
+    background: var(--bg-primary);
+    border: 2px solid var(--primary);
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    z-index: 10000;
+    transform: translateX(100%);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.auto-load-notification.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.auto-load-notification.hide {
+    transform: translateX(100%);
+    opacity: 0;
+}
+
+.notification-content {
+    padding: 1.25rem;
+}
+
+.notification-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.notification-header i {
+    font-size: 1.25rem;
+    color: var(--primary);
+}
+
+.notification-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.notification-body .file-info {
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.notification-body .file-info strong {
+    color: var(--text-primary);
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.notification-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.notification-actions .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.notification-actions .btn:hover {
+    transform: translateY(-1px);
+}
+
+.notification-actions .btn-primary {
+    background: var(--primary);
+    color: var(--text-inverse);
+    border: 1px solid var(--primary);
+}
+
+.notification-actions .btn-primary:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.notification-actions .btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+
+.notification-actions .btn-secondary:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+}
+
+/* Responsive para mobile */
+@media (max-width: 768px) {
+    .auto-load-notification {
+        width: calc(100vw - 40px);
+        right: 20px;
+        left: 20px;
+    }
+    
+    .notification-actions {
+        flex-direction: column;
+    }
+    
+    .notification-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Animação de pulse para chamar atenção */
+@keyframes notificationPulse {
+    0%, 100% {
+        border-color: var(--primary);
+        box-shadow: var(--shadow-lg);
+    }
+    50% {
+        border-color: var(--primary-hover);
+        box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3), 0 8px 10px -6px rgba(59, 130, 246, 0.3);
+    }
+}
+
+.auto-load-notification.show {
+    animation: notificationPulse 2s ease-in-out;
+}
+
+/* Indicador de arquivo armazenado */
+.stored-file-indicator {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+    background: var(--success);
+    border-radius: 50%;
+    color: var(--success);
+    font-size: 8px;
+    line-height: 1;
+}
+
+.btn-upload-header {
+    position: relative;
+}
+
+.btn-clear-stored {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+}
+
+.btn-clear-stored:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    color: var(--danger);
+    transform: translateY(-1px);
+}
+
+/* Modal de erro de arquivo não encontrado */
+.file-not-found-modal .modal-content {
+    animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.file-not-found-modal .btn-select-new:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(0,123,255,0.3) !important;
+}
+
+.file-not-found-modal .btn-cancel:hover {
+    background: var(--bg-hover) !important;
+    border-color: var(--border-hover) !important;
+}
+
+/* Responsive para modal de erro */
+@media (max-width: 480px) {
+    .file-not-found-modal .modal-content {
+        padding: 16px !important;
+        margin: 12px !important;
+    }
+    
+    .file-not-found-modal .error-actions {
+        flex-direction: column !important;
+    }
+    
+    .file-not-found-modal .btn-select-new,
+    .file-not-found-modal .btn-cancel {
+        width: 100%;
+    }
+}
+
+/* ==================== PERIODS CONTAINER - MODERN DESIGN ==================== */
+.periods-container {
+    margin: 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.period-card {
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    border-left: 4px solid var(--primary-dark);
+    border-radius: 12px;
+    padding: 0.6rem 0.9rem;
+    box-shadow: 0 1px 4px rgba(16, 24, 40, 0.04);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.period-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    border-left-color: var(--primary);
+}
+
+.period-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.period-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 0.96rem;
+    letter-spacing: -0.01em;
+}
+
+.period-title i {
+    color: var(--primary);
+    font-size: 1.1rem;
+}
+
+.period-duration {
+    background: linear-gradient(90deg, var(--primary-dark), var(--primary));
+    color: white;
+    padding: 0.18rem 0.6rem;
+    border-radius: 14px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.09);
+}
+
+.period-dates {
+    margin-bottom: 1rem;
+}
+
+.date-range {
+    background: transparent;
+    padding: 0.3rem 0.65rem;
+    border-radius: 8px;
+    border-left: 3px solid var(--primary-dark);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.83rem;
+    color: var(--text-secondary);
+    display: inline-block;
+    font-weight: 600;
+}
+
+.period-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.license-count {
+    background: transparent;
+    padding: 0.25rem 0.6rem;
+    border-radius: 8px;
+    font-size: 0.86rem;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+
+.months-breakdown {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    flex: 1;
+    justify-content: flex-end;
+}
+
+.month-tag {
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 0.16rem 0.46rem;
+    border-radius: 8px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
+}
+
+.month-tag:hover {
+    background: var(--primary-dark);
+    color: #fff;
+    transform: translateY(-2px);
+}
+
+
+[data-theme="dark"] .period-card {
+    background: var(--bg-primary);
+    border-color: var(--primary);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .period-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.22);
+}
+
+[data-theme="dark"] .date-range {
+    background: #1e1f26;
+}
+
+[data-theme="dark"] .license-count {
+    background: #34374a;
+    border-color: #3a3f4e;
+}
+
+[data-theme="dark"] .month-tag {
+    background: #34374a;
+    border-color: #3a3f4e;
+}
+
+[data-theme="dark"] .month-tag:hover {
+    background: var(--primary);
+    color: white;
+}
+
+/* Responsive Design for Periods */
+@media (max-width: 768px) {
+    .period-details {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .months-breakdown {
+        justify-content: flex-start;
+    }
+    
+    .period-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}
+
+/* ==================== REGISTROS DA PLANILHA - MINIMALISTA ==================== */
+.planilha-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.planilha-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.info-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.info-value {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.periodos-solicitados {
+    margin-top: 0.5rem;
+}
+
+.periodos-title {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.periodos-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.periodo-tag {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    border: 1px solid var(--border);
+    font-weight: 500;
+}
+
+.no-data {
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 2rem;
+}
+
+/* ==================== PERÍODOS DE LICENÇA MODAL ==================== */
+.periods-container {
+    margin: 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.period-card {
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--primary-dark);
+    border-radius: 12px;
+    padding: 0.62rem 0.9rem;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-left-color 0.18s ease;
+}
+
+.period-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-left-color: var(--primary);
+}
+
+.period-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.period-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.period-title i {
+    color: var(--primary-dark);
+    font-size: 1rem;
+}
+
+.period-count {
+    background: linear-gradient(90deg, var(--primary-dark), var(--primary));
+    color: #fff;
+    padding: 0.18rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.period-dates {
+    margin-bottom: 0.6rem;
+}
+
+.date-range {
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 0.3rem 0.65rem;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', Monaco, 'Courier New', monospace;
+    font-size: 0.83rem;
+    font-weight: 600;
+    display: inline-block;
+    border-left: 3px solid var(--primary-dark);
+}
+
+.months-breakdown {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.month-tag {
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 0.16rem 0.46rem;
+    border-radius: 8px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
+}
+
+.month-tag:hover {
+    background: var(--primary-dark);
+    color: #fff;
+    transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+    .planilha-info {
+        grid-template-columns: 1fr;
+    }
+    .period-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
+    .months-breakdown {
+        gap: 0.25rem;
+    }
+    .month-tag {
+        font-size: 0.7rem;
+        padding: 0.18rem 0.42rem;
     }
 }

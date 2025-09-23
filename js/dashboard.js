@@ -60,9 +60,14 @@ class DashboardMultiPage {
         this.initNavigation();
         this.initPeriodTabs();
         this.updateProblemsCount(); // Initialize problems count
-        this.loadExampleData();
+        // this.loadExampleData(); // Removido - agora a aplicação inicia limpa
         this.updateLastUpdate();
         this.setupThemeIntegration();
+        
+        // Adicionar indicador visual se File System Access API está disponível
+        if (this.isFileSystemAccessSupported()) {
+            this.addFileSystemIndicator();
+        }
         
         // Initialize calendar with current year
         const currentYear = new Date().getFullYear();
@@ -70,6 +75,16 @@ class DashboardMultiPage {
         if (currentYearElement) {
             currentYearElement.textContent = currentYear;
         }
+        
+        // Tentar auto-carregamento após inicialização completa
+        setTimeout(async () => {
+            await this.updateStoredFileIndicators();
+            
+            // Se não conseguir auto-carregar, mostrar estado inicial vazio
+            if (!await this.tryAutoLoad()) {
+                this.showEmptyState();
+            }
+        }, 1000);
     }
 
     setupThemeIntegration() {
@@ -147,10 +162,25 @@ class DashboardMultiPage {
             }
         }
         
-        // Upload de arquivo
-        const fileInput = document.getElementById('fileInput');
-        if (fileInput) {
-            fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
+        // Upload de arquivo - botão único com detecção automática da API
+        const uploadButton = document.getElementById('uploadButton');
+        if (uploadButton) {
+            uploadButton.addEventListener('click', () => {
+                if (this.isFileSystemAccessSupported()) {
+                    this.handleFileSystemAccess();
+                } else {
+                    this.createFallbackFileInput();
+                }
+            });
+        }
+        
+        // Botão para limpar arquivo armazenado
+        const clearStoredBtn = document.getElementById('clearStoredBtn');
+        if (clearStoredBtn) {
+            clearStoredBtn.addEventListener('click', async () => {
+                await this.clearStoredFile();
+                await this.updateStoredFileIndicators();
+            });
         }
         
         // Search with automatic filtering
@@ -184,6 +214,12 @@ class DashboardMultiPage {
         const maxAgeInput = document.getElementById('maxAge');
         if (minAgeInput && maxAgeInput) {
             [minAgeInput, maxAgeInput].forEach(input => {
+                // Aplicar filtro automaticamente ao digitar
+                input.addEventListener('input', () => {
+                    this.applyAgeFilter();
+                });
+                
+                // Manter funcionalidade do Enter
                 input.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
                         this.applyAgeFilter();
@@ -523,6 +559,28 @@ class DashboardMultiPage {
             this.processData(data);
             this.updateLastUpdate();
             
+            // Tentar obter file handle se suportado
+            let fileHandle = null;
+            if ('showOpenFilePicker' in window && event.target.files) {
+                try {
+                    // Para arquivos selecionados via input, não temos file handle direto
+                    // Mas podemos salvar os dados de forma inteligente
+                    const success = await this.saveFileHandleToStorage(null, file.name, data, fileExtension);
+                    if (!success) {
+                        // Fallback para método tradicional
+                        this.saveFileToLocalStorage(file.name, data, fileExtension);
+                    }
+                } catch (error) {
+                    console.warn('Erro ao salvar com File System API, usando fallback:', error);
+                    this.saveFileToLocalStorage(file.name, data, fileExtension);
+                }
+            } else {
+                // Navegador não suporta File System Access API
+                this.saveFileToLocalStorage(file.name, data, fileExtension);
+            }
+            
+            await this.updateStoredFileIndicators();
+            
             if (statusElement) {
                 statusElement.className = 'upload-status success';
                 statusElement.innerHTML = `
@@ -549,6 +607,670 @@ class DashboardMultiPage {
         } finally {
             this.hideLoading();
         }
+    }
+
+    // Local Storage functions for auto-reload with File System Access API
+    async saveFileHandleToStorage(fileHandle, fileName, fileData, fileType) {
+        try {
+            // Verificar se o navegador suporta File System Access API
+            if (!('showOpenFilePicker' in window)) {
+                console.log('File System Access API não suportada, usando método tradicional');
+                return this.saveFileToLocalStorage(fileName, fileData, fileType);
+            }
+
+            const fileInfo = {
+                name: fileName,
+                type: fileType,
+                timestamp: Date.now(),
+                uploadDate: new Date().toISOString(),
+                size: fileData.length,
+                hasFileHandle: true
+            };
+            
+            // Salvar informações básicas no localStorage (sem os dados)
+            localStorage.setItem('lastUploadedFile', JSON.stringify(fileInfo));
+            
+            // Salvar file handle no IndexedDB (mais seguro que localStorage)
+            await this.saveFileHandleToIndexedDB(fileHandle, fileName);
+            
+            console.log(`File handle para ${fileName} salvo com sucesso`);
+            return true;
+        } catch (error) {
+            console.error('Erro ao salvar file handle:', error);
+            // Fallback para método tradicional
+            return this.saveFileToLocalStorage(fileName, fileData, fileType);
+        }
+    }
+
+    async saveFileHandleToIndexedDB(fileHandle, fileName) {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open('DashboardFiles', 1);
+            
+            request.onerror = () => reject(request.error);
+            
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('fileHandles')) {
+                    db.createObjectStore('fileHandles', { keyPath: 'id' });
+                }
+            };
+            
+            request.onsuccess = (event) => {
+                const db = event.target.result;
+                const transaction = db.transaction(['fileHandles'], 'readwrite');
+                const store = transaction.objectStore('fileHandles');
+                
+                const data = {
+                    id: 'lastFile',
+                    handle: fileHandle,
+                    fileName: fileName,
+                    timestamp: Date.now()
+                };
+                
+                const putRequest = store.put(data);
+                putRequest.onsuccess = () => resolve();
+                putRequest.onerror = () => reject(putRequest.error);
+            };
+        });
+    }
+
+    async getFileHandleFromIndexedDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open('DashboardFiles', 1);
+            
+            request.onerror = () => resolve(null);
+            
+            request.onsuccess = (event) => {
+                const db = event.target.result;
+                
+                if (!db.objectStoreNames.contains('fileHandles')) {
+                    resolve(null);
+                    return;
+                }
+                
+                const transaction = db.transaction(['fileHandles'], 'readonly');
+                const store = transaction.objectStore('fileHandles');
+                const getRequest = store.get('lastFile');
+                
+                getRequest.onsuccess = () => {
+                    resolve(getRequest.result || null);
+                };
+                getRequest.onerror = () => resolve(null);
+            };
+        });
+    }
+
+    createFallbackFileInput() {
+        // Criar input file temporário para navegadores sem suporte à File System Access API
+        const tempInput = document.createElement('input');
+        tempInput.type = 'file';
+        tempInput.accept = '.csv,.xlsx,.xls';
+        tempInput.style.display = 'none';
+        
+        tempInput.addEventListener('change', (e) => {
+            this.handleFileUpload(e);
+            // Remover o input temporário após uso
+            tempInput.remove();
+        });
+        
+        document.body.appendChild(tempInput);
+        tempInput.click();
+    }
+
+    showFileNotFoundError(fileName, statusElement) {
+        // Atualizar status element se disponível
+        if (statusElement) {
+            statusElement.className = 'upload-status error';
+            statusElement.innerHTML = `
+                <i class="bi bi-exclamation-triangle"></i>
+                <span class="file-info">✗ Arquivo não encontrado: ${fileName}</span>
+            `;
+        }
+
+        // Criar modal de erro mais detalhado
+        const errorModal = document.createElement('div');
+        errorModal.className = 'file-not-found-modal';
+        errorModal.innerHTML = `
+            <div class="modal-overlay" style="
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+                background: rgba(0,0,0,0.7); z-index: 10000; 
+                display: flex; align-items: center; justify-content: center;
+            ">
+                <div class="modal-content" style="
+                    background: var(--bg-secondary); 
+                    border-radius: 12px; 
+                    padding: 24px; 
+                    max-width: 500px; 
+                    margin: 20px;
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                ">
+                    <div class="error-header" style="text-align: center; margin-bottom: 20px;">
+                        <i class="bi bi-exclamation-triangle" style="
+                            font-size: 48px; 
+                            color: #dc3545; 
+                            display: block; 
+                            margin-bottom: 12px;
+                        "></i>
+                        <h3 style="color: var(--text-primary); margin: 0; font-size: 20px;">
+                            Arquivo não encontrado
+                        </h3>
+                    </div>
+                    
+                    <div class="error-body" style="margin-bottom: 24px; text-align: center;">
+                        <p style="color: var(--text-secondary); line-height: 1.5; margin: 0 0 16px 0;">
+                            O arquivo <strong>"${fileName}"</strong> não foi encontrado.
+                        </p>
+                        <p style="color: var(--text-secondary); line-height: 1.5; margin: 0; font-size: 14px;">
+                            Possíveis motivos:<br>
+                            • Arquivo foi movido para outra pasta<br>
+                            • Arquivo foi renomeado<br>
+                            • Arquivo foi excluído<br>
+                            • Dispositivo removível foi desconectado
+                        </p>
+                    </div>
+                    
+                    <div class="error-actions" style="
+                        display: flex; 
+                        gap: 12px; 
+                        justify-content: center;
+                        flex-wrap: wrap;
+                    ">
+                        <button class="btn-select-new" style="
+                            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 6px;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: all 0.2s ease;
+                        ">
+                            <i class="bi bi-folder2-open"></i>
+                            Selecionar Novo Arquivo
+                        </button>
+                        <button class="btn-cancel" style="
+                            background: var(--bg-tertiary);
+                            color: var(--text-secondary);
+                            border: 1px solid var(--border);
+                            padding: 10px 20px;
+                            border-radius: 6px;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: all 0.2s ease;
+                        ">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(errorModal);
+
+        // Event listeners para os botões
+        const selectNewBtn = errorModal.querySelector('.btn-select-new');
+        const cancelBtn = errorModal.querySelector('.btn-cancel');
+
+        selectNewBtn.addEventListener('click', () => {
+            errorModal.remove();
+            // Trigger do botão de upload
+            const uploadButton = document.getElementById('uploadButton');
+            if (uploadButton) {
+                uploadButton.click();
+            }
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            errorModal.remove();
+            this.showEmptyState();
+        });
+
+        // Fechar ao clicar no overlay
+        errorModal.querySelector('.modal-overlay').addEventListener('click', (e) => {
+            if (e.target === errorModal.querySelector('.modal-overlay')) {
+                errorModal.remove();
+                this.showEmptyState();
+            }
+        });
+
+        // Hover effects
+        selectNewBtn.addEventListener('mouseenter', () => {
+            selectNewBtn.style.transform = 'translateY(-2px)';
+            selectNewBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        });
+        selectNewBtn.addEventListener('mouseleave', () => {
+            selectNewBtn.style.transform = 'translateY(0)';
+            selectNewBtn.style.boxShadow = 'none';
+        });
+    }
+
+    isFileSystemAccessSupported() {
+        return 'showOpenFilePicker' in window;
+    }
+
+    addFileSystemIndicator() {
+        const uploadButton = document.getElementById('uploadButton');
+        if (!uploadButton) return;
+        
+        // Adicionar indicador visual de que File System API está disponível
+        const indicator = document.createElement('span');
+        indicator.className = 'fs-api-indicator';
+        indicator.title = 'File System Access API disponível - acesso direto aos arquivos';
+        indicator.innerHTML = '🔗';
+        uploadButton.appendChild(indicator);
+        
+        // Atualizar título do botão
+        uploadButton.title = 'Selecionar arquivo com acesso direto (File System API)';
+    }
+
+    async handleFileSystemAccess() {
+        try {
+            const fileHandles = await window.showOpenFilePicker({
+                types: [
+                    {
+                        description: 'Arquivos de dados',
+                        accept: {
+                            'text/csv': ['.csv'],
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+                            'application/vnd.ms-excel': ['.xls']
+                        }
+                    }
+                ],
+                multiple: false
+            });
+            
+            const fileHandle = fileHandles[0];
+            const file = await fileHandle.getFile();
+            
+            const statusElement = document.getElementById('uploadStatus');
+            if (statusElement) {
+                statusElement.className = 'upload-status loading';
+                statusElement.innerHTML = `
+                    <i class="bi bi-arrow-repeat"></i>
+                    <span class="file-info">Processando ${file.name}...</span>
+                `;
+            }
+
+            this.showLoading();
+            
+            let data = '';
+            const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+            
+            if (fileExtension === '.csv') {
+                data = await file.text();
+            } else {
+                data = await this.readExcelFileContent(file);
+            }
+            
+            // Processar dados
+            this.processData(data);
+            this.updateLastUpdate();
+            
+            // Salvar file handle
+            await this.saveFileHandleToStorage(fileHandle, file.name, data, fileExtension);
+            await this.updateStoredFileIndicators();
+            
+            if (statusElement) {
+                statusElement.className = 'upload-status success';
+                statusElement.innerHTML = `
+                    <i class="bi bi-check-circle"></i>
+                    <span class="file-info">✓ ${file.name} (acesso direto ativado)</span>
+                `;
+            }
+            
+        } catch (error) {
+            console.error('Erro no File System Access:', error);
+            
+            if (error.name === 'AbortError') {
+                console.log('Usuário cancelou a seleção');
+                return;
+            }
+            
+            const statusElement = document.getElementById('uploadStatus');
+            if (statusElement) {
+                statusElement.className = 'upload-status error';
+                statusElement.innerHTML = `
+                    <i class="bi bi-exclamation-circle"></i>
+                    <span class="file-info">✗ ${error.message}</span>
+                `;
+            }
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    saveFileToLocalStorage(fileName, fileData, fileType) {
+        try {
+            const fileInfo = {
+                name: fileName,
+                data: fileData,
+                type: fileType,
+                timestamp: Date.now(),
+                uploadDate: new Date().toISOString()
+            };
+            
+            // Armazenar apenas se o arquivo for menor que 5MB (limite aproximado do localStorage)
+            const dataSize = new Blob([JSON.stringify(fileInfo)]).size;
+            if (dataSize < 5 * 1024 * 1024) { // 5MB limit
+                localStorage.setItem('lastUploadedFile', JSON.stringify(fileInfo));
+                console.log(`Arquivo ${fileName} salvo no localStorage (${(dataSize / 1024).toFixed(1)}KB)`);
+                return true;
+            } else {
+                console.warn(`Arquivo ${fileName} muito grande para localStorage (${(dataSize / 1024 / 1024).toFixed(1)}MB)`);
+                return false;
+            }
+        } catch (error) {
+            console.error('Erro ao salvar arquivo no localStorage:', error);
+            return false;
+        }
+    }
+
+    async getLastFileFromStorage() {
+        try {
+            const storedData = localStorage.getItem('lastUploadedFile');
+            if (!storedData) return null;
+            
+            const fileInfo = JSON.parse(storedData);
+            
+            // Verificar se o arquivo não é muito antigo (7 dias)
+            const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 dias em ms
+            if (Date.now() - fileInfo.timestamp > maxAge) {
+                console.log('Arquivo no localStorage expirou (mais de 7 dias)');
+                this.clearStoredFile();
+                return null;
+            }
+            
+            // Se tem file handle, tentar recuperá-lo
+            if (fileInfo.hasFileHandle && ('showOpenFilePicker' in window)) {
+                const handleData = await this.getFileHandleFromIndexedDB();
+                if (handleData && handleData.handle) {
+                    fileInfo.fileHandle = handleData.handle;
+                    return fileInfo;
+                }
+            }
+            
+            // Fallback: se tem dados salvos no formato antigo
+            if (fileInfo.data) {
+                return fileInfo;
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('Erro ao recuperar arquivo do localStorage:', error);
+            return null;
+        }
+    }
+
+    async getLastFileFromLocalStorage() {
+        // Manter função original para compatibilidade
+        return await this.getLastFileFromStorage();
+    }
+
+    async clearStoredFile() {
+        try {
+            localStorage.removeItem('lastUploadedFile');
+            
+            // Limpar também o IndexedDB
+            try {
+                const request = indexedDB.open('DashboardFiles', 1);
+                request.onsuccess = (event) => {
+                    const db = event.target.result;
+                    if (db.objectStoreNames.contains('fileHandles')) {
+                        const transaction = db.transaction(['fileHandles'], 'readwrite');
+                        const store = transaction.objectStore('fileHandles');
+                        store.delete('lastFile');
+                    }
+                };
+            } catch (dbError) {
+                console.warn('Erro ao limpar IndexedDB:', dbError);
+            }
+            
+            console.log('Arquivo armazenado removido do localStorage e IndexedDB');
+            await this.updateStoredFileIndicators();
+        } catch (error) {
+            console.error('Erro ao remover arquivo do localStorage:', error);
+        }
+    }
+
+    async updateStoredFileIndicators() {
+        const storedFile = await this.getLastFileFromLocalStorage();
+        const indicator = document.getElementById('storedFileIndicator');
+        const clearBtn = document.getElementById('clearStoredBtn');
+        const uploadBtn = document.getElementById('uploadButton');
+        
+        if (storedFile && indicator && clearBtn && uploadBtn) {
+            // Mostrar indicadores
+            indicator.style.display = 'block';
+            clearBtn.style.display = 'block';
+            
+            // Atualizar tooltip do botão de upload
+            const uploadDate = new Date(storedFile.uploadDate).toLocaleString('pt-BR');
+            uploadBtn.title = `Carregar Dados (último: ${storedFile.name} em ${uploadDate})`;
+        } else if (indicator && clearBtn && uploadBtn) {
+            // Esconder indicadores
+            indicator.style.display = 'none';
+            clearBtn.style.display = 'none';
+            uploadBtn.title = 'Carregar Dados';
+        }
+    }
+
+    clearStoredFile() {
+    }
+
+    async tryAutoLoad() {
+        const lastFile = await this.getLastFileFromLocalStorage();
+        if (!lastFile) {
+            return false;
+        }
+
+        // Mostrar notificação para o usuário
+        this.showAutoLoadNotification(lastFile, () => this.performAutoLoad(lastFile));
+        return true;
+    }
+
+    showAutoLoadNotification(fileInfo, onConfirm) {
+        // Criar elemento de notificação
+        const notification = document.createElement('div');
+        notification.className = 'auto-load-notification';
+        notification.innerHTML = `
+            <div class="notification-content">
+                <div class="notification-header">
+                    <i class="bi bi-clock-history"></i>
+                    <span class="notification-title">Último arquivo encontrado</span>
+                </div>
+                <div class="notification-body">
+                    <p class="file-info">
+                        <strong>${fileInfo.name}</strong><br>
+                        <small>Carregado em ${new Date(fileInfo.uploadDate).toLocaleString('pt-BR')}</small>
+                    </p>
+                    <div class="notification-actions">
+                        <button class="btn btn-primary btn-sm" id="autoLoadYes">
+                            <i class="bi bi-upload"></i>
+                            Carregar Novamente
+                        </button>
+                        <button class="btn btn-secondary btn-sm" id="autoLoadNo">
+                            <i class="bi bi-x"></i>
+                            Carregar Novo Arquivo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Adicionar ao DOM
+        document.body.appendChild(notification);
+        
+        // Animar entrada
+        setTimeout(() => notification.classList.add('show'), 100);
+
+        // Event listeners
+        document.getElementById('autoLoadYes').addEventListener('click', () => {
+            onConfirm();
+            this.removeNotification(notification);
+        });
+
+        document.getElementById('autoLoadNo').addEventListener('click', () => {
+            this.clearStoredFile();
+            this.removeNotification(notification);
+        });
+
+        // Auto-dismiss após 10 segundos
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                this.removeNotification(notification);
+            }
+        }, 10000);
+    }
+
+    removeNotification(notification) {
+        notification.classList.add('hide');
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
+        }, 300);
+    }
+
+    async performAutoLoad(fileInfo) {
+        this.showLoading();
+        
+        try {
+            // Simular elemento de status
+            const statusElement = document.getElementById('uploadStatus');
+            if (statusElement) {
+                statusElement.className = 'upload-status loading';
+                statusElement.innerHTML = `
+                    <i class="bi bi-arrow-repeat"></i>
+                    <span class="file-info">Recarregando ${fileInfo.name}...</span>
+                `;
+            }
+
+            let fileData = null;
+            
+            // Tentar usar file handle se disponível
+            if (fileInfo.fileHandle) {
+                try {
+                    // Solicitar permissão para ler o arquivo
+                    const permissionStatus = await fileInfo.fileHandle.queryPermission({ mode: 'read' });
+                    
+                    if (permissionStatus !== 'granted') {
+                        const permission = await fileInfo.fileHandle.requestPermission({ mode: 'read' });
+                        if (permission !== 'granted') {
+                            throw new Error('Permissão negada pelo usuário');
+                        }
+                    }
+                    
+                    // Ler o arquivo atual
+                    const file = await fileInfo.fileHandle.getFile();
+                    
+                    // Verificar se é CSV ou Excel
+                    if (fileInfo.type === '.csv') {
+                        fileData = await file.text();
+                    } else {
+                        // Para Excel, usar a função existente
+                        fileData = await this.readExcelFileContent(file);
+                    }
+                    
+                    console.log(`Arquivo ${fileInfo.name} lido diretamente do sistema de arquivos`);
+                    
+                } catch (handleError) {
+                    console.warn('Erro ao usar file handle, tentando dados salvos:', handleError);
+                    
+                    // Verificar se é erro de arquivo não encontrado
+                    if (handleError.name === 'NotFoundError') {
+                        this.showFileNotFoundError(fileInfo.name, statusElement);
+                        await this.clearStoredFile();
+                        return;
+                    }
+                    
+                    if (handleError.message.includes('Permissão negada')) {
+                        if (statusElement) {
+                            statusElement.className = 'upload-status error';
+                            statusElement.innerHTML = `
+                                <i class="bi bi-exclamation-circle"></i>
+                                <span class="file-info">Permissão negada - Selecione o arquivo novamente</span>
+                            `;
+                        }
+                        await this.clearStoredFile();
+                        return;
+                    }
+                }
+            }
+            
+            // Fallback: usar dados salvos se não conseguiu ler via handle
+            if (!fileData && fileInfo.data) {
+                fileData = fileInfo.data;
+                console.log(`Usando dados salvos em cache para ${fileInfo.name}`);
+            }
+
+            // Validar se os dados são válidos
+            if (!fileData || fileData.trim().length === 0) {
+                throw new Error('Dados do arquivo inválidos ou arquivo vazio');
+            }
+
+            // Processar dados
+            this.processData(fileData);
+            this.updateLastUpdate();
+            
+            if (statusElement) {
+                const method = fileInfo.fileHandle ? 'arquivo atual' : 'cache';
+                statusElement.className = 'upload-status success';
+                statusElement.innerHTML = `
+                    <i class="bi bi-check-circle"></i>
+                    <span class="file-info">✓ ${fileInfo.name} (${method})</span>
+                `;
+            }
+            
+            console.log(`Arquivo ${fileInfo.name} recarregado com sucesso`);
+            
+        } catch (error) {
+            console.error('Erro no auto-carregamento:', error);
+            
+            const statusElement = document.getElementById('uploadStatus');
+            if (statusElement) {
+                statusElement.className = 'upload-status error';
+                statusElement.innerHTML = `
+                    <i class="bi bi-exclamation-circle"></i>
+                    <span class="file-info">✗ Erro ao recarregar ${fileInfo.name}</span>
+                `;
+            }
+            
+            // Limpar arquivo corrompido
+            this.clearStoredFile();
+            
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async readExcelFileContent(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const csvData = XLSX.utils.sheet_to_csv(worksheet);
+                    resolve(csvData);
+                } catch (error) {
+                    reject(error);
+                }
+            };
+            reader.onerror = () => reject(new Error('Erro ao ler arquivo Excel'));
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    showEmptyState() {
+        // Forçar atualização da interface para mostrar estado vazio
+        this.filteredServidores = [];
+        this.updateStats();
+        this.updateTable();
+        this.updateUrgencyChart();
+        
+        console.log('Sistema iniciado em estado vazio - aguardando upload de dados');
     }
 
     readFileAsText(file) {
@@ -902,27 +1624,18 @@ class DashboardMultiPage {
         const inicio = servidor.proximaLicencaInicio;
         const fim = servidor.proximaLicencaFim;
         
-        const inicioMonth = inicio.getMonth(); // 0-based
-        const fimMonth = fim.getMonth(); // 0-based
-        const inicioYear = inicio.getFullYear();
-        const fimYear = fim.getFullYear();
+        // Verificar todos os meses cobertos pela licença
+        const currentDate = new Date(inicio);
+        const endDate = new Date(fim);
         
-        // Se é o mesmo ano, verificar se o mês está entre início e fim (inclusive)
-        if (inicioYear === fimYear) {
-            return targetMonthIndex >= inicioMonth && targetMonthIndex <= fimMonth;
-        }
-        
-        // Se licença atravessa anos (ex: dezembro 2025 - fevereiro 2026)
-        // Precisamos verificar se o mês alvo está em qualquer um dos períodos
-        
-        // Para ano de início: mês alvo deve estar entre inicioMonth e dezembro
-        if (targetMonthIndex >= inicioMonth) {
-            return true;
-        }
-        
-        // Para ano de fim: mês alvo deve estar entre janeiro e fimMonth
-        if (targetMonthIndex <= fimMonth) {
-            return true;
+        while (currentDate <= endDate) {
+            if (currentDate.getMonth() === targetMonthIndex) {
+                return true;
+            }
+            
+            // Avançar para o próximo mês
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            currentDate.setDate(1); // Garantir que não há problemas com dias
         }
         
         return false;
@@ -934,7 +1647,7 @@ class DashboardMultiPage {
             servidor.nome,
             servidor.cargo,
             servidor.urgencia || servidor.nivelUrgencia // Para compatibilidade com ambos os tipos
-        ].filter(field => field); // Remove campos null/undefined
+        ].filter(field => field); // Removes null/undefined fields
         
         return searchableFields.some(field => 
             field && field.toLowerCase().includes(searchTerm)
@@ -2148,10 +2861,8 @@ class DashboardMultiPage {
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
                     const nomeServidor = btn.getAttribute('data-servidor-nome');
-                    const servidor = servidores.find(s => s.nome === nomeServidor);
-                    if (servidor) {
-                        this.showServidorDetails(servidor);
-                    }
+                    // Buscar TODOS os servidores com este nome e agregar licenças
+                    this.showServidorDetails(nomeServidor);
                 });
             });
         }, 100);
@@ -2800,6 +3511,30 @@ class DashboardMultiPage {
         if (!tbody) return;
 
         tbody.innerHTML = '';
+        
+        // Verificar se não há dados carregados
+        if (!this.allServidores || this.allServidores.length === 0) {
+            const emptyRow = document.createElement('tr');
+            emptyRow.innerHTML = `
+                <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                        <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.5;"></i>
+                        <div>
+                            <h4 style="margin: 0; color: var(--text-secondary);">Nenhum dado carregado</h4>
+                            <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem;">Faça upload de um arquivo CSV ou Excel para começar</p>
+                        </div>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(emptyRow);
+            
+            // Atualizar contador de resultados
+            const resultCount = document.getElementById('resultCount');
+            if (resultCount) {
+                resultCount.textContent = '0 resultados';
+            }
+            return;
+        }
 
         if (this.filteredServidores.length === 0) {
             const emptyRow = document.createElement('tr');
@@ -2855,17 +3590,80 @@ class DashboardMultiPage {
                 proximaLicencaTexto = dataLicenca.toLocaleDateString('pt-BR');
             }
             
-            if (isLicencaPremio) {
-                // Formato para tabela de licenças prêmio
-                let periodoLicenca = '--';
-                if (servidor.licencas && servidor.licencas.length > 0) {
-                    periodoLicenca = servidor.licencas[0].descricao || proximaLicencaTexto;
+            // Formatar período completo de licença - corrigido para períodos múltiplos
+            const formatarPeriodoLicenca = (servidor) => {
+                // Primeiro tentar usar os campos já processados
+                if (servidor.proximaLicencaInicio && servidor.proximaLicencaFim) {
+                    const inicio = new Date(servidor.proximaLicencaInicio);
+                    const fim = new Date(servidor.proximaLicencaFim);
+                    
+                    if (!isNaN(inicio.getTime()) && !isNaN(fim.getTime())) {
+                        const mesesAbrev = [
+                            'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
+                            'jul', 'ago', 'set', 'out', 'nov', 'dez'
+                        ];
+                        
+                        const diaInicio = inicio.getDate();
+                        const mesInicio = mesesAbrev[inicio.getMonth()];
+                        const anoInicio = inicio.getFullYear();
+                        
+                        const diaFim = fim.getDate();
+                        const mesFim = mesesAbrev[fim.getMonth()];
+                        const anoFim = fim.getFullYear();
+                        
+                        // Se é o mesmo ano
+                        if (anoInicio === anoFim) {
+                            return `${diaInicio}/${mesInicio} - ${diaFim}/${mesFim}/${anoInicio}`;
+                        }
+                        
+                        // Se atravessa anos
+                        return `${diaInicio}/${mesInicio}/${anoInicio} - ${diaFim}/${mesFim}/${anoFim}`;
+                    }
                 }
                 
+                // Fallback: usar array de licenças - pegar PRIMEIRA e ÚLTIMA para período completo
+                if (servidor.licencas && servidor.licencas.length > 0) {
+                    const primeiraLicenca = servidor.licencas[0];
+                    const ultimaLicenca = servidor.licencas[servidor.licencas.length - 1];
+                    
+                    if (primeiraLicenca.inicio && ultimaLicenca.fim) {
+                        const inicio = new Date(primeiraLicenca.inicio);
+                        const fim = new Date(ultimaLicenca.fim);
+                        
+                        if (!isNaN(inicio.getTime()) && !isNaN(fim.getTime())) {
+                            const mesesAbrev = [
+                                'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
+                                'jul', 'ago', 'set', 'out', 'nov', 'dez'
+                            ];
+                            
+                            const diaInicio = inicio.getDate();
+                            const mesInicio = mesesAbrev[inicio.getMonth()];
+                            const anoInicio = inicio.getFullYear();
+                            
+                            const diaFim = fim.getDate();
+                            const mesFim = mesesAbrev[fim.getMonth()];
+                            const anoFim = fim.getFullYear();
+                            
+                            if (anoInicio === anoFim) {
+                                return `${diaInicio}/${mesInicio} - ${diaFim}/${mesFim}/${anoInicio}`;
+                            }
+                            
+                            return `${diaInicio}/${mesInicio}/${anoInicio} - ${diaFim}/${mesFim}/${anoFim}`;
+                        }
+                    }
+                }
+                
+                return '--';
+            };
+            
+            const periodoLicencaCompleto = formatarPeriodoLicenca(servidor);
+            
+            if (isLicencaPremio) {
+                // Formato para tabela de licenças prêmio
                 row.innerHTML = `
                     <td><strong>${nomeEscapado}</strong></td>
                     <td><span class="cargo-badge">${cargoEscapado}</span></td>
-                    <td>${periodoLicenca}</td>
+                    <td>${periodoLicencaCompleto}</td>
                     <td class="actions">
                         <button class="btn-icon" data-servidor-nome="${nomeEscapado}" title="Ver detalhes">
                             <i class="bi bi-eye"></i>
@@ -2878,7 +3676,7 @@ class DashboardMultiPage {
                     <td><strong>${nomeEscapado}</strong></td>
                     <td>${servidor.idade}</td>
                     <td><span class="lotacao-badge">${lotacaoEscapada}</span></td>
-                    <td>${proximaLicencaTexto}</td>
+                    <td>${periodoLicencaCompleto}</td>
                     <td><span class="urgency-badge urgency-${servidor.nivelUrgencia.toLowerCase()}">${servidor.nivelUrgencia}</span></td>
                     <td class="actions">
                         <button class="btn-icon" data-servidor-nome="${nomeEscapado}" title="Ver detalhes">
@@ -2945,18 +3743,54 @@ class DashboardMultiPage {
     }
 
     showServidorDetails(nomeServidor) {
-        const servidor = this.allServidores.find(s => s.nome === nomeServidor);
-        if (!servidor) return;
+        // Agregar TODAS as licenças de servidores com o mesmo nome
+        const servidoresComMesmoNome = this.allServidores.filter(s => s.nome === nomeServidor);
+        if (!servidoresComMesmoNome || servidoresComMesmoNome.length === 0) return;
 
+        // Usar o primeiro servidor como base e agregar licenças de todos
+        const servidor = { ...servidoresComMesmoNome[0] };
+        
+        // Agregar todas as licenças de todos os servidores com este nome, removendo duplicatas
+        servidor.licencas = [];
+        const licencasUnicas = new Set(); // Para evitar duplicatas
+        const todosOsDadosOriginais = []; // Para coletar todos os dados originais
+        
+        servidoresComMesmoNome.forEach(s => {
+            // Coletar dados originais de cada entrada
+            if (s.dadosOriginais) {
+                todosOsDadosOriginais.push(s.dadosOriginais);
+            }
+            
+            if (s.licencas && s.licencas.length > 0) {
+                s.licencas.forEach(licenca => {
+                    // Criar uma chave única para a licença baseada nas datas
+                    const chave = `${licenca.inicio.getTime()}-${licenca.fim.getTime()}-${licenca.tipo}`;
+                    if (!licencasUnicas.has(chave)) {
+                        licencasUnicas.add(chave);
+                        servidor.licencas.push(licenca);
+                    }
+                });
+            }
+        });
+        
+        // Combinar todos os dados originais únicos
+        servidor.todosOsDadosOriginais = todosOsDadosOriginais;
+        
+        // Ordenar licenças por data de início
+        servidor.licencas.sort((a, b) => a.inicio - b.inicio);
+        
+        // Agrupar licenças por períodos contíguos
+        const periodosAgrupados = this.agruparLicencasPorPeriodos(servidor.licencas);
+        
+        // Recalcular estatísticas agregadas
+        servidor.licencasAgendadas = servidor.licencas.length;
+        
         // Detectar se é tabela de licenças prêmio
         const isLicencaPremio = servidor.tipoTabela === 'licenca-premio';
 
         // Informações Pessoais (sem repetir o nome)
         const personalInfoContent = `
-            <div class="info-grid">                
-                <div class="info-label">Cargo/Função:</div>
-                <div class="info-value">${this.escapeHtml(servidor.cargo || 'Não informado')}</div>
-                
+            <div class="info-grid">                     
                 ${servidor.idade ? `
                     <div class="info-label">Idade:</div>
                     <div class="info-value">${servidor.idade} anos</div>
@@ -2969,27 +3803,81 @@ class DashboardMultiPage {
             </div>
         `;
 
-        // Dados Originais (sem repetir o nome do servidor)
-        let originalDataContent = '<div class="info-grid">';
+        // Registros da Planilha (consolidar informações únicas)
+        let originalDataContent = '<div class="planilha-summary">';
         
-        if (servidor.dadosOriginais) {
-            Object.entries(servidor.dadosOriginais).forEach(([key, value]) => {
-                // Pular campos do nome do servidor para evitar repetição
-                if (key.toUpperCase() === 'SERVIDOR' || key.toUpperCase() === 'NOME') {
-                    return;
-                }
+        if (servidor.todosOsDadosOriginais && servidor.todosOsDadosOriginais.length > 0) {
+            console.log('📄 Consolidando dados da planilha:', servidor.todosOsDadosOriginais);
+            
+            // Consolidar informações únicas e períodos
+            const dadosConsolidados = new Map();
+            const periodos = [];
+            
+            servidor.todosOsDadosOriginais.forEach((dados) => {
+                // Coletar apenas dados não pessoais
+                Object.entries(dados).forEach(([key, value]) => {
+                    const keyUpper = key.toUpperCase();
+                    // Pular informações pessoais e desnecessárias
+                    if (!keyUpper.includes('SERVIDOR') && 
+                        !keyUpper.includes('NOME') &&
+                        !keyUpper.includes('CPF') &&
+                        !keyUpper.includes('MATRÍCULA') &&
+                        !keyUpper.includes('MATRICULA') &&
+                        !keyUpper.includes('INICIO') &&
+                        !keyUpper.includes('FINAL') &&
+                        value && value !== '' && value !== 'undefined' && value !== 'null') {
+                        dadosConsolidados.set(key, value);
+                    }
+                });
                 
-                if (value && value !== '' && value !== 'undefined' && value !== 'null') {
-                    originalDataContent += `
-                        <div class="info-label">${this.escapeHtml(key)}:</div>
-                        <div class="info-value">${this.escapeHtml(String(value))}</div>
-                    `;
+                // Coletar períodos únicos
+                const inicio = dados['INICIO DE LICENÇA PREMIO'];
+                const final = dados['FINAL DE LICENÇA PREMIO'];
+                if (inicio && final) {
+                    const periodoStr = `${inicio} - ${final}`;
+                    if (!periodos.includes(periodoStr)) {
+                        periodos.push(periodoStr);
+                    }
                 }
             });
+            
+            // Mostrar apenas se houver dados relevantes
+            if (dadosConsolidados.size > 0 || periodos.length > 0) {
+                originalDataContent += '<div class="planilha-info">';
+                dadosConsolidados.forEach((value, key) => {
+                    originalDataContent += `
+                        <div class="info-item">
+                            <span class="info-label">${this.escapeHtml(key)}</span>
+                            <span class="info-value">${this.escapeHtml(String(value))}</span>
+                        </div>
+                    `;
+                });
+                originalDataContent += '</div>';
+                
+                // Mostrar períodos solicitados se houver
+                if (periodos.length > 0) {
+                    originalDataContent += `
+                        <div class="periodos-solicitados">
+                            <div class="periodos-title">Períodos Solicitados</div>
+                            <div class="periodos-list">
+                    `;
+                    periodos.forEach(periodo => {
+                        originalDataContent += `<span class="periodo-tag">${this.escapeHtml(periodo)}</span>`;
+                    });
+                    originalDataContent += '</div></div>';
+                }
+            } else {
+                originalDataContent += `
+                    <div class="no-data">
+                        <span>Dados processados automaticamente</span>
+                    </div>
+                `;
+            }
         } else {
             originalDataContent += `
-                <div class="info-label">Status:</div>
-                <div class="info-value warning">Dados originais não disponíveis</div>
+                <div class="no-data">
+                    <span>Nenhum registro encontrado</span>
+                </div>
             `;
         }
         originalDataContent += '</div>';
@@ -3001,28 +3889,43 @@ class DashboardMultiPage {
         if (isLicencaPremio) {
             interpretationContent = '<div class="info-grid">';
             
-            if (servidor.licencas && servidor.licencas.length > 0) {
+            if (periodosAgrupados && periodosAgrupados.length > 0) {
                 interpretationContent += `
-                    <div class="info-label">Licenças Processadas:</div>
-                    <div class="info-value">${servidor.licencas.length} licença(s)</div>
+                    <div class="info-label">Períodos de Licença:</div>
+                    <div class="info-value">${periodosAgrupados.length} período(s) identificado(s)</div>
                 `;
                 
-                servidor.licencas.forEach((licenca, index) => {
-                    interpretationContent += `
-                        <div class="info-label">Licença ${index + 1}:</div>
-                        <div class="info-value">${this.formatDateRange(licenca.inicio, licenca.fim)}
-                            ${licenca.descricao ? `<br><small>${this.escapeHtml(licenca.descricao)}</small>` : ''}
+                // Criar seção visual para cada período
+                let periodosHtml = '<div class="periods-container">';
+                
+                periodosAgrupados.forEach((periodo, index) => {
+                    const formatoInicio = this.formatDateBR(periodo.inicio);
+                    const formatoFim = this.formatDateBR(periodo.fim);
+                    const totalLicencas = periodo.licencas.length;
+                    const licencaLabel = totalLicencas === 1 ? 'mês' : 'meses';
+                    
+                    periodosHtml += `
+                        <div class="period-card">
+                            <div class="period-header">
+                                <div class="period-title">
+                                    <i class="bi bi-calendar-range"></i>
+                                    Período ${index + 1}
+                                </div>
+                                <div class="period-count">${totalLicencas} ${licencaLabel}</div>
+                            </div>
+                            <div class="period-dates">
+                                <span class="date-range">${formatoInicio} - ${formatoFim}</span>
+                            </div>
+                            <div class="months-breakdown">
+                                ${this.gerarMesesPeriodo(periodo.licencas)}
+                            </div>
                         </div>
                     `;
-                    
-                    // Verificar possíveis problemas
-                    if (!licenca.inicio || !licenca.fim) {
-                        issues.push({
-                            title: `Licença ${index + 1} com data incompleta`,
-                            description: 'O sistema não conseguiu identificar corretamente as datas de início e/ou fim desta licença.'
-                        });
-                    }
                 });
+                
+                periodosHtml += '</div>';
+                interpretationContent += periodosHtml;
+                
             } else {
                 interpretationContent += `
                     <div class="info-label">Status:</div>
@@ -3178,6 +4081,148 @@ class DashboardMultiPage {
         return meses;
     }
 
+    // Agrupar licenças por períodos contíguos
+    agruparLicencasPorPeriodos(licencas) {
+        if (!licencas || licencas.length === 0) return [];
+
+        console.log('🔍 DEBUG: Iniciando agrupamento de licenças');
+        console.log('📋 Licenças a processar:', licencas.map(l => ({
+            periodo: `${l.inicio.toDateString()} - ${l.fim.toDateString()}`,
+            mes: l.inicio.getMonth() + 1,
+            ano: l.inicio.getFullYear()
+        })));
+
+        // Ordenar por data de início
+        const licencasOrdenadas = [...licencas].sort((a, b) => a.inicio - b.inicio);
+        
+        const periodos = [];
+        let periodoAtual = null;
+
+        for (let i = 0; i < licencasOrdenadas.length; i++) {
+            const licenca = licencasOrdenadas[i];
+            
+            console.log(`\n🔄 Processando licença ${i + 1}:`);
+            console.log('  📅 Data:', licenca.inicio.toDateString(), '-', licenca.fim.toDateString());
+            console.log('  📊 Mês/Ano:', licenca.inicio.getMonth() + 1, '/', licenca.inicio.getFullYear());
+            
+            if (!periodoAtual) {
+                // Primeiro período
+                periodoAtual = {
+                    inicio: licenca.inicio,
+                    fim: licenca.fim,
+                    licencas: [licenca],
+                    tipo: licenca.tipo
+                };
+                periodos.push(periodoAtual);
+                console.log('  🆕 Criando primeiro período');
+            } else {
+                // Verificar se é contíguo E do mesmo período original
+                const ultimaLicenca = periodoAtual.licencas[periodoAtual.licencas.length - 1];
+                
+                // Verificar se pertencem ao mesmo período original
+                const mesmoPeríodoOriginal = ultimaLicenca.periodoOriginalId === licenca.periodoOriginalId;
+                
+                // Calcular o primeiro dia do mês seguinte ao último período
+                const proximoMes = new Date(ultimaLicenca.fim);
+                proximoMes.setDate(1); // Primeiro dia do mês atual
+                proximoMes.setMonth(proximoMes.getMonth() + 1); // Próximo mês
+                
+                const licencaAtualInicio = new Date(licenca.inicio);
+                licencaAtualInicio.setDate(1); // Primeiro dia do mês da licença atual
+                
+                console.log('  🧮 Verificando contiguidade:');
+                console.log('    📍 Última licença fim:', ultimaLicenca.fim.toDateString());
+                console.log('    📍 Próximo mês esperado:', proximoMes.toDateString());
+                console.log('    📍 Licença atual início:', licenca.inicio.toDateString());
+                console.log('    📍 Primeiro dia do mês atual:', licencaAtualInicio.toDateString());
+                console.log('    🏷️  Mesmo período original:', mesmoPeríodoOriginal);
+                console.log('    🏷️  Período anterior:', ultimaLicenca.periodoOriginalId);
+                console.log('    🏷️  Período atual:', licenca.periodoOriginalId);
+                
+                const saoContiguos = proximoMes.getTime() === licencaAtualInicio.getTime();
+                const devemAgrupar = saoContiguos && mesmoPeríodoOriginal;
+                console.log('    🔗 São contíguos temporalmente?', saoContiguos);
+                console.log('    🔗 Devem agrupar (mesmo período original)?', devemAgrupar);
+                
+                if (devemAgrupar) {
+                    // Contíguo E mesmo período original - adicionar ao grupo atual
+                    console.log('  ✅ Estendendo período atual (contíguo + mesmo período original)');
+                    periodoAtual.fim = licenca.fim;
+                    periodoAtual.licencas.push(licenca);
+                } else {
+                    // Não contíguo OU período original diferente - finalizar grupo atual e iniciar novo
+                    const motivo = !saoContiguos ? 'não contíguo' : 'período original diferente';
+                    console.log(`  🔄 Criando novo período (${motivo})`);
+                    console.log(`    ⚠️  Separação: ${ultimaLicenca.fim.toDateString()} → ${licenca.inicio.toDateString()}`);
+                    
+                    periodoAtual = {
+                        inicio: licenca.inicio,
+                        fim: licenca.fim,
+                        licencas: [licenca],
+                        tipo: licenca.tipo
+                    };
+                    periodos.push(periodoAtual);
+                }
+            }
+        }
+
+        console.log(`\n🎯 Total de períodos criados: ${periodos.length}`);
+        periodos.forEach((p, i) => {
+            const duracao = this.calcularDuracaoMeses(p.inicio, p.fim);
+            console.log(`📊 Período ${i + 1}: ${p.inicio.toDateString()} - ${p.fim.toDateString()} (${p.licencas.length} licenças, ${duracao})`);
+        });
+
+        return periodos;
+    }
+
+    // Calcular duração em formato legível
+    calcularDuracaoMeses(inicio, fim) {
+        // Calcular diferença em meses de forma mais precisa
+        const anoInicio = inicio.getFullYear();
+        const mesInicio = inicio.getMonth();
+        const anoFim = fim.getFullYear();
+        const mesFim = fim.getMonth();
+        
+        let meses = (anoFim - anoInicio) * 12 + (mesFim - mesInicio) + 1; // +1 para incluir o mês atual
+        
+        console.log(`📊 Calculando duração: ${inicio.toDateString()} até ${fim.toDateString()}`);
+        console.log(`📊 Anos: ${anoInicio}-${anoFim}, Meses: ${mesInicio + 1}-${mesFim + 1}, Total: ${meses} meses`);
+        
+        if (meses === 1) {
+            return '1 mês';
+        } else if (meses < 12) {
+            return `${meses} meses`;
+        } else {
+            const anos = Math.floor(meses / 12);
+            const mesesRestantes = meses % 12;
+            return anos === 1 ? 
+                (mesesRestantes > 0 ? `1 ano e ${mesesRestantes} meses` : '1 ano') :
+                (mesesRestantes > 0 ? `${anos} anos e ${mesesRestantes} meses` : `${anos} anos`);
+        }
+    }
+
+    // Formatar data em português brasileiro
+    formatDateBR(data) {
+        const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun',
+                      'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+        
+        return `${data.getDate()}/${meses[data.getMonth()]}/${data.getFullYear()}`;
+    }
+
+    // Gerar breakdown dos meses do período
+    gerarMesesPeriodo(licencas) {
+        const mesesAbrev = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+                           'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        
+        const meses = licencas.map(licenca => {
+            const mes = mesesAbrev[licenca.inicio.getMonth()];
+            const ano = licenca.inicio.getFullYear();
+            return `<span class="month-tag">${mes}/${ano}</span>`;
+        });
+        
+        return meses.join(' ');
+    }
+
     formatDateRange(inicio, fim) {
         if (!inicio) return 'Data não disponível';
         
@@ -3201,6 +4246,29 @@ class DashboardMultiPage {
     // Organizar licenças por período para melhor visualização
     // Utility functions
     updateStats() {
+        // Verificar se há dados carregados
+        if (!this.allServidores || this.allServidores.length === 0) {
+            // Mostrar estado vazio
+            document.getElementById('totalServidores').textContent = '0';
+            const totalLicencasFuturasElement = document.getElementById('totalLicencasFuturas');
+            if (totalLicencasFuturasElement) {
+                totalLicencasFuturasElement.textContent = '0';
+            }
+            
+            // Limpar cards de estatísticas
+            const criticalCard = document.getElementById('criticalCount');
+            const highCard = document.getElementById('highCount');
+            const moderateCard = document.getElementById('moderateCount');
+            const errorCard = document.getElementById('errorCount');
+            
+            if (criticalCard) criticalCard.textContent = '0';
+            if (highCard) highCard.textContent = '0';
+            if (moderateCard) moderateCard.textContent = '0';
+            if (errorCard) errorCard.textContent = '0';
+            
+            return;
+        }
+        
         // Detectar tipo de tabela
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
         

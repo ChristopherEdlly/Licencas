@@ -163,7 +163,8 @@ class CronogramaParser {
             const finalMes = dados['FINAL DE LICENÇA PREMIO']?.trim();
             
             if (inicioMes && finalMes) {
-                const licencas = this.processarPeriodoLicencaPremioMultiplo(inicioMes, finalMes);
+                const periodoOriginalId = `${inicioMes}-${finalMes}`;
+                const licencas = this.processarPeriodoLicencaPremioMultiplo(inicioMes, finalMes, periodoOriginalId);
                 if (licencas && licencas.length > 0) {
                     servidor.licencas.push(...licencas);
                 }
@@ -177,14 +178,16 @@ class CronogramaParser {
             // Determinar próxima licença
             const proximaLicenca = this.obterProximaLicenca(servidor.licencas);
             
-            // Para licenças prêmio, se não há próxima licença futura, usar a primeira licença disponível
-            if (!proximaLicenca && servidor.licencas.length > 0) {
+            // Para licenças prêmio, SEMPRE usar o período COMPLETO (da primeira até a última licença)
+            // Não importa se são passadas ou futuras - mostrar sempre o período completo do CSV
+            if (servidor.licencas.length > 0) {
                 const primeiraLicenca = servidor.licencas[0];
+                const ultimaLicenca = servidor.licencas[servidor.licencas.length - 1];
                 servidor.proximaLicencaInicio = primeiraLicenca.inicio;
-                servidor.proximaLicencaFim = primeiraLicenca.fim;
+                servidor.proximaLicencaFim = ultimaLicenca.fim;
             } else {
-                servidor.proximaLicencaInicio = proximaLicenca?.inicio || null;
-                servidor.proximaLicencaFim = proximaLicenca?.fim || null;
+                servidor.proximaLicencaInicio = null;
+                servidor.proximaLicencaFim = null;
             }
             
             // Licenças prêmio não têm cálculo de urgência (removido)
@@ -697,23 +700,30 @@ class CronogramaParser {
             const agora = new Date();
             const anoAtual = agora.getFullYear();
             
-            const mesInicio = this.parseMesTexto(inicioMes);
-            const mesFinal = this.parseMesTexto(finalMes);
+            const inicioInfo = this.getMonthYearFromText(inicioMes);
+            const finalInfo = this.getMonthYearFromText(finalMes);
+            const mesInicio = inicioInfo?.month || null;
+            const mesFinal = finalInfo?.month || null;
             
             if (!mesInicio || !mesFinal) {
                 console.warn(`Meses inválidos: ${inicioMes} - ${finalMes}`);
                 return null;
             }
             
-            // Usar sempre o ano atual, não tentar adivinhar
-            let anoInicio = anoAtual;
-            let anoFinal = anoAtual;
-            
-            // Apenas se o período atravessa o ano (ex: novembro-fevereiro)
-            if (mesFinal < mesInicio) {
+            // Determinar anos base — se mês contém ano explícito, respeitar
+            let anoInicio = inicioInfo?.year ?? anoAtual;
+            let anoFinal = finalInfo?.year ?? anoInicio;
+
+            // Se não houver anos explícitos e final < inicio, atravessa ano
+            if (!inicioInfo?.year && !finalInfo?.year && mesFinal < mesInicio) {
                 anoFinal = anoInicio + 1;
             }
-            
+
+            // Se finalInfo contém ano e é menor que anoInicio, ajusta para próxima ocorrência
+            if (finalInfo?.year && finalInfo.year < anoInicio) {
+                anoFinal = finalInfo.year;
+            }
+
             const dataInicio = new Date(anoInicio, mesInicio - 1, 1);
             const dataFinal = new Date(anoFinal, mesFinal, 0); // Último dia do mês
             
@@ -749,15 +759,52 @@ class CronogramaParser {
         return null;
     }
 
+    // Tenta extrair mês e ano do texto, ex: "janeiro/2025" ou "jan/25" -> { month: 1, year: 2025 }
+    parseMesTextoComAno(mesTexto) {
+        if (!mesTexto) return null;
+        const mt = mesTexto.toString().toLowerCase().trim();
+
+        // Formato com barra: "janeiro/2025" ou "jan/2025" ou "jan/25"
+        const slashMatch = mt.match(/^([a-zçãéíóú\.]+)\/?\s*(\d{2,4})$/i);
+        if (slashMatch) {
+            const mesPart = slashMatch[1].replace('.', '').trim();
+            let anoPart = parseInt(slashMatch[2]);
+            if (anoPart < 100) anoPart = this.adjustYear(anoPart);
+
+            let mesNum = this.mesesCompletos[mesPart] || this.mesesAbrev[mesPart.substring(0,3)];
+            if (mesNum) return { month: mesNum, year: anoPart };
+        }
+
+        // Também aceita formatos como "janeiro de 2025"
+        const deMatch = mt.match(/^([a-zçãéíóú\.]+)\s+de\s+(\d{4})$/i);
+        if (deMatch) {
+            const mesPart = deMatch[1].replace('.', '').trim();
+            const anoPart = parseInt(deMatch[2]);
+            const mesNum = this.mesesCompletos[mesPart] || this.mesesAbrev[mesPart.substring(0,3)];
+            if (mesNum) return { month: mesNum, year: anoPart };
+        }
+
+        return null;
+    }
+
+    // Retorna objeto {month, year} onde year pode ser null se não especificado
+    getMonthYearFromText(mesTexto) {
+        const withYear = this.parseMesTextoComAno(mesTexto);
+        if (withYear) return withYear;
+        const mesOnly = this.parseMesTexto(mesTexto);
+        return mesOnly ? { month: mesOnly, year: null } : null;
+    }
+
     // Processar período de licença prêmio criando uma licença para cada mês
-    processarPeriodoLicencaPremioMultiplo(inicioMes, finalMes) {
+    processarPeriodoLicencaPremioMultiplo(inicioMes, finalMes, periodoOriginalId = null) {
         try {
             const agora = new Date();
             const anoAtual = agora.getFullYear();
-            const mesAtual = agora.getMonth(); // 0-based
             
-            const mesInicio = this.parseMesTexto(inicioMes);
-            const mesFinal = this.parseMesTexto(finalMes);
+            const inicioInfo = this.getMonthYearFromText(inicioMes);
+            const finalInfo = this.getMonthYearFromText(finalMes);
+            const mesInicio = inicioInfo?.month || null;
+            const mesFinal = finalInfo?.month || null;
             
             if (!mesInicio || !mesFinal) {
                 console.warn(`Meses inválidos: ${inicioMes} - ${finalMes}`);
@@ -765,57 +812,38 @@ class CronogramaParser {
             }
             
             const licencas = [];
-            
-            // Para licenças prêmio sem ano especificado, usar sempre o ano atual
-            // Não assumir se são dados passados ou futuros - deixar como estão
-            let anoBase = anoAtual;
-            
-            // Criar uma licença para cada mês no período
-            let mesCorrente = mesInicio;
-            let anoCorrente = anoBase;
-            
-            // Caso especial: período atravessa o ano (ex: novembro-fevereiro)
-            const atravessaAno = mesFinal < mesInicio;
-            
-            do {
-                const dataInicio = new Date(anoCorrente, mesCorrente - 1, 1);
-                const dataFinal = new Date(anoCorrente, mesCorrente, 0); // Último dia do mês
-                
+
+            // Determinar data inicial e final (início do mês) respeitando anos explícitos
+            const anoInicio = inicioInfo?.year ?? anoAtual;
+            let start = new Date(anoInicio, mesInicio - 1, 1);
+
+            const anoFinalPossivel = finalInfo?.year ?? start.getFullYear();
+            let end = new Date(anoFinalPossivel, mesFinal - 1, 1);
+
+            // Se nenhum ano informado e final menor que início => atravessa ano
+            if (!inicioInfo?.year && !finalInfo?.year && (end < start)) {
+                end = new Date(start.getFullYear() + 1, mesFinal - 1, 1);
+            }
+
+            // Se finalInfo.year está presente e é menor que start year, assumir que final pertence ao próximo ciclo
+            if (finalInfo?.year && finalInfo.year < start.getFullYear()) {
+                end = new Date(finalInfo.year, mesFinal - 1, 1);
+            }
+
+            // Iterar mês a mês entre start e end (inclusive)
+            for (let cursor = new Date(start); cursor <= end; cursor = this.adicionarMeses(cursor, 1)) {
+                const inicioMesData = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+                const fimMesData = this.calcularFimLicenca(inicioMesData);
+
                 licencas.push({
-                    inicio: dataInicio,
-                    fim: dataFinal,
+                    inicio: inicioMesData,
+                    fim: fimMesData,
                     tipo: 'licenca-premio',
-                    descricao: `${this.obterNomeMes(mesCorrente)} de ${anoCorrente}`
+                    descricao: `${this.obterNomeMes(inicioMesData.getMonth() + 1)} de ${inicioMesData.getFullYear()}`,
+                    periodoOriginalId: periodoOriginalId || `${inicioMes}-${finalMes}`
                 });
-                
-                mesCorrente++;
-                
-                // Se chegou ao final do ano, vai para o próximo ano
-                if (mesCorrente > 12) {
-                    mesCorrente = 1;
-                    anoCorrente++;
-                }
-                
-                // Condições de parada
-                if (atravessaAno) {
-                    // Para períodos que atravessam o ano, para quando chegar no mês final do próximo ano
-                    if (mesCorrente > mesFinal && anoCorrente > anoBase) {
-                        break;
-                    }
-                } else {
-                    // Para períodos normais, para quando chegar no mês final do mesmo ano
-                    if (mesCorrente > mesFinal) {
-                        break;
-                    }
-                }
-                
-                // Proteção contra loop infinito - máximo 12 meses
-                if (licencas.length >= 12) {
-                    break;
-                }
-                
-            } while (true);
-            
+            }
+
             return licencas;
             
         } catch (error) {
@@ -888,4 +916,25 @@ class CronogramaParser {
 
 // Exportar para uso global
 window.CronogramaParser = CronogramaParser;
+}
+
+// Debug test (executa somente se explicitamente habilitado)
+try {
+    if (typeof window !== 'undefined' && window.__CRONOGRAMA_DEBUG) {
+        const parser = new CronogramaParser();
+        const exemplo = 'Josivania Maria Santos,Of. Administrativo,Janeiro/2025,fevereiro/2026';
+        console.log('\n[CRONOGRAMA DEBUG] Processando exemplo:', exemplo);
+
+        // Simular parse de período prêmio
+        const partes = exemplo.split(',');
+        const inicio = partes[2];
+        const fim = partes[3];
+        const result = parser.processarPeriodoLicencaPremio(inicio, fim);
+        console.log('[CRONOGRAMA DEBUG] Resultado:', result && {
+            inicio: result.inicio?.toISOString().split('T')[0],
+            fim: result.fim?.toISOString().split('T')[0]
+        });
+    }
+} catch (e) {
+    console.error('Erro no debug do parser:', e);
 }
