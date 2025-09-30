@@ -11,11 +11,61 @@ class CronogramaParser {
             'janeiro': 1, 'fevereiro': 2, 'março': 3, 'abril': 4, 'maio': 5, 'junho': 6,
             'julho': 7, 'agosto': 8, 'setembro': 9, 'outubro': 10, 'novembro': 11, 'dezembro': 12
         };
+        
+    // Suporte focado em PT-BR; mapeamentos em inglês removidos para reduzir comentários de desenvolvimento
+    // Flag de debug (false por padrão) — chame `parser.setDebug(true)` para habilitar logs locais
+    this.debug = false;
+    }
+
+    // Habilitar/Desabilitar debug de logs do parser
+    setDebug(flag) {
+        this.debug = !!flag;
+    }
+
+    // Normaliza um nome de mês (remove acentos, pontuação e espaços extras)
+    normalizeMonthKey(raw) {
+        if (!raw) return '';
+        return raw.toString().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z]/g, '').trim();
+    }
+
+    // Normaliza chaves/headers para comparação (remove acentos, transforma em maiúsculas e trim)
+    normalizeKey(key) {
+        if (!key) return '';
+        return key.toString().normalize('NFD').replace(/\p{Diacritic}/gu, '').toUpperCase().trim();
+    }
+
+    // Localiza um campo no objeto `dados` ignorando maiúsculas e acentos; aceita um nome único ou um array de alternativas
+    getField(dados, names) {
+        if (!dados || !names) return '';
+        const keys = Object.keys(dados || {});
+        const normalizedMap = new Map();
+        keys.forEach(k => normalizedMap.set(this.normalizeKey(k), k));
+
+        const tryNames = Array.isArray(names) ? names : [names];
+        for (const name of tryNames) {
+            const nk = this.normalizeKey(name);
+            if (normalizedMap.has(nk)) {
+                const originalKey = normalizedMap.get(nk);
+                return dados[originalKey] || '';
+            }
+        }
+
+    // Se não encontrado, tentar correspondência aproximada verificando se algum cabeçalho normalizado contém o nome normalizado
+        for (const name of tryNames) {
+            const nk = this.normalizeKey(name);
+            for (const [normKey, origKey] of normalizedMap.entries()) {
+                if (normKey.includes(nk) || nk.includes(normKey)) {
+                    return dados[origKey] || '';
+                }
+            }
+        }
+
+        return '';
     }
 
     // Função principal para processar dados do CSV
     processarDadosCSV(csvData) {
-        console.log('Processando dados CSV:', csvData);
+    // Processando dados CSV (logs removidos para produção)
         
         const linhas = csvData.split('\n');
         const headers = linhas[0].split(',').map(h => h.trim());
@@ -44,7 +94,7 @@ class CronogramaParser {
             }
         }
         
-        console.log('Servidores processados:', servidores);
+    // Servidores processados (logs removidos para produção)
         return servidores;
     }
 
@@ -88,17 +138,17 @@ class CronogramaParser {
     processarServidor(dados) {
         try {
             const servidor = {
-                nome: dados.SERVIDOR?.trim() || 'Nome não informado',
-                cpf: dados.CPF?.trim() || '',
-                idade: this.extrairIdade(dados.IDADE),
-                sexo: dados.SEXO?.trim() || '',
-                admissao: this.parseDate(dados.ADMISSÃO),
-                meses: parseInt(dados.MESES) || 0,
-                lotacao: dados.LOTAÇÃO?.trim() || '',
-                superintendencia: dados.SUPERINTENDENCIA?.trim() || '',
-                subsecretaria: dados.SUBSECRETARIA?.trim() || '',
-                cargo: dados.CARGO?.trim() || '',
-                cronograma: dados.CRONOGRAMA?.trim() || '',
+                nome: this.getField(dados, ['SERVIDOR', 'NOME'])?.trim() || 'Nome não informado',
+                cpf: this.getField(dados, ['CPF'])?.trim() || '',
+                idade: this.extrairIdade(this.getField(dados, ['IDADE'])),
+                sexo: this.getField(dados, ['SEXO'])?.trim() || '',
+                admissao: this.parseDate(this.getField(dados, ['ADMISSAO', 'ADMISSÃO'])),
+                meses: parseInt(this.getField(dados, ['MESES'])) || 0,
+                lotacao: this.getField(dados, ['LOTACAO', 'LOTAÇÃO'])?.trim() || '',
+                superintendencia: this.getField(dados, ['SUPERINTENDENCIA', 'SUPERINTENDÊNCIA'])?.trim() || '',
+                subsecretaria: this.getField(dados, ['SUBSECRETARIA'])?.trim() || '',
+                cargo: this.getField(dados, ['CARGO'])?.trim() || '',
+                cronograma: this.getField(dados, ['CRONOGRAMA', 'CRONOGRAMA DE LICENCA'])?.trim() || '',
                 licensas: [],
                 nivelUrgencia: 'Baixo',
                 tipoTabela: 'cronograma',
@@ -159,8 +209,8 @@ class CronogramaParser {
             };
 
             // Processar período de licença
-            const inicioMes = dados['INICIO DE LICENÇA PREMIO']?.trim();
-            const finalMes = dados['FINAL DE LICENÇA PREMIO']?.trim();
+            const inicioMes = this.getField(dados, ['INICIO DE LICENCA PREMIO', 'INICIO DE LICENÇA PREMIO', 'INICIO'])?.trim();
+            const finalMes = this.getField(dados, ['FINAL DE LICENCA PREMIO', 'FINAL DE LICENÇA PREMIO', 'FINAL'])?.trim();
             
             if (inicioMes && finalMes) {
                 const periodoOriginalId = `${inicioMes}-${finalMes}`;
@@ -202,46 +252,54 @@ class CronogramaParser {
 
     extrairIdade(idadeStr) {
         if (!idadeStr) return 0;
-        
         // Remove aspas, espaços e converte vírgula decimal para ponto
         const cleaned = idadeStr.toString().replace(/['"]/g, '').replace(',', '.').trim();
         const idade = parseFloat(cleaned);
         return isNaN(idade) ? 0 : Math.floor(idade);
     }
 
+    // Parse de datas genérico e validado. Retorna Date ou null se inválida.
     parseDate(dateStr) {
-        if (!dateStr || dateStr.trim() === '') return null;
-        
-        try {
-            // Remove aspas e espaços
-            const cleaned = dateStr.replace(/['"]/g, '').trim();
-            
-            // Tenta vários formatos de data
-            const formats = [
-                /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,  // DD/MM/AAAA ou D/M/AAAA
-                /^(\d{4})-(\d{2})-(\d{2})$/,        // AAAA-MM-DD
-            ];
-            
-            for (const format of formats) {
-                const match = cleaned.match(format);
-                if (match) {
-                    if (format.toString().includes('4})-')) {
-                        // Formato ISO AAAA-MM-DD
-                        return new Date(match[1], match[2] - 1, match[3]);
-                    } else {
-                        // Formato brasileiro DD/MM/AAAA
-                        return new Date(match[3], match[2] - 1, match[1]);
-                    }
-                }
-            }
-            
-            // Fallback: tentar Date parse direto
-            const parsed = new Date(cleaned);
-            return isNaN(parsed.getTime()) ? null : parsed;
-        } catch (error) {
-            console.warn('Erro ao processar data:', dateStr, error);
-            return null;
+        if (!dateStr || dateStr.toString().trim() === '') return null;
+
+        const cleaned = dateStr.toString().replace(/['"]/g, '').trim();
+
+        const isValidDateParts = (y, m, d) => {
+            if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return false;
+            if (m < 1 || m > 12) return false;
+            const daysInMonth = new Date(y, m, 0).getDate();
+            if (d < 1 || d > daysInMonth) return false;
+            return true;
+        };
+
+        // DD/MM/YYYY
+        const brMatch = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (brMatch) {
+            const dia = parseInt(brMatch[1], 10);
+            const mes = parseInt(brMatch[2], 10);
+            const ano = parseInt(brMatch[3], 10);
+            if (!isValidDateParts(ano, mes, dia)) return null;
+            return new Date(ano, mes - 1, dia);
         }
+
+        // ISO YYYY-MM-DD
+        const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (isoMatch) {
+            const ano = parseInt(isoMatch[1], 10);
+            const mes = parseInt(isoMatch[2], 10);
+            const dia = parseInt(isoMatch[3], 10);
+            if (!isValidDateParts(ano, mes, dia)) return null;
+            return new Date(ano, mes - 1, dia);
+        }
+
+        // Tentar parse genérico e validar
+        const parsed = new Date(cleaned);
+        if (isNaN(parsed.getTime())) return null;
+        const pY = parsed.getFullYear();
+        const pM = parsed.getMonth() + 1;
+        const pD = parsed.getDate();
+        if (!isValidDateParts(pY, pM, pD)) return null;
+        return parsed;
     }
 
     parseCronograma(cronograma) {
@@ -250,7 +308,7 @@ class CronogramaParser {
         const licencas = [];
         const texto = cronograma.toLowerCase().trim();
         
-        console.log('CRONOGRAMA:', cronograma);
+    // CRONOGRAMA (logs de debug removidos por padrão)
 
         // Verificar padrões ambíguos ou impossíveis de parsear
         // APENAS casos realmente impossíveis sem informação de ano
@@ -258,14 +316,9 @@ class CronogramaParser {
             /um\s+m[êe]s\s*\([^)]*\)\s*a\s*cada\s*ano(?!\s*,\s*a\s*partir\s+de)(?!.*\d{4})/i, // Só ambíguo se não tiver ano em lugar nenhum
         ];
         
-        for (const padrao of padroesAmbiguos) {
+            for (const padrao of padroesAmbiguos) {
             if (padrao.test(texto)) {
-                console.log(JSON.stringify({
-                    status: "ERRO",
-                    original: cronograma,
-                    motivo: "Cronograma ambíguo - não é possível determinar o ano de início",
-                    interpretado: []
-                }, null, 2));
+                // Cronograma ambíguo detectado — retorna array vazio para indicar erro de interpretação
                 return []; // Retorna array vazio para indicar erro
             }
         }
@@ -619,8 +672,10 @@ class CronogramaParser {
                 tipo: licenca.tipo
             }))
         };
-        
-        console.log(JSON.stringify(result, null, 2));
+        // Resultado do cronograma interpretado — emite no console somente quando debug estiver habilitado
+        if (this.debug && typeof console !== 'undefined' && console.debug) {
+            console.debug('Cronograma interpretado:', result);
+        }
     }    getTipoIcon(tipo) {
         const icons = {
             'consecutiva': '📅',
@@ -633,15 +688,31 @@ class CronogramaParser {
 
     parseDataCronograma(dataStr) {
         try {
-            const [dia, mes, ano] = dataStr.split('/');
-            let anoCompleto = parseInt(ano);
-            
-            // Ajustar ano de 2 dígitos
-            if (anoCompleto < 100) {
-                anoCompleto += anoCompleto > 50 ? 1900 : 2000;
+            if (!dataStr || dataStr.toString().trim() === '') return null;
+            const parts = dataStr.toString().split('/').map(p => p.trim());
+            if (parts.length < 2) return null;
+
+            const dia = parseInt(parts[0], 10);
+            const mes = parseInt(parts[1], 10);
+            let ano = parts[2] ? parseInt(parts[2], 10) : null;
+
+            // Ajustar ano de 2 d edgitos quando presente
+            if (ano !== null && !isNaN(ano) && ano < 100) {
+                ano = ano > 50 ? 1900 + ano : 2000 + ano;
             }
-            
-            return new Date(anoCompleto, parseInt(mes) - 1, parseInt(dia));
+
+            // If year missing, infer a sane year (use current year)
+            if (ano === null || isNaN(ano)) {
+                ano = new Date().getFullYear();
+            }
+
+            // Valida e7 e3o de componentes
+            if (!Number.isFinite(dia) || !Number.isFinite(mes) || !Number.isFinite(ano)) return null;
+            if (mes < 1 || mes > 12) return null;
+            const daysInMonth = new Date(ano, mes, 0).getDate();
+            if (dia < 1 || dia > daysInMonth) return null;
+
+            return new Date(ano, mes - 1, dia);
         } catch (error) {
             console.error('Erro ao fazer parse da data do cronograma:', dataStr, error);
             return null;
@@ -683,15 +754,117 @@ class CronogramaParser {
     }
 
     calcularNivelUrgencia(servidor) {
-        if (!servidor.proximaLicencaInicio) return 'Baixo';
-        
-        const agora = new Date();
-        const diasAteProxima = Math.ceil((servidor.proximaLicencaInicio - agora) / (1000 * 60 * 60 * 24));
-        
-        if (diasAteProxima <= 30) return 'Crítico';
-        if (diasAteProxima <= 90) return 'Alto';
-        if (diasAteProxima <= 180) return 'Moderado';
-        return 'Baixo';
+        try {
+            // Parâmetros / constantes (padronizados conforme sua proposta)
+            const PontosMinimosHomem = 102;
+            const PontosMinimosMulher = 92;
+            const IdadeMinimaHomem = 63;
+            const IdadeMinimaMulher = 58;
+            const IdadeCompulsoria = 75;
+            const MargemDeSegurancaEmAnos = 2;
+            const MargemDeSegurancaEmMeses = MargemDeSegurancaEmAnos * 12;
+
+            const agora = new Date();
+
+            // Idade atual (preferir campo já extraído, senão tentar a partir de dadosOriginais.DN)
+            let IdadeAtual = servidor.idade || 0;
+
+            // Tempo de serviço em anos (inteiro)
+            let TempoDeServico = 0;
+            if (servidor.admissao) {
+                const adm = new Date(servidor.admissao);
+                TempoDeServico = agora.getFullYear() - adm.getFullYear();
+                // Ajuste por mês/dia para aproximar anos completos
+                const admMonth = adm.getMonth();
+                const admDay = adm.getDate();
+                if (agora.getMonth() < admMonth || (agora.getMonth() === admMonth && agora.getDate() < admDay)) {
+                    TempoDeServico -= 1;
+                }
+                if (TempoDeServico < 0) TempoDeServico = 0;
+            }
+
+            const PontosAtuais = IdadeAtual + TempoDeServico;
+
+            // Total de licenças adquiridas (meses) e quantas já estão agendadas
+            const totalAdquiridas = Number(servidor.totalLicencasAdquiridas || servidor.meses || 0);
+            const agendadas = Number(servidor.licencasAgendadas || 0);
+
+            // Licenças restantes reais (meses)
+            const LicencasRestantes = Math.max(0, totalAdquiridas - agendadas);
+
+            // Licenças não agendadas — interpretar como LicencasRestantes (disponível para agendamento)
+            const LicencasNaoAgendadas = LicencasRestantes;
+
+            // Meses restantes até a compulsória — preferir Data de Nascimento (DN) se disponível
+            let TemDataNasc = false;
+            let DataCompulsoria = null;
+            if (servidor.dadosOriginais && servidor.dadosOriginais.DN) {
+                // tentar parse com parseDataCronograma (aceita DD/MM/YY(YY)) ou parseDate
+                const dnRaw = servidor.dadosOriginais.DN.toString().trim();
+                let dn = this.parseDataCronograma(dnRaw);
+                if (!dn) {
+                    dn = this.parseDate(dnRaw);
+                }
+                if (dn) {
+                    TemDataNasc = true;
+                    DataCompulsoria = new Date(dn.getFullYear() + IdadeCompulsoria, dn.getMonth(), dn.getDate());
+                }
+            }
+
+            let MesesRestantesPossiveis = 0;
+            if (TemDataNasc && DataCompulsoria) {
+                // calcular meses entre agora e DataCompulsoria
+                const years = DataCompulsoria.getFullYear() - agora.getFullYear();
+                const months = DataCompulsoria.getMonth() - agora.getMonth();
+                let totalMonths = years * 12 + months;
+                // ajustar pelo dia do mês
+                if (DataCompulsoria.getDate() < agora.getDate()) totalMonths -= 1;
+                MesesRestantesPossiveis = Math.max(0, totalMonths);
+            } else {
+                MesesRestantesPossiveis = Math.max(0, (IdadeCompulsoria - IdadeAtual) * 12);
+            }
+
+            const MesesNecessariosParaLicencas = LicencasRestantes;
+            const FolgaEmMeses = MesesRestantesPossiveis - MesesNecessariosParaLicencas;
+
+            // Elegibilidade para aposentadoria voluntária (pontos e idade mínima)
+            const sexo = (servidor.sexo || '').toString().toLowerCase();
+            const AtingiuPontos = (sexo === 'f' || sexo === 'fem' || sexo === 'fem.')
+                ? PontosAtuais >= PontosMinimosMulher
+                : PontosAtuais >= PontosMinimosHomem;
+
+            const AtingiuIdadeMinima = (sexo === 'f' || sexo === 'fem' || sexo === 'fem.')
+                ? IdadeAtual >= IdadeMinimaMulher
+                : IdadeAtual >= IdadeMinimaHomem;
+
+            // Ajuste da regra: exigir ambas ou qualquer uma (padrão: exigir ambas)
+            const ExigeAmbasRegras = true;
+            const PodeAposentarAgora = ExigeAmbasRegras ? (AtingiuPontos && AtingiuIdadeMinima) : (AtingiuPontos || AtingiuIdadeMinima);
+
+            // Lógica de níveis (seguindo a estrutura proposta)
+            // Crítico
+            if ((PodeAposentarAgora && LicencasRestantes > 0)
+                || (MesesNecessariosParaLicencas > MesesRestantesPossiveis)
+                || (FolgaEmMeses <= MargemDeSegurancaEmMeses)) {
+                return 'Crítico';
+            }
+
+            // Alto: folga pequena (até 2x a margem)
+            if (FolgaEmMeses <= MargemDeSegurancaEmMeses * 2) {
+                return 'Alto';
+            }
+
+            // Moderado: pendências de agendamento/organização
+            if (LicencasNaoAgendadas > 0) {
+                return 'Moderado';
+            }
+
+            // Baixo (padrão)
+            return 'Baixo';
+        } catch (e) {
+            console.error('Erro ao calcular nível de urgência:', e);
+            return 'Baixo';
+        }
     }
 
     // Processar período de licença prêmio (formato mês inicial - mês final)
@@ -742,45 +915,54 @@ class CronogramaParser {
     // Converter texto do mês para número
     parseMesTexto(mesTexto) {
         if (!mesTexto) return null;
-        
-        const mesLimpo = mesTexto.toLowerCase().trim();
-        
-        // Verificar meses completos
-        if (this.mesesCompletos[mesLimpo]) {
-            return this.mesesCompletos[mesLimpo];
-        }
-        
-        // Verificar abreviações
-        const mesAbrev = mesLimpo.substring(0, 3);
-        if (this.mesesAbrev[mesAbrev]) {
-            return this.mesesAbrev[mesAbrev];
-        }
-        
+        const key = this.normalizeMonthKey(mesTexto);
+
+        // Checar mapeamentos PT
+        if (this.mesesCompletos[key]) return this.mesesCompletos[key];
+        const abrev = key.substring(0,3);
+        if (this.mesesAbrev[abrev]) return this.mesesAbrev[abrev];
+
+    // Limitar suporte a PT-BR para evitar dependências de desenvolvimento
+
         return null;
     }
 
     // Tenta extrair mês e ano do texto, ex: "janeiro/2025" ou "jan/25" -> { month: 1, year: 2025 }
     parseMesTextoComAno(mesTexto) {
         if (!mesTexto) return null;
-        const mt = mesTexto.toString().toLowerCase().trim();
+        // Normalizar espaços em volta de '/', remover pontos finais
+        let mt = mesTexto.toString().toLowerCase().trim();
+        mt = mt.replace(/\s*\/\s*/, '/').replace(/\.+$/, '').trim();
 
-        // Formato com barra: "janeiro/2025" ou "jan/2025" ou "jan/25"
-        const slashMatch = mt.match(/^([a-zçãéíóú\.]+)\/?\s*(\d{2,4})$/i);
-        if (slashMatch) {
-            const mesPart = slashMatch[1].replace('.', '').trim();
+        // Formato com barra, aceitando espaços originalmente presentes: "janeiro/2025" ou "jan/2025" ou "jan/25" ou "outubro/2026"
+        const slashMatch = mt.match(/^([a-zçãéíóú\.\s]+)\/(\d{2,4})$/i);
+            if (slashMatch) {
+            let mesPart = slashMatch[1].replace('.', '').trim();
             let anoPart = parseInt(slashMatch[2]);
             if (anoPart < 100) anoPart = this.adjustYear(anoPart);
 
-            let mesNum = this.mesesCompletos[mesPart] || this.mesesAbrev[mesPart.substring(0,3)];
+            const key = this.normalizeMonthKey(mesPart);
+                let mesNum = this.mesesCompletos[key] || this.mesesAbrev[key.substring(0,3)];
             if (mesNum) return { month: mesNum, year: anoPart };
         }
 
-        // Também aceita formatos como "janeiro de 2025"
-        const deMatch = mt.match(/^([a-zçãéíóú\.]+)\s+de\s+(\d{4})$/i);
+        // Formato "mês de 2025" ou "month 2025" (espaço ano)
+        const deMatch = mt.match(/^([a-zçãéíóú\.\s]+)\s+de\s+(\d{4})$/i);
         if (deMatch) {
-            const mesPart = deMatch[1].replace('.', '').trim();
+            let mesPart = deMatch[1].replace('.', '').trim();
             const anoPart = parseInt(deMatch[2]);
-            const mesNum = this.mesesCompletos[mesPart] || this.mesesAbrev[mesPart.substring(0,3)];
+            const key = this.normalizeMonthKey(mesPart);
+            let mesNum = this.mesesCompletos[key] || this.mesesAbrev[key.substring(0,3)];
+            if (mesNum) return { month: mesNum, year: anoPart };
+        }
+
+        // Também aceitar formato "outubro 2026" (sem 'de')
+        const spaceYearMatch = mt.match(/^([a-zçãéíóú\.\s]+)\s+(\d{4})$/i);
+        if (spaceYearMatch) {
+            let mesPart = spaceYearMatch[1].replace('.', '').trim();
+            const anoPart = parseInt(spaceYearMatch[2]);
+            const key = this.normalizeMonthKey(mesPart);
+            let mesNum = this.mesesCompletos[key] || this.mesesAbrev[key.substring(0,3)];
             if (mesNum) return { month: mesNum, year: anoPart };
         }
 
@@ -797,59 +979,64 @@ class CronogramaParser {
 
     // Processar período de licença prêmio criando uma licença para cada mês
     processarPeriodoLicencaPremioMultiplo(inicioMes, finalMes, periodoOriginalId = null) {
-        try {
-            const agora = new Date();
-            const anoAtual = agora.getFullYear();
-            
-            const inicioInfo = this.getMonthYearFromText(inicioMes);
-            const finalInfo = this.getMonthYearFromText(finalMes);
-            const mesInicio = inicioInfo?.month || null;
-            const mesFinal = finalInfo?.month || null;
-            
-            if (!mesInicio || !mesFinal) {
-                console.warn(`Meses inválidos: ${inicioMes} - ${finalMes}`);
-                return [];
-            }
-            
-            const licencas = [];
+        // Melhor inferência de anos para períodos como "junho - agosto" possivelmente atravessando ano
+        const agora = new Date();
+        const anoAtual = agora.getFullYear();
 
-            // Determinar data inicial e final (início do mês) respeitando anos explícitos
-            const anoInicio = inicioInfo?.year ?? anoAtual;
-            let start = new Date(anoInicio, mesInicio - 1, 1);
+        const inicioInfo = this.getMonthYearFromText(inicioMes);
+        const finalInfo = this.getMonthYearFromText(finalMes);
+        const mesInicio = inicioInfo?.month || null;
+        const mesFinal = finalInfo?.month || null;
 
-            const anoFinalPossivel = finalInfo?.year ?? start.getFullYear();
-            let end = new Date(anoFinalPossivel, mesFinal - 1, 1);
-
-            // Se nenhum ano informado e final menor que início => atravessa ano
-            if (!inicioInfo?.year && !finalInfo?.year && (end < start)) {
-                end = new Date(start.getFullYear() + 1, mesFinal - 1, 1);
-            }
-
-            // Se finalInfo.year está presente e é menor que start year, assumir que final pertence ao próximo ciclo
-            if (finalInfo?.year && finalInfo.year < start.getFullYear()) {
-                end = new Date(finalInfo.year, mesFinal - 1, 1);
-            }
-
-            // Iterar mês a mês entre start e end (inclusive)
-            for (let cursor = new Date(start); cursor <= end; cursor = this.adicionarMeses(cursor, 1)) {
-                const inicioMesData = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-                const fimMesData = this.calcularFimLicenca(inicioMesData);
-
-                licencas.push({
-                    inicio: inicioMesData,
-                    fim: fimMesData,
-                    tipo: 'licenca-premio',
-                    descricao: `${this.obterNomeMes(inicioMesData.getMonth() + 1)} de ${inicioMesData.getFullYear()}`,
-                    periodoOriginalId: periodoOriginalId || `${inicioMes}-${finalMes}`
-                });
-            }
-
-            return licencas;
-            
-        } catch (error) {
-            console.error('Erro ao processar período múltiplo de licença prêmio:', error);
+        if (!mesInicio || !mesFinal) {
             return [];
         }
+
+        // Inferir anos com as seguintes regras:
+        // - Se ambos os anos estão presentes, usá-los.
+        // - Se só o ano de início está presente, assumir final no mesmo ano, a menos que o mês final seja menor -> ano+1.
+        // - Se só o ano final está presente, assumir início no mesmo ano, a menos que o mês final seja menor que o início -> início no ano-1.
+        // - Se nenhum ano presente, assumir ano atual e, se final < início, atravessa ano.
+        let anoInicio;
+        let anoFinal;
+
+        if (inicioInfo?.year && finalInfo?.year) {
+            anoInicio = inicioInfo.year;
+            anoFinal = finalInfo.year;
+        } else if (inicioInfo?.year && !finalInfo?.year) {
+            anoInicio = inicioInfo.year;
+            anoFinal = anoInicio + (mesFinal < mesInicio ? 1 : 0);
+        } else if (!inicioInfo?.year && finalInfo?.year) {
+            anoFinal = finalInfo.year;
+            anoInicio = anoFinal - (mesFinal < mesInicio ? 1 : 0);
+        } else {
+            anoInicio = anoAtual;
+            anoFinal = anoInicio + (mesFinal < mesInicio ? 1 : 0);
+        }
+
+        const start = new Date(anoInicio, mesInicio - 1, 1);
+        let end = new Date(anoFinal, mesFinal - 1, 1);
+
+        // Garantia: se por algum motivo end for anterior a start, avançar end até ficar >= start
+        if (end < start) {
+            end = new Date(start.getFullYear() + 1, mesFinal - 1, 1);
+        }
+
+        const licencas = [];
+        for (let cursor = new Date(start); cursor <= end; cursor = this.adicionarMeses(cursor, 1)) {
+            const inicioMesData = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+            const fimMesData = this.calcularFimLicenca(inicioMesData);
+
+            licencas.push({
+                inicio: inicioMesData,
+                fim: fimMesData,
+                tipo: 'licenca-premio',
+                descricao: `${this.obterNomeMes(inicioMesData.getMonth() + 1)} de ${inicioMesData.getFullYear()}`,
+                periodoOriginalId: periodoOriginalId || `${inicioMes}-${finalMes}`
+            });
+        }
+
+        return licencas;
     }
 
     // Obter nome do mês por número
@@ -918,23 +1105,4 @@ class CronogramaParser {
 window.CronogramaParser = CronogramaParser;
 }
 
-// Debug test (executa somente se explicitamente habilitado)
-try {
-    if (typeof window !== 'undefined' && window.__CRONOGRAMA_DEBUG) {
-        const parser = new CronogramaParser();
-        const exemplo = 'Josivania Maria Santos,Of. Administrativo,Janeiro/2025,fevereiro/2026';
-        console.log('\n[CRONOGRAMA DEBUG] Processando exemplo:', exemplo);
-
-        // Simular parse de período prêmio
-        const partes = exemplo.split(',');
-        const inicio = partes[2];
-        const fim = partes[3];
-        const result = parser.processarPeriodoLicencaPremio(inicio, fim);
-        console.log('[CRONOGRAMA DEBUG] Resultado:', result && {
-            inicio: result.inicio?.toISOString().split('T')[0],
-            fim: result.fim?.toISOString().split('T')[0]
-        });
-    }
-} catch (e) {
-    console.error('Erro no debug do parser:', e);
-}
+// Modo debug inline removido para produção. Utilize logs controlados externamente se necessário.

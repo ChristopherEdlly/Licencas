@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="js/themeManager.js"></script>
 </head>
+
 <body>
     <!-- Layout Principal -->
     <div class="app-layout">
@@ -18,10 +20,9 @@
             <!-- Header da Sidebar -->
             <div class="sidebar-header">
                 <div class="brand">
-                    <i class="bi bi-graph-up-arrow"></i>
-                    <span class="brand-text">SUTRI</span>
+                    <img src="img/logo.png" alt="SEFAZ" class="brand-text" data-compact-src="img/logo-compacta.png" data-original-src="img/logo.png">
                 </div>
-                <button class="sidebar-toggle" id="sidebarToggle" title="Recolher sidebar">
+                <button class="sidebar-toggle" id="sidebarToggle" title="Recolher sidebar" aria-label="Alternar sidebar" aria-expanded="true">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
@@ -64,9 +65,12 @@
                         <input type="number" id="maxAge" value="70" min="18" max="100">
                     </div>
                     <div class="age-presets">
-                        <button class="preset-btn" onclick="window.dashboard && dashboard.setAgePreset(18, 35)">18-35</button>
-                        <button class="preset-btn" onclick="window.dashboard && dashboard.setAgePreset(36, 50)">36-50</button>
-                        <button class="preset-btn" onclick="window.dashboard && dashboard.setAgePreset(51, 70)">51+</button>
+                        <button class="preset-btn"
+                            onclick="window.dashboard && dashboard.setAgePreset(18, 35)">18-35</button>
+                        <button class="preset-btn"
+                            onclick="window.dashboard && dashboard.setAgePreset(36, 50)">36-50</button>
+                        <button class="preset-btn"
+                            onclick="window.dashboard && dashboard.setAgePreset(51, 70)">51+</button>
                     </div>
                 </div>
 
@@ -75,7 +79,7 @@
                     <label class="filter-label">Período de Licença</label>
                     <div class="period-filter">
                         <select id="mesFilter">
-                            <option value="">Todos os meses</option>
+                            <option value="all">Todos os meses</option>
                             <option value="janeiro">Janeiro</option>
                             <option value="fevereiro">Fevereiro</option>
                             <option value="março">Março</option>
@@ -93,7 +97,8 @@
                 </div>
 
                 <div class="filter-actions">
-                    <button class="btn-secondary" onclick="window.dashboard && dashboard.clearAllFilters()">
+                    <button id="clearFiltersBtn" class="btn-secondary"
+                        onclick="dashboard && dashboard.clearAllFilters && dashboard.clearAllFilters()">
                         <i class="bi bi-x-circle"></i>
                         Limpar Filtros
                     </button>
@@ -107,30 +112,21 @@
             <header class="main-header">
                 <div class="header-info">
                     <h1 class="page-title" id="pageTitle">Visão Geral</h1>
-                    <div class="stats-compact">
-                        <div class="stat-item">
-                            <span class="stat-value" id="totalServidores">0</span>
-                            <span class="stat-label">Servidores</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-value" id="totalLicencasFuturas">0</span>
-                            <span class="stat-label">Licenças Futuras</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="last-update" id="lastUpdate">--:--</span>
-                        </div>
-                    </div>
                 </div>
-                
+                <div class="header-stats">
+                    <div class="stat-badge">
+                        <span class="stat-count" id="totalServidores">0</span>
+                        <span class="stat-label">Servidores</span>
+                    </div>
+                    <div class="last-update" id="lastUpdate">--:--</div>
+                </div>
+
                 <!-- Actions do Header -->
                 <div class="header-actions">
                     <div class="upload-buttons">
-                        <button class="btn-upload-header" title="Selecionar Arquivo" id="uploadButton">
+                        <button class="btn-upload-header" title="Carregar Dados" id="uploadButton">
                             <i class="bi bi-folder2-open"></i>
-                            <span class="stored-file-indicator" id="storedFileIndicator" style="display: none;" title="Arquivo anterior disponível">●</span>
-                        </button>
-                        <button class="btn-clear-stored" id="clearStoredBtn" title="Limpar arquivo armazenado" style="display: none;">
-                            <i class="bi bi-trash3"></i>
+                            <span class="upload-label">Importar Planilha Excel</span>
                         </button>
                     </div>
                     <button class="theme-toggle" id="themeToggle" title="Alternar tema">
@@ -179,7 +175,8 @@
                             </div>
                             <div class="card-content">
                                 <h3 id="errorCount">0</h3>
-                                <p>Problemas</p>
+                                    <p>Problemas</p>
+                                    <span id="errorBadge" class="error-badge" aria-hidden="true" style="display:none"></span>
                             </div>
                         </div>
                     </div>
@@ -247,8 +244,8 @@
                 <!-- Calendar Page -->
                 <div class="page-content" id="calendarPage">
                     <div class="calendar-page-container">
-                        <!-- Calendar Header with Year Navigation -->
-                        <div class="calendar-header">
+                <!-- Cabeçalho do Calendário com Navegação de Ano -->
+                    <div class="calendar-header">
                             <div class="year-navigation">
                                 <button class="btn-year-nav" id="prevYearBtn">
                                     <i class="bi bi-chevron-left"></i>
@@ -311,7 +308,7 @@
                     </div>
                 </div>
 
-                <!-- Timeline Page -->
+                <!-- Página: Timeline -->
                 <div class="page-content" id="timelinePage">
                     <div class="timeline-header">
                         <div class="timeline-controls">
@@ -353,7 +350,7 @@
                             </button>
                         </div>
                     </div>
-                    
+
                     <div class="timeline-content">
                         <div class="timeline-chart-container">
                             <canvas id="timelineChart"></canvas>
@@ -414,7 +411,7 @@
         </div>
     </div>
 
-    <!-- Modal -->
+    <!-- Modal de Detalhes -->
     <div class="modal" id="detailsModal">
         <div class="modal-backdrop"></div>
         <div class="modal-content modal-enhanced">
@@ -429,16 +426,7 @@
             <div class="modal-body" id="modalBody">
                 <!-- Conteúdo será inserido dinamicamente -->
                 <div class="modal-sections">
-                    <!-- Seção: Informações Pessoais -->
-                    <div class="modal-section" id="personalInfoSection">
-                        <div class="section-header">
-                            <i class="bi bi-person-circle section-icon"></i>
-                            <h4 class="section-title">Informações Pessoais</h4>
-                        </div>
-                        <div class="section-content" id="personalInfoContent">
-                            <!-- Conteúdo dinâmico -->
-                        </div>
-                    </div>
+                    <!-- Seção de Informações Pessoais removida (dados já estão em Registros da Planilha) -->
 
                     <!-- Seção: Dados Originais -->
                     <div class="modal-section" id="originalDataSection">
@@ -464,17 +452,7 @@
                         </div>
                     </div>
 
-                    <!-- Seção: Possíveis Problemas -->
-                    <div class="modal-section warning-section" id="issuesSection" style="display: none;">
-                        <div class="section-header">
-                            <i class="bi bi-exclamation-triangle section-icon"></i>
-                            <h4 class="section-title">Possíveis Problemas</h4>
-                            <span class="section-badge warning">Atenção</span>
-                        </div>
-                        <div class="section-content" id="issuesContent">
-                            <!-- Conteúdo dinâmico -->
-                        </div>
-                    </div>
+                    <!-- Seção de problemas removida conforme solicitado -->
                 </div>
             </div>
         </div>
@@ -515,4 +493,5 @@
     <script src="js/cronogramaParser.js"></script>
     <script src="js/dashboard.js"></script>
 </body>
+
 </html>

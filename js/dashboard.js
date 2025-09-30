@@ -31,7 +31,6 @@ const CARGO_COLORS = [
     '#6366f1'  // Indigo
 ];
 
-if (typeof DashboardMultiPage === 'undefined') {
 class DashboardMultiPage {
     constructor() {
         this.parser = new CronogramaParser();
@@ -50,8 +49,8 @@ class DashboardMultiPage {
         this.sortColumn = null;
         this.sortDirection = 'asc';
         this.currentPage = 'home';
-        this.selectedChartIndex = -1; // Para rastrear fatia selecionada
-        
+        this.selectedChartIndex = -1;
+
         this.init();
     }
 
@@ -59,67 +58,133 @@ class DashboardMultiPage {
         this.setupEventListeners();
         this.initNavigation();
         this.initPeriodTabs();
-        this.updateProblemsCount(); // Initialize problems count
-        // this.loadExampleData(); // Removido - agora a aplicação inicia limpa
+        this.updateProblemsCount();
         this.updateLastUpdate();
         this.setupThemeIntegration();
-        
-        // Adicionar indicador visual se File System Access API está disponível
-        if (this.isFileSystemAccessSupported()) {
-            this.addFileSystemIndicator();
-        }
-        
-        // Initialize calendar with current year
+
         const currentYear = new Date().getFullYear();
         const currentYearElement = document.getElementById('currentCalendarYear');
         if (currentYearElement) {
             currentYearElement.textContent = currentYear;
         }
-        
+
         // Tentar auto-carregamento após inicialização completa
         setTimeout(async () => {
             await this.updateStoredFileIndicators();
-            
+
             // Se não conseguir auto-carregar, mostrar estado inicial vazio
             if (!await this.tryAutoLoad()) {
                 this.showEmptyState();
             }
-        }, 1000);
+        }, 250);
     }
 
     setupThemeIntegration() {
         // Registrar o chart globalmente para o ThemeManager
         window.dashboardChart = this.charts.urgency;
-        
+
         // Escutar mudanças de tema
         window.addEventListener('themeChanged', (e) => {
             this.onThemeChanged(e.detail.theme);
         });
-    }
 
-    onThemeChanged(theme) {
         // Atualizar cores se necessário (mantemos as mesmas cores para consistência)
         // Mas podemos ajustar outros aspectos visuais se necessário
-        
+
         if (this.charts.urgency) {
             // Registrar novamente para o ThemeManager
             window.dashboardChart = this.charts.urgency;
         }
-        
-        // Outras atualizações de tema podem ser adicionadas aqui
-        console.log(`Tema alterado para: ${theme}`);
+
+    // Outras atualizações de tema podem ser adicionadas aqui
     }
 
     setupEventListeners() {
         // Sidebar toggle
-        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebarToggle = document.getElementById('sidebarToggle'); // Alternador da sidebar
         const sidebar = document.querySelector('.sidebar');
         const mainContent = document.querySelector('.main-content');
-        
+
         if (sidebarToggle && sidebar && mainContent) {
+            // Troca a imagem da logo quando a sidebar muda (usa transitionend para o fade)
+            const swapSidebarLogo = (useCompact) => {
+                try {
+                    const logoImg = document.querySelector('.brand img.brand-text');
+                    if (!logoImg) return;
+                    const compact = logoImg.getAttribute('data-compact-src');
+                    const original = logoImg.getAttribute('data-original-src') || logoImg.src;
+                    if (!logoImg.getAttribute('data-original-src')) {
+                        logoImg.setAttribute('data-original-src', original);
+                    }
+
+                    const targetSrc = (useCompact && compact) ? compact : logoImg.getAttribute('data-original-src');
+                    if (!targetSrc) return;
+
+                    const currentSrc = logoImg.src || '';
+                    // Se já estiver mostrando a imagem desejada, não faz nada
+                    if (currentSrc.indexOf(targetSrc) !== -1 || currentSrc === targetSrc) return;
+
+                    // Limpa timers e handlers de trocas anteriores
+                    if (logoImg.__swapCleanup) {
+                        logoImg.__swapCleanup();
+                    }
+
+                    let outTimeout = null;
+                    let inTimeout = null;
+                    const cleanup = () => {
+                        if (outTimeout) clearTimeout(outTimeout);
+                        if (inTimeout) clearTimeout(inTimeout);
+                        logoImg.__swapCleanup = null;
+                    };
+                    logoImg.__swapCleanup = cleanup;
+
+                    const startFadeIn = () => {
+                        logoImg.classList.remove('fading-out');
+                        logoImg.classList.add('fading-in');
+                        const onInEnd = (ev) => {
+                            if (ev.propertyName !== 'opacity') return;
+                            logoImg.removeEventListener('transitionend', onInEnd);
+                            cleanup();
+                            logoImg.classList.remove('fading-in');
+                        };
+                        logoImg.addEventListener('transitionend', onInEnd);
+                        inTimeout = setTimeout(() => {
+                            logoImg.removeEventListener('transitionend', onInEnd);
+                            cleanup();
+                            logoImg.classList.remove('fading-in');
+                        }, 400);
+                    };
+
+                    const onOutEnd = (ev) => {
+                        if (ev.propertyName !== 'opacity') return;
+                        logoImg.removeEventListener('transitionend', onOutEnd);
+                        const onLoad = () => {
+                            logoImg.removeEventListener('load', onLoad);
+                            startFadeIn();
+                        };
+                        logoImg.addEventListener('load', onLoad);
+                        logoImg.src = targetSrc;
+                    };
+
+                    // Inicia o fade-out e aguarda a transição terminar (com fallback por timeout)
+                    logoImg.addEventListener('transitionend', onOutEnd);
+                    logoImg.classList.add('fading-out');
+                    outTimeout = setTimeout(() => {
+                        logoImg.removeEventListener('transitionend', onOutEnd);
+                        const onLoad = () => {
+                            logoImg.removeEventListener('load', onLoad);
+                            startFadeIn();
+                        };
+                        logoImg.addEventListener('load', onLoad);
+                        logoImg.src = targetSrc;
+                    }, 260);
+                } catch (e) {
+                    // Ignorar erros durante a troca da logo (não afetam a funcionalidade)
+                }
+            };
             sidebarToggle.addEventListener('click', () => {
                 const isCollapsed = sidebar.classList.contains('collapsed');
-                
+
                 if (isCollapsed) {
                     // Expandir
                     sidebar.classList.remove('collapsed');
@@ -131,8 +196,8 @@ class DashboardMultiPage {
                     document.body.classList.add('sidebar-collapsed');
                     mainContent.style.marginLeft = '70px';
                 }
-                
-                // Update toggle icon
+
+                // Atualizar ícone do toggle
                 const icon = sidebarToggle.querySelector('i');
                 if (sidebar.classList.contains('collapsed')) {
                     icon.className = 'bi bi-list';
@@ -141,12 +206,14 @@ class DashboardMultiPage {
                     icon.className = 'bi bi-x-lg';
                     sidebarToggle.title = 'Recolher sidebar';
                 }
-                
-                // Save state in localStorage
+
+                // Salvar estado no localStorage
                 localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+                // Swap logo with fade
+                swapSidebarLogo(sidebar.classList.contains('collapsed'));
             });
-            
-            // Restore sidebar state from localStorage
+
+            // Restaurar estado da sidebar a partir do localStorage
             const savedState = localStorage.getItem('sidebarCollapsed');
             if (savedState === 'true') {
                 sidebar.classList.add('collapsed');
@@ -155,14 +222,16 @@ class DashboardMultiPage {
                 const icon = sidebarToggle.querySelector('i');
                 icon.className = 'bi bi-list';
                 sidebarToggle.title = 'Expandir sidebar';
+                swapSidebarLogo(true);
             } else {
                 const icon = sidebarToggle.querySelector('i');
                 icon.className = 'bi bi-x-lg';
                 sidebarToggle.title = 'Recolher sidebar';
+                swapSidebarLogo(false);
             }
         }
-        
-        // Upload de arquivo - botão único com detecção automática da API
+
+    // Upload de arquivo - botão único com detecção automática da API
         const uploadButton = document.getElementById('uploadButton');
         if (uploadButton) {
             uploadButton.addEventListener('click', () => {
@@ -172,29 +241,36 @@ class DashboardMultiPage {
                     this.createFallbackFileInput();
                 }
             });
-        }
-        
-        // Botão para limpar arquivo armazenado
-        const clearStoredBtn = document.getElementById('clearStoredBtn');
-        if (clearStoredBtn) {
-            clearStoredBtn.addEventListener('click', async () => {
-                await this.clearStoredFile();
-                await this.updateStoredFileIndicators();
+            // Delegar cliques do CTA da tabela para o botão de upload no header
+            document.addEventListener('click', (e) => {
+                try {
+                    const target = e.target;
+                    if (!target) return;
+                    const uploadCTA = target.closest && target.closest('#tableUploadBtn');
+                    if (uploadCTA) {
+                        const headerUpload = document.getElementById('uploadButton');
+                        if (headerUpload) headerUpload.click();
+                    }
+                } catch (err) {
+                    // Ignorar exceções de delegação de clique
+                }
             });
         }
-        
-        // Search with automatic filtering
+
+    // Observação: o botão de limpar foi removido do header intencionalmente - usuários substituem arquivos abrindo novos
+
+    // Busca com filtro automático
         const searchInput = document.getElementById('searchInput');
-        
+
         if (searchInput) {
-            // Input change to show/hide clear button
+            // Ao digitar, mostrar/esconder o botão de limpar
             searchInput.addEventListener('input', () => {
                 this.toggleClearSearchButton();
-                // Auto-apply search filter
+                // Aplicar filtro de busca automaticamente
                 this.handleSearch();
             });
-            
-            // Enter key triggers search
+
+            // Tecla Enter executa a busca
             searchInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
@@ -203,12 +279,12 @@ class DashboardMultiPage {
             });
         }
 
-        // Clear search button
+    // Botão de limpar busca
         const clearSearchBtn = document.getElementById('clearSearchBtn');
         if (clearSearchBtn) {
             clearSearchBtn.addEventListener('click', () => this.clearSearch());
         }
-        
+
         // Age filter inputs
         const minAgeInput = document.getElementById('minAge');
         const maxAgeInput = document.getElementById('maxAge');
@@ -218,7 +294,7 @@ class DashboardMultiPage {
                 input.addEventListener('input', () => {
                     this.applyAgeFilter();
                 });
-                
+
                 // Manter funcionalidade do Enter
                 input.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
@@ -233,12 +309,12 @@ class DashboardMultiPage {
         if (periodFilter) {
             periodFilter.addEventListener('change', () => this.applyLicencaFilters());
         }
-        
-                // Page navigation
+
+    // Navegação entre páginas
         document.querySelectorAll('.nav-item').forEach(btn => {
             btn.addEventListener('click', (e) => this.switchPage(e.target.closest('.nav-item').dataset.page));
         });
-        
+
         // Navigation
         document.querySelectorAll('.nav-link').forEach(link => {
             link.addEventListener('click', (e) => {
@@ -247,42 +323,37 @@ class DashboardMultiPage {
                 this.switchPage(pageId);
             });
         });
-        
-        // Period tabs removidos - não existem no novo layout
-        // document.querySelectorAll('.period-tab').forEach(tab => {
-        //     tab.addEventListener('click', (e) => this.switchPeriodTab(e.target.dataset.period));
-        // });
-        
+
         // Table sorting
         document.querySelectorAll('.sortable').forEach(th => {
             th.addEventListener('click', (e) => this.handleSort(e.currentTarget.dataset.column));
         });
-        
-        // Timeline view change
+
+    // Alterar visualização da timeline
         const timelineView = document.getElementById('timelineView');
         if (timelineView) {
             timelineView.addEventListener('change', (e) => this.updateTimelineView());
         }
-        
-        // Timeline year change
+
+    // Mudança do ano da timeline
         const timelineYear = document.getElementById('timelineYear');
         if (timelineYear) {
             timelineYear.addEventListener('change', (e) => this.updateTimelineChart());
         }
-        
-        // Timeline month change
+
+    // Mudança do mês da timeline
         const timelineMonth = document.getElementById('timelineMonth');
         if (timelineMonth) {
             timelineMonth.addEventListener('change', (e) => this.updateTimelineChart());
         }
-        
-        // Calendar year change
+
+    // Mudança do ano do calendário
         const calendarYear = document.getElementById('calendarYearFilter');
         if (calendarYear) {
             calendarYear.addEventListener('change', (e) => this.updateYearlyHeatmap());
         }
 
-        // Calendar year navigation buttons
+     // Botões de navegação do ano no calendário
         const prevYearBtn = document.getElementById('prevYearBtn');
         const nextYearBtn = document.getElementById('nextYearBtn');
         if (prevYearBtn && nextYearBtn) {
@@ -296,14 +367,14 @@ class DashboardMultiPage {
             closePanelBtn.addEventListener('click', () => this.closeDayDetailsPanel());
         }
 
-        // Urgency legend clicks
+    // Cliques na legenda de urgência
         document.querySelectorAll('.legend-item').forEach(item => {
             item.addEventListener('click', (e) => {
                 this.highlightUrgency(e.currentTarget.dataset.urgency);
             });
         });
 
-        // Event listeners para filtros de licenças prêmio
+    // Listeners para filtros de licenças prêmio
         const mesFilter = document.getElementById('mesFilter');
         if (mesFilter) {
             mesFilter.addEventListener('change', () => {
@@ -316,8 +387,8 @@ class DashboardMultiPage {
                 }
             });
         }
-        
-        // Modal close with ESC key
+
+    // Fechar modais com a tecla ESC
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 this.closeModal();
@@ -326,8 +397,8 @@ class DashboardMultiPage {
                 this.closePeriodStatsModal();
             }
         });
-        
-                // Modal backdrop click to close
+
+    // Cliques no backdrop do modal para fechar
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('modal')) {
                 if (e.target.id === 'detailsModal') {
@@ -351,40 +422,42 @@ class DashboardMultiPage {
                 }
             }
         });
-        
-        // Modal close button
+
+    // Botão de fechar modal
         const modalCloseBtn = document.getElementById('modalCloseBtn');
         if (modalCloseBtn) {
             modalCloseBtn.addEventListener('click', () => this.closeModal());
         }
-        
-        // Problems modal close button
+
+    // Botão de fechar modal de problemas
         const problemsModalCloseBtn = document.getElementById('problemsModalCloseBtn');
         if (problemsModalCloseBtn) {
             problemsModalCloseBtn.addEventListener('click', () => this.closeProblemsModal());
         }
-        
-        // Timeline modal close button
+
+    // Botão de fechar modal da timeline
         const timelineModalCloseBtn = document.getElementById('timelineModalCloseBtn');
         if (timelineModalCloseBtn) {
             timelineModalCloseBtn.addEventListener('click', () => this.closeTimelineModal());
         }
 
-        // Period Stats Modal close button
+    
+
+    // Botão de fechar modal de estatísticas do período
         const periodStatsModalCloseBtn = document.getElementById('periodStatsModalCloseBtn');
         if (periodStatsModalCloseBtn) {
             periodStatsModalCloseBtn.addEventListener('click', () => this.closePeriodStatsModal());
         }
-        
-        // Problems card click
+
+    // Clique no cartão de problemas
         const errorCard = document.getElementById('errorCard');
         if (errorCard) {
             errorCard.addEventListener('click', () => this.showProblemsModal());
         }
-        
-        // Event delegation for dynamically created buttons
+
+    // Delegação de eventos para botões criados dinamicamente
         document.addEventListener('click', (e) => {
-            // Handle servidor details buttons
+            // Botões de detalhes do servidor
             if (e.target.closest('.btn-icon[data-servidor-nome]')) {
                 const button = e.target.closest('.btn-icon[data-servidor-nome]');
                 const nomeServidorEscapado = button.getAttribute('data-servidor-nome');
@@ -392,20 +465,20 @@ class DashboardMultiPage {
                 const nomeServidor = nomeServidorEscapado.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
                 this.showServidorDetails(nomeServidor);
             }
-            
-            // Handle legend card clicks
+
+            // Cliques nas legendas
             if (e.target.closest('.legend-card[data-urgency]')) {
                 const legendCard = e.target.closest('.legend-card[data-urgency]');
                 const urgency = legendCard.getAttribute('data-urgency');
                 const urgencyIndex = ['critical', 'high', 'moderate', 'low'].indexOf(urgency);
                 this.filterTableByUrgency(urgency, urgencyIndex);
-                
-                // Update legend visual state
+
+                // Atualizar estado visual da legenda
                 document.querySelectorAll('.legend-card').forEach(card => card.classList.remove('active'));
                 legendCard.classList.add('active');
             }
-            
-            // Handle stat-card clicks - devem ser apenas informativos na página home
+
+            // Clique em stat-card - apenas informativo na página inicial
             if (e.target.closest('.stat-card')) {
                 if (this.currentPage === 'home') {
                     e.preventDefault();
@@ -421,25 +494,25 @@ class DashboardMultiPage {
     }
 
     switchPage(pageId) {
-        // Update navigation buttons
+    // Atualizar botões de navegação
         document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('active'));
         document.querySelector(`.nav-link[data-page="${pageId}"]`)?.classList.add('active');
-        
-        // Show/hide pages
+
+    // Mostrar/ocultar páginas
         document.querySelectorAll('.page-content').forEach(page => page.classList.remove('active'));
         document.getElementById(`${pageId}Page`).classList.add('active');
-        
-        // Update page title
+
+    // Atualizar título da página
         const titles = {
             'home': 'Visão Geral',
             'calendar': 'Calendário',
             'timeline': 'Timeline'
         };
         document.getElementById('pageTitle').textContent = titles[pageId] || pageId;
-        
+
         this.currentPage = pageId;
-        
-        // Initialize page-specific content
+
+    // Inicializar conteúdo específico da página
         if (pageId === 'calendar') {
             this.updateYearlyHeatmap();
         } else if (pageId === 'timeline') {
@@ -451,20 +524,20 @@ class DashboardMultiPage {
     }
 
     switchFilters(pageId) {
-        // Hide all page filters
+        // Esconder todos os filtros de página
         document.querySelectorAll('.page-filters').forEach(filters => {
             filters.style.display = 'none';
             filters.classList.remove('active');
         });
-        
-        // Show filters for current page
+
+    // Exibir filtros da página atual
         const currentFilters = document.getElementById(`${pageId}Filters`);
         if (currentFilters) {
             currentFilters.style.display = 'flex';
             currentFilters.classList.add('active');
         }
-        
-        // Update filters container visibility
+
+    // Atualizar visibilidade do container de filtros
         const filtersBar = document.querySelector('.filters-bar');
         if (filtersBar) {
             filtersBar.style.display = currentFilters ? 'block' : 'none';
@@ -475,19 +548,19 @@ class DashboardMultiPage {
         // Função removida - elementos não existem no novo layout
         // Os filtros de ano são aplicados diretamente nos elementos existentes
         const currentYear = new Date().getFullYear();
-        console.log('Ano atual:', currentYear);
+    // ano atual
     }
 
     async handleFileUpload(event) {
         const file = event.target.files[0];
         const statusElement = document.getElementById('uploadStatus');
-        
+
         if (!file) return;
 
         // Verificar tipo de arquivo
         const allowedTypes = ['.csv', '.xlsx', '.xls'];
         const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-        
+
         if (!allowedTypes.includes(fileExtension)) {
             if (statusElement) {
                 statusElement.className = 'file-status error';
@@ -508,10 +581,10 @@ class DashboardMultiPage {
         }
 
         this.showLoading();
-        
+
         try {
             let data = '';
-            
+
             if (fileExtension === '.csv') {
                 data = await this.readFileAsText(file);
             } else {
@@ -530,23 +603,23 @@ class DashboardMultiPage {
             }
 
             const headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g, ''));
-            
+
             // Detectar tipo de tabela para validar headers apropriados
             const headersStr = headers.join(',').toLowerCase();
             const isLicencaPremio = headersStr.includes('inicio de licença') || headersStr.includes('final de licença');
-            
+
             let requiredHeaders, missingHeaders;
-            
+
             if (isLicencaPremio) {
                 // Validação para tabela de licenças prêmio
                 requiredHeaders = ['SERVIDOR', 'CARGO'];
-                missingHeaders = requiredHeaders.filter(header => 
+                missingHeaders = requiredHeaders.filter(header =>
                     !headers.some(h => h.toUpperCase().includes(header))
                 );
             } else {
                 // Validação para tabela original
                 requiredHeaders = ['SERVIDOR', 'CRONOGRAMA'];
-                missingHeaders = requiredHeaders.filter(header => 
+                missingHeaders = requiredHeaders.filter(header =>
                     !headers.some(h => h.toUpperCase().includes(header))
                 );
             }
@@ -558,7 +631,7 @@ class DashboardMultiPage {
 
             this.processData(data);
             this.updateLastUpdate();
-            
+
             // Tentar obter file handle se suportado
             let fileHandle = null;
             if ('showOpenFilePicker' in window && event.target.files) {
@@ -578,9 +651,9 @@ class DashboardMultiPage {
                 // Navegador não suporta File System Access API
                 this.saveFileToLocalStorage(file.name, data, fileExtension);
             }
-            
+
             await this.updateStoredFileIndicators();
-            
+
             if (statusElement) {
                 statusElement.className = 'upload-status success';
                 statusElement.innerHTML = `
@@ -588,7 +661,7 @@ class DashboardMultiPage {
                     <span class="file-info">✓ ${file.name} (${this.allServidores.length} servidores)</span>
                 `;
             }
-            
+
         } catch (error) {
             console.error('Erro ao processar arquivo:', error);
             if (statusElement) {
@@ -600,10 +673,10 @@ class DashboardMultiPage {
             } else {
                 alert('Erro ao processar arquivo: ' + error.message);
             }
-            
+
             // Reset file input on error
             event.target.value = '';
-            
+
         } finally {
             this.hideLoading();
         }
@@ -614,7 +687,7 @@ class DashboardMultiPage {
         try {
             // Verificar se o navegador suporta File System Access API
             if (!('showOpenFilePicker' in window)) {
-                console.log('File System Access API não suportada, usando método tradicional');
+                // Navegador sem File System Access API — usar fallback
                 return this.saveFileToLocalStorage(fileName, fileData, fileType);
             }
 
@@ -626,14 +699,22 @@ class DashboardMultiPage {
                 size: fileData.length,
                 hasFileHandle: true
             };
-            
+
             // Salvar informações básicas no localStorage (sem os dados)
             localStorage.setItem('lastUploadedFile', JSON.stringify(fileInfo));
-            
+
             // Salvar file handle no IndexedDB (mais seguro que localStorage)
             await this.saveFileHandleToIndexedDB(fileHandle, fileName);
-            
-            console.log(`File handle para ${fileName} salvo com sucesso`);
+
+            // File handle salvo — indicadores serão atualizados
+            // Após salvar o handle, solicitar atualização da UI para mostrar indicadores imediatamente
+            try {
+                if (window.dashboard && typeof window.dashboard.updateStoredFileIndicators === 'function') {
+                    window.dashboard.updateStoredFileIndicators();
+                }
+            } catch (e) {
+                // Ignorar erros não críticos ao atualizar indicadores
+            }
             return true;
         } catch (error) {
             console.error('Erro ao salvar file handle:', error);
@@ -645,53 +726,52 @@ class DashboardMultiPage {
     async saveFileHandleToIndexedDB(fileHandle, fileName) {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open('DashboardFiles', 1);
-            
+
             request.onerror = () => reject(request.error);
-            
+
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
                 if (!db.objectStoreNames.contains('fileHandles')) {
                     db.createObjectStore('fileHandles', { keyPath: 'id' });
                 }
             };
-            
+
             request.onsuccess = (event) => {
                 const db = event.target.result;
                 const transaction = db.transaction(['fileHandles'], 'readwrite');
                 const store = transaction.objectStore('fileHandles');
-                
+
                 const data = {
                     id: 'lastFile',
                     handle: fileHandle,
                     fileName: fileName,
                     timestamp: Date.now()
                 };
-                
+
                 const putRequest = store.put(data);
                 putRequest.onsuccess = () => resolve();
                 putRequest.onerror = () => reject(putRequest.error);
             };
         });
     }
-
     async getFileHandleFromIndexedDB() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open('DashboardFiles', 1);
-            
+
             request.onerror = () => resolve(null);
-            
+
             request.onsuccess = (event) => {
                 const db = event.target.result;
-                
+
                 if (!db.objectStoreNames.contains('fileHandles')) {
                     resolve(null);
                     return;
                 }
-                
+
                 const transaction = db.transaction(['fileHandles'], 'readonly');
                 const store = transaction.objectStore('fileHandles');
                 const getRequest = store.get('lastFile');
-                
+
                 getRequest.onsuccess = () => {
                     resolve(getRequest.result || null);
                 };
@@ -706,13 +786,13 @@ class DashboardMultiPage {
         tempInput.type = 'file';
         tempInput.accept = '.csv,.xlsx,.xls';
         tempInput.style.display = 'none';
-        
+
         tempInput.addEventListener('change', (e) => {
             this.handleFileUpload(e);
             // Remover o input temporário após uso
             tempInput.remove();
         });
-        
+
         document.body.appendChild(tempInput);
         tempInput.click();
     }
@@ -807,7 +887,7 @@ class DashboardMultiPage {
 
         document.body.appendChild(errorModal);
 
-        // Event listeners para os botões
+    // Listeners para os botões
         const selectNewBtn = errorModal.querySelector('.btn-select-new');
         const cancelBtn = errorModal.querySelector('.btn-cancel');
 
@@ -849,18 +929,19 @@ class DashboardMultiPage {
     }
 
     addFileSystemIndicator() {
+        // Deprecated: prefer controlar o indicador via elemento presente no HTML e
+        // através de updateStoredFileIndicators(). 
+        // Mantido para compatibilidade se chamado manualmente.
         const uploadButton = document.getElementById('uploadButton');
         if (!uploadButton) return;
-        
-        // Adicionar indicador visual de que File System API está disponível
+        const existing = document.getElementById('fsApiIndicator');
+        if (existing) return;
         const indicator = document.createElement('span');
+        indicator.id = 'fsApiIndicator';
         indicator.className = 'fs-api-indicator';
         indicator.title = 'File System Access API disponível - acesso direto aos arquivos';
-        indicator.innerHTML = '🔗';
+        indicator.style.display = 'none';
         uploadButton.appendChild(indicator);
-        
-        // Atualizar título do botão
-        uploadButton.title = 'Selecionar arquivo com acesso direto (File System API)';
     }
 
     async handleFileSystemAccess() {
@@ -878,10 +959,10 @@ class DashboardMultiPage {
                 ],
                 multiple: false
             });
-            
+
             const fileHandle = fileHandles[0];
             const file = await fileHandle.getFile();
-            
+
             const statusElement = document.getElementById('uploadStatus');
             if (statusElement) {
                 statusElement.className = 'upload-status loading';
@@ -892,24 +973,24 @@ class DashboardMultiPage {
             }
 
             this.showLoading();
-            
+
             let data = '';
             const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-            
+
             if (fileExtension === '.csv') {
                 data = await file.text();
             } else {
                 data = await this.readExcelFileContent(file);
             }
-            
+
             // Processar dados
             this.processData(data);
             this.updateLastUpdate();
-            
+
             // Salvar file handle
             await this.saveFileHandleToStorage(fileHandle, file.name, data, fileExtension);
             await this.updateStoredFileIndicators();
-            
+
             if (statusElement) {
                 statusElement.className = 'upload-status success';
                 statusElement.innerHTML = `
@@ -917,15 +998,15 @@ class DashboardMultiPage {
                     <span class="file-info">✓ ${file.name} (acesso direto ativado)</span>
                 `;
             }
-            
+
         } catch (error) {
             console.error('Erro no File System Access:', error);
-            
+
             if (error.name === 'AbortError') {
-                console.log('Usuário cancelou a seleção');
+                    // usuário cancelou a seleção
                 return;
             }
-            
+
             const statusElement = document.getElementById('uploadStatus');
             if (statusElement) {
                 statusElement.className = 'upload-status error';
@@ -948,12 +1029,12 @@ class DashboardMultiPage {
                 timestamp: Date.now(),
                 uploadDate: new Date().toISOString()
             };
-            
+
             // Armazenar apenas se o arquivo for menor que 5MB (limite aproximado do localStorage)
             const dataSize = new Blob([JSON.stringify(fileInfo)]).size;
             if (dataSize < 5 * 1024 * 1024) { // 5MB limit
                 localStorage.setItem('lastUploadedFile', JSON.stringify(fileInfo));
-                console.log(`Arquivo ${fileName} salvo no localStorage (${(dataSize / 1024).toFixed(1)}KB)`);
+                // arquivo salvo no localStorage (fallback)
                 return true;
             } else {
                 console.warn(`Arquivo ${fileName} muito grande para localStorage (${(dataSize / 1024 / 1024).toFixed(1)}MB)`);
@@ -969,17 +1050,17 @@ class DashboardMultiPage {
         try {
             const storedData = localStorage.getItem('lastUploadedFile');
             if (!storedData) return null;
-            
+
             const fileInfo = JSON.parse(storedData);
-            
+
             // Verificar se o arquivo não é muito antigo (7 dias)
             const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 dias em ms
             if (Date.now() - fileInfo.timestamp > maxAge) {
-                console.log('Arquivo no localStorage expirou (mais de 7 dias)');
+                // localStorage expirado — remover entrada antiga
                 this.clearStoredFile();
                 return null;
             }
-            
+
             // Se tem file handle, tentar recuperá-lo
             if (fileInfo.hasFileHandle && ('showOpenFilePicker' in window)) {
                 const handleData = await this.getFileHandleFromIndexedDB();
@@ -988,12 +1069,12 @@ class DashboardMultiPage {
                     return fileInfo;
                 }
             }
-            
+
             // Fallback: se tem dados salvos no formato antigo
             if (fileInfo.data) {
                 return fileInfo;
             }
-            
+
             return null;
         } catch (error) {
             console.error('Erro ao recuperar arquivo do localStorage:', error);
@@ -1009,7 +1090,7 @@ class DashboardMultiPage {
     async clearStoredFile() {
         try {
             localStorage.removeItem('lastUploadedFile');
-            
+
             // Limpar também o IndexedDB
             try {
                 const request = indexedDB.open('DashboardFiles', 1);
@@ -1024,8 +1105,8 @@ class DashboardMultiPage {
             } catch (dbError) {
                 console.warn('Erro ao limpar IndexedDB:', dbError);
             }
-            
-            console.log('Arquivo armazenado removido do localStorage e IndexedDB');
+
+            // arquivo armazenado removido do cache
             await this.updateStoredFileIndicators();
         } catch (error) {
             console.error('Erro ao remover arquivo do localStorage:', error);
@@ -1035,26 +1116,35 @@ class DashboardMultiPage {
     async updateStoredFileIndicators() {
         const storedFile = await this.getLastFileFromLocalStorage();
         const indicator = document.getElementById('storedFileIndicator');
-        const clearBtn = document.getElementById('clearStoredBtn');
         const uploadBtn = document.getElementById('uploadButton');
-        
-        if (storedFile && indicator && clearBtn && uploadBtn) {
-            // Mostrar indicadores
-            indicator.style.display = 'block';
-            clearBtn.style.display = 'block';
-            
-            // Atualizar tooltip do botão de upload
-            const uploadDate = new Date(storedFile.uploadDate).toLocaleString('pt-BR');
-            uploadBtn.title = `Carregar Dados (último: ${storedFile.name} em ${uploadDate})`;
-        } else if (indicator && clearBtn && uploadBtn) {
-            // Esconder indicadores
-            indicator.style.display = 'none';
-            clearBtn.style.display = 'none';
-            uploadBtn.title = 'Carregar Dados';
-        }
-    }
+        const fsIndicator = document.getElementById('fsApiIndicator');
 
-    clearStoredFile() {
+    // Verificar IndexedDB por um file handle, se necessário
+        let hasHandle = false;
+        try {
+            if (storedFile && storedFile.hasFileHandle && ('showOpenFilePicker' in window)) {
+                const handleData = await this.getFileHandleFromIndexedDB();
+                if (handleData && handleData.handle) hasHandle = true;
+            }
+        } catch (e) {
+            // Ignorar erro não crítico na checagem de handles
+        }
+
+        if (storedFile && indicator && uploadBtn) {
+            // exibir pequeno badge no botão de upload
+            indicator.style.display = 'inline-block';
+
+            // atualizar tooltip do botão de upload para mostrar info do último arquivo
+            const uploadDate = storedFile.uploadDate ? new Date(storedFile.uploadDate).toLocaleString('pt-BR') : '';
+            uploadBtn.title = uploadDate ? `Carregar Dados (último: ${storedFile.name} em ${uploadDate})` : `Carregar Dados (último: ${storedFile.name})`;
+
+            // Exibir indicador do FS somente se houver um file handle válido
+            if (fsIndicator) fsIndicator.style.display = hasHandle ? 'inline-flex' : 'none';
+        } else if (indicator && uploadBtn) {
+            indicator.style.display = 'none';
+            uploadBtn.title = 'Carregar Dados';
+            if (fsIndicator) fsIndicator.style.display = 'none';
+        }
     }
 
     async tryAutoLoad() {
@@ -1099,11 +1189,11 @@ class DashboardMultiPage {
 
         // Adicionar ao DOM
         document.body.appendChild(notification);
-        
+
         // Animar entrada
         setTimeout(() => notification.classList.add('show'), 100);
 
-        // Event listeners
+    // Listeners
         document.getElementById('autoLoadYes').addEventListener('click', () => {
             onConfirm();
             this.removeNotification(notification);
@@ -1133,7 +1223,7 @@ class DashboardMultiPage {
 
     async performAutoLoad(fileInfo) {
         this.showLoading();
-        
+
         try {
             // Simular elemento de status
             const statusElement = document.getElementById('uploadStatus');
@@ -1146,23 +1236,23 @@ class DashboardMultiPage {
             }
 
             let fileData = null;
-            
+
             // Tentar usar file handle se disponível
             if (fileInfo.fileHandle) {
                 try {
                     // Solicitar permissão para ler o arquivo
                     const permissionStatus = await fileInfo.fileHandle.queryPermission({ mode: 'read' });
-                    
+
                     if (permissionStatus !== 'granted') {
                         const permission = await fileInfo.fileHandle.requestPermission({ mode: 'read' });
                         if (permission !== 'granted') {
                             throw new Error('Permissão negada pelo usuário');
                         }
                     }
-                    
+
                     // Ler o arquivo atual
                     const file = await fileInfo.fileHandle.getFile();
-                    
+
                     // Verificar se é CSV ou Excel
                     if (fileInfo.type === '.csv') {
                         fileData = await file.text();
@@ -1170,19 +1260,19 @@ class DashboardMultiPage {
                         // Para Excel, usar a função existente
                         fileData = await this.readExcelFileContent(file);
                     }
-                    
-                    console.log(`Arquivo ${fileInfo.name} lido diretamente do sistema de arquivos`);
-                    
+
+                    // arquivo lido do sistema via file handle
+
                 } catch (handleError) {
                     console.warn('Erro ao usar file handle, tentando dados salvos:', handleError);
-                    
+
                     // Verificar se é erro de arquivo não encontrado
                     if (handleError.name === 'NotFoundError') {
                         this.showFileNotFoundError(fileInfo.name, statusElement);
                         await this.clearStoredFile();
                         return;
                     }
-                    
+
                     if (handleError.message.includes('Permissão negada')) {
                         if (statusElement) {
                             statusElement.className = 'upload-status error';
@@ -1196,11 +1286,11 @@ class DashboardMultiPage {
                     }
                 }
             }
-            
+
             // Fallback: usar dados salvos se não conseguiu ler via handle
             if (!fileData && fileInfo.data) {
                 fileData = fileInfo.data;
-                console.log(`Usando dados salvos em cache para ${fileInfo.name}`);
+                // usando dados em cache (fallback)
             }
 
             // Validar se os dados são válidos
@@ -1211,7 +1301,7 @@ class DashboardMultiPage {
             // Processar dados
             this.processData(fileData);
             this.updateLastUpdate();
-            
+
             if (statusElement) {
                 const method = fileInfo.fileHandle ? 'arquivo atual' : 'cache';
                 statusElement.className = 'upload-status success';
@@ -1220,12 +1310,12 @@ class DashboardMultiPage {
                     <span class="file-info">✓ ${fileInfo.name} (${method})</span>
                 `;
             }
-            
-            console.log(`Arquivo ${fileInfo.name} recarregado com sucesso`);
-            
+
+            // arquivo recarregado com sucesso
+
         } catch (error) {
             console.error('Erro no auto-carregamento:', error);
-            
+
             const statusElement = document.getElementById('uploadStatus');
             if (statusElement) {
                 statusElement.className = 'upload-status error';
@@ -1234,10 +1324,10 @@ class DashboardMultiPage {
                     <span class="file-info">✗ Erro ao recarregar ${fileInfo.name}</span>
                 `;
             }
-            
+
             // Limpar arquivo corrompido
             this.clearStoredFile();
-            
+
         } finally {
             this.hideLoading();
         }
@@ -1264,13 +1354,13 @@ class DashboardMultiPage {
     }
 
     showEmptyState() {
-        // Forçar atualização da interface para mostrar estado vazio
+    // Forçar atualização da interface para mostrar estado vazio
         this.filteredServidores = [];
         this.updateStats();
         this.updateTable();
         this.updateUrgencyChart();
-        
-        console.log('Sistema iniciado em estado vazio - aguardando upload de dados');
+
+    // sistema iniciado em estado vazio
     }
 
     readFileAsText(file) {
@@ -1305,22 +1395,22 @@ class DashboardMultiPage {
         try {
             // Limpar problemas anteriores
             this.clearLoadingProblems();
-            
+
             this.allServidores = this.parser.processarDadosCSV(csvData);
             this.filteredServidores = [...this.allServidores];
-            
+
             // Detectar tipo de tabela e adaptar interface
             const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
             this.adaptUIForTableType(isLicencaPremio);
-            
+
             // Verificar se existem erros de cronograma
             this.verificarErrosCronograma();
-            
+
             this.updateStats();
             this.updateHeaderStatus();
             this.updateActiveFilters();
-            
-            // Update current page content
+
+            // Atualizar conteúdo da página atual
             if (this.currentPage === 'home') {
                 this.createUrgencyChart();
                 this.updateTable();
@@ -1329,7 +1419,7 @@ class DashboardMultiPage {
             } else if (this.currentPage === 'timeline') {
                 this.createTimelineChart();
             }
-            
+
         } catch (error) {
             console.error('Erro ao processar dados:', error);
             this.addLoadingProblem('Processamento de dados', error.message);
@@ -1340,7 +1430,7 @@ class DashboardMultiPage {
     adaptUIForTableType(isLicencaPremio) {
         const ageFilterSection = document.getElementById('ageFilterSection');
         const periodFilterSection = document.getElementById('periodFilterSection');
-        
+
         if (isLicencaPremio) {
             // Para licenças prêmio: esconder filtro de idade, mostrar filtro de período
             if (ageFilterSection) ageFilterSection.style.display = 'none';
@@ -1352,58 +1442,101 @@ class DashboardMultiPage {
         }
     }
 
-    verificarErrosCronograma() {
-        // Simular verificação de problemas nos dados
-        this.allServidores.forEach(servidor => {
-            try {
-                // Verificar dados inválidos ou inconsistentes
-                if (!servidor.nome || servidor.nome.trim() === '') {
-                    this.addLoadingProblem(servidor.nome || 'Nome vazio', 'Nome do servidor está vazio ou inválido');
-                }
-                
-                if (!servidor.dataLicenca || isNaN(new Date(servidor.dataLicenca))) {
-                    this.addLoadingProblem(servidor.nome, 'Data de licença inválida ou não encontrada');
-                }
-                
-                if (!servidor.lotacao || servidor.lotacao.trim() === '') {
-                    this.addLoadingProblem(servidor.nome, 'Lotação não informada');
-                }
-                
-                // Verificar idade inválida
-                if (servidor.idade && (servidor.idade < 18 || servidor.idade > 100)) {
-                    this.addLoadingProblem(servidor.nome, `Idade suspeita: ${servidor.idade} anos`);
-                }
-                
-                // Verificar datas muito antigas ou muito futuras
-                const dataLicenca = new Date(servidor.dataLicenca);
-                const anoAtual = new Date().getFullYear();
-                if (dataLicenca.getFullYear() < 1990 || dataLicenca.getFullYear() > anoAtual + 50) {
-                    this.addLoadingProblem(servidor.nome, `Data de licença suspeita: ${dataLicenca.getFullYear()}`);
-                }
-                
-            } catch (error) {
-                this.addLoadingProblem(servidor.nome, `Erro ao validar dados: ${error.message}`);
-            }
-        });
-    }
     
+
     verificarErrosCronograma() {
-        const servidoresComErro = this.allServidores.filter(s => s.cronogramaComErro);
-        
-        if (servidoresComErro.length > 0) {
-            console.warn(`⚠️  Encontrados ${servidoresComErro.length} servidores com cronogramas problemáticos:`);
-            
-            servidoresComErro.forEach(servidor => {
-                console.warn(`- ${servidor.nome}: "${servidor.cronograma}"`);
+        try {
+            if (!this.allServidores || this.allServidores.length === 0) {
+                this.updateProblemsCount();
+                return;
+            }
+
+            // Percorrer cada servidor e validar campos relacionados a datas/licenças
+            this.allServidores.forEach((servidor) => {
+                const nome = servidor?.nome || 'Servidor desconhecido';
+
+                // 1) Cronograma não interpretado pelo parser
+                if (servidor.cronogramaComErro) {
+                    this.addLoadingProblem(nome, 'Cronograma ambíguo ou não interpretável', `cronograma: ${servidor.cronograma || ''}`);
+                }
+
+                // 2) Licenças extraídas: verificar se existem e se as datas são válidas
+                if (!Array.isArray(servidor.licencas) || servidor.licencas.length === 0) {
+                    // Se há um cronograma textual presente mas nenhuma licença extraída, marcar problema
+                    if (servidor.cronograma && servidor.cronograma.toString().trim().length > 0) {
+                        this.addLoadingProblem(nome, 'Nenhuma licença extraída do cronograma (formato desconhecido)');
+                    }
+
+                    // Caso especial: tabela de "licenca-premio" — verificar se colunas INICIO/FINAL estavam presentes
+                    if (servidor.tipoTabela === 'licenca-premio') {
+                        let rawInicio = '';
+                        let rawFinal = '';
+                        if (servidor.dadosOriginais) {
+                            for (const k of Object.keys(servidor.dadosOriginais)) {
+                                try {
+                                    // Normalizar cabecalhos removendo acentos para capturar 'INÍCIO' e 'INICIO'
+                                    const normKey = k.toString().normalize('NFD').replace(/\p{Diacritic}/gu, '').toUpperCase();
+                                    if (normKey.includes('INICIO')) rawInicio = servidor.dadosOriginais[k] || rawInicio;
+                                    if (normKey.includes('FINAL')) rawFinal = servidor.dadosOriginais[k] || rawFinal;
+                                } catch (e) {
+                                    // Fallback simples sem normalização
+                                    const up = k.toString().toUpperCase();
+                                    if (up.includes('INICIO')) rawInicio = servidor.dadosOriginais[k] || rawInicio;
+                                    if (up.includes('FINAL')) rawFinal = servidor.dadosOriginais[k] || rawFinal;
+                                }
+                            }
+                        }
+
+                        if ((rawInicio && rawInicio.toString().trim().length > 0) || (rawFinal && rawFinal.toString().trim().length > 0)) {
+                            this.addLoadingProblem(nome, 'Período de licença-prêmio não interpretado', `inicio: ${rawInicio || ''}, final: ${rawFinal || ''}`);
+                        }
+                    }
+                } else {
+                    servidor.licencas.forEach((licenca, idx) => {
+                        // inicio
+                        if (!licenca || !licenca.inicio || !(licenca.inicio instanceof Date) || isNaN(licenca.inicio.getTime())) {
+                            this.addLoadingProblem(nome, `Licença ${idx + 1}: data de início inválida`, `licenca: ${JSON.stringify(licenca)}`);
+                        }
+
+                        // fim
+                        if (!licenca || !licenca.fim || !(licenca.fim instanceof Date) || isNaN(licenca.fim.getTime())) {
+                            this.addLoadingProblem(nome, `Licença ${idx + 1}: data de fim inválida`, `licenca: ${JSON.stringify(licenca)}`);
+                        }
+
+                        // fim antes do inicio
+                        if (licenca && licenca.inicio instanceof Date && licenca.fim instanceof Date) {
+                            if (licenca.inicio.getTime() > licenca.fim.getTime()) {
+                                this.addLoadingProblem(nome, `Licença ${idx + 1}: data de fim anterior à data de início`, `licenca: ${JSON.stringify(licenca)}`);
+                            }
+                        }
+                    });
+                }
+
+                // 3) Próxima licença (inicio/fim) validade
+                const pi = servidor.proximaLicencaInicio;
+                const pf = servidor.proximaLicencaFim;
+                if (pi && (!(pi instanceof Date) || isNaN(pi.getTime()))) {
+                    this.addLoadingProblem(nome, 'Próxima licença (início) inválida', `proximaLicencaInicio: ${pi}`);
+                }
+                if (pf && (!(pf instanceof Date) || isNaN(pf.getTime()))) {
+                    this.addLoadingProblem(nome, 'Próxima licença (fim) inválida', `proximaLicencaFim: ${pf}`);
+                }
+                if (pi instanceof Date && pf instanceof Date && pi.getTime() > pf.getTime()) {
+                    this.addLoadingProblem(nome, 'Próxima licença: fim anterior ao início', `proximaLicencaInicio: ${pi.toISOString()}, proximaLicencaFim: ${pf.toISOString()}`);
+                }
+
+                // 4) Verificações adicionais opcionais removidas: idade, admissão e lotação não são considerados problemas obrigatórios
             });
-            
-            // Exibir alerta para o usuário
-            const nomes = servidoresComErro.map(s => s.nome).join(', ');
-            const mensagem = `⚠️  Atenção: ${servidoresComErro.length} servidor(es) com cronogramas ambíguos foram detectados:\n\n${nomes}\n\nEstes cronogramas não puderam ser interpretados por não conterem informações suficientes (ex: ano de início).`;
-            
-            setTimeout(() => {
-                alert(mensagem);
-            }, 500);
+
+            // Atualizar contagem/estado do card de problemas
+            this.updateProblemsCount();
+
+            // Se houver problemas, log resumido
+            if (this.loadingProblems && this.loadingProblems.length > 0) {
+                console.warn(`⚠️  Encontrados ${this.loadingProblems.length} problema(s) durante a validação dos dados.`);
+            }
+        } catch (e) {
+            console.error('Erro na verificação de erros do cronograma:', e);
         }
     }
 
@@ -1411,48 +1544,9 @@ class DashboardMultiPage {
     applyAgeFilter() {
         const minAge = parseInt(document.getElementById('minAge').value) || 0;
         const maxAge = parseInt(document.getElementById('maxAge').value) || 100;
-        
+
         this.currentFilters.age = { min: minAge, max: maxAge };
         this.applyAllFilters();
-    }
-
-    applyPeriodFilter() {
-        // Função desabilitada - elementos period-tab não existem no novo layout
-        console.log('Period filter não implementado no novo layout');
-        return null;
-        
-        // const periodType = document.querySelector('.period-tab.active').dataset.period;
-        
-        let periodFilter = { type: periodType };
-        
-        if (periodType === 'yearly') {
-            periodFilter.start = parseInt(document.getElementById('startYear').value);
-            periodFilter.end = parseInt(document.getElementById('endYear').value);
-        } else if (periodType === 'monthly') {
-            periodFilter.year = parseInt(document.getElementById('monthYearRange').value);
-            periodFilter.monthStart = parseInt(document.getElementById('monthStart').value);
-            periodFilter.monthEnd = parseInt(document.getElementById('monthEnd').value);
-        } else if (periodType === 'daily') {
-            periodFilter.year = parseInt(document.getElementById('dailyYear').value);
-            periodFilter.month = parseInt(document.getElementById('dailyMonthSelect').value);
-        }
-        
-        this.currentFilters.period = periodFilter;
-        this.applyAllFilters();
-    }
-
-    switchPeriodTab(period) {
-        // Função desabilitada - period tabs não existem no novo layout
-        console.log('Period tab switching não implementado no novo layout');
-        return;
-        
-        // Update active tab
-        // document.querySelectorAll('.period-tab').forEach(tab => tab.classList.remove('active'));
-        document.querySelector(`[data-period="${period}"]`).classList.add('active');
-        
-        // Show corresponding controls
-        document.querySelectorAll('.period-controls > div').forEach(div => div.classList.remove('active'));
-        document.querySelector(`.${period}-controls`).classList.add('active');
     }
 
     handleSearch(searchTerm) {
@@ -1473,47 +1567,39 @@ class DashboardMultiPage {
         if (minAgeInput) minAgeInput.value = 18;
         if (maxAgeInput) maxAgeInput.value = 70;
         this.currentFilters.age = { min: 18, max: 70 };
-        
-        // Reset period filter
         const currentYear = new Date().getFullYear();
         const startYearInput = document.getElementById('startYear');
         const endYearInput = document.getElementById('endYear');
         if (startYearInput) startYearInput.value = currentYear;
         if (endYearInput) endYearInput.value = currentYear + 3;
         this.currentFilters.period = { type: 'yearly', start: currentYear, end: currentYear + 3 };
-        
-        // Reset search
         const searchInput = document.getElementById('searchInput');
         if (searchInput) searchInput.value = '';
         this.currentFilters.search = '';
-        
-        // Reset urgency filter
         this.currentFilters.urgency = '';
-        
-        // Reset filtros específicos de licenças prêmio
         const mesFilter = document.getElementById('mesFilter');
         if (mesFilter) {
-            mesFilter.value = '';
+            try {
+                mesFilter.value = 'all';
+                mesFilter.dispatchEvent(new Event('change', { bubbles: true }));
+            } catch (e) {
+                // Se ocorrer erro ao disparar o evento (ex.: browsers antigos), apenas definir o valor
+                mesFilter.value = 'all';
+            }
         }
         this.currentFilters.cargo = ''; // Reset cargo filter
-        
-        // Reset period tabs - removido do novo layout
-        // document.querySelectorAll('.period-tab').forEach(tab => tab.classList.remove('active'));
-        // document.querySelector('[data-period="yearly"]').classList.add('active');
-        // document.querySelectorAll('.period-controls > div').forEach(div => div.classList.remove('active'));
-        // document.querySelector('.yearly-controls').classList.add('active');
-        
+
         // Clear legend highlights
         document.querySelectorAll('.legend-item').forEach(item => item.classList.remove('selected'));
-        
+
         // Clear chart highlights
         this.selectedChartIndex = -1;
         this.updateChartHighlight();
-        
+
         // Clear legend and stat card active states
         document.querySelectorAll('.legend-card').forEach(card => card.classList.remove('active'));
         document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('selected'));
-        
+
         // Aplicar filtros baseado no tipo de tabela
         if (!this.allServidores || this.allServidores.length === 0) {
             // Se não há dados carregados, apenas limpar a interface
@@ -1522,9 +1608,9 @@ class DashboardMultiPage {
             this.updateHeaderStatus();
             return;
         }
-        
+
         const isLicencaPremio = this.allServidores[0].tipoTabela === 'licenca-premio';
-        
+
         if (isLicencaPremio) {
             this.applyLicencaFilters();
         } else {
@@ -1536,7 +1622,7 @@ class DashboardMultiPage {
     adaptFiltersForTableType(isLicencaPremio) {
         const originalFilters = document.querySelectorAll('.original-filters');
         const licencaFilters = document.querySelectorAll('.licenca-filters');
-        
+
         if (isLicencaPremio) {
             // Esconder filtros originais e mostrar filtros de licença
             originalFilters.forEach(filter => filter.style.display = 'none');
@@ -1551,7 +1637,7 @@ class DashboardMultiPage {
     // Função de filtros unificada que funciona para ambos os tipos
     applyFilters() {
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-        
+
         if (isLicencaPremio) {
             this.applyLicencaFilters();
         } else {
@@ -1559,18 +1645,11 @@ class DashboardMultiPage {
         }
     }
 
-    // Filtros específicos para licenças prêmio
     applyLicencaFilters() {
-        const mesFilter = document.getElementById('mesFilter')?.value?.trim() || '';
+        const rawMes = document.getElementById('mesFilter')?.value?.trim() || '';
+        const mesFilter = (rawMes && rawMes.toLowerCase() === 'all') ? '' : rawMes;
         const searchTerm = document.getElementById('searchInput')?.value?.toLowerCase().trim() || '';
-        
-        console.log('ApplyLicencaFilters Debug:', {
-            mesFilter,
-            searchTerm,
-            cargoFilter: this.currentFilters.cargo,
-            beforeFilter: this.allServidores.length
-        });
-        
+
         // Se nenhum filtro está ativo, mostrar todos os dados
         if (!mesFilter && !searchTerm && !this.currentFilters.cargo) {
             this.filteredServidores = [...this.allServidores];
@@ -1580,64 +1659,58 @@ class DashboardMultiPage {
                 if (searchTerm && !this.matchesSearch(servidor, searchTerm)) {
                     return false;
                 }
-                
+
                 // Filtro de cargo do gráfico - usar currentFilters ao invés do dropdown
                 if (this.currentFilters.cargo && servidor.cargo !== this.currentFilters.cargo) {
                     return false;
                 }
-                
+
                 // Filtro de mês - só aplicar se há mês selecionado
                 if (mesFilter && !this.matchesMonth(servidor, mesFilter)) {
                     return false;
                 }
-                
+
                 return true;
             });
         }
-        
-        console.log('ApplyLicencaFilters Result:', {
-            beforeFilter: this.allServidores.length,
-            afterFilter: this.filteredServidores.length,
-            hasFilters: !!(mesFilter || searchTerm || this.currentFilters.cargo)
-        });
-        
+
+    // Resultado do filtro de licença aplicado (atualiza tabela/estatísticas)
+
         this.updateTable();
         this.updateStats();
         this.updateHeaderStatus();
         this.updateTimelineChart(); // Atualizar timeline quando filtros mudarem
     }
-
-    // Verificar se o servidor tem licença no mês especificado
     matchesMonth(servidor, targetMonth) {
         if (!servidor.proximaLicencaInicio || !servidor.proximaLicencaFim) {
             return false;
         }
-        
+
         const months = [
             'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
             'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
         ];
-        
+
         const targetMonthIndex = months.indexOf(targetMonth.toLowerCase());
         if (targetMonthIndex === -1) return false;
-        
+
         const inicio = servidor.proximaLicencaInicio;
         const fim = servidor.proximaLicencaFim;
-        
+
         // Verificar todos os meses cobertos pela licença
         const currentDate = new Date(inicio);
         const endDate = new Date(fim);
-        
+
         while (currentDate <= endDate) {
             if (currentDate.getMonth() === targetMonthIndex) {
                 return true;
             }
-            
+
             // Avançar para o próximo mês
             currentDate.setMonth(currentDate.getMonth() + 1);
             currentDate.setDate(1); // Garantir que não há problemas com dias
         }
-        
+
         return false;
     }
 
@@ -1646,11 +1719,18 @@ class DashboardMultiPage {
         const searchableFields = [
             servidor.nome,
             servidor.cargo,
+            servidor.lotacao,
             servidor.urgencia || servidor.nivelUrgencia // Para compatibilidade com ambos os tipos
-        ].filter(field => field); // Removes null/undefined fields
-        
-        return searchableFields.some(field => 
-            field && field.toLowerCase().includes(searchTerm)
+        ];
+
+        // Incluir dados originais (ex.: CPF, DN) se disponíveis
+        if (servidor.dadosOriginais) {
+            const extras = Object.values(servidor.dadosOriginais).map(v => v && v.toString()).filter(Boolean);
+            searchableFields.push(...extras);
+        }
+
+        return searchableFields.filter(f => f).some(field =>
+            field.toString().toLowerCase().includes(searchTerm)
         );
     }
 
@@ -1663,37 +1743,37 @@ class DashboardMultiPage {
             return;
         }
 
-        // Use performance timing for debugging
+    // Medição rápida de performance para diagnóstico (opcional)
         const startTime = performance.now();
-        
+
         const filters = this.currentFilters;
-        
+
         this.filteredServidores = this.allServidores.filter(servidor => {
-            // Quick age filter check first (most common filter)
+            // Verificação rápida de idade primeiro (filtro mais comum)
             if (servidor.idade < filters.age.min || servidor.idade > filters.age.max) {
                 return false;
             }
-            
-            // Search filter (use early return for performance)
+
+            // Filtro de busca (retorno antecipado para melhorar performance)
             if (filters.search) {
                 const searchTerm = filters.search.toLowerCase();
                 const serverName = servidor.nome.toLowerCase();
                 const serverLotacao = servidor.lotacao?.toLowerCase() || '';
                 const serverCargo = servidor.cargo?.toLowerCase() || '';
-                
-                if (!serverName.includes(searchTerm) && 
-                    !serverLotacao.includes(searchTerm) && 
+
+                if (!serverName.includes(searchTerm) &&
+                    !serverLotacao.includes(searchTerm) &&
                     !serverCargo.includes(searchTerm)) {
                     return false;
                 }
             }
-            
+
             // Urgency filter - apenas aplicar se o servidor tem urgência (cronogramas regulares)
             if (filters.urgency && servidor.nivelUrgencia && servidor.nivelUrgencia.toLowerCase() !== filters.urgency) {
                 return false;
             }
-            
-            // Period filter optimization - only check if servidor has licenses
+
+            // Otimização do filtro por período - verificar apenas se o servidor possui licenças
             if (servidor.licencas && servidor.licencas.length > 0) {
                 if (filters.period.type === 'yearly' && (filters.period.start || filters.period.end)) {
                     const hasLicenseInPeriod = servidor.licencas.some(licenca => {
@@ -1702,18 +1782,18 @@ class DashboardMultiPage {
                         return year >= filters.period.start && year <= filters.period.end;
                     });
                     if (!hasLicenseInPeriod) return false;
-                    
+
                 } else if (filters.period.type === 'monthly' && filters.period.year) {
                     const hasLicenseInPeriod = servidor.licencas.some(licenca => {
                         if (!licenca.inicio) return false;
                         const year = licenca.inicio.getFullYear();
                         const month = licenca.inicio.getMonth();
-                        return year === filters.period.year && 
-                               month >= filters.period.monthStart && 
-                               month <= filters.period.monthEnd;
+                        return year === filters.period.year &&
+                            month >= filters.period.monthStart &&
+                            month <= filters.period.monthEnd;
                     });
                     if (!hasLicenseInPeriod) return false;
-                    
+
                 } else if (filters.period.type === 'daily' && filters.period.year !== undefined && filters.period.month !== undefined) {
                     const hasLicenseInPeriod = servidor.licencas.some(licenca => {
                         if (!licenca.inicio) return false;
@@ -1724,20 +1804,20 @@ class DashboardMultiPage {
                     if (!hasLicenseInPeriod) return false;
                 }
             }
-            
+
             return true;
         });
 
-        // Debug performance
+    // Verifica duração da filtragem e registra se acima do limiar
         const endTime = performance.now();
         if (endTime - startTime > 10) {
-            console.warn(`Filter performance: ${(endTime - startTime).toFixed(2)}ms for ${this.allServidores.length} servers`);
+            console.warn(`Desempenho do filtro: ${(endTime - startTime).toFixed(2)}ms para ${this.allServidores.length} servidores`);
         }
 
         this.updateStats();
         this.updateHeaderStatus();
-        
-        // Update current page
+
+    // Atualizar página atual
         if (this.currentPage === 'home') {
             this.updateUrgencyChart();
             this.updateTable();
@@ -1752,21 +1832,21 @@ class DashboardMultiPage {
     createUrgencyChart() {
         const ctx = document.getElementById('urgencyChart');
         if (!ctx) return;
-        
-        // Destroy existing chart
+
+    // Destruir gráfico existente
         if (this.charts.urgency) {
             this.charts.urgency.destroy();
         }
 
         // Detectar tipo de tabela
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-        
-        // Update chart title
+
+    // Atualizar título do gráfico
         const chartTitle = document.querySelector('.chart-title');
         if (chartTitle) {
             chartTitle.textContent = isLicencaPremio ? 'Distribuição por Cargos' : 'Distribuição por Urgência';
         }
-        
+
         if (isLicencaPremio) {
             this.createCargoChart();
         } else {
@@ -1824,12 +1904,12 @@ class DashboardMultiPage {
                     } else {
                         // Clicou fora das fatias - limpar filtro
                         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-                        
+
                         if (isLicencaPremio) {
                             // Para licenças prêmio, limpar filtro de cargo
                             this.clearCargoFilter();
                         } else {
-                            // Para aposentadorias, limpar filtro de urgência
+                            // limpar filtro de urgência
                             this.clearUrgencyFilter();
                         }
                     }
@@ -1843,7 +1923,7 @@ class DashboardMultiPage {
         // Registrar chart globalmente para ThemeManager
         window.dashboardChart = this.charts.urgency;
 
-        // Update legend counts with static data
+    // Atualizar contagens da legenda com dados estáticos
         this.updateUrgencyLegend(this.getStaticUrgencyData());
     }
 
@@ -1906,54 +1986,50 @@ class DashboardMultiPage {
         // Registrar chart globalmente
         window.dashboardChart = this.charts.urgency;
 
-        // Update legend counts with static data
-        this.updateCargoLegend(this.getStaticCargoData());
+    // Atualizar contagens da legenda com dados estáticos
+    this.updateCargoLegend(this.getStaticCargoData());
     }
 
     createTimelineChart() {
         const ctx = document.getElementById('timelineChart');
         if (!ctx) return;
-        
-        // Initialize controls if not already done
+
+    // Inicializar controles se ainda não estiverem prontos
         if (!ctx.dataset.controlsInitialized) {
             this.initializeTimelineControls();
             ctx.dataset.controlsInitialized = 'true';
         }
-        
-        // Destroy existing chart
+
+        // Destruir gráfico existente
         if (this.charts.timeline) {
             this.charts.timeline.destroy();
         }
 
-        // Ensure filtered servidores are available for timeline
+    // Garantir que 'filteredServidores' esteja pronto para uso na timeline
         if (!this.filteredServidores) {
-            console.log('Initializing filteredServidores from allServidores for timeline (first time only)');
+            // inicializando 'filteredServidores' quando necessário
             this.filteredServidores = [...this.allServidores];
         } else {
-            console.log('Using existing filteredServidores for timeline:', this.filteredServidores.length);
+            // usando 'filteredServidores' já existente
         }
 
-        // Check if we have any data source (filteredServidores can be empty due to filters)
+        // Verificar se há alguma fonte de dados (filteredServidores pode estar vazio devido a filtros)
         if (!this.filteredServidores) {
-            console.warn('No data source available for timeline chart');
+            console.warn('Nenhuma fonte de dados disponível para o gráfico de timeline');
             return;
         }
 
         const timelineData = this.getTimelineData();
 
-        // Validate timeline data (empty is okay with filters)
+    // Validar dados da timeline (vazio é aceitável quando filtros aplicados)
         if (!timelineData || !timelineData.labels) {
-            console.warn('Invalid timeline data structure');
+            console.warn('Estrutura de dados da timeline inválida');
             return;
         }
-        
-        console.log('Timeline chart data:', {
-            labels: timelineData.labels.length,
-            dataPoints: timelineData.data.length,
-            filteredServidores: this.filteredServidores.length
-        });
 
-        // Update stats
+    // Dados do gráfico de timeline processados
+
+    // Atualizar estatísticas
         this.updateTimelineStats(timelineData);
 
         this.charts.timeline = new Chart(ctx, {
@@ -1991,7 +2067,29 @@ class DashboardMultiPage {
                         cornerRadius: 8,
                         callbacks: {
                             title: (context) => {
-                                return `${context[0].label}`;
+                                try {
+                                    const idx = context[0].dataIndex;
+                                    const period = timelineData.periods && timelineData.periods[idx];
+                                    if (!period) return context[0].label || '';
+
+                                    if (period.type === 'day') {
+                                        const d = new Date(period.date);
+                                        return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+                                    }
+
+                                    if (period.type === 'month') {
+                                        const monthNames = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+                                        return `${monthNames[period.month] || ''} de ${period.year}`;
+                                    }
+
+                                    if (period.type === 'year') {
+                                        return String(period.value || context[0].label || '');
+                                    }
+
+                                    return context[0].label || '';
+                                } catch (e) {
+                                    return context[0].label || '';
+                                }
                             },
                             label: (context) => {
                                 const count = context.parsed.y;
@@ -2028,10 +2126,10 @@ class DashboardMultiPage {
                         const index = elements[0].index;
                         const period = timelineData.periods[index];
                         const label = timelineData.labels[index];
-                        
-                        console.log('Chart clicked:', { index, period, label });
-                        
-                        // Show details for specific clicked point
+
+                        // Clique no gráfico: aplicar filtro correspondente
+
+                        // Mostrar detalhes para o ponto clicado
                         this.showDayDetails(period, label, timelineData.servidoresData[index]);
                     }
                 },
@@ -2046,18 +2144,18 @@ class DashboardMultiPage {
         // Calcular estatísticas
         const totalLicenses = timelineData.data.reduce((sum, val) => sum + val, 0);
         const activeServers = new Set();
-        
+
         this.filteredServidores.forEach(servidor => {
             if (servidor.licencas.length > 0) {
                 activeServers.add(servidor.nome);
             }
         });
-        
+
         const maxValue = Math.max(...timelineData.data);
         const peakIndex = timelineData.data.indexOf(maxValue);
         const peakPeriod = timelineData.labels[peakIndex] || '-';
         const averageLicenses = totalLicenses / timelineData.data.length || 0;
-        
+
         // Determinar o tipo de período atual
         const selectedView = document.getElementById('timelineView')?.value || 'monthly';
         let periodLabel = 'Média por Período';
@@ -2074,7 +2172,7 @@ class DashboardMultiPage {
             default:
                 periodLabel = 'Média por Período';
         }
-        
+
         // Armazenar estatísticas para uso no modal
         this.currentTimelineStats = {
             totalLicenses,
@@ -2090,7 +2188,7 @@ class DashboardMultiPage {
         const yearSelect = document.getElementById('timelineYear');
         if (yearSelect) {
             yearSelect.innerHTML = '';
-            
+
             // Extrair anos que realmente têm dados
             const yearsWithData = new Set();
             this.filteredServidores.forEach(servidor => {
@@ -2098,10 +2196,10 @@ class DashboardMultiPage {
                     yearsWithData.add(licenca.inicio.getFullYear());
                 });
             });
-            
+
             // Converter para array e ordenar
             const sortedYears = Array.from(yearsWithData).sort((a, b) => a - b);
-            
+
             // Se não há dados, usar anos padrão
             if (sortedYears.length === 0) {
                 const currentYear = new Date().getFullYear();
@@ -2109,7 +2207,7 @@ class DashboardMultiPage {
                     sortedYears.push(year);
                 }
             }
-            
+
             // Popular dropdown
             sortedYears.forEach((year, index) => {
                 const option = document.createElement('option');
@@ -2118,24 +2216,24 @@ class DashboardMultiPage {
                 if (index === 0) option.selected = true; // Selecionar o primeiro ano com dados
                 yearSelect.appendChild(option);
             });
-            
+
             yearSelect.addEventListener('change', () => {
                 this.createTimelineChart();
             });
         }
-        
+
         // Timeline month selector
         const monthSelect = document.getElementById('timelineMonth');
         if (monthSelect) {
             // HTML values are 0-based (0=Janeiro, 1=Fevereiro, etc.) which matches JavaScript months
             const currentMonth = new Date().getMonth();  // 0-based month (0-11)
             monthSelect.value = currentMonth;
-            
+
             monthSelect.addEventListener('change', () => {
                 this.createTimelineChart();
             });
         }
-        
+
         // Timeline view selector
         const viewSelect = document.getElementById('timelineView');
         if (viewSelect) {
@@ -2143,11 +2241,11 @@ class DashboardMultiPage {
                 this.toggleControlsVisibility();
                 this.createTimelineChart();
             });
-            
-            // Initialize visibility
+
+            // Inicializar visibilidade
             this.toggleControlsVisibility();
         }
-        
+
         // Show period stats button
         const periodStatsBtn = document.getElementById('showPeriodStatsBtn');
         if (periodStatsBtn) {
@@ -2155,7 +2253,7 @@ class DashboardMultiPage {
                 this.showCurrentPeriodStats();
             });
         }
-        
+
         // Export button
         const exportBtn = document.getElementById('exportTimelineBtn');
         if (exportBtn) {
@@ -2170,7 +2268,7 @@ class DashboardMultiPage {
         const monthGroup = document.getElementById('timelineMonthGroup');
         const yearGroup = document.getElementById('timelineYearGroup');
         const periodStatsBtn = document.getElementById('showPeriodStatsBtn');
-        
+
         if (monthGroup && yearGroup && periodStatsBtn) {
             if (viewType === 'daily') {
                 monthGroup.style.display = 'flex';
@@ -2191,17 +2289,17 @@ class DashboardMultiPage {
     showCurrentPeriodStats() {
         const viewType = document.getElementById('timelineView')?.value || 'monthly';
         const selectedYear = parseInt(document.getElementById('timelineYear')?.value) || new Date().getFullYear();
-        // HTML month values are already 0-based (0=Janeiro, 1=Fevereiro, etc.)
+    // Valores de mês no HTML já são 0-based (0=Janeiro, 1=Fevereiro, etc.)
         const selectedMonth = parseInt(document.getElementById('timelineMonth')?.value) || new Date().getMonth();
-        
-        console.log('Period stats debug:', { viewType, selectedYear, selectedMonth: selectedMonth, selectedMonthName: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth] });
-        
+
+    // Atualização de estatísticas do período (operação interna)
+
         let periodLabel = '';
         let periodFilter = {};
-        
+
         if (viewType === 'daily') {
             const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                               'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
             periodLabel = `${monthNames[selectedMonth]} ${selectedYear}`;
             periodFilter = { type: 'month', year: selectedYear, month: selectedMonth };
         } else if (viewType === 'monthly') {
@@ -2211,96 +2309,119 @@ class DashboardMultiPage {
             periodLabel = 'Todos os Anos';
             periodFilter = { type: 'all' };
         }
-        
-        // Filter servers for the period
+
+    // Filtrar servidores para o período
         const servidores = this.filteredServidores.filter(servidor => {
             return servidor.licencas.some(licenca => {
                 if (periodFilter.type === 'year') {
                     return licenca.inicio.getFullYear() === periodFilter.value;
                 } else if (periodFilter.type === 'month') {
-                    return licenca.inicio.getFullYear() === periodFilter.year && 
-                           licenca.inicio.getMonth() === periodFilter.month;
+                    return licenca.inicio.getFullYear() === periodFilter.year &&
+                        licenca.inicio.getMonth() === periodFilter.month;
                 }
                 return true; // all
             });
         });
-        
-        console.log('Filtered servers for period:', servidores.length, 'found for', periodLabel);
-        
+
+    // Lista de servidores filtrados (uso interno)
+
         this.showPeriodStatsModal(periodLabel, servidores, periodFilter);
     }
 
     showDayDetails(period, label, servidoresNames) {
-        console.log('Timeline day details:', { period, label, servidoresNames });
-        
-        // Filter servers that have licenses on this specific day/month/year
+    // Detalhes diários da timeline gerados
+
+        // Filter servers that have licenses overlapping this specific day/month/year
         const servidores = this.filteredServidores.filter(servidor => {
             return servidor.licencas.some(licenca => {
-                if (period.type === 'day') {
-                    return licenca.inicio.getFullYear() === period.year &&
-                           licenca.inicio.getMonth() === period.month &&
-                           licenca.inicio.getDate() === period.day;
-                } else if (period.type === 'month') {
-                    return licenca.inicio.getFullYear() === period.year &&
-                           licenca.inicio.getMonth() === period.month;
-                } else if (period.type === 'year') {
-                    return licenca.inicio.getFullYear() === period.value;
+                try {
+                    const inicio = new Date(licenca.inicio);
+                    const fim = licenca.fim ? new Date(licenca.fim) : new Date(licenca.inicio);
+                    inicio.setHours(0, 0, 0, 0);
+                    fim.setHours(0, 0, 0, 0);
+
+                    if (period.type === 'day') {
+                        const target = new Date(period.year, period.month, period.day);
+                        target.setHours(0, 0, 0, 0);
+                        return inicio.getTime() <= target.getTime() && target.getTime() <= fim.getTime();
+                    } else if (period.type === 'month') {
+                        const monthStart = new Date(period.year, period.month, 1);
+                        const monthEnd = new Date(period.year, period.month + 1, 0);
+                        monthStart.setHours(0, 0, 0, 0);
+                        monthEnd.setHours(0, 0, 0, 0);
+                        return inicio.getTime() <= monthEnd.getTime() && fim.getTime() >= monthStart.getTime();
+                    } else if (period.type === 'year') {
+                        const yearStart = new Date(period.value, 0, 1);
+                        const yearEnd = new Date(period.value, 11, 31);
+                        yearStart.setHours(0, 0, 0, 0);
+                        yearEnd.setHours(0, 0, 0, 0);
+                        return inicio.getTime() <= yearEnd.getTime() && fim.getTime() >= yearStart.getTime();
+                    }
+                } catch (e) {
+                    return false;
                 }
                 return false;
             });
         });
 
-        // Get modal elements
+    // Obter elementos do modal
         const modal = document.getElementById('timelineModal');
         const modalTitle = document.getElementById('timelineModalTitle');
         const serversList = document.getElementById('timelineServersList');
         const serversCount = document.getElementById('serversCount');
-        
+
         if (!modal || !modalTitle || !serversList || !serversCount) {
-            console.error('Timeline modal elements not found');
+            console.error('Elementos do modal da timeline não encontrados');
             return;
         }
 
         // Set modal title
         let titleText = '';
-        
+
         if (period.type === 'day') {
             const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                               'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
             const dayOfWeek = new Date(period.year, period.month, period.day).toLocaleDateString('pt-BR', { weekday: 'long' });
             titleText = `${dayOfWeek}, ${period.day} de ${monthNames[period.month]} de ${period.year}`;
         } else if (period.type === 'month') {
             const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                               'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
             titleText = `${monthNames[period.month]} de ${period.year}`;
         } else if (period.type === 'year') {
             titleText = `Ano de ${period.value}`;
         }
-        
+
         modalTitle.textContent = titleText;
         serversCount.textContent = servidores.length;
 
-        // Create clean servers list
+    // Criar lista limpa de servidores
         if (servidores.length === 0) {
             serversList.innerHTML = '<p class="text-muted">Nenhum servidor em licença neste período.</p>';
         } else {
             serversList.innerHTML = servidores.map(servidor => {
-                const urgencyClass = servidor.nivelUrgencia ? 
-                    `urgency-${servidor.nivelUrgencia.toLowerCase()}` : 'urgency-low';
-                
+                const urgencyClass = servidor.nivelUrgencia ? `urgency-${servidor.nivelUrgencia.toLowerCase()}` : 'urgency-low';
+                const details = [];
+
+                if (servidor.cargo) {
+                    details.push(`<span><i class="bi bi-person-badge"></i> ${this.escapeHtml(servidor.cargo)}</span>`);
+                }
+                if (servidor.idade || servidor.idade === 0) {
+                    details.push(`<span><i class="bi bi-calendar-date"></i> ${this.escapeHtml(String(servidor.idade))} anos</span>`);
+                }
+                if (servidor.lotacao) {
+                    details.push(`<span><i class="bi bi-building"></i> ${this.escapeHtml(servidor.lotacao)}</span>`);
+                }
+
+                const detailsHtml = details.length > 0 ? `<div class="timeline-server-details">${details.join('')}</div>` : '';
+
                 return `
                     <div class="timeline-server-item">
                         <div class="timeline-server-info">
                             <div class="timeline-server-name">${this.escapeHtml(servidor.nome)}</div>
-                            <div class="timeline-server-details">
-                                <span><i class="bi bi-person-badge"></i> ${servidor.cargo || 'Não informado'}</span>
-                                <span><i class="bi bi-calendar-date"></i> ${servidor.idade || 'N/A'} anos</span>
-                                <span><i class="bi bi-building"></i> ${servidor.lotacao || 'Não informado'}</span>
-                            </div>
+                            ${detailsHtml}
                         </div>
                         <div class="timeline-server-actions">
-                            ${servidor.nivelUrgencia ? 
-                                `<span class="status-badge ${urgencyClass}">${servidor.nivelUrgencia}</span>` : ''}
+                            ${servidor.nivelUrgencia ? `<span class="status-badge ${urgencyClass}">${this.escapeHtml(servidor.nivelUrgencia)}</span>` : ''}
                             <button class="btn-icon" onclick="dashboard.showServidorDetails('${this.escapeHtml(servidor.nome)}')" title="Ver detalhes completos">
                                 <i class="bi bi-eye"></i>
                             </button>
@@ -2310,7 +2431,7 @@ class DashboardMultiPage {
             }).join('');
         }
 
-        // Show modal
+    // Exibir modal
         modal.classList.add('show');
     }
 
@@ -2318,20 +2439,20 @@ class DashboardMultiPage {
         const modal = document.getElementById('periodStatsModal');
         const modalTitle = document.getElementById('periodStatsModalTitle');
         const statsGrid = document.getElementById('periodStatsGrid');
-        
+
         if (!modal || !modalTitle || !statsGrid) {
-            console.error('Period stats modal elements not found');
+            console.error('Elementos do modal de estatísticas do período não encontrados');
             return;
         }
 
         modalTitle.textContent = `Estatísticas - ${periodLabel}`;
 
-        // Calculate comprehensive statistics
+    // Calcular estatísticas abrangentes
         let totalLicenses = 0;
         let urgencyStats = { 'Crítico': 0, 'Alto': 0, 'Moderado': 0, 'Baixo': 0 };
         let ageStats = { under30: 0, between30and50: 0, over50: 0 };
         let monthsWithLicenses = new Set();
-        
+
         servidores.forEach(servidor => {
             // Count licenses for the period
             servidor.licencas.forEach(licenca => {
@@ -2339,27 +2460,27 @@ class DashboardMultiPage {
                 if (periodFilter.type === 'year') {
                     includeLicense = licenca.inicio.getFullYear() === periodFilter.value;
                 } else if (periodFilter.type === 'month') {
-                    includeLicense = licenca.inicio.getFullYear() === periodFilter.year && 
-                                   licenca.inicio.getMonth() === periodFilter.month;
+                    includeLicense = licenca.inicio.getFullYear() === periodFilter.year &&
+                        licenca.inicio.getMonth() === periodFilter.month;
                 } else {
                     includeLicense = true; // all
                 }
-                
+
                 if (includeLicense) {
                     totalLicenses++;
-                    // Track which months have licenses
+                    // Marcar quais meses possuem licenças
                     const monthKey = `${licenca.inicio.getFullYear()}-${String(licenca.inicio.getMonth() + 1).padStart(2, '0')}`;
                     monthsWithLicenses.add(monthKey);
                 }
             });
-            
+
             // Count urgency levels
             if (servidor.nivelUrgencia) {
                 urgencyStats[servidor.nivelUrgencia] = (urgencyStats[servidor.nivelUrgencia] || 0) + 1;
             } else {
                 urgencyStats['Baixo'] = urgencyStats['Baixo'] + 1;
             }
-            
+
             // Age statistics
             const age = parseInt(servidor.idade) || 0;
             if (age < 30) ageStats.under30++;
@@ -2368,12 +2489,17 @@ class DashboardMultiPage {
         });
 
         const averageLicensesPerServer = servidores.length ? (totalLicenses / servidores.length).toFixed(1) : '0';
-        const criticalUrgency = urgencyStats['Crítico'] + urgencyStats['Alto'];
+        const criticalUrgency = (urgencyStats['Crítico'] || 0) + (urgencyStats['Alto'] || 0);
         const totalMonthsWithLicenses = monthsWithLicenses.size;
+        const hasUrgencyData = servidores.some(s => s.nivelUrgencia != null && s.nivelUrgencia !== '');
 
-        // Incluir estatísticas da timeline se disponíveis
+    // Determinar visualização da timeline (diária/mensal/anual) para evitar cartões redundantes na visualização diária
+    const timelineView = document.getElementById('timelineView')?.value || 'monthly';
+        const isDailyTimelineView = timelineView === 'daily';
+
+        // Incluir estatísticas da timeline se disponíveis (only shown in non-daily views)
         let timelineStatsCards = '';
-        if (this.currentTimelineStats) {
+        if (this.currentTimelineStats && !isDailyTimelineView) {
             timelineStatsCards = `
                 <div class="stats-card modal-timeline-stat">
                     <div class="stats-card-icon">
@@ -2413,116 +2539,133 @@ class DashboardMultiPage {
             `;
         }
 
-        // Create stats cards
-        statsGrid.innerHTML = `
-            ${timelineStatsCards}
-            
-            <div class="stats-card servers">
-                <div class="stats-card-icon">
-                    <i class="bi bi-people"></i>
-                </div>
-                <div class="stats-card-value">${servidores.length}</div>
-                <div class="stats-card-label">Servidores em Licença</div>
-                <div class="stats-card-description">Total de servidores com licenças no período</div>
-            </div>
+    // Montar um conjunto compacto de cards para a visualização diária da timeline, evitando valores idênticos redundantes
+        if (isDailyTimelineView) {
+            // Para a visualização diária, mostrar apenas um card de servidores e urgência opcional
+            const highUrgencyPercent = servidores.length ? Math.round((criticalUrgency / servidores.length) * 100) : 0;
 
-            <div class="stats-card licenses">
-                <div class="stats-card-icon">
-                    <i class="bi bi-calendar-check"></i>
-                </div>
-                <div class="stats-card-value">${totalLicenses}</div>
-                <div class="stats-card-label">Total de Licenças</div>
-                <div class="stats-card-description">Quantidade total de licenças concedidas</div>
-            </div>
+            statsGrid.innerHTML = `
+                <div class="period-stats-grid">
+                    <div class="stats-card servers">
+                        <div class="stats-card-icon"><i class="bi bi-people-fill"></i></div>
+                        <div class="stats-card-value">${servidores.length}</div>
+                        <div class="stats-card-label">Servidores em Licença</div>
+                        <div class="stats-card-description">Contagem única de servidores no período</div>
+                    </div>
 
-            <div class="stats-card average">
-                <div class="stats-card-icon">
-                    <i class="bi bi-graph-up"></i>
+                    ${hasUrgencyData ? `
+                    <div class="stats-card critical">
+                        <div class="stats-card-icon"><i class="bi bi-exclamation-circle"></i></div>
+                        <div class="stats-card-value">${highUrgencyPercent}%</div>
+                        <div class="stats-card-label">Alta/Crit. (%)</div>
+                        <div class="stats-card-description">Percentual de servidores com urgência alta/critica</div>
+                    </div>
+                    ` : ''}
                 </div>
-                <div class="stats-card-value">${averageLicensesPerServer}</div>
-                <div class="stats-card-label">Média por Servidor</div>
-                <div class="stats-card-description">Licenças por servidor no período</div>
-            </div>
+            `;
+        } else {
+            // Conjunto completo para visualizações mensais/anuais
+            statsGrid.innerHTML = `
+                ${timelineStatsCards}
+                
+                <div class="stats-card servers">
+                    <div class="stats-card-icon">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <div class="stats-card-value">${servidores.length}</div>
+                    <div class="stats-card-label">Servidores em Licença</div>
+                    <div class="stats-card-description">Total de servidores com licenças no período</div>
+                </div>
 
-            <div class="stats-card months">
-                <div class="stats-card-icon">
-                    <i class="bi bi-calendar-range"></i>
+                <div class="stats-card average">
+                    <div class="stats-card-icon">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                    <div class="stats-card-value">${averageLicensesPerServer}</div>
+                    <div class="stats-card-label">Média por Servidor</div>
+                    <div class="stats-card-description">Licenças por servidor no período</div>
                 </div>
-                <div class="stats-card-value">${totalMonthsWithLicenses}</div>
-                <div class="stats-card-label">Meses com Licenças</div>
-                <div class="stats-card-description">Número de meses diferentes com licenças</div>
-            </div>
 
-            <div class="stats-card critical">
-                <div class="stats-card-icon">
-                    <i class="bi bi-exclamation-triangle"></i>
+                <div class="stats-card months">
+                    <div class="stats-card-icon">
+                        <i class="bi bi-calendar-range"></i>
+                    </div>
+                    <div class="stats-card-value">${totalMonthsWithLicenses}</div>
+                    <div class="stats-card-label">Meses com Licenças</div>
+                    <div class="stats-card-description">Número de meses diferentes com licenças</div>
                 </div>
-                <div class="stats-card-value">${criticalUrgency}</div>
-                <div class="stats-card-label">Alta Urgência</div>
-                <div class="stats-card-description">Servidores críticos/alto em licença</div>
-            </div>
-        `;
+
+                <div class="stats-card critical">
+                    <div class="stats-card-icon">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                    <div class="stats-card-value">${criticalUrgency}</div>
+                    <div class="stats-card-label">Alta Urgência</div>
+                    <div class="stats-card-description">Servidores críticos/alto em licença</div>
+                </div>
+            `;
+        }
 
         modal.classList.add('show');
     }
 
     exportTimelineData() {
         if (!this.charts.timeline) return;
-        
+
         const chart = this.charts.timeline;
         const canvas = chart.canvas;
-        
-        // Create download link
+
+    // Criar link de download
         const link = document.createElement('a');
         link.download = `timeline-licencas-${new Date().toISOString().split('T')[0]}.png`;
         link.href = canvas.toDataURL();
         link.click();
     }
 
-    // Yearly Heatmap (GitHub style)
+    // Heatmap anual (estilo GitHub)
     updateYearlyHeatmap(year = null) {
         if (!year) {
             const yearElement = document.getElementById('currentCalendarYear');
             year = yearElement ? parseInt(yearElement.textContent) : new Date().getFullYear();
         }
-        
+
         const container = document.getElementById('yearlyHeatmap');
-        
+
         if (!container) return;
-        
-        // Update year display
+
+    // Atualizar exibição do ano
         const currentYearElement = document.getElementById('currentCalendarYear');
         if (currentYearElement) {
             currentYearElement.textContent = year;
         }
-        
-        // Check if we have valid data
+
+    // Verificar se temos dados válidos
         if (!this.filteredServidores || this.filteredServidores.length === 0) {
             container.innerHTML = '<p style="text-align: center; padding: 2rem; color: var(--text-muted);">Nenhum dado disponível para visualização.</p>';
             return;
         }
-        
+
         container.innerHTML = '';
-        
-        // Create months container
+
+    // Criar container de meses
         const monthsContainer = document.createElement('div');
         monthsContainer.className = 'months-grid';
-        
+
         for (let month = 0; month < 12; month++) {
             const monthDiv = this.createMonthHeatmap(year, month);
             monthsContainer.appendChild(monthDiv);
         }
-        
+
         container.appendChild(monthsContainer);
     }
 
     changeCalendarYear(direction) {
         const currentYearElement = document.getElementById('currentCalendarYear');
         if (!currentYearElement) return;
-        
+
         const currentYear = parseInt(currentYearElement.textContent);
         const newYear = currentYear + direction;
-        
+
         // Limitar anos (por exemplo, entre 2020 e 2030)
         if (newYear >= 2020 && newYear <= 2030) {
             this.updateYearlyHeatmap(newYear);
@@ -2532,14 +2675,14 @@ class DashboardMultiPage {
     createMonthHeatmap(year, month) {
         const monthDiv = document.createElement('div');
         monthDiv.className = 'month-heatmap';
-        
-        // Month header
+
+    // Cabeçalho do mês
         const monthHeader = document.createElement('div');
         monthHeader.className = 'month-header';
         monthHeader.textContent = this.getMonthName(month);
         monthDiv.appendChild(monthHeader);
-        
-        // Days of week header
+
+    // Cabeçalho dos dias da semana
         const daysHeader = document.createElement('div');
         daysHeader.className = 'days-header';
         const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -2550,21 +2693,21 @@ class DashboardMultiPage {
             daysHeader.appendChild(dayEl);
         });
         monthDiv.appendChild(daysHeader);
-        
-        // Calendar grid
+
+    // Grade do calendário
         const calendarGrid = document.createElement('div');
         calendarGrid.className = 'calendar-grid';
-        
+
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-        
-        // Calculate license data for this month
+
+    // Calcular dados de licença para este mês
         const dayData = {};
         this.filteredServidores.forEach(servidor => {
             servidor.licencas.forEach(licenca => {
-                // Check if license overlaps with this month
+                // Verificar se a licença se sobrepõe a este mês
                 const licenseStart = licenca.inicio;
-                // Calculate license end: same day next month minus 1 day
+                // Calcular fim da licença: mesmo dia no mês seguinte menos 1 dia
                 let licenseEnd = licenca.fim;
                 if (!licenseEnd) {
                     const nextMonth = new Date(licenseStart);
@@ -2572,70 +2715,64 @@ class DashboardMultiPage {
                     nextMonth.setDate(nextMonth.getDate() - 1);
                     licenseEnd = nextMonth;
                 }
-                
-                // Debugging for license premium data
+
+                // Tratamento específico para licenças prêmio (sem logs de debug)
                 if (servidor.tipoTabela === 'licenca-premio') {
-                    console.log('License premium data:', {
-                        servidor: servidor.nome,
-                        tipo: licenca.tipo,
-                        inicio: licenseStart,
-                        fim: licenseEnd,
-                        monthChecking: `${year}-${month+1}`
-                    });
+                    // (licenças prêmio são tratadas de forma ligeiramente diferente)
                 }
-                
+
                 const monthStart = new Date(year, month, 1);
                 const monthEnd = new Date(year, month + 1, 0);
-                
-                // If license overlaps with this month
+
+                // Se a licença se sobrepõe a este mês
                 if (licenseStart <= monthEnd && licenseEnd >= monthStart) {
-                    // Calculate which days in this month are covered
+                    // Calcular quais dias deste mês são cobertos
                     let startDay, endDay;
-                    
-                    // For license premium data, handle month-spanning periods more carefully
+
+                    // Para dados de licença-prêmio, tratar períodos que atravessam meses com mais cuidado
                     if (servidor.tipoTabela === 'licenca-premio') {
-                        // If license starts in this month or before, start from day 1
+                        // Se a licença inicia neste mês ou antes, começar do dia 1
                         if (licenseStart <= monthStart) {
                             startDay = 1;
                         } else {
                             startDay = licenseStart.getDate();
                         }
-                        
-                        // If license ends in this month or after, end at last day of month
+
+                        // Se a licença termina neste mês ou depois, terminar no último dia do mês
                         if (licenseEnd >= monthEnd) {
                             endDay = new Date(year, month + 1, 0).getDate();
                         } else {
                             endDay = licenseEnd.getDate();
                         }
                     } else {
-                        // Original logic for retirement cronograms
+                        // Lógica original para cronogramas de aposentadoria
                         startDay = Math.max(1, licenseStart.getMonth() === month && licenseStart.getFullYear() === year ? licenseStart.getDate() : 1);
                         endDay = Math.min(
                             new Date(year, month + 1, 0).getDate(),
                             licenseEnd.getMonth() === month && licenseEnd.getFullYear() === year ? licenseEnd.getDate() : new Date(year, month + 1, 0).getDate()
                         );
                     }
-                    
-                    // Add count to each day covered by the license
+
+                    // Adicionar contagem para cada dia coberto pela licença
                     for (let day = startDay; day <= endDay; day++) {
                         dayData[day] = (dayData[day] || 0) + 1;
                     }
                 }
             });
         });
-        
-        // Empty cells for days before month starts
+
+    // Células vazias para dias antes do início do mês
         for (let i = 0; i < firstDay; i++) {
             const emptyCell = document.createElement('div');
             emptyCell.className = 'day-cell empty';
             calendarGrid.appendChild(emptyCell);
         }
-        
-        // Days of the month
+
+    // Dias do mês
         for (let day = 1; day <= daysInMonth; day++) {
             const dayCell = document.createElement('div');
             dayCell.className = 'day-cell';
-            
+
             const count = dayData[day] || 0;
             // Lógica de cores consistente: level baseado na quantidade absoluta, não relativa ao mês
             let level = 0;
@@ -2645,21 +2782,21 @@ class DashboardMultiPage {
                 else if (count <= 5) level = 3;
                 else level = 4;
             }
-            
+
             dayCell.classList.add(`level-${level}`);
             dayCell.textContent = day;
             dayCell.title = `${day}/${month + 1}/${year}: ${count} licenças`;
-            
+
             if (count > 0) {
                 dayCell.addEventListener('click', () => {
                     this.showCalendarDayDetails(year, month, day, count);
                 });
                 dayCell.style.cursor = 'pointer';
             }
-            
+
             calendarGrid.appendChild(dayCell);
         }
-        
+
         monthDiv.appendChild(calendarGrid);
         return monthDiv;
     }
@@ -2672,12 +2809,12 @@ class DashboardMultiPage {
             month: 'long',
             day: 'numeric'
         });
-        
+
         // Encontrar servidores com licenças neste dia
         const servidores = this.filteredServidores.filter(servidor => {
             return servidor.licencas.some(licenca => {
                 const licenseStart = licenca.inicio;
-                // Calculate license end: same day next month minus 1 day
+                // Calcular fim da licença: mesmo dia no mês seguinte menos 1 dia
                 let licenseEnd = licenca.fim;
                 if (!licenseEnd) {
                     const nextMonth = new Date(licenseStart);
@@ -2685,8 +2822,8 @@ class DashboardMultiPage {
                     nextMonth.setDate(nextMonth.getDate() - 1);
                     licenseEnd = nextMonth;
                 }
-                
-                // Check if the target date falls within the license period
+
+                // Verificar se a data alvo está dentro do período da licença
                 return targetDate >= licenseStart && targetDate <= licenseEnd;
             });
         });
@@ -2717,11 +2854,11 @@ class DashboardMultiPage {
                         nextMonth.setDate(nextMonth.getDate() - 1);
                         licenseEnd = nextMonth;
                     }
-                    return licenseStart && licenseEnd && 
-                           targetDate >= licenseStart && targetDate <= licenseEnd;
+                    return licenseStart && licenseEnd &&
+                        targetDate >= licenseStart && targetDate <= licenseEnd;
                 });
 
-                const licenseInfo = activeLicense 
+                const licenseInfo = activeLicense
                     ? `${activeLicense.inicio.toLocaleDateString('pt-BR')} até ${activeLicense.fim ? activeLicense.fim.toLocaleDateString('pt-BR') : 'Data não especificada'}`
                     : 'Período não especificado';
 
@@ -2730,7 +2867,7 @@ class DashboardMultiPage {
                         <div class="server-avatar">${initials}</div>
                         <div class="server-info">
                             <h5 class="server-name">${servidor.nome}</h5>
-                            <p class="server-details">${servidor.cargo || 'Cargo não informado'} • ${licenseInfo}</p>
+                            <p class="server-details">${servidor.cargo || 'Cargo não    do'} • ${licenseInfo}</p>
                         </div>
                         <div class="server-status">
                             <div class="status-indicator"></div>
@@ -2751,7 +2888,7 @@ class DashboardMultiPage {
         const panel = document.getElementById('dayDetailsPanel');
         if (panel) {
             panel.style.display = 'flex';
-            
+
             // Adicionar evento para fechar clicando fora
             setTimeout(() => {
                 document.addEventListener('click', this.handlePanelOutsideClick.bind(this));
@@ -2762,7 +2899,7 @@ class DashboardMultiPage {
     handlePanelOutsideClick(event) {
         const panel = document.getElementById('dayDetailsPanel');
         const target = event.target;
-        
+
         // Se clicou fora do painel, fechá-lo
         if (panel && !panel.contains(target) && !target.closest('.day-cell')) {
             this.closeDayDetailsPanel();
@@ -2773,32 +2910,32 @@ class DashboardMultiPage {
         const panel = document.getElementById('dayDetailsPanel');
         if (panel) {
             panel.style.display = 'none';
-            
+
             // Remover evento de clique fora
             document.removeEventListener('click', this.handlePanelOutsideClick.bind(this));
         }
     }
 
     showServidoresInPeriod(period, label) {
-        console.log('Show servidores period debug:', { period, label });
-        
+    // Mostrar servidores no período selecionado (chamado pelo painel de timeline/calendário)
+
         const servidores = this.filteredServidores.filter(servidor => {
             return servidor.licencas.some(licenca => {
                 if (period.type === 'year') {
                     return licenca.inicio.getFullYear() === period.value;
                 } else if (period.type === 'month') {
-                    return licenca.inicio.getFullYear() === period.year && 
-                           licenca.inicio.getMonth() === period.month;
+                    return licenca.inicio.getFullYear() === period.year &&
+                        licenca.inicio.getMonth() === period.month;
                 } else if (period.type === 'day') {
                     return licenca.inicio.getFullYear() === period.year &&
-                           licenca.inicio.getMonth() === period.month &&
-                           licenca.inicio.getDate() === period.day;
+                        licenca.inicio.getMonth() === period.month &&
+                        licenca.inicio.getDate() === period.day;
                 }
                 return false;
             });
         });
 
-        console.log('Filtered servers for period:', servidores.length);
+    // Servidores filtrados para o período (pronto para exibição no modal)
         this.showTimelineModal(label, servidores, period);
     }
 
@@ -2806,15 +2943,15 @@ class DashboardMultiPage {
         const modalTitle = document.querySelector('#detailsModal .modal-header h3');
         const modalBody = document.getElementById('modalBody');
         const modal = document.getElementById('detailsModal');
-        
+
         if (!modalTitle || !modalBody || !modal) return;
-        
+
         modalTitle.textContent = `Servidores em Licença - ${label}`;
-        
+
         // Criar estatísticas do período
         const totalLicencas = servidores.reduce((sum, servidor) => sum + servidor.licencas.length, 0);
         const urgenciaStats = this.getUrgenciaStats(servidores);
-        
+
         modalBody.innerHTML = `
             <div class="modal-sections timeline-modal">
                 <div class="modal-section">
@@ -2851,10 +2988,10 @@ class DashboardMultiPage {
                 </div>
             </div>
         `;
-        
+
         modal.classList.add('show');
-        
-        // Adicionar event listeners para os botões de detalhes
+
+    // Adicionar listeners para os botões de detalhes
         setTimeout(() => {
             const detailButtons = modal.querySelectorAll('.btn-icon[data-servidor-nome]');
             detailButtons.forEach(btn => {
@@ -2879,9 +3016,9 @@ class DashboardMultiPage {
 
     // Interactive functions
     filterByPeriod(period, label) {
-        // Switch to home page and apply filter
-        this.switchPage('home');
-        
+    // Voltar para a página inicial e aplicar filtro
+    this.switchPage('home');
+
         // Set the current filter based on period clicked
         if (period.type === 'year') {
             document.getElementById('minAge').value = 18;
@@ -2892,8 +3029,8 @@ class DashboardMultiPage {
             document.getElementById('minAge').value = 18;
             document.getElementById('maxAge').value = 70;
             this.currentFilters.age = { min: 18, max: 70 };
-            this.currentFilters.period = { 
-                type: 'monthly', 
+            this.currentFilters.period = {
+                type: 'monthly',
                 year: period.year,
                 monthStart: period.month,
                 monthEnd: period.month
@@ -2908,28 +3045,28 @@ class DashboardMultiPage {
                 month: period.date.getMonth()
             };
         }
-        
+
         this.applyAllFilters();
     }
 
     highlightUrgency(urgencyLevel) {
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-        
+
         // Para licenças prêmio, usar filtro de cargo em vez de urgência
         if (isLicencaPremio) {
             this.highlightCargo(urgencyLevel);
             return;
         }
-        
+
         const urgencyMap = {
             'critical': 'crítico',
-            'high': 'alto', 
+            'high': 'alto',
             'moderate': 'moderado',
             'low': 'baixo'
         };
-        
+
         const mappedUrgency = urgencyMap[urgencyLevel];
-        
+
         // Toggle filter instead of just highlighting
         if (this.currentFilters.urgency === mappedUrgency) {
             // Remove filter
@@ -2948,8 +3085,8 @@ class DashboardMultiPage {
                 urgencyElement.classList.add('selected');
             }
         }
-        
-        // Apply filters
+
+    // Aplicar filtros
         this.applyAllFilters();
     }
 
@@ -2958,11 +3095,11 @@ class DashboardMultiPage {
         // Para licenças prêmio, procurar por data-cargo ao invés de data-urgency
         const cargoElement = document.querySelector(`[data-cargo="${cargoKey}"]`);
         if (!cargoElement) return;
-        
+
         // Obter o nome real do cargo do elemento
         const cargoName = cargoElement.querySelector('.legend-label')?.textContent?.trim();
         if (!cargoName) return;
-        
+
         // Toggle filter usando currentFilters ao invés do dropdown
         if (this.currentFilters.cargo === cargoName) {
             // Remove filter
@@ -2974,21 +3111,21 @@ class DashboardMultiPage {
             document.querySelectorAll('.legend-card').forEach(card => card.classList.remove('active'));
             cargoElement.classList.add('active');
         }
-        
-        // Apply filters
+
+    // Aplicar filtros
         this.applyLicencaFilters();
     }
 
     filterTableByUrgency(urgencyLevel, chartIndex) {
         const urgencyMap = {
             'critical': 'crítico',
-            'high': 'alto', 
+            'high': 'alto',
             'moderate': 'moderado',
             'low': 'baixo'
         };
-        
+
         const mappedUrgency = urgencyMap[urgencyLevel];
-        
+
         // Toggle filter
         if (this.currentFilters.urgency === mappedUrgency && this.selectedChartIndex === chartIndex) {
             // Remove filter
@@ -2998,10 +3135,10 @@ class DashboardMultiPage {
             this.selectedChartIndex = chartIndex;
             this.currentFilters.urgency = mappedUrgency;
             this.updateChartHighlight();
-            
+
             // Usar filtro apropriado baseado no tipo de tabela
             const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-            
+
             if (isLicencaPremio) {
                 this.applyLicencaFilters();
             } else {
@@ -3014,19 +3151,19 @@ class DashboardMultiPage {
         this.selectedChartIndex = -1;
         this.currentFilters.urgency = '';
         this.updateChartHighlight();
-        
+
         // Usar filtro adaptativo baseado no tipo de tabela
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-        
+
         if (isLicencaPremio) {
             this.applyLicencaFilters();
         } else {
             this.applyTableFilter();
         }
-        
+
         // Clear legend active states
         document.querySelectorAll('.legend-card').forEach(card => card.classList.remove('active'));
-        
+
         // Clear stat-card selected states
         document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('selected'));
         document.querySelectorAll('.legend-item').forEach(item => item.classList.remove('selected'));
@@ -3042,10 +3179,10 @@ class DashboardMultiPage {
             this.selectedChartIndex = chartIndex;
             this.currentFilters.cargo = cargo;
             this.updateChartHighlight();
-            
+
             // Usar filtro apropriado baseado no tipo de tabela
             const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-            
+
             if (isLicencaPremio) {
                 this.applyLicencaFilters();
             } else {
@@ -3058,16 +3195,16 @@ class DashboardMultiPage {
         this.selectedChartIndex = -1;
         this.currentFilters.cargo = '';
         this.updateChartHighlight();
-        
+
         // Usar filtro adaptativo baseado no tipo de tabela
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-        
+
         if (isLicencaPremio) {
             this.applyLicencaFilters();
         } else {
             this.applyTableFilter();
         }
-        
+
         // Clear legend active states
         document.querySelectorAll('.legend-card').forEach(card => card.classList.remove('active'));
     }
@@ -3076,15 +3213,15 @@ class DashboardMultiPage {
         if (this.charts.urgency) {
             const chart = this.charts.urgency;
             const dataset = chart.data.datasets[0];
-            
+
             // Detectar tipo de gráfico para usar as cores corretas
             const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
             const correctColors = isLicencaPremio ? CARGO_COLORS : CHART_COLOR_ARRAY;
-            
+
             // Reset todas as cores para o padrão correto baseado no tipo de gráfico
             dataset.backgroundColor = correctColors.slice(0, dataset.data.length);
             dataset.borderWidth = 2;
-            
+
             // Se há uma seleção, destacar a fatia selecionada
             if (this.selectedChartIndex >= 0) {
                 dataset.backgroundColor = dataset.backgroundColor.map((color, index) => {
@@ -3098,7 +3235,7 @@ class DashboardMultiPage {
                     return index === this.selectedChartIndex ? 4 : 2; // Borda mais grossa na selecionada
                 });
             }
-            
+
             chart.update('none'); // Atualiza sem animação
         }
     }
@@ -3107,34 +3244,34 @@ class DashboardMultiPage {
         // Aplica apenas os filtros existentes sem recriar gráficos
         let filtered = [...this.allServidores];
 
-        // Apply age filter
+    // Aplicar filtro de idade
         if (this.currentFilters.age) {
-            filtered = filtered.filter(servidor => 
-                servidor.idade >= this.currentFilters.age.min && 
+            filtered = filtered.filter(servidor =>
+                servidor.idade >= this.currentFilters.age.min &&
                 servidor.idade <= this.currentFilters.age.max
             );
         }
 
-        // Apply search filter
+    // Aplicar filtro de busca
         if (this.currentFilters.search) {
             const search = this.currentFilters.search.toLowerCase();
-            filtered = filtered.filter(servidor => 
+            filtered = filtered.filter(servidor =>
                 servidor.nome.toLowerCase().includes(search) ||
                 (servidor.cargo && servidor.cargo.toLowerCase().includes(search)) ||
                 (servidor.lotacao && servidor.lotacao.toLowerCase().includes(search))
             );
         }
 
-        // Apply urgency filter
+    // Aplicar filtro de urgência
         if (this.currentFilters.urgency) {
-            filtered = filtered.filter(servidor => 
+            filtered = filtered.filter(servidor =>
                 servidor.nivelUrgencia && servidor.nivelUrgencia.toLowerCase() === this.currentFilters.urgency.toLowerCase()
             );
         }
 
-        // Apply cargo filter (for licenças prêmio)
+    // Aplicar filtro de cargo (para licenças prêmio)
         if (this.currentFilters.cargo) {
-            filtered = filtered.filter(servidor => 
+            filtered = filtered.filter(servidor =>
                 servidor.cargo && servidor.cargo === this.currentFilters.cargo
             );
         }
@@ -3184,7 +3321,7 @@ class DashboardMultiPage {
 
         // Apenas calcular urgência para cronogramas regulares
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-        
+
         if (!isLicencaPremio) {
             this.filteredServidores.forEach(servidor => {
                 if (servidor.nivelUrgencia) {
@@ -3210,7 +3347,7 @@ class DashboardMultiPage {
 
         // Apenas calcular urgência para cronogramas regulares
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-        
+
         if (!isLicencaPremio) {
             this.allServidores.forEach(servidor => {
                 if (servidor.nivelUrgencia) {
@@ -3235,12 +3372,12 @@ class DashboardMultiPage {
 
         // Ordenar por quantidade (decrescente) e pegar os top 10
         const sortedCargos = Object.entries(cargoCount)
-            .sort(([,a], [,b]) => b - a)
+            .sort(([, a], [, b]) => b - a)
             .slice(0, 10);
 
         return {
             labels: sortedCargos.map(([cargo]) => cargo),
-            values: sortedCargos.map(([,count]) => count),
+            values: sortedCargos.map(([, count]) => count),
             counts: cargoCount
         };
     }
@@ -3256,52 +3393,43 @@ class DashboardMultiPage {
 
         // Ordenar por quantidade (decrescente) e pegar os top 10
         const sortedCargos = Object.entries(cargoCount)
-            .sort(([,a], [,b]) => b - a)
+            .sort(([, a], [, b]) => b - a)
             .slice(0, 10);
 
         return {
             labels: sortedCargos.map(([cargo]) => cargo),
-            values: sortedCargos.map(([,count]) => count),
+            values: sortedCargos.map(([, count]) => count),
             counts: cargoCount
         };
     }
 
     getTimelineData() {
-        const viewType = document.getElementById('timelineView') ? 
-                         document.getElementById('timelineView').value : 'monthly';
+        const viewType = document.getElementById('timelineView') ?
+            document.getElementById('timelineView').value : 'monthly';
         const selectedYear = parseInt(document.getElementById('timelineYear')?.value) || new Date().getFullYear();
         // HTML month values are already 0-based (0=Janeiro, 1=Fevereiro, etc.)
         const selectedMonth = parseInt(document.getElementById('timelineMonth')?.value) || new Date().getMonth();
         const data = {};
-        
-        console.log('Timeline Data Debug:', { 
-            viewType, 
-            selectedYear, 
-            selectedMonth: selectedMonth, 
-            selectedMonthName: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth],
-            filteredServidoresCount: this.filteredServidores.length,
-            allServidoresCount: this.allServidores.length
-        });
-        
-        // Debug license premium data
+
+    // Preparar dados para exibição na timeline
+    // Detectar se os dados são do tipo 'licença-prêmio' e adaptar processamento
         const isLicencaPremio = this.filteredServidores.length > 0 && this.filteredServidores[0].tipoTabela === 'licenca-premio';
-        if (isLicencaPremio) {
-            console.log('Timeline processing license premium data, view type:', viewType);
-            console.log('Filtered servidores:', this.filteredServidores.map(s => s.nome));
-        }
-        
+            if (isLicencaPremio) {
+                // Para 'licença-prêmio' alguns buckets e contagens são tratados de forma diferente
+            }
+
         let totalLicenses = 0;
         let filteredLicenses = 0;
-        
+
         // Criar esqueleto completo dos períodos com valor 0
         if (viewType === 'monthly') {
             // Para vista mensal, criar todos os 12 meses do ano selecionado
             for (let month = 0; month < 12; month++) {
                 const key = `${selectedYear}-${month.toString().padStart(2, '0')}`;
-                data[key] = { 
-                    count: 0, 
-                    period: { type: 'month', year: selectedYear, month }, 
-                    servidores: new Set() 
+                data[key] = {
+                    count: 0,
+                    period: { type: 'month', year: selectedYear, month },
+                    servidores: new Set()
                 };
             }
         } else if (viewType === 'daily') {
@@ -3309,41 +3437,72 @@ class DashboardMultiPage {
             const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
             for (let day = 1; day <= daysInMonth; day++) {
                 const key = day.toString();
-                data[key] = { 
-                    count: 0, 
-                    period: { type: 'day', date: new Date(selectedYear, selectedMonth, day), day, month: selectedMonth, year: selectedYear }, 
-                    servidores: new Set() 
+                data[key] = {
+                    count: 0,
+                    period: { type: 'day', date: new Date(selectedYear, selectedMonth, day), day, month: selectedMonth, year: selectedYear },
+                    servidores: new Set()
                 };
             }
         }
         // Para yearly, não precisamos de esqueleto pois mostra apenas anos com dados
-        
+
         this.filteredServidores.forEach(servidor => {
             servidor.licencas.forEach(licenca => {
                 totalLicenses++;
                 let key, period;
                 let shouldInclude = true;
-                
+
                 if (viewType === 'yearly') {
                     const year = licenca.inicio.getFullYear();
                     key = year.toString();
                     period = { type: 'year', value: year };
+                    if (!shouldInclude) return;
+                    filteredLicenses++;
+
+                    if (!data[key]) data[key] = { count: 0, period, servidores: new Set() };
+                    data[key].count++;
+                    data[key].servidores.add(servidor.nome);
                 } else if (viewType === 'daily') {
-                    // Filtrar apenas os dias do mês/ano selecionado
-                    const licenseYear = licenca.inicio.getFullYear();
-                    const licenseMonth = licenca.inicio.getMonth();
-                    
-                    if (licenseYear === selectedYear && licenseMonth === selectedMonth) {
-                        const day = licenca.inicio.getDate();
-                        key = day.toString();
-                        period = { type: 'day', date: new Date(selectedYear, selectedMonth, day), day, month: selectedMonth, year: selectedYear };
-                    } else {
-                        shouldInclude = false;
+                    // Para a vista diária, uma licença pode abranger vários dias; incluir todos os dias que caem dentro do mês/ano selecionado
+                    const licStart = new Date(licenca.inicio);
+                    const licEnd = licenca.fim ? new Date(licenca.fim) : new Date(licenca.inicio);
+
+                    // Normalize start/end (reset hours to avoid timezone issues)
+                    licStart.setHours(0, 0, 0, 0);
+                    licEnd.setHours(0, 0, 0, 0);
+
+                    const monthStart = new Date(selectedYear, selectedMonth, 1);
+                    const monthEnd = new Date(selectedYear, selectedMonth + 1, 0);
+
+                    // Calcular interseção entre o período da licença e o mês selecionado
+                    const includeStart = licStart > monthStart ? licStart : monthStart;
+                    const includeEnd = licEnd < monthEnd ? licEnd : monthEnd;
+
+                    if (includeStart > includeEnd) {
+                        // No overlap with selected month
+                        return;
+                    }
+
+                    // Count this license once as filtered (it contributes to the daily view)
+                    filteredLicenses++;
+
+                    // Iterate each day in the intersection and increment that day's bucket
+                    const currentDay = new Date(includeStart);
+                    while (currentDay <= includeEnd) {
+                        const day = currentDay.getDate();
+                        const dayKey = day.toString();
+                        const dayPeriod = { type: 'day', date: new Date(selectedYear, selectedMonth, day), day, month: selectedMonth, year: selectedYear };
+
+                        if (!data[dayKey]) data[dayKey] = { count: 0, period: dayPeriod, servidores: new Set() };
+                        data[dayKey].count++;
+                        data[dayKey].servidores.add(servidor.nome);
+
+                        currentDay.setDate(currentDay.getDate() + 1);
                     }
                 } else { // monthly
                     const year = licenca.inicio.getFullYear();
                     const month = licenca.inicio.getMonth();
-                    
+
                     // Para visualização mensal, filtrar pelo ano selecionado
                     if (year !== selectedYear) {
                         shouldInclude = false;
@@ -3351,40 +3510,18 @@ class DashboardMultiPage {
                         key = `${year}-${month.toString().padStart(2, '0')}`;
                         period = { type: 'month', year, month };
                     }
+
+                    if (!shouldInclude) return;
+                    filteredLicenses++;
+
+                    if (!data[key]) data[key] = { count: 0, period, servidores: new Set() };
+                    data[key].count++;
+                    data[key].servidores.add(servidor.nome);
                 }
-                
-                if (!shouldInclude) return;
-                
-                filteredLicenses++;
-                
-                // Debug license premium data in timeline
-                if (servidor.tipoTabela === 'licenca-premio' && isLicencaPremio) {
-                    console.log('Timeline license premium entry:', {
-                        servidor: servidor.nome,
-                        tipo: licenca.tipo,
-                        inicio: licenca.inicio,
-                        key: key,
-                        period: period
-                    });
-                }
-                
-                // Incrementar contador (o objeto já existe do esqueleto)
-                if (!data[key]) {
-                    // Fallback caso o esqueleto não tenha criado (caso edge)
-                    data[key] = { count: 0, period, servidores: new Set() };
-                }
-                data[key].count++;
-                data[key].servidores.add(servidor.nome);
             });
         });
 
-        console.log('Timeline data processed:', {
-            periodsFound: Object.keys(data).length,
-            totalLicenses,
-            filteredLicenses,
-            yearFilter: selectedYear,
-            viewType
-        });
+    // Dados da timeline processados
 
         // Sort keys appropriately
         const sortedKeys = Object.keys(data).sort((a, b) => {
@@ -3398,7 +3535,7 @@ class DashboardMultiPage {
             }
             return a.localeCompare(b);
         });
-        
+
         const labels = sortedKeys.map(key => {
             const item = data[key];
             if (item.period.type === 'year') {
@@ -3418,8 +3555,8 @@ class DashboardMultiPage {
             periods: sortedKeys.map(key => data[key].period),
             servidoresData: sortedKeys.map(key => Array.from(data[key].servidores))
         };
-        
-        console.log('Timeline result:', result);
+
+    // Resultado final da timeline
         return result;
     }
 
@@ -3446,26 +3583,26 @@ class DashboardMultiPage {
             this.charts.timeline.data.labels = timelineData.labels;
             this.charts.timeline.data.datasets[0].data = timelineData.data;
             this.charts.timeline.update('none'); // Força atualização completa
-            
-            // Update timeline stats
+
+            // Atualizar estatísticas da timeline
             this.updateTimelineStats(timelineData);
-        } else {
-            // If chart doesn't exist, create it
-            this.createTimelineChart();
-        }
+            } else {
+                // Se o gráfico não existir, criá-lo
+                this.createTimelineChart();
+            }
     }
 
     updateUrgencyLegend(urgencyData) {
         const urgencyKeys = ['critical', 'high', 'moderate', 'low'];
         const urgencyLabels = ['Crítico', 'Alto', 'Moderado', 'Baixo'];
-        
+
         urgencyKeys.forEach((key, index) => {
             const countElement = document.getElementById(`${key}Count`);
             if (countElement) {
                 countElement.textContent = urgencyData.counts[urgencyLabels[index]] || 0;
             }
-            
-            // Update custom legend counts
+
+            // Atualizar contagens customizadas da legenda
             const legendCountElement = document.getElementById(`legend${key.charAt(0).toUpperCase() + key.slice(1)}`);
             if (legendCountElement) {
                 legendCountElement.textContent = urgencyData.counts[urgencyLabels[index]] || 0;
@@ -3478,8 +3615,8 @@ class DashboardMultiPage {
         if (!legendContainer) return;
 
         legendContainer.innerHTML = '';
-        
-        // Create grid layout for cargo legends
+
+    // Criar grade para as legendas de cargo
         legendContainer.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
         legendContainer.style.gridTemplateRows = 'auto';
 
@@ -3492,11 +3629,11 @@ class DashboardMultiPage {
                 <span class="legend-label">${cargo}</span>
                 <span class="legend-count">${cargoData.values[index]}</span>
             `;
-            
+
             legendCard.addEventListener('click', () => {
                 this.filterTableByCargo(cargo, index);
             });
-            
+
             legendContainer.appendChild(legendCard);
         });
     }
@@ -3511,7 +3648,7 @@ class DashboardMultiPage {
         if (!tbody) return;
 
         tbody.innerHTML = '';
-        
+
         // Verificar se não há dados carregados
         if (!this.allServidores || this.allServidores.length === 0) {
             const emptyRow = document.createElement('tr');
@@ -3522,12 +3659,18 @@ class DashboardMultiPage {
                         <div>
                             <h4 style="margin: 0; color: var(--text-secondary);">Nenhum dado carregado</h4>
                             <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem;">Faça upload de um arquivo CSV ou Excel para começar</p>
+                            <div style="margin-top:0.75rem; display:flex; gap:0.5rem; justify-content:center;">
+                                <button class="btn-primary" id="tableUploadBtn" style="display:inline-flex; align-items:center; gap:0.5rem;">
+                                    <i class="bi bi-upload"></i>
+                                    <span>Fazer upload</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </td>
             `;
             tbody.appendChild(emptyRow);
-            
+
             // Atualizar contador de resultados
             const resultCount = document.getElementById('resultCount');
             if (resultCount) {
@@ -3552,7 +3695,7 @@ class DashboardMultiPage {
         // Atualizar headers da tabela se necessário
         this.updateTableHeaders(isLicencaPremio);
 
-        // Apply sorting
+    // Aplicar ordenação
         let sortedServidores = [...this.filteredServidores];
         if (this.sortColumn) {
             sortedServidores.sort((a, b) => {
@@ -3578,86 +3721,86 @@ class DashboardMultiPage {
         sortedServidores.forEach(servidor => {
             const row = document.createElement('tr');
             row.className = 'fade-in';
-            
+
             const nomeEscapado = servidor.nome.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
             const lotacaoEscapada = (servidor.lotacao || '--').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
             const cargoEscapado = (servidor.cargo || '--').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-            
+
             // Calcular próxima licença
             let proximaLicencaTexto = '--';
             if (servidor.proximaLicencaInicio) {
                 const dataLicenca = new Date(servidor.proximaLicencaInicio);
                 proximaLicencaTexto = dataLicenca.toLocaleDateString('pt-BR');
             }
-            
+
             // Formatar período completo de licença - corrigido para períodos múltiplos
             const formatarPeriodoLicenca = (servidor) => {
                 // Primeiro tentar usar os campos já processados
                 if (servidor.proximaLicencaInicio && servidor.proximaLicencaFim) {
                     const inicio = new Date(servidor.proximaLicencaInicio);
                     const fim = new Date(servidor.proximaLicencaFim);
-                    
+
                     if (!isNaN(inicio.getTime()) && !isNaN(fim.getTime())) {
                         const mesesAbrev = [
                             'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
                             'jul', 'ago', 'set', 'out', 'nov', 'dez'
                         ];
-                        
+
                         const diaInicio = inicio.getDate();
                         const mesInicio = mesesAbrev[inicio.getMonth()];
                         const anoInicio = inicio.getFullYear();
-                        
+
                         const diaFim = fim.getDate();
                         const mesFim = mesesAbrev[fim.getMonth()];
                         const anoFim = fim.getFullYear();
-                        
+
                         // Se é o mesmo ano
                         if (anoInicio === anoFim) {
                             return `${diaInicio}/${mesInicio} - ${diaFim}/${mesFim}/${anoInicio}`;
                         }
-                        
+
                         // Se atravessa anos
                         return `${diaInicio}/${mesInicio}/${anoInicio} - ${diaFim}/${mesFim}/${anoFim}`;
                     }
                 }
-                
+
                 // Fallback: usar array de licenças - pegar PRIMEIRA e ÚLTIMA para período completo
                 if (servidor.licencas && servidor.licencas.length > 0) {
                     const primeiraLicenca = servidor.licencas[0];
                     const ultimaLicenca = servidor.licencas[servidor.licencas.length - 1];
-                    
+
                     if (primeiraLicenca.inicio && ultimaLicenca.fim) {
                         const inicio = new Date(primeiraLicenca.inicio);
                         const fim = new Date(ultimaLicenca.fim);
-                        
+
                         if (!isNaN(inicio.getTime()) && !isNaN(fim.getTime())) {
                             const mesesAbrev = [
                                 'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
                                 'jul', 'ago', 'set', 'out', 'nov', 'dez'
                             ];
-                            
+
                             const diaInicio = inicio.getDate();
                             const mesInicio = mesesAbrev[inicio.getMonth()];
                             const anoInicio = inicio.getFullYear();
-                            
+
                             const diaFim = fim.getDate();
                             const mesFim = mesesAbrev[fim.getMonth()];
                             const anoFim = fim.getFullYear();
-                            
+
                             if (anoInicio === anoFim) {
                                 return `${diaInicio}/${mesInicio} - ${diaFim}/${mesFim}/${anoInicio}`;
                             }
-                            
+
                             return `${diaInicio}/${mesInicio}/${anoInicio} - ${diaFim}/${mesFim}/${anoFim}`;
                         }
                     }
                 }
-                
+
                 return '--';
             };
-            
+
             const periodoLicencaCompleto = formatarPeriodoLicenca(servidor);
-            
+
             if (isLicencaPremio) {
                 // Formato para tabela de licenças prêmio
                 row.innerHTML = `
@@ -3671,7 +3814,7 @@ class DashboardMultiPage {
                     </td>
                 `;
             } else {
-                // Formato para tabela original de aposentadorias
+                // Formato para tabela original
                 row.innerHTML = `
                     <td><strong>${nomeEscapado}</strong></td>
                     <td>${servidor.idade}</td>
@@ -3685,11 +3828,53 @@ class DashboardMultiPage {
                     </td>
                 `;
             }
-            
+
             tbody.appendChild(row);
         });
 
-        // Update table info
+    // Após renderizar as linhas, executar uma passagem somente no DOM para ocultar duplicatas visuais
+        try {
+            const allRows = Array.from(tbody.querySelectorAll('tr'));
+            const nameMap = new Map(); // data-servidor-nome -> { firstRow, count }
+
+            allRows.forEach(r => {
+                const btn = r.querySelector('.btn-icon[data-servidor-nome]');
+                if (!btn) return;
+                const name = btn.getAttribute('data-servidor-nome');
+                const info = nameMap.get(name) || { firstRow: null, count: 0, rows: [] };
+                info.count++;
+                info.rows.push(r);
+                if (!info.firstRow) info.firstRow = r;
+                nameMap.set(name, info);
+            });
+
+            // Ocultar linhas subsequentes e adicionar badge na primeira
+            nameMap.forEach(info => {
+                if (info.count > 1) {
+                    // adicionar badge inline na célula do nome da primeira linha, se não presente
+                    const firstRow = info.firstRow;
+                    const strong = firstRow.querySelector('td strong');
+                    if (strong && !strong.querySelector('.duplicate-inline')) {
+                        const span = document.createElement('span');
+                        span.className = 'duplicate-inline';
+                        span.textContent = ` (${info.count})`;
+                        span.style.cssText = 'font-size:0.8rem;color:var(--text-tertiary);padding-left:0.25rem;font-weight:600';
+                        strong.appendChild(span);
+                    }
+
+                    // ocultar todas as linhas exceto a primeira
+                    info.rows.forEach((r, idx) => {
+                        if (idx === 0) return;
+                        r.style.display = 'none';
+                        r.classList.add('duplicate-hidden');
+                    });
+                }
+            });
+        } catch (e) {
+            console.error('Erro ao aplicar deduplicação visual:', e);
+        }
+
+    // Atualizar informações da tabela
         const resultCountElement = document.getElementById('resultCount');
         if (resultCountElement) {
             resultCountElement.textContent = `${this.filteredServidores.length} resultados`;
@@ -3727,7 +3912,7 @@ class DashboardMultiPage {
             this.sortDirection = 'asc';
         }
 
-        // Update UI
+    // Atualizar interface (UI)
         document.querySelectorAll('.sortable i').forEach(i => {
             i.className = 'bi bi-arrow-up-down';
         });
@@ -3749,18 +3934,25 @@ class DashboardMultiPage {
 
         // Usar o primeiro servidor como base e agregar licenças de todos
         const servidor = { ...servidoresComMesmoNome[0] };
-        
+
         // Agregar todas as licenças de todos os servidores com este nome, removendo duplicatas
         servidor.licencas = [];
         const licencasUnicas = new Set(); // Para evitar duplicatas
         const todosOsDadosOriginais = []; // Para coletar todos os dados originais
-        
+        const licencasBrutas = []; // Coletar todas as licenças brutas (com duplicatas) para exibição no modal
+
         servidoresComMesmoNome.forEach(s => {
             // Coletar dados originais de cada entrada
             if (s.dadosOriginais) {
                 todosOsDadosOriginais.push(s.dadosOriginais);
             }
-            
+            // Coletar licenças brutas (preservando duplicatas)
+            if (s.licencas && s.licencas.length > 0) {
+                s.licencas.forEach(l => {
+                    licencasBrutas.push(Object.assign({}, l));
+                });
+            }
+
             if (s.licencas && s.licencas.length > 0) {
                 s.licencas.forEach(licenca => {
                     // Criar uma chave única para a licença baseada nas datas
@@ -3772,53 +3964,114 @@ class DashboardMultiPage {
                 });
             }
         });
-        
+
         // Combinar todos os dados originais únicos
         servidor.todosOsDadosOriginais = todosOsDadosOriginais;
-        
+        // Preservar licenças brutas separadamente para uso no modal (não tocar `servidor.licencas` usado por agrupamentos)
+        servidor.licencasBrutas = licencasBrutas;
+
         // Ordenar licenças por data de início
         servidor.licencas.sort((a, b) => a.inicio - b.inicio);
-        
+
         // Agrupar licenças por períodos contíguos
         const periodosAgrupados = this.agruparLicencasPorPeriodos(servidor.licencas);
-        
+
         // Recalcular estatísticas agregadas
         servidor.licencasAgendadas = servidor.licencas.length;
-        
+
         // Detectar se é tabela de licenças prêmio
         const isLicencaPremio = servidor.tipoTabela === 'licenca-premio';
 
-        // Informações Pessoais (sem repetir o nome)
-        const personalInfoContent = `
-            <div class="info-grid">                     
-                ${servidor.idade ? `
-                    <div class="info-label">Idade:</div>
-                    <div class="info-value">${servidor.idade} anos</div>
-                ` : ''}
-                
-                ${servidor.lotacao ? `
-                    <div class="info-label">Lotação:</div>
-                    <div class="info-value">${this.escapeHtml(servidor.lotacao)}</div>
-                ` : ''}
-            </div>
-        `;
+        // Informações pessoais removidas: agora consolidadas em 'Registros da Planilha'
 
         // Registros da Planilha (consolidar informações únicas)
         let originalDataContent = '<div class="planilha-summary">';
-        
+
         if (servidor.todosOsDadosOriginais && servidor.todosOsDadosOriginais.length > 0) {
-            console.log('📄 Consolidando dados da planilha:', servidor.todosOsDadosOriginais);
-            
+            // Consolidar campos não pessoais extraídos da planilha
+
             // Consolidar informações únicas e períodos
             const dadosConsolidados = new Map();
             const periodos = [];
-            
+
+            // Helper: normalize month/year text from CSV to canonical Portuguese capitalization
+            const normalizeMonthYearText = (txt) => {
+                if (!txt) return '';
+                const raw = txt.toString().trim();
+
+                // Normalize separators and remove extra text like parentheses
+                const cleaned = raw.replace(/[()]/g, '').replace(/\s*-\s*/g, ' / ').replace(/\s*\/\s*/g, '/').replace(/\s+/g, ' ').trim();
+
+                // Month name maps (Portuguese and English) to Portuguese canonical
+                const monthsMap = {
+                    // Portuguese
+                    'jan': 'Janeiro', 'janeiro': 'Janeiro',
+                    'fev': 'Fevereiro', 'fevereiro': 'Fevereiro',
+                    'mar': 'Março', 'marco': 'Março', 'março': 'Março',
+                    'abr': 'Abril', 'abril': 'Abril',
+                    'mai': 'Maio', 'maio': 'Maio',
+                    'jun': 'Junho', 'junho': 'Junho',
+                    'jul': 'Julho', 'julho': 'Julho',
+                    'ago': 'Agosto', 'agosto': 'Agosto',
+                    'set': 'Setembro', 'setembro': 'Setembro',
+                    'out': 'Outubro', 'outubro': 'Outubro',
+                    'nov': 'Novembro', 'novembro': 'Novembro',
+                    'dez': 'Dezembro', 'dezembro': 'Dezembro',
+                    // English variants
+                    'jan': 'Janeiro', 'january': 'Janeiro',
+                    'feb': 'Fevereiro', 'february': 'Fevereiro',
+                    'mar': 'Março', 'march': 'Março',
+                    'apr': 'Abril', 'april': 'Abril',
+                    'may': 'Maio',
+                    'jun': 'Junho', 'june': 'Junho',
+                    'jul': 'Julho', 'july': 'Julho',
+                    'aug': 'Agosto', 'august': 'Agosto',
+                    'sep': 'Setembro', 'sept': 'Setembro', 'september': 'Setembro',
+                    'oct': 'Outubro', 'october': 'Outubro',
+                    'nov': 'Novembro', 'november': 'Novembro',
+                    'dec': 'Dezembro', 'december': 'Dezembro'
+                };
+
+                // Try patterns: "Month / YYYY", "Month YYYY", "MM/YYYY", "MM-YYYY", "Month / YY"
+                // 1) month name + year
+                let m = cleaned.match(/^([a-zçãéíóú\.]+)\s*[\/\s]\s*(\d{2,4})$/i);
+                if (m) {
+                    const monthPart = m[1].replace('.', '').toLowerCase();
+                    let yearPart = parseInt(m[2]);
+                    if (yearPart < 100) yearPart = yearPart > 50 ? 1900 + yearPart : 2000 + yearPart;
+                    const key = monthPart.substring(0, monthPart.length > 3 ? monthPart.length : 3);
+                    const monthName = monthsMap[monthPart] || monthsMap[monthPart.substring(0, 3)] || (monthPart.charAt(0).toUpperCase() + monthPart.slice(1));
+                    return `${monthName} / ${yearPart}`;
+                }
+
+                // 2) formato numérico de mês MM/AAAA ou M/AAAA
+                m = cleaned.match(/^(\d{1,2})[\/\-](\d{2,4})$/);
+                if (m) {
+                    let mm = parseInt(m[1]);
+                    let yy = parseInt(m[2]);
+                    if (yy < 100) yy = yy > 50 ? 1900 + yy : 2000 + yy;
+                    const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+                    if (mm >= 1 && mm <= 12) return `${monthNames[mm - 1]} / ${yy}`;
+                }
+
+                // 3) Retorna apenas nome do mês sem ano
+                m = cleaned.match(/^([a-zçãéíóú\.]+)$/i);
+                if (m) {
+                    const monthPart = m[1].replace('.', '').toLowerCase();
+                    const monthName = monthsMap[monthPart] || monthsMap[monthPart.substring(0, 3)] || (monthPart.charAt(0).toUpperCase() + monthPart.slice(1));
+                    return monthName;
+                }
+
+                // Retorno padrão: capitalizar primeira letra
+                return raw.charAt(0).toUpperCase() + raw.slice(1);
+            };
+
             servidor.todosOsDadosOriginais.forEach((dados) => {
                 // Coletar apenas dados não pessoais
                 Object.entries(dados).forEach(([key, value]) => {
                     const keyUpper = key.toUpperCase();
                     // Pular informações pessoais e desnecessárias
-                    if (!keyUpper.includes('SERVIDOR') && 
+                    if (!keyUpper.includes('SERVIDOR') &&
                         !keyUpper.includes('NOME') &&
                         !keyUpper.includes('CPF') &&
                         !keyUpper.includes('MATRÍCULA') &&
@@ -3829,18 +4082,18 @@ class DashboardMultiPage {
                         dadosConsolidados.set(key, value);
                     }
                 });
-                
-                // Coletar períodos únicos
-                const inicio = dados['INICIO DE LICENÇA PREMIO'];
-                const final = dados['FINAL DE LICENÇA PREMIO'];
-                if (inicio && final) {
+
+                // Coletar períodos (incluir duplicates para que o modal mostre registros iguais)
+                const inicioRaw = dados['INICIO DE LICENÇA PREMIO'] || dados['INICIO DE LICENCA PREMIO'] || dados['INICIO'] || '';
+                const finalRaw = dados['FINAL DE LICENÇA PREMIO'] || dados['FINAL DE LICENCA PREMIO'] || dados['FINAL'] || '';
+                if (inicioRaw && finalRaw) {
+                    const inicio = normalizeMonthYearText(inicioRaw);
+                    const final = normalizeMonthYearText(finalRaw);
                     const periodoStr = `${inicio} - ${final}`;
-                    if (!periodos.includes(periodoStr)) {
-                        periodos.push(periodoStr);
-                    }
+                    periodos.push(periodoStr);
                 }
             });
-            
+
             // Mostrar apenas se houver dados relevantes
             if (dadosConsolidados.size > 0 || periodos.length > 0) {
                 originalDataContent += '<div class="planilha-info">';
@@ -3853,7 +4106,7 @@ class DashboardMultiPage {
                     `;
                 });
                 originalDataContent += '</div>';
-                
+
                 // Mostrar períodos solicitados se houver
                 if (periodos.length > 0) {
                     originalDataContent += `
@@ -3888,22 +4141,22 @@ class DashboardMultiPage {
 
         if (isLicencaPremio) {
             interpretationContent = '<div class="info-grid">';
-            
+
             if (periodosAgrupados && periodosAgrupados.length > 0) {
                 interpretationContent += `
                     <div class="info-label">Períodos de Licença:</div>
                     <div class="info-value">${periodosAgrupados.length} período(s) identificado(s)</div>
                 `;
-                
+
                 // Criar seção visual para cada período
                 let periodosHtml = '<div class="periods-container">';
-                
+
                 periodosAgrupados.forEach((periodo, index) => {
                     const formatoInicio = this.formatDateBR(periodo.inicio);
                     const formatoFim = this.formatDateBR(periodo.fim);
                     const totalLicencas = periodo.licencas.length;
                     const licencaLabel = totalLicencas === 1 ? 'mês' : 'meses';
-                    
+
                     periodosHtml += `
                         <div class="period-card">
                             <div class="period-header">
@@ -3922,10 +4175,10 @@ class DashboardMultiPage {
                         </div>
                     `;
                 });
-                
+
                 periodosHtml += '</div>';
                 interpretationContent += periodosHtml;
-                
+
             } else {
                 interpretationContent += `
                     <div class="info-label">Status:</div>
@@ -3938,30 +4191,29 @@ class DashboardMultiPage {
             }
             interpretationContent += '</div>';
         } else {
-            // Para cronograma de aposentadoria
             interpretationContent = '<div class="info-grid">';
-            
+
             if (servidor.cronograma) {
                 interpretationContent += `
                     <div class="info-label">Cronograma:</div>
                     <div class="info-value highlight">${this.escapeHtml(servidor.cronograma)}</div>
                 `;
             }
-            
+
             if (servidor.tempoContribuicao) {
                 interpretationContent += `
                     <div class="info-label">Tempo de Contribuição:</div>
                     <div class="info-value">${this.escapeHtml(servidor.tempoContribuicao)}</div>
                 `;
             }
-            
+
             if (servidor.tempoServico) {
                 interpretationContent += `
                     <div class="info-label">Tempo de Serviço:</div>
                     <div class="info-value">${this.escapeHtml(servidor.tempoServico)}</div>
                 `;
             }
-            
+
             if (servidor.nivelUrgencia) {
                 const urgencyClass = this.getUrgencyClass(servidor.nivelUrgencia);
                 interpretationContent += `
@@ -3970,9 +4222,9 @@ class DashboardMultiPage {
                         <span class="status-badge ${urgencyClass}">${this.escapeHtml(servidor.nivelUrgencia)}</span>
                     </div>
                 `;
-                
+
                 // Verificar se a urgência é alta sem dados suficientes
-                if ((servidor.nivelUrgencia === 'Crítico' || servidor.nivelUrgencia === 'Alto') && 
+                if ((servidor.nivelUrgencia === 'Crítico' || servidor.nivelUrgencia === 'Alto') &&
                     (!servidor.tempoContribuicao || !servidor.tempoServico)) {
                     issues.push({
                         title: 'Urgência alta com dados incompletos',
@@ -3980,72 +4232,62 @@ class DashboardMultiPage {
                     });
                 }
             }
-            
+
             if (servidor.proximaLicenca) {
                 interpretationContent += `
                     <div class="info-label">Próxima Licença:</div>
                     <div class="info-value highlight">${this.escapeHtml(servidor.proximaLicenca)}</div>
                 `;
             }
-            
+
             interpretationContent += '</div>';
         }
 
-        // Populate modal sections
-        const personalInfoElement = document.getElementById('personalInfoContent');
+        // Preencher conteúdos do modal
         const originalDataElement = document.getElementById('originalDataContent');
         const interpretationElement = document.getElementById('interpretationContent');
-        
-        if (!personalInfoElement || !originalDataElement || !interpretationElement) {
-            console.error('Modal elements not found:', {
-                personalInfoContent: !!personalInfoElement,
+
+        if (!originalDataElement || !interpretationElement) {
+            console.error('Elementos do modal não encontrados:', {
                 originalDataContent: !!originalDataElement,
                 interpretationContent: !!interpretationElement
             });
             return;
         }
-        
-        personalInfoElement.innerHTML = personalInfoContent;
+
         originalDataElement.innerHTML = originalDataContent;
         interpretationElement.innerHTML = interpretationContent;
 
-        // Handle issues section
+        // Secção de problemas identificados
         const issuesSection = document.getElementById('issuesSection');
         const issuesContent = document.getElementById('issuesContent');
-        
-        if (!issuesSection || !issuesContent) {
-            console.error('Issues elements not found:', {
-                issuesSection: !!issuesSection,
-                issuesContent: !!issuesContent
-            });
-            return;
-        }
-        
-        if (issues.length > 0) {
-            issuesSection.style.display = 'block';
-            const issuesHtml = issues.map(issue => `
+
+        if (issuesSection && issuesContent) {
+            if (issues.length > 0) {
+                const issuesHtml = issues.map(issue => `
                 <div class="issue-highlight">
                     <div class="issue-title">${this.escapeHtml(issue.title)}</div>
                     <div class="issue-description">${this.escapeHtml(issue.description)}</div>
                 </div>
             `).join('');
-            issuesContent.innerHTML = issuesHtml;
-        } else {
-            issuesSection.style.display = 'none';
+                issuesContent.innerHTML = issuesHtml;
+            } else {
+                issuesContent.innerHTML = '';
+            }
         }
 
-        // Update modal title - apenas o nome do servidor
+    // Atualizar título do modal - apenas o nome do servidor
         const modalTitle = document.getElementById('modalTitle');
         if (!modalTitle) {
-            console.error('Modal title element not found');
+            console.error('Elemento de título do modal não encontrado');
             return;
         }
         modalTitle.textContent = servidor.nome;
 
-        // Show modal
+    // Exibir modal
         const detailsModal = document.getElementById('detailsModal');
         if (!detailsModal) {
-            console.error('Details modal not found');
+            console.error('Modal de detalhes não encontrado');
             return;
         }
         detailsModal.classList.add('show');
@@ -4062,22 +4304,22 @@ class DashboardMultiPage {
 
     extrairMesesDoPeríodo(licenca) {
         if (!licenca || !licenca.inicio || !licenca.fim) return [];
-        
+
         const meses = [];
         const inicio = new Date(licenca.inicio);
         const fim = new Date(licenca.fim);
-        
+
         const current = new Date(inicio);
-        
+
         while (current <= fim) {
             const mesNome = current.toLocaleDateString('pt-BR', { month: 'long' });
             const mesCapitalizado = mesNome.charAt(0).toUpperCase() + mesNome.slice(1);
             meses.push(mesCapitalizado);
-            
+
             // Avançar para o próximo mês
             current.setMonth(current.getMonth() + 1);
         }
-        
+
         return meses;
     }
 
@@ -4085,26 +4327,20 @@ class DashboardMultiPage {
     agruparLicencasPorPeriodos(licencas) {
         if (!licencas || licencas.length === 0) return [];
 
-        console.log('🔍 DEBUG: Iniciando agrupamento de licenças');
-        console.log('📋 Licenças a processar:', licencas.map(l => ({
-            periodo: `${l.inicio.toDateString()} - ${l.fim.toDateString()}`,
-            mes: l.inicio.getMonth() + 1,
-            ano: l.inicio.getFullYear()
-        })));
+    // Agrupamento de licenças por períodos contíguos
+    // Lista de licenças a processar
 
         // Ordenar por data de início
         const licencasOrdenadas = [...licencas].sort((a, b) => a.inicio - b.inicio);
-        
+
         const periodos = [];
         let periodoAtual = null;
 
         for (let i = 0; i < licencasOrdenadas.length; i++) {
             const licenca = licencasOrdenadas[i];
-            
-            console.log(`\n🔄 Processando licença ${i + 1}:`);
-            console.log('  📅 Data:', licenca.inicio.toDateString(), '-', licenca.fim.toDateString());
-            console.log('  📊 Mês/Ano:', licenca.inicio.getMonth() + 1, '/', licenca.inicio.getFullYear());
-            
+
+            // Processar licença atual: verificar datas e possível mesclagem com período atual
+
             if (!periodoAtual) {
                 // Primeiro período
                 periodoAtual = {
@@ -4114,47 +4350,30 @@ class DashboardMultiPage {
                     tipo: licenca.tipo
                 };
                 periodos.push(periodoAtual);
-                console.log('  🆕 Criando primeiro período');
+                // Criando o primeiro período agrupado
             } else {
                 // Verificar se é contíguo E do mesmo período original
                 const ultimaLicenca = periodoAtual.licencas[periodoAtual.licencas.length - 1];
-                
-                // Verificar se pertencem ao mesmo período original
-                const mesmoPeríodoOriginal = ultimaLicenca.periodoOriginalId === licenca.periodoOriginalId;
-                
-                // Calcular o primeiro dia do mês seguinte ao último período
-                const proximoMes = new Date(ultimaLicenca.fim);
-                proximoMes.setDate(1); // Primeiro dia do mês atual
-                proximoMes.setMonth(proximoMes.getMonth() + 1); // Próximo mês
-                
-                const licencaAtualInicio = new Date(licenca.inicio);
-                licencaAtualInicio.setDate(1); // Primeiro dia do mês da licença atual
-                
-                console.log('  🧮 Verificando contiguidade:');
-                console.log('    📍 Última licença fim:', ultimaLicenca.fim.toDateString());
-                console.log('    📍 Próximo mês esperado:', proximoMes.toDateString());
-                console.log('    📍 Licença atual início:', licenca.inicio.toDateString());
-                console.log('    📍 Primeiro dia do mês atual:', licencaAtualInicio.toDateString());
-                console.log('    🏷️  Mesmo período original:', mesmoPeríodoOriginal);
-                console.log('    🏷️  Período anterior:', ultimaLicenca.periodoOriginalId);
-                console.log('    🏷️  Período atual:', licenca.periodoOriginalId);
-                
-                const saoContiguos = proximoMes.getTime() === licencaAtualInicio.getTime();
-                const devemAgrupar = saoContiguos && mesmoPeríodoOriginal;
-                console.log('    🔗 São contíguos temporalmente?', saoContiguos);
-                console.log('    🔗 Devem agrupar (mesmo período original)?', devemAgrupar);
-                
-                if (devemAgrupar) {
-                    // Contíguo E mesmo período original - adicionar ao grupo atual
-                    console.log('  ✅ Estendendo período atual (contíguo + mesmo período original)');
-                    periodoAtual.fim = licenca.fim;
+
+                // Mesclar se as datas se sobrepõem ou são contíguas
+                const ultimaFim = new Date(ultimaLicenca.fim);
+                const licencaInicio = new Date(licenca.inicio);
+
+                // Verificar se as datas se sobrepõem ou são contíguas
+                const licencaInicioMonthStart = new Date(licencaInicio.getFullYear(), licencaInicio.getMonth(), 1);
+                const ultimaFimMonthStart = new Date(ultimaFim.getFullYear(), ultimaFim.getMonth(), 1);
+                const proximoMesStart = new Date(ultimaFimMonthStart);
+                proximoMesStart.setMonth(proximoMesStart.getMonth() + 1);
+
+                const overlaps = licencaInicio <= ultimaFim;
+                const isContiguous = licencaInicioMonthStart.getTime() === proximoMesStart.getTime();
+
+                if (overlaps || isContiguous) {
+                    // Mesclar no período atual
+                    periodoAtual.fim = new Date(Math.max(periodoAtual.fim.getTime(), licenca.fim.getTime()));
                     periodoAtual.licencas.push(licenca);
                 } else {
-                    // Não contíguo OU período original diferente - finalizar grupo atual e iniciar novo
-                    const motivo = !saoContiguos ? 'não contíguo' : 'período original diferente';
-                    console.log(`  🔄 Criando novo período (${motivo})`);
-                    console.log(`    ⚠️  Separação: ${ultimaLicenca.fim.toDateString()} → ${licenca.inicio.toDateString()}`);
-                    
+                    // Novo período
                     periodoAtual = {
                         inicio: licenca.inicio,
                         fim: licenca.fim,
@@ -4166,10 +4385,9 @@ class DashboardMultiPage {
             }
         }
 
-        console.log(`\n🎯 Total de períodos criados: ${periodos.length}`);
+        // Calcular duração para cada período agrupado (sem logs de debug)
         periodos.forEach((p, i) => {
             const duracao = this.calcularDuracaoMeses(p.inicio, p.fim);
-            console.log(`📊 Período ${i + 1}: ${p.inicio.toDateString()} - ${p.fim.toDateString()} (${p.licencas.length} licenças, ${duracao})`);
         });
 
         return periodos;
@@ -4182,12 +4400,11 @@ class DashboardMultiPage {
         const mesInicio = inicio.getMonth();
         const anoFim = fim.getFullYear();
         const mesFim = fim.getMonth();
-        
+
         let meses = (anoFim - anoInicio) * 12 + (mesFim - mesInicio) + 1; // +1 para incluir o mês atual
-        
-        console.log(`📊 Calculando duração: ${inicio.toDateString()} até ${fim.toDateString()}`);
-        console.log(`📊 Anos: ${anoInicio}-${anoFim}, Meses: ${mesInicio + 1}-${mesFim + 1}, Total: ${meses} meses`);
-        
+
+    // Calculando duração em meses/anos do período
+
         if (meses === 1) {
             return '1 mês';
         } else if (meses < 12) {
@@ -4195,7 +4412,7 @@ class DashboardMultiPage {
         } else {
             const anos = Math.floor(meses / 12);
             const mesesRestantes = meses % 12;
-            return anos === 1 ? 
+            return anos === 1 ?
                 (mesesRestantes > 0 ? `1 ano e ${mesesRestantes} meses` : '1 ano') :
                 (mesesRestantes > 0 ? `${anos} anos e ${mesesRestantes} meses` : `${anos} anos`);
         }
@@ -4204,47 +4421,47 @@ class DashboardMultiPage {
     // Formatar data em português brasileiro
     formatDateBR(data) {
         const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun',
-                      'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-        
+            'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
         return `${data.getDate()}/${meses[data.getMonth()]}/${data.getFullYear()}`;
     }
 
     // Gerar breakdown dos meses do período
     gerarMesesPeriodo(licencas) {
         const mesesAbrev = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
-                           'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-        
+            'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
         const meses = licencas.map(licenca => {
             const mes = mesesAbrev[licenca.inicio.getMonth()];
             const ano = licenca.inicio.getFullYear();
             return `<span class="month-tag">${mes}/${ano}</span>`;
         });
-        
+
         return meses.join(' ');
     }
 
     formatDateRange(inicio, fim) {
         if (!inicio) return 'Data não disponível';
-        
-        const inicioStr = inicio.toLocaleDateString('pt-BR', { 
-            day: '2-digit', 
-            month: '2-digit', 
-            year: 'numeric' 
+
+        const inicioStr = inicio.toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
         });
-        
+
         if (!fim) return inicioStr;
-        
-        const fimStr = fim.toLocaleDateString('pt-BR', { 
-            day: '2-digit', 
-            month: '2-digit', 
-            year: 'numeric' 
+
+        const fimStr = fim.toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
         });
-        
+
         return `${inicioStr} até ${fimStr}`;
     }
 
     // Organizar licenças por período para melhor visualização
-    // Utility functions
+    // Atualizar estatísticas do dashboard
     updateStats() {
         // Verificar se há dados carregados
         if (!this.allServidores || this.allServidores.length === 0) {
@@ -4254,54 +4471,54 @@ class DashboardMultiPage {
             if (totalLicencasFuturasElement) {
                 totalLicencasFuturasElement.textContent = '0';
             }
-            
+
             // Limpar cards de estatísticas
             const criticalCard = document.getElementById('criticalCount');
             const highCard = document.getElementById('highCount');
             const moderateCard = document.getElementById('moderateCount');
             const errorCard = document.getElementById('errorCount');
-            
+
             if (criticalCard) criticalCard.textContent = '0';
             if (highCard) highCard.textContent = '0';
             if (moderateCard) moderateCard.textContent = '0';
             if (errorCard) errorCard.textContent = '0';
-            
+
             return;
         }
-        
+
         // Detectar tipo de tabela
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-        
-        // Update header stats
+
+    // Atualizar estatísticas do cabeçalho
         document.getElementById('totalServidores').textContent = this.allServidores.length;
-        
-        // Calculate future licenses (licenses starting from today onwards)
+
+    // Calcular licenças futuras (licenças com início a partir de hoje)
         const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
-        
+        hoje.setHours(0, 0, 0, 0); // Remover hora para comparação apenas de datas
+
         const licencasFuturas = this.allServidores.reduce((total, servidor) => {
             const licencasFuturasServidor = servidor.licencas.filter(licenca => {
                 const licenseStart = licenca.inicio;
-                // Check if license starts today or in the future
+                // Verificar se a licença começa hoje ou no futuro
                 return licenseStart >= hoje;
             }).length;
-            
+
             return total + licencasFuturasServidor;
         }, 0);
-        
-        // Update header elements with appropriate labels
+
+    // Atualizar elementos do cabeçalho com rótulos apropriados
         const totalLicencasFuturasElement = document.getElementById('totalLicencasFuturas');
         if (totalLicencasFuturasElement) {
             totalLicencasFuturasElement.textContent = licencasFuturas;
         }
-        
-        // Update label based on table type
+
+    // Atualizar rótulo com base no tipo de tabela
         const statLabel = totalLicencasFuturasElement?.parentElement.querySelector('.stat-label');
         if (statLabel) {
             statLabel.textContent = isLicencaPremio ? 'Licenças Prêmio' : 'Licenças Futuras';
         }
 
-        // Update cards based on table type
+    // Atualizar cards com base no tipo de tabela
         if (isLicencaPremio) {
             this.updateCargoCards();
         } else {
@@ -4310,11 +4527,11 @@ class DashboardMultiPage {
     }
 
     updateUrgencyCards() {
-        // Calculate active licenses for the home page cards (static - not affected by filters)
+        // Calcular licenças ativas
         const licensasAtivas = this.allServidores.reduce((total, servidor) => {
             const licensasAtivasServidor = servidor.licencas.filter(licenca => {
                 const licenseStart = licenca.inicio;
-                // Calculate license end: same day next month minus 1 day
+                // Calcular data de término padrão se não fornecida
                 let licenseEnd = licenca.fim;
                 if (!licenseEnd) {
                     const nextMonth = new Date(licenseStart);
@@ -4322,22 +4539,22 @@ class DashboardMultiPage {
                     nextMonth.setDate(nextMonth.getDate() - 1);
                     licenseEnd = nextMonth;
                 }
-                
+
                 const hoje = new Date();
                 hoje.setHours(0, 0, 0, 0);
-                
-                // Check if today is within the license period
+
+                // Vrificar se a licença está ativa no período atual
                 return hoje >= licenseStart && hoje <= licenseEnd;
             }).length;
-            
+
             return total + licensasAtivasServidor;
         }, 0);
-        
-        // Update urgency counts in cards (static data)
+
+    // Atualizar contagens de urgência nos cards (dados estáticos)
         const urgencyData = this.getStaticUrgencyData();
         const urgencyKeys = ['critical', 'high', 'moderate', 'low'];
         const urgencyLabels = ['Crítico', 'Alto', 'Moderado', 'Baixo'];
-        
+
         urgencyKeys.forEach((key, index) => {
             const countElement = document.getElementById(`${key}Count`);
             if (countElement) {
@@ -4350,38 +4567,40 @@ class DashboardMultiPage {
         const cargoData = this.getStaticCargoData();
         const statsCards = document.querySelector('.stats-cards');
         if (!statsCards) return;
-
-        // Encontrar os cards existentes de urgência e atualizar seu conteúdo para mostrar cargos
-        const existingCards = statsCards.querySelectorAll('.stat-card');
-        const topCargos = cargoData.labels.slice(0, 4);
+        // Encontrar os cards existentes que NÃO são o card de problemas e atualizá-los
+        // Isso evita sobrescrever o quarto card (que deve permanecer como "Problemas")
+        const existingCards = statsCards.querySelectorAll('.stat-card:not(.error)');
+        const topCargos = cargoData.labels.slice(0, existingCards.length);
         const cargoIcons = ['bi-briefcase', 'bi-person-badge', 'bi-building', 'bi-gear'];
 
         topCargos.forEach((cargo, index) => {
             const count = cargoData.counts[cargo] || 0;
             const card = existingCards[index];
-            
+
             if (card) {
-                // Atualizar conteúdo do card existente sem remover event listeners
                 const countElement = card.querySelector('h3');
                 const labelElement = card.querySelector('p');
                 const iconElement = card.querySelector('i');
-                
+
                 if (countElement) countElement.textContent = count;
                 if (labelElement) labelElement.textContent = cargo;
                 if (iconElement) {
-                    iconElement.className = `bi ${cargoIcons[index]}`;
+                    iconElement.className = `bi ${cargoIcons[index] || 'bi-briefcase'}`;
                 }
-                
-                // Remover handlers anteriores e adicionar novo
+
+                // Replicar o card para remover listeners antigos
                 const newCard = card.cloneNode(true);
                 card.parentNode.replaceChild(newCard, card);
-                
-                // Add click handler for filtering
+
+                // Adicionar listener para filtrar por cargo ao clicar no card
                 newCard.addEventListener('click', () => {
                     this.filterTableByCargo(cargo, index);
                 });
             }
         });
+
+        // garantir que o card de problemas permaneça intacto/atualizado
+        this.updateProblemsCount();
     }
 
     formatDate(date) {
@@ -4396,24 +4615,24 @@ class DashboardMultiPage {
 
     updateLastUpdate() {
         const now = new Date();
-        document.getElementById('lastUpdate').textContent = 
-            now.toLocaleString('pt-BR', { 
-                day: '2-digit', 
-                month: '2-digit', 
-                hour: '2-digit', 
-                minute: '2-digit' 
+        document.getElementById('lastUpdate').textContent =
+            now.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
             });
     }
 
     showModal(title, content, modalClass = '') {
-        console.log('Opening modal:', title);
-        
+    // Abrir modal de detalhes
+
         // Para compatibilidade com modais simples (não categorizados)
         if (typeof content === 'string') {
             const modalTitle = document.querySelector('#detailsModal .modal-header h3');
             const modalBody = document.getElementById('modalBody');
             const modal = document.getElementById('detailsModal');
-            
+
             if (modalTitle) modalTitle.textContent = title;
             if (modalBody) {
                 // Se o conteúdo não tem a estrutura de seções, usar o layout simples
@@ -4424,21 +4643,21 @@ class DashboardMultiPage {
                     modalBody.innerHTML = content;
                 }
             }
-            
+
             if (modal) modal.classList.add('show');
         }
     }
 
     closeModal() {
-        console.log('Closing modal');
+    // Fechar modal de detalhes
         document.getElementById('detailsModal').classList.remove('show');
     }
 
     showProblemsModal() {
-        console.log('Opening problems modal');
+    // Abrir modal de problemas carregamento
         const modal = document.getElementById('problemsModal');
         const content = document.getElementById('problemsContent');
-        
+
         if (this.loadingProblems.length === 0) {
             content.innerHTML = `
                 <div class="no-problems">
@@ -4453,35 +4672,47 @@ class DashboardMultiPage {
                     <div class="problem-details">
                         <h4 class="problem-name">${this.escapeHtml(problem.name || 'Servidor desconhecido')}</h4>
                         <p class="problem-error">${this.escapeHtml(problem.error || 'Erro desconhecido')}</p>
+                        ${problem.details ? `<pre class="problem-details-pre">${this.escapeHtml(problem.details)}</pre>` : ''}
                     </div>
                 </div>
             `).join('');
         }
-        
+
         if (modal) modal.classList.add('show');
     }
 
     closeProblemsModal() {
-        console.log('Closing problems modal');
+    // Fechar modal de problemas
         const modal = document.getElementById('problemsModal');
         if (modal) modal.classList.remove('show');
     }
 
     closeTimelineModal() {
-        console.log('Closing timeline modal');
+    // Fechar modal da timeline
         const modal = document.getElementById('timelineModal');
         if (modal) modal.classList.remove('show');
     }
 
     closePeriodStatsModal() {
-        console.log('Closing period stats modal');
+    // Fechar modal de estatísticas do período
         const modal = document.getElementById('periodStatsModal');
         if (modal) modal.classList.remove('show');
     }
 
-    addLoadingProblem(name, error) {
-        this.loadingProblems.push({ name, error });
-        this.updateProblemsCount();
+    addLoadingProblem(name, error, details) {
+        try {
+            const key = `${name}::${error}::${(details || '')}`;
+            // Verificar duplicatas antes de adicionar
+            const exists = this.loadingProblems.some(p => `${p.name}::${p.error}::${(p.details || '')}` === key);
+            if (!exists) {
+                this.loadingProblems.push({ name, error, details: details || '' });
+                this.updateProblemsCount();
+            }
+        } catch (e) {
+            // Registro simples em caso de falha
+            this.loadingProblems.push({ name, error, details: details || '' });
+            this.updateProblemsCount();
+        }
     }
 
     clearLoadingProblems() {
@@ -4494,21 +4725,23 @@ class DashboardMultiPage {
         if (errorCountElement) {
             errorCountElement.textContent = this.loadingProblems.length;
         }
-        
-        // Update card visibility/state based on problems count
+
+    // Atualizar visibilidade/estado dos cards com base na contagem de problemas (usar alternância de classes para evitar estilos inline)
         const errorCard = document.getElementById('errorCard');
         if (errorCard) {
             if (this.loadingProblems.length > 0) {
-                errorCard.style.opacity = '1';
-                errorCard.style.cursor = 'pointer';
+                errorCard.classList.remove('no-problems');
+                errorCard.classList.add('has-problems');
+                errorCard.setAttribute('title', 'Clique para ver detalhes');
             } else {
-                errorCard.style.opacity = '0.6';
-                errorCard.style.cursor = 'default';
+                errorCard.classList.remove('has-problems');
+                errorCard.classList.add('no-problems');
+                errorCard.setAttribute('title', 'Nenhum problema');
             }
         }
     }
 
-    // Utility function to escape HTML to prevent XSS
+    // Função utilitária para escapar HTML e prevenir XSS
     escapeHtml(unsafe) {
         if (typeof unsafe !== 'string') return unsafe;
         return unsafe
@@ -4522,11 +4755,11 @@ class DashboardMultiPage {
     showLoading(message = 'Carregando...') {
         const loadingOverlay = document.getElementById('loadingOverlay');
         const loadingText = loadingOverlay?.querySelector('.loading-text');
-        
+
         if (loadingOverlay) {
             loadingOverlay.classList.add('show');
         }
-        
+
         if (loadingText) {
             loadingText.textContent = message;
         }
@@ -4539,48 +4772,48 @@ class DashboardMultiPage {
         }
     }
 
-    // Modern Header Functions
+    // Funções modernas do cabeçalho
     handleSearch() {
         const searchTerm = document.getElementById('searchInput').value;
         this.currentFilters.search = searchTerm.toLowerCase();
-        
+
         // Aplicar filtros baseado no tipo de tabela
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-        
+
         if (isLicencaPremio) {
             this.applyLicencaFilters();
         } else {
             this.applyAllFilters();
             this.updateActiveFilters();
         }
-        
+
         // Atualizar calendário se estivermos na página de calendário
         if (document.getElementById('yearlyHeatmap')) {
             this.updateYearlyHeatmap();
         }
-        
+
         this.toggleClearSearchButton();
     }
 
     clearSearch() {
         document.getElementById('searchInput').value = '';
         this.currentFilters.search = '';
-        
+
         // Aplicar filtros baseado no tipo de tabela
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-        
+
         if (isLicencaPremio) {
             this.applyLicencaFilters();
         } else {
             this.applyAllFilters();
             this.updateActiveFilters();
         }
-        
+
         // Atualizar calendário se estivermos na página de calendário
         if (document.getElementById('yearlyHeatmap')) {
             this.updateYearlyHeatmap();
         }
-        
+
         this.toggleClearSearchButton();
     }
 
@@ -4596,11 +4829,11 @@ class DashboardMultiPage {
         }
     }
 
-    // Page-specific filter functions
+    // Funções de filtro avançado
     updateCalendarYear() {
         const selectedYear = document.getElementById('calendarYearFilter')?.value;
         if (selectedYear) {
-            // Update the calendar display
+            // Atualizar a exibição do calendário
             this.updateYearlyHeatmap(parseInt(selectedYear));
         }
     }
@@ -4608,9 +4841,9 @@ class DashboardMultiPage {
     applyTimeRange() {
         const startDate = document.getElementById('startDate')?.value;
         const endDate = document.getElementById('endDate')?.value;
-        
+
         if (startDate && endDate) {
-            // Apply time range filter to timeline
+            // Aplicar filtro de período na timeline
             this.currentFilters.timeRange = { start: startDate, end: endDate };
             this.createTimelineChart();
         }
@@ -4628,8 +4861,8 @@ class DashboardMultiPage {
         const selectedDept = document.getElementById('departmentFilter')?.value;
         this.currentFilters.department = selectedDept;
         this.applyAllFilters();
-        
-        // Update timeline chart if on timeline page
+
+        // Atualizar timeline se estivermos na página de timeline
         if (this.currentPage === 'timeline') {
             this.createTimelineChart();
         }
@@ -4638,16 +4871,16 @@ class DashboardMultiPage {
     populateDepartmentFilter() {
         const deptFilter = document.getElementById('departmentFilter');
         if (!deptFilter || !this.allServidores.length) return;
-        
-        // Get unique departments
+
+        // Extrair departamentos únicos e ordená-los
         const departments = [...new Set(this.allServidores.map(s => s.lotacao))].filter(Boolean).sort();
-        
-        // Clear existing options (except "Todos")
+
+    // Limpar opções existentes (exceto "Todos")
         while (deptFilter.children.length > 1) {
             deptFilter.removeChild(deptFilter.lastChild);
         }
-        
-        // Add department options
+
+        // Adicionar opções de departamento
         departments.forEach(dept => {
             const option = document.createElement('option');
             option.value = dept;
@@ -4659,7 +4892,7 @@ class DashboardMultiPage {
     applyAgeFilter() {
         const minAge = parseInt(document.getElementById('minAge').value) || 0;
         const maxAge = parseInt(document.getElementById('maxAge').value) || 100;
-        
+
         this.currentFilters.age = { min: minAge, max: maxAge };
         this.applyAllFilters();
         this.updateActiveFilters();
@@ -4676,12 +4909,12 @@ class DashboardMultiPage {
     }
 
     highlightActivePreset(min, max) {
-        // Remove active class from all presets
+        // Remover active class de todos os presets
         document.querySelectorAll('.btn-preset').forEach(btn => {
             btn.classList.remove('active');
         });
 
-        // Add active class to matching preset
+        // Adicionar active class ao preset correspondente
         const presets = [
             { min: 18, max: 35, selector: ':nth-child(1)' },
             { min: 36, max: 50, selector: ':nth-child(2)' },
@@ -4698,7 +4931,7 @@ class DashboardMultiPage {
     }
 
     clearAllFilters() {
-        // Reset all filters
+        // Resetar filtros para valores padrão
         this.currentFilters = {
             age: { min: 18, max: 70 },
             period: { type: 'yearly', start: 2025, end: 2028 },
@@ -4707,37 +4940,49 @@ class DashboardMultiPage {
             selectedData: null
         };
 
-        // Reset UI elements
+        // Resetar campos de entrada
         document.getElementById('searchInput').value = '';
         document.getElementById('minAge').value = 18;
         document.getElementById('maxAge').value = 70;
-        
-        // Remove active preset highlighting
+
+        // resetar filtro de mês se existir
+        try {
+            const mesFilter = document.getElementById('mesFilter');
+            if (mesFilter) {
+                mesFilter.value = 'all';
+                // Disparar evento de mudança para atualizar a tabela
+                mesFilter.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        } catch (e) {
+        }
+
+        this.currentFilters.cargo = '';
+
         document.querySelectorAll('.btn-preset').forEach(btn => {
             btn.classList.remove('active');
         });
 
         // Usar filtro apropriado baseado no tipo de tabela
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-        
+
         if (isLicencaPremio) {
             this.applyLicencaFilters();
         } else {
             this.applyTableFilter();
         }
-        
+
         this.updateActiveFilters();
     }
 
     updateActiveFilters() {
         const activeFiltersContainer = document.getElementById('activeFilters');
         if (!activeFiltersContainer) return;
-        
+
         activeFiltersContainer.innerHTML = '';
 
         const filters = [];
 
-        // Search filter
+        // Filtro de Pesquisa
         if (this.currentFilters.search) {
             filters.push({
                 type: 'search',
@@ -4751,7 +4996,7 @@ class DashboardMultiPage {
             });
         }
 
-        // Age filter (only show if not default)
+        // Filtro de Idade
         if (this.currentFilters.age.min !== 18 || this.currentFilters.age.max !== 70) {
             filters.push({
                 type: 'age',
@@ -4762,7 +5007,7 @@ class DashboardMultiPage {
             });
         }
 
-        // Create filter elements
+        // Criar elementos para cada filtro
         filters.forEach(filter => {
             const filterElement = document.createElement('span');
             filterElement.className = 'active-filter';
@@ -4770,8 +5015,8 @@ class DashboardMultiPage {
                 ${filter.label}
                 <span class="remove">×</span>
             `;
-            
-            // Add click handler for remove
+
+            // Adicionar listener para remoção do filtro
             filterElement.querySelector('.remove').addEventListener('click', (e) => {
                 e.stopPropagation();
                 filter.remove();
@@ -4782,39 +5027,46 @@ class DashboardMultiPage {
     }
 
     updateHeaderStatus() {
-        // Update total count
+        // Atualizar contagem total
         const totalElement = document.getElementById('totalServidores');
         if (totalElement) {
             totalElement.textContent = this.allServidores.length;
         }
 
-        // Update filtered count
+        // Atualizar contagem filtrada
         const filteredElement = document.getElementById('filteredCount');
         if (filteredElement) {
             filteredElement.textContent = this.filteredServidores.length;
         }
     }
-
-    loadExampleData() {
-        const exampleCSV = `SERVIDOR,CPF,DN,SEXO,IDADE,ADMISSÃO,MESES,LOTAÇÃO,SUPERINTENDENCIA,SUBSECRETARIA,CARGO,CRONOGRAMA
-GILVAN DE LIMA,,16/9/1964,MAS,61,13/9/1989,3,GEROT,SUTRI,SURE,AFT,Meses: 09/2026; 09/2027; 09/2028
-ISRAEL BATISTA FRANÇA JUNIOR,,12/1/1965,MAS,60,14/9/1989,12,GEROT,SUTRI,SURE,AFT,A partir de 01/04/2026
-JOSE ROBERTO DE ARAGÃO,,22/7/1968,MAS,57,14/9/1989,12,SUTRI,SUTRI,SURE,AFT,16/11/25 (um mês) e janeiro de cada ano
-ROGERIO LUIZ SANTOS FREITAS,,1/5/1966,MAS,59,14/9/1989,9,GELEG,SUTRI,SURE,AFT,jan/2026 uma por ano
-CARLOS ANDRADE,,15/05/1961,MAS,64,01/03/1987,12,GELEG,SUTRI,SURE,AFT,Início em 10/2025 (12 meses consecutivos)
-MARIANA COSTA,,01/07/1980,FEM,45,01/02/2005,65,GELEG,SUTRI,SURE,AFT,Meses: 03/2028; 04/2028; e 05/2028
-PEDRO MARTINS,,12/01/1985,MAS,40,10/08/2010,15,GELEG,SUTRI,SURE,AFT,Meses: 06/2027; 07/2027; e 08/2027
-ANA SILVA,,25/03/1978,FEM,47,05/06/2000,24,SUTRI,SUTRI,SURE,AFT,jan/2025 uma por ano
-JOÃO SANTOS,,10/12/1972,MAS,53,20/01/1995,36,GEROT,SUTRI,SURE,AFT,Meses: 02/2025; 08/2025; 02/2026
-MARIA OLIVEIRA,,03/08/1983,FEM,42,15/09/2008,18,GELEG,SUTRI,SURE,AFT,jul/2025 uma por ano`;
-        
-        this.processData(exampleCSV);
-    }
 }
 
-// Initialize dashboard
+// exportar a classe para uso global
+window.DashboardMultiPage = DashboardMultiPage;
+
+// Inicializar o dashboard quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', () => {
-    window.dashboard = new DashboardMultiPage();
+    try {
+        if (typeof window.DashboardMultiPage === 'function') {
+            window.dashboard = new window.DashboardMultiPage();
+        } else {
+            console.error('DashboardMultiPage não está disponível em window no DOMContentLoaded');
+        }
+    } catch (e) {
+    console.error('Erro ao inicializar DashboardMultiPage:', e);
+    }
 });
 
-}
+// Função para atualizar indicadores de arquivos armazenados após o carregamento da página
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        // Aguardar um breve período para garantir que todos os componentes estejam carregados
+        setTimeout(() => {
+            if (window.dashboard && typeof window.dashboard.updateStoredFileIndicators === 'function') {
+                window.dashboard.updateStoredFileIndicators();
+            }
+        }, 150);
+    } catch (e) {
+    console.warn('Não foi possível disparar updateStoredFileIndicators ao carregar', e);
+    }
+});

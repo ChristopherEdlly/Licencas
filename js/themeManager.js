@@ -108,7 +108,7 @@ class ThemeManager {
     setupToggleButton() {
         const toggleButton = document.getElementById('themeToggle');
         if (!toggleButton) {
-            console.warn('Theme toggle button not found');
+            console.warn('Botão de alternância de tema não encontrado');
             return;
         }
 
@@ -146,7 +146,7 @@ class ThemeManager {
         
         if (window.dashboardChart.data.datasets[0]) {
             window.dashboardChart.data.datasets[0].backgroundColor = chartColors;
-            window.dashboardChart.update('none'); // Update sem animação
+            window.dashboardChart.update('none'); // Atualizar sem animação
         }
     }
 

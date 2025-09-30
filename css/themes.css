@@ -1,20 +1,20 @@
-/* ==================== THEME SYSTEM ==================== */
+/* ==================== SISTEMA DE TEMAS ==================== */
 
 :root {
-    /* Base Colors (unchanged in themes) */
+    /* Cores base (mantidas entre temas) */
     --success: #10b981;
     --warning: #f97316;
     --danger: #ef4444;
     --info: #0891b2;
     --moderate: #eab308;
     
-    /* Chart Colors (consistent across themes) */
+    /* Cores de gráficos (consistentes entre temas) */
     --chart-critical: #ef4444;
     --chart-high: #f97316;
     --chart-moderate: #eab308;
     --chart-low: #059669;
     
-    /* Typography & Spacing */
+    /* Tipografia e espaçamento */
     --font-size-xs: 0.75rem;
     --font-size-sm: 0.875rem;
     --font-size-base: 1rem;
@@ -27,7 +27,7 @@
     --header-height: 60px;
 }
 
-/* Light Theme (default) */
+/* Tema claro (padrão) */
 :root, 
 [data-theme="light"] {
     /* Primary Colors */
@@ -62,7 +62,7 @@
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.12), 0 4px 6px -4px rgb(0 0 0 / 0.12);
 }
 
-/* Dark Theme */
+/* Tema escuro */
 [data-theme="dark"] {
     /* Primary Colors */
     --primary: #3b82f6;
@@ -95,8 +95,7 @@
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
 }
-
-/* Theme Toggle Button */
+ 
 .theme-toggle {
     position: relative;
     background: none;
@@ -147,14 +146,14 @@
     opacity: 1;
 }
 
-/* Smooth transitions for theme switching */
+/* Transições suaves para troca de tema */
 *, 
 *::before, 
 *::after {
     transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Disable transitions during theme load to prevent flash */
+/* Desabilitar transições durante carga de tema para evitar flash */
 .theme-loading * {
     transition: none !important;
 }

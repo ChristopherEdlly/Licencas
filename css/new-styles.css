@@ -1,11 +1,12 @@
-/* ==================== RESET & VARIABLES ==================== */
+/* ==================== VARIÁVEIS E RESET ==================== */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
     height: 100vh;
     overflow: hidden;
 }
@@ -103,31 +104,43 @@ html, body {
 }
 
 :root {
-    /* Base Colors (unchanged in themes) */
+    /* Cores base (mantidas entre temas) */
     --success: #10b981;
     --warning: #f97316;
     --danger: #ef4444;
     --info: #0891b2;
     --moderate: #eab308;
-    
-    /* Chart Colors (consistent across themes) */
+
+    /* Cores de gráficos (consistentes entre temas) */
     --chart-critical: #ef4444;
     --chart-high: #f97316;
     --chart-moderate: #eab308;
     --chart-low: #059669;
-    
-    /* Typography & Spacing */
-    --font-size-xs: 0.75rem;     /* Era 0.65rem - aumentado para melhor legibilidade */
-    --font-size-sm: 0.825rem;    /* Era 0.75rem - aumentado ligeiramente */
-    --font-size-base: 0.875rem;  /* Mantido */
-    --font-size-lg: 1rem;        /* Mantido */
-    --font-size-xl: 1.125rem;    /* Mantido */
-    --font-size-2xl: 1.25rem;    /* Mantido */
-    
+
+    /* Tipografia e espaçamento */
+    --font-size-xs: 0.75rem;
+    /* Era 0.65rem - aumentado para melhor legibilidade */
+    --font-size-sm: 0.825rem;
+    /* Era 0.75rem - aumentado ligeiramente */
+    --font-size-base: 0.875rem;
+    /* Mantido */
+    --font-size-lg: 1rem;
+    /* Mantido */
+    --font-size-xl: 1.125rem;
+    /* Mantido */
+    --font-size-2xl: 1.125rem;
+    /* Reduced slightly for tighter header */
+
     /* Layout */
     --sidebar-width: 260px;
-    --header-height: 45px;      /* Era 50px - reduzido */
-    
+    --sidebar-header-height: 55px;
+    /* altura do header da sidebar (aumentada) */
+    --page-header-height: 55px;
+    /* altura do header das páginas (slightly reduced) */
+    --page-header-elements-height: 28px;
+    /* altura dos elementos do header das páginas (reduced) */
+    --header-height: var(--page-header-height);
+
     /* Grays */
     --gray-50: #f8fafc;
     --gray-100: #f1f5f9;
@@ -142,33 +155,33 @@ html, body {
 }
 
 /* Light Theme (default) */
-:root, 
+:root,
 [data-theme="light"] {
     /* Primary Colors */
     --primary: #2563eb;
     --primary-dark: #1d4ed8;
     --primary-hover: #3b82f6;
     --secondary: #64748b;
-    
+
     /* Text Colors */
     --text-primary: #0f172a;
     --text-secondary: #334155;
     --text-tertiary: #64748b;
-    --text-muted: #64748b;      /* Era #94a3b8 - melhor contraste */
+    --text-muted: #64748b;
     --text-inverse: #ffffff;
-    
+
     /* Background Colors */
     --bg-primary: #ffffff;
     --bg-secondary: #f8fafc;
     --bg-tertiary: #f1f5f9;
     --bg-hover: #f1f5f9;
     --bg-active: #e2e8f0;
-    
+
     /* Borders */
     --border: #e2e8f0;
     --border-hover: #cbd5e1;
     --border-focus: #3b82f6;
-    
+
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.08);
     --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.12), 0 1px 2px -1px rgb(0 0 0 / 0.12);
@@ -183,26 +196,26 @@ html, body {
     --primary-dark: #2563eb;
     --primary-hover: #60a5fa;
     --secondary: #94a3b8;
-    
+
     /* Text Colors */
     --text-primary: #f8fafc;
     --text-secondary: #e2e8f0;
     --text-tertiary: #cbd5e1;
-    --text-muted: #cbd5e1;      /* Era #94a3b8 - melhor contraste no tema escuro */
+    --text-muted: #cbd5e1;
     --text-inverse: #0f172a;
-    
+
     /* Background Colors */
     --bg-primary: #0f172a;
     --bg-secondary: #1e293b;
     --bg-tertiary: #334155;
     --bg-hover: #1e293b;
     --bg-active: #334155;
-    
+
     /* Borders */
     --border: #334155;
     --border-hover: #475569;
     --border-focus: #3b82f6;
-    
+
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
     --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
@@ -210,7 +223,7 @@ html, body {
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
 }
 
-/* Theme Toggle Button */
+/* Botão de alternância de tema */
 .theme-toggle {
     position: relative;
     background: none;
@@ -267,54 +280,20 @@ html, body {
     transform: rotate(0deg) scale(1);
 }
 
-/* Header Actions Container */
-.header-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
 
-/* Upload button in header */
-.btn-upload-header {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: clamp(2.25rem, 4vw, 2.75rem);
-    height: clamp(2.25rem, 4vw, 2.75rem);
-    background-color: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: clamp(0.375rem, 0.8vw, 0.5rem);
-    color: var(--text-secondary);
-    text-decoration: none;
-    transition: all 0.2s ease;
-    cursor: pointer;
-    font-size: clamp(0.9rem, 2vw, 1.1rem);
-}
-
-.btn-upload-header:hover {
-    background-color: var(--bg-tertiary);
-    border-color: var(--border-hover);
-    color: var(--text-primary);
-    transform: translateY(-1px);
-}
-
-.btn-upload-header:active {
-    transform: translateY(0);
-}
-
-/* Smooth transitions for theme switching */
-*, 
-*::before, 
+/* Transições suaves para troca de tema */
+*,
+*::before,
 *::after {
     transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Disable transitions during theme load to prevent flash */
+/* Desabilitar transições durante carga de tema para evitar flash */
 .theme-loading * {
     transition: none !important;
 }
 
-/* ==================== BASE LAYOUT ==================== */
+/* ==================== LAYOUT BASE */
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     line-height: 1.6;
@@ -330,7 +309,7 @@ body {
     overflow: hidden;
 }
 
-/* ==================== SIDEBAR ==================== */
+/* ==================== SIDEBAR */
 .sidebar {
     width: var(--sidebar-width);
     background-color: var(--bg-secondary);
@@ -352,7 +331,7 @@ body {
     width: 70px;
 }
 
-.sidebar.collapsed .brand-text,
+.sidebar.collapsed .brand-text:not(img),
 .sidebar.collapsed .nav-link span,
 .sidebar.collapsed .filter-label,
 .sidebar.collapsed .search-box input,
@@ -366,23 +345,73 @@ body {
 }
 
 .sidebar.collapsed .brand {
-    justify-content: center;
+    /* align brand to the left when collapsed so logo sits at the left edge */
+    justify-content: flex-start;
     position: relative;
     z-index: 1;
-    margin-right: 2rem; /* Espaço para o botão toggle */
+    margin-right: 0;
+    padding-left: 6px; /* small padding to keep visual separation */
 }
 
 .sidebar.collapsed .brand i {
     font-size: 1.125rem;
 }
 
-.sidebar.collapsed .brand-text {
+.sidebar.collapsed .brand-text:not(img) {
     display: none;
+}
+
+/* Logo image sizing: support when the brand is an <img> with class .brand-text */
+.brand img.brand-text {
+    display: block;
+    width: auto;
+    /* fit inside the sidebar header without overflowing */
+    max-height: calc(var(--sidebar-header-height) - 12px);
+    height: auto;
+    object-fit: contain;
+}
+
+.sidebar.collapsed .brand img.brand-text {
+    /* Reduced size when collapsed so it never overlaps the toggle */
+    display: block;
+    max-height: calc(var(--sidebar-header-height) - 22px);
+    max-width: 28px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+/* Quando a sidebar está colapsada, evitar preencher todo o fundo do botão
+   com a cor primária. Em vez disso, pintar apenas o ícone com um pequeno badge. */
+.sidebar.collapsed .nav-link.active,
+body.sidebar-collapsed .sidebar .nav-link.active {
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    border-left: none !important;
+}
+
+.sidebar.collapsed .nav-link.active i {
+    background: var(--primary);
+    color: var(--text-inverse);
+    padding: 0.5rem;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-sm);
+    font-size: 1.05rem;
+}
+
+/* Pequeno hover para o ícone ativo no estado colapsado */
+.sidebar.collapsed .nav-link:hover i,
+.sidebar.collapsed .nav-link:focus i {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
 }
 
 .sidebar.collapsed .nav-link {
     justify-content: center;
-    padding: 0.75rem;
+    padding: 0.5rem 0.25rem;
     position: relative;
     border-radius: 8px;
 }
@@ -392,30 +421,62 @@ body {
     transform: none;
 }
 
-.sidebar.collapsed .nav-link.active {
-    background: var(--primary);
-    color: white;
-    border-left: none;
-}
-
-.sidebar.collapsed .nav-link.active i {
-    color: white;
-}
-
-.sidebar.collapsed .sidebar-header {
-    padding: 1rem 0.5rem;
-    justify-content: center;
+.sidebar-header {
     position: relative;
 }
 
-.sidebar.collapsed .sidebar-toggle {
+.sidebar-header .sidebar-toggle {
     position: absolute;
     right: 0.5rem;
     top: 50%;
     transform: translateY(-50%);
     z-index: 10;
+}
+
+.brand img.brand-text {
+    transition: opacity 120ms ease, transform 140ms ease;
+}
+
+.brand img.brand-text.fading-out {
+    opacity: 0 !important;
+    transform: scale(0.985) !important;
+    transition: opacity 120ms ease, transform 140ms ease !important;
+}
+
+.brand img.brand-text.fading-in {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+    transition: opacity 140ms ease, transform 160ms ease !important;
+}
+
+.sidebar .nav-link i {
+    font-size: 1.25rem;
+}
+
+.sidebar.collapsed .sidebar-header {
+    padding: 0;
+    height: var(--sidebar-header-height);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 6px;
+}
+
+.sidebar.collapsed .sidebar-toggle {
+    position: relative;
+    right: auto;
+    top: auto;
+    transform: none;
+    z-index: 6;
     background: var(--bg-secondary);
     border-radius: 4px;
+    order: 0;
+    margin-right: 0;
+    justify-self: end;
+    align-self: center;
+    max-height: calc(var(--sidebar-header-height) - 6px);
+    overflow: hidden;
 }
 
 .sidebar.collapsed .nav-link:hover::after {
@@ -459,17 +520,34 @@ body {
 
 .sidebar-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
-    padding: 0.75rem 1rem;
+    padding: 0.35rem 0.75rem;
+    gap: 0.1rem;
     border-bottom: 1px solid var(--border);
-    height: var(--header-height);
+    height: var(--sidebar-header-height);
 }
 
 .brand {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+}
+
+.sidebar.collapsed .brand {
+    justify-content: flex-start;
+    gap: 0;
+    margin-right: 0;
+    align-self: center;
+    max-height: calc(var(--sidebar-header-height));
+}
+
+.sidebar.collapsed .brand img.brand-text {
+    display: block;
+    max-height: calc(var(--sidebar-header-height) - 22px);
+    max-width: 28px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
 }
 
 .brand i {
@@ -486,21 +564,26 @@ body {
 
 .sidebar-toggle {
     background: none;
-    border: none;
+    border: 2px solid transparent;
     color: var(--text-secondary);
-    font-size: 1.2rem;
-    padding: 0.5rem;
-    border-radius: 0.375rem;
+    font-size: 1.05rem;
+    padding: 0;
+    width: calc(var(--sidebar-header-height) - 18px);
+    height: calc(var(--sidebar-header-height) - 18px);
+    border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
+    transition: all 0.12s ease;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    order: -1;
+    margin-right: 0.5rem;
 }
 
 .sidebar-toggle:hover {
-    background-color: var(--bg-secondary);
+    background-color: rgba(0, 0, 0, 0.04);
     color: var(--text-primary);
+    border-color: rgba(0, 0, 0, 0.06);
 }
 
 /* Navegação */
@@ -634,7 +717,7 @@ body {
 
 .btn-clear {
     position: absolute;
-    right: 0.5rem;
+    right: 1.5rem;
     background: none;
     border: none;
     color: var(--text-muted);
@@ -681,7 +764,7 @@ body {
 .preset-btn {
     flex: 1;
     padding: 0.4rem 0.5rem;
-    border: 1px solid var(--border);
+        padding: 0.35rem 0.5rem;
     border-radius: 4px;
     background-color: var(--bg-primary);
     color: var(--text-secondary);
@@ -721,7 +804,8 @@ body {
     margin-top: 1rem;
 }
 
-.btn-primary, .btn-secondary {
+.btn-primary,
+.btn-secondary {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -804,85 +888,7 @@ body {
     font-size: 0.75rem;
 }
 
-/* Upload na Sidebar */
-.sidebar-upload {
-    padding: 1.25rem 0.75rem;
-}
-
-.btn-upload {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    width: 100%;
-    padding: 0.75rem;
-    border: 2px dashed var(--border);
-    border-radius: 8px;
-    background-color: var(--bg-tertiary);
-    color: var(--text-secondary);
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    margin-bottom: 0.75rem;
-}
-
-.btn-upload:hover {
-    border-color: var(--primary);
-    background-color: var(--bg-hover);
-    color: var(--primary);
-}
-
-/* File System Access API button */
-.btn-upload-header {
-    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    position: relative;
-}
-
-.btn-upload-header:hover {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.fs-api-indicator {
-    position: absolute;
-    top: -2px;
-    right: -2px;
-    font-size: 10px;
-    background: rgba(0,0,0,0.7);
-    border-radius: 50%;
-    width: 16px;
-    height: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.upload-buttons {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.upload-status {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: var(--font-size-xs);
-    color: var(--text-muted);
-}
-
-/* ==================== MAIN CONTENT ==================== */
+/* ==================== CONTEÚDO PRINCIPAL */
 .main-content {
     flex: 1;
     display: flex;
@@ -894,7 +900,7 @@ body {
     max-height: 100vh;
 }
 
-/* When sidebar is collapsed */
+/* Quando a sidebar está colapsada */
 .sidebar-collapsed .sidebar {
     width: 70px;
 }
@@ -903,89 +909,210 @@ body {
     margin-left: 70px;
 }
 
-/* Alternatively, use the class directly on sidebar */
+/* Alternativamente, usar a classe diretamente na sidebar */
 .sidebar.collapsed {
     width: 70px;
 }
 
-.sidebar.collapsed + .main-content {
+.sidebar.collapsed+.main-content {
     margin-left: 70px;
 }
 
 .main-header {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: auto minmax(180px, 1fr) auto;
     align-items: center;
-    padding: 0.6rem 1rem;
+    gap: 0.5rem;
+    padding: 0 0.75rem;
+    height: var(--page-header-height);
+    min-height: var(--page-header-height);
     background-color: var(--bg-primary);
     border-bottom: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
 }
 
-.header-info {
+/* Conter filhos do cabeçalho para que não excedam a altura do cabeçalho */
+.main-header,
+.main-header * {
+    box-sizing: border-box;
+}
+
+.main-header>.header-info {
+    grid-column: 1 / 2;
     display: flex;
     align-items: center;
-    gap: 2rem;
+    gap: 0.75rem;
+    max-height: var(--page-header-height);
+    overflow: hidden;
+}
+
+.header-stats {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: 0.5rem;
+}
+
+.main-header>.header-actions {
+    grid-column: 3 / 4;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-self: end;
+}
+
+.header-actions>*,
+.header-info>* {
+    max-height: calc(var(--page-header-height) - 6px);
+    overflow: hidden;
+}
+
+/* Quando qualquer ação do cabeçalho estiver em hover, permitir que o contêiner
+    mostre overflow para que a translação do hover não seja cortada. Isso evita
+    aumentar a altura visível do cabeçalho enquanto previne saltos de layout. */
+.main-header>.header-actions:hover {
+    overflow: visible;
 }
 
 .page-title {
-    font-size: var(--font-size-2xl);
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0;
+    line-height: 1;
+    max-height: calc(var(--page-header-height) - 8px);
+    overflow: hidden;
+    margin-right: 0.5rem;
 }
 
-.stats-compact {
-    display: flex;
-    gap: 1.5rem;
+.page-title {
+    margin-left: 0.25rem;
 }
 
-.stat-item {
-    display: flex;
-    flex-direction: column;
+.page-title {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+@media (max-width: 900px) {
+    .main-header {
+        grid-template-columns: 1fr auto;
+    }
+
+    .header-stats {
+        display: none;
+    }
+}
+
+.header-stats .stat-badge {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    padding: 0.5rem;
-    border-radius: 0.5rem;
-    background-color: var(--bg-secondary);
+    gap: 0.5rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    background-color: var(--bg-tertiary);
     border: 1px solid var(--border);
+    font-weight: 600;
 }
 
-.stat-value {
-    font-size: var(--font-size-xl);
-    font-weight: 700;
+.header-stats .stat-count {
+    font-size: 0.95rem;
     color: var(--text-primary);
-    margin-bottom: 0.25rem;
 }
 
-.stat-label {
+.header-stats .stat-label {
     font-size: var(--font-size-xs);
     color: var(--text-secondary);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 500;
+    letter-spacing: 0.04em;
 }
 
-.last-update {
+.header-stats .last-update {
     font-size: var(--font-size-sm);
     color: var(--text-secondary);
-    align-items: center !important;
-    justify-content: center !important;
     font-style: italic;
-    font-weight: 500;
-    padding: 0.5rem;
-    background-color: var(--bg-tertiary);
-    border-radius: 0.375rem;
-    border: 1px solid var(--border);
+    padding: 0.2rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    background: transparent;
 }
 
 .header-actions {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    /* allow actions to wrap on very small viewports */
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
-/* ==================== CONTENT AREA ==================== */
+/* Normalizar botões de ação do cabeçalho para manter aparência consistente */
+.header-actions .header-btn,
+.header-actions button,
+.header-actions .theme-toggle,
+.header-actions .btn-upload-header {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0.35rem 0.6rem;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.12s ease, transform 0.12s ease, border-color 0.12s ease;
+}
+
+.header-actions .header-btn:hover,
+.header-actions button:hover,
+.header-actions .theme-toggle:hover,
+.header-actions .btn-upload-header:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+}
+
+.main-header .header-actions .upload-buttons {
+    position: relative;
+    margin-right: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    overflow: visible;
+    z-index: 30;
+}
+
+/* Fazer o botão de upload incluir um rótulo inline e um badge no canto superior
+    esquerdo quando um arquivo estiver aberto */
+.main-header .header-actions .btn-upload-header {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.65rem;
+    border-radius: 8px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+}
+
+.main-header .header-actions .btn-upload-header .upload-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: inline-block;
+}
+
+
+/* Variante quadrada pequena do botão de alternância de tema */
+.main-header .header-actions .theme-toggle {
+    min-width: 40px;
+    height: 40px;
+    padding: 0.4rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-primary);
+}
+
+/* ==================== ÁREA DE CONTEÚDO */
 .content-area {
     flex: 1;
     overflow-y: auto;
@@ -1016,7 +1143,7 @@ body {
     padding: 0.75rem;
 }
 
-/* ==================== STAT CARDS ==================== */
+/* ==================== CARTÕES DE ESTATÍSTICAS */
 .stats-cards {
     display: flex;
     flex-direction: row;
@@ -1129,7 +1256,42 @@ body {
     color: var(--danger);
 }
 
-/* ==================== CHART AREA ==================== */
+/* Garantir que o cartão de erro permaneça visualmente proeminente na página inicial e seja clicável quando houver problemas */
+.page[data-page="home"] .stat-card.error {
+    cursor: pointer !important;
+    opacity: 1 !important;
+    /* always visible */
+}
+
+/* When there are no problems, visually de-emphasize the count but keep the card readable */
+.stat-card.error.no-problems .card-content h3 {
+    color: var(--text-tertiary);
+}
+
+.stat-card.error.no-problems .card-icon {
+    opacity: 0.7;
+}
+
+/* Small red badge to indicate there are problems */
+.error-badge {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background: var(--danger);
+    border-radius: 50%;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.stat-card.error.no-problems #errorBadge {
+    display: none !important;
+}
+
+.stat-card.error.has-problems #errorBadge {
+    display: inline-block !important;
+}
+
+/* ==================== ÁREA DE GRÁFICOS */
 .chart-area {
     background-color: var(--bg-primary);
     border-radius: 12px;
@@ -1311,7 +1473,7 @@ body {
     transform: scale(1.02);
 }
 
-/* ==================== DATA TABLE ==================== */
+/* ==================== TABELA DE DADOS */
 .table-area {
     background-color: var(--bg-primary);
     border-radius: 12px;
@@ -1429,28 +1591,28 @@ body {
 }
 
 /* Classes de urgência em português (para compatibilidade) */
-.urgency-badge.urgency-crítico, 
+.urgency-badge.urgency-crítico,
 .urgency-badge.critico {
     background-color: rgba(239, 68, 68, 0.1);
     color: var(--danger);
     border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
-.urgency-badge.urgency-alto, 
+.urgency-badge.urgency-alto,
 .urgency-badge.alto {
     background-color: rgba(249, 115, 22, 0.1);
     color: var(--warning);
     border: 1px solid rgba(249, 115, 22, 0.2);
 }
 
-.urgency-badge.urgency-moderado, 
+.urgency-badge.urgency-moderado,
 .urgency-badge.moderado {
     background-color: rgba(234, 179, 8, 0.1);
     color: var(--moderate);
     border: 1px solid rgba(234, 179, 8, 0.2);
 }
 
-.urgency-badge.urgency-baixo, 
+.urgency-badge.urgency-baixo,
 .urgency-badge.baixo {
     background-color: rgba(16, 185, 129, 0.1);
     color: var(--success);
@@ -1524,13 +1686,14 @@ body {
         opacity: 0;
         transform: translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
     }
 }
 
-/* ==================== LOADING STATES ==================== */
+/* ==================== ESTADOS DE LOADING */
 .loading {
     display: flex;
     flex-direction: column;
@@ -1593,7 +1756,7 @@ body {
     }
 }
 
-/* ==================== HEATMAP ==================== */
+/* ==================== HEATMAP */
 .heatmap-container {
     padding: 1rem;
     background-color: var(--bg-primary);
@@ -2097,7 +2260,6 @@ body {
 }
 
 /* ==================== MODAL ==================== */
-/* ==================== MODAL ==================== */
 .modal {
     position: fixed;
     top: 0;
@@ -2168,7 +2330,8 @@ body {
     margin: 0;
 }
 
-.modal-close, .btn-close {
+.modal-close,
+.btn-close {
     background: none;
     border: none;
     color: var(--text-muted);
@@ -2182,7 +2345,8 @@ body {
     font-size: 1.25rem;
 }
 
-.modal-close:hover, .btn-close:hover {
+.modal-close:hover,
+.btn-close:hover {
     background-color: var(--bg-hover);
     color: var(--text-primary);
 }
@@ -2277,7 +2441,7 @@ body {
     font-style: italic;
 }
 
-/* ==================== RESPONSIVE ==================== */
+/* ==================== RESPONSIVO */
 @media (max-width: 1200px) {
     .content-grid {
         grid-template-columns: 1fr;
@@ -2285,12 +2449,12 @@ body {
         gap: 1.5rem;
         max-height: none;
     }
-    
+
     .chart-area {
         grid-row: 2;
         order: 2;
     }
-    
+
     .stats-cards {
         flex-direction: row;
         overflow-x: auto;
@@ -2298,12 +2462,12 @@ body {
         padding-bottom: 0.5rem;
         order: 1;
     }
-    
+
     .stat-card {
         min-width: 200px;
         flex-shrink: 0;
     }
-    
+
     .table-area {
         max-height: 50vh;
         order: 3;
@@ -2314,48 +2478,48 @@ body {
     .app-layout {
         flex-direction: column;
     }
-    
+
     .sidebar {
         width: 100%;
         height: auto;
         border-right: none;
         border-bottom: 1px solid var(--border);
     }
-    
+
     .sidebar-nav,
     .sidebar-filters {
         display: none;
     }
-    
+
     .main-header {
         padding: 1rem;
     }
-    
+
     .header-info {
         gap: 1rem;
     }
-    
+
     .page-title {
         font-size: var(--font-size-xl);
     }
-    
+
     .stats-compact {
         gap: 1rem;
     }
-    
+
     .content-area {
         padding: 1rem;
     }
-    
+
     .content-grid {
         grid-template-columns: 1fr;
         gap: 1rem;
     }
-    
+
     .stats-cards {
         flex-direction: column;
     }
-    
+
     .stat-card {
         min-width: unset;
     }
@@ -2392,25 +2556,25 @@ body {
     border-color: rgba(16, 185, 129, 0.4);
 }
 
-[data-theme="dark"] .urgency-badge.urgency-crítico, 
+[data-theme="dark"] .urgency-badge.urgency-crítico,
 [data-theme="dark"] .urgency-badge.critico {
     background-color: rgba(239, 68, 68, 0.25);
     border-color: rgba(239, 68, 68, 0.4);
 }
 
-[data-theme="dark"] .urgency-badge.urgency-alto, 
+[data-theme="dark"] .urgency-badge.urgency-alto,
 [data-theme="dark"] .urgency-badge.alto {
     background-color: rgba(249, 115, 22, 0.25);
     border-color: rgba(249, 115, 22, 0.4);
 }
 
-[data-theme="dark"] .urgency-badge.urgency-moderado, 
+[data-theme="dark"] .urgency-badge.urgency-moderado,
 [data-theme="dark"] .urgency-badge.moderado {
     background-color: rgba(234, 179, 8, 0.25);
     border-color: rgba(234, 179, 8, 0.4);
 }
 
-[data-theme="dark"] .urgency-badge.urgency-baixo, 
+[data-theme="dark"] .urgency-badge.urgency-baixo,
 [data-theme="dark"] .urgency-badge.baixo {
     background-color: rgba(16, 185, 129, 0.25);
     border-color: rgba(16, 185, 129, 0.4);
@@ -2477,7 +2641,9 @@ body {
     background: #58151c;
     color: #f8d7da;
     border-color: #6ee7b7;
-}/* MODAL BÁSICO E FUNCIONAL - COMO ERA ORIGINALMENTE */
+}
+
+/* MODAL BÁSICO E FUNCIONAL - COMO ERA ORIGINALMENTE */
 .modal-body {
     padding: 1rem;
 }
@@ -2631,7 +2797,8 @@ body {
 .info-label {
     font-weight: 600;
     color: var(--text-secondary);
-    font-size: var(--font-size-sm);;
+    font-size: var(--font-size-sm);
+    ;
 }
 
 .info-value {
@@ -2760,12 +2927,12 @@ body {
         max-width: 95vw;
         margin: 0.5rem;
     }
-    
+
     .info-grid {
         grid-template-columns: 1fr;
         gap: 0.5rem;
     }
-    
+
     .info-label {
         font-weight: 700;
         color: var(--text-primary);
@@ -2923,7 +3090,7 @@ body {
         gap: 1.5rem;
         padding: 1rem;
     }
-    
+
     .timeline-controls {
         width: 100%;
         justify-content: flex-start;
@@ -2931,70 +3098,71 @@ body {
         padding: 0.5rem 0.75rem;
         gap: 0.5rem;
     }
-    
+
     .timeline-stats {
         grid-template-columns: repeat(2, 1fr);
         gap: 0.375rem;
         order: 1;
         max-width: none;
     }
-    
+
     .stat-card.timeline-stat {
         min-height: auto;
         padding: 0.375rem 0.25rem;
     }
-    
+
     .stat-card.timeline-stat .card-icon i {
         font-size: 0.75rem;
     }
-    
+
     .stat-card.timeline-stat .card-content h3 {
         font-size: 0.75rem;
     }
-    
+
     .stat-card.timeline-stat .card-content p {
         font-size: 0.5rem;
         letter-spacing: 0.1px;
     }
-    
+
     .form-select {
         min-width: 70px;
         font-size: 0.6875rem;
         padding: 0.25rem 0.375rem;
     }
-    
+
     .timeline-controls .btn-primary,
     .timeline-controls .btn-secondary {
         font-size: 0.625rem;
         padding: 0.25rem 0.5rem;
     }
-    
+
     .timeline-chart-container {
         height: 300px;
         padding: 1rem;
     }
-    
+
     .control-group {
         min-width: 100px;
     }
-    
+
     .form-select {
         min-width: 100px;
     }
 }
 
-/* ==================== TIMELINE MODAL STYLES ==================== */
+/* ==================== ESTILOS DO MODAL TIMELINE */
 /* Minimalista e compatível com tema claro/escuro */
 
 #timelineServersList {
     display: grid;
-    gap: 1rem; /* Separação clara entre items */
+    gap: 1rem;
+    /* Separação clara entre items */
     max-height: 400px;
     overflow-y: auto;
     padding: 0.5rem 0;
 }
 
-/* ==================== PERIOD STATS MODAL STYLES ==================== */
+/* ==================== ESTILOS DO MODAL DE ESTATÍSTICAS DO PERÍODO */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -3083,15 +3251,15 @@ body {
         grid-template-columns: repeat(2, 1fr);
         gap: 1rem;
     }
-    
+
     .stats-card {
         padding: 1rem;
     }
-    
+
     .stats-card-value {
         font-size: 2rem;
     }
-    
+
     .stats-card-icon {
         width: 40px;
         height: 40px;
@@ -3103,7 +3271,8 @@ body {
     background: var(--bg-primary);
     padding: 1.25rem;
     border-radius: 12px;
-    border: 2px solid var(--border); /* Contorno mais visível */
+    border: 2px solid var(--border);
+    /* Contorno mais visível */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -3116,13 +3285,15 @@ body {
     border-color: var(--primary);
     box-shadow: var(--shadow-md);
     transform: translateY(-2px);
-    background: var(--bg-secondary); /* Mudança de cor no hover */
+    background: var(--bg-secondary);
+    /* Mudança de cor no hover */
 }
 
 .timeline-server-info {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem; /* Mais espaço */
+    gap: 0.75rem;
+    /* Mais espaço */
 }
 
 .timeline-server-name {
@@ -3145,10 +3316,13 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    background: var(--bg-secondary); /* Fundo contrastante */
+    background: var(--bg-secondary);
+    /* Fundo contrastante */
     padding: 0.4rem 0.8rem;
-    border-radius: 20px; /* Formato pill */
-    border: 1px solid var(--border-hover); /* Contorno sutil */
+    border-radius: 20px;
+    /* Formato pill */
+    border: 1px solid var(--border-hover);
+    /* Contorno sutil */
     color: var(--text-secondary);
     font-weight: 500;
     transition: all 0.2s ease;
@@ -3156,15 +3330,15 @@ body {
 }
 
 .timeline-server-details span:hover {
-    background: var(--primary); /* Cor vibrante no hover */
+    background: var(--primary);
     border-color: var(--primary);
     color: white;
-    transform: scale(1.02); /* Micro animação */
+    transform: scale(1.02);
 }
 
 .timeline-server-details i {
     width: 14px;
-    color: var(--primary); /* Ícones coloridos */
+    color: var(--primary);
     font-size: 0.9rem;
     flex-shrink: 0;
 }
@@ -3187,7 +3361,7 @@ body {
 
 .timeline-server-actions .btn-icon {
     background: var(--bg-secondary);
-    border: 2px solid var(--border); /* Contorno mais visível */
+    border: 2px solid var(--border);
     border-radius: 8px;
     padding: 0.5rem;
     transition: all 0.2s ease;
@@ -3195,13 +3369,12 @@ body {
 }
 
 .timeline-server-actions .btn-icon:hover {
-    background: var(--primary); /* Cor vibrante */
+    background: var(--primary);
     border-color: var(--primary);
     color: white;
     transform: scale(1.05);
 }
 
-/* Separador visual entre items */
 .timeline-server-item:not(:last-child)::after {
     content: '';
     position: absolute;
@@ -3232,16 +3405,16 @@ body {
         gap: 1rem;
         padding: 1rem;
     }
-    
+
     .timeline-server-details {
         gap: 0.5rem;
     }
-    
+
     .timeline-server-details span {
         padding: 0.3rem 0.6rem;
         font-size: 0.8rem;
     }
-    
+
     .timeline-server-actions {
         align-self: flex-end;
         width: 100%;
@@ -3303,13 +3476,13 @@ body {
     .stats-card.modal-timeline-stat {
         padding: 0.8rem;
     }
-    
+
     .stats-card.modal-timeline-stat .stats-card-icon {
         width: 32px;
         height: 32px;
         font-size: 1.1rem;
     }
-    
+
     .stats-card.modal-timeline-stat .stats-card-value {
         font-size: 1.5rem;
     }
@@ -3427,11 +3600,11 @@ body {
         right: 20px;
         left: 20px;
     }
-    
+
     .notification-actions {
         flex-direction: column;
     }
-    
+
     .notification-actions .btn {
         width: 100%;
         justify-content: center;
@@ -3440,10 +3613,13 @@ body {
 
 /* Animação de pulse para chamar atenção */
 @keyframes notificationPulse {
-    0%, 100% {
+
+    0%,
+    100% {
         border-color: var(--primary);
         box-shadow: var(--shadow-lg);
     }
+
     50% {
         border-color: var(--primary-hover);
         box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3), 0 8px 10px -6px rgba(59, 130, 246, 0.3);
@@ -3454,44 +3630,141 @@ body {
     animation: notificationPulse 2s ease-in-out;
 }
 
-/* Indicador de arquivo armazenado */
+/* Indicador de arquivo armazenado (padrão reutilizável) - non-positional defaults */
 .stored-file-indicator {
-    position: absolute;
-    top: -2px;
-    right: -2px;
-    width: 8px;
-    height: 8px;
-    background: var(--success);
+    width: 10px;
+    height: 10px;
+    background: var(--primary);
     border-radius: 50%;
-    color: var(--success);
-    font-size: 8px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    border: 2px solid var(--bg-primary);
+    font-size: 10px;
     line-height: 1;
+    pointer-events: none;
 }
 
-.btn-upload-header {
+/* ==================== BOTÃO DE UPLOAD (moderno) */
+/* Use a more specific selector so this block overrides legacy/duplicated rules. */
+.main-header .header-actions .upload-buttons {
     position: relative;
+    /* anchor for indicators */
 }
 
-.btn-clear-stored {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text-secondary);
-    padding: 0.5rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
+.main-header .header-actions .btn-upload-header {
+    position: relative;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    font-size: 0.875rem;
+    gap: 0.7rem;
+    padding: 0.35rem 0.5rem 0.35rem 0.5rem;
+    min-width: 64px;
+    border-radius: 10px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--bg-primary) 90%, var(--primary) 10%), rgba(0, 0, 0, 0.02));
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+    overflow: visible;
 }
 
-.btn-clear-stored:hover {
-    background: var(--bg-hover);
-    border-color: var(--border-hover);
-    color: var(--danger);
-    transform: translateY(-1px);
+.main-header .header-actions .btn-upload-header i {
+    font-size: 1.15rem;
+    line-height: 1;
+    display: inline-block;
 }
+
+/* Garantir espaço ao ícone para que badges não se sobreponham */
+.main-header .header-actions .btn-upload-header i {
+    margin-left: 6px;
+    margin-right: 6px;
+}
+
+.main-header .header-actions .btn-upload-header:hover,
+.main-header .header-actions .btn-upload-header:focus {
+    transform: translateY(-2px);
+    border-color: var(--primary);
+    box-shadow: var(--shadow-md);
+    background: linear-gradient(180deg, var(--bg-hover), rgba(0, 0, 0, 0.02));
+}
+
+/* (old absolute-positioned indicator styles removed — using inline/flex variants above) */
+
+/* If button becomes very narrow, scale badges down and avoid overlap */
+@media (max-width: 720px) {
+    .main-header .header-actions .btn-upload-header .stored-file-indicator {
+        top: 4px;
+        right: 6px;
+        width: 8px;
+        height: 8px;
+        border: 1px solid var(--bg-primary);
+        box-shadow: none;
+    }
+
+    .main-header .header-actions .upload-buttons .fs-api-indicator {
+        display: none;
+        /* hide micro-badge on small screens to avoid clutter */
+    }
+}
+
+/* show compact label earlier so users spot the action on tablet/desktop */
+@media (min-width: 720px) {
+    .main-header .header-actions .btn-upload-header::after {
+        display: inline-block;
+    }
+}
+
+/* Slightly stronger visual emphasis so upload button is more discoverable */
+.main-header .header-actions .btn-upload-header {
+    box-shadow: 0 1px 4px rgba(16, 24, 40, 0.04), 0 2px 6px rgba(16, 24, 40, 0.06);
+
+}
+
+.main-header .header-actions .btn-upload-header:hover {
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.12);
+    border-color: rgba(37, 99, 235, 0.18);
+}
+
+/* compact inline text label inside the button (appears on desktop widths) */
+.main-header .header-actions .btn-upload-header::after {
+    display: none;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-left: 0.25rem;
+    white-space: nowrap;
+    pointer-events: none
+}
+
+@media (min-width: 900px) {
+    .main-header .header-actions .btn-upload-header::after {
+        display: inline-block;
+    }
+
+    .main-header .header-actions {
+        overflow: visible;
+    }
+}
+
+/* Accessible focus outline */
+.main-header .header-actions .btn-upload-header:focus-visible {
+    outline: 3px solid rgba(59, 130, 246, 0.16);
+    outline-offset: 2px;
+}
+
+/* Small-screen compact variant: icon-only with no extra padding */
+@media (max-width: 720px) {
+    .main-header .header-actions .btn-upload-header {
+        padding: 0.25rem;
+        gap: 0.25rem;
+    }
+
+    .main-header .header-actions .btn-upload-header::after {
+        display: none;
+    }
+}
+
+/* ==================== fim botão de upload */
+
 
 /* Modal de erro de arquivo não encontrado */
 .file-not-found-modal .modal-content {
@@ -3503,6 +3776,7 @@ body {
         opacity: 0;
         transform: translateY(-20px) scale(0.95);
     }
+
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -3511,7 +3785,7 @@ body {
 
 .file-not-found-modal .btn-select-new:hover {
     transform: translateY(-2px) !important;
-    box-shadow: 0 4px 12px rgba(0,123,255,0.3) !important;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3) !important;
 }
 
 .file-not-found-modal .btn-cancel:hover {
@@ -3525,18 +3799,18 @@ body {
         padding: 16px !important;
         margin: 12px !important;
     }
-    
+
     .file-not-found-modal .error-actions {
         flex-direction: column !important;
     }
-    
+
     .file-not-found-modal .btn-select-new,
     .file-not-found-modal .btn-cancel {
         width: 100%;
     }
 }
 
-/* ==================== PERIODS CONTAINER - MODERN DESIGN ==================== */
+/* ==================== CONTAINER DE PERÍODOS - DESIGN MODERNO */
 .periods-container {
     margin: 1rem 0;
     display: flex;
@@ -3607,19 +3881,21 @@ body {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.83rem;
     color: var(--text-secondary);
-    display: inline-block;
-    font-weight: 600;
-}
-
-.period-details {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-}
-
-.license-count {
-    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: calc(var(--page-header-width) - 12px);
+    height: calc(var(--page-header-height) - 12px);
+    min-width: 40px;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0;
     padding: 0.25rem 0.6rem;
     border-radius: 8px;
     font-size: 0.86rem;
@@ -3689,11 +3965,11 @@ body {
         flex-direction: column;
         gap: 0.75rem;
     }
-    
+
     .months-breakdown {
         justify-content: flex-start;
     }
-    
+
     .period-header {
         flex-direction: column;
         align-items: flex-start;
@@ -3867,14 +4143,17 @@ body {
     .planilha-info {
         grid-template-columns: 1fr;
     }
+
     .period-header {
         flex-direction: column;
         gap: 0.5rem;
         align-items: flex-start;
     }
+
     .months-breakdown {
         gap: 0.25rem;
     }
+
     .month-tag {
         font-size: 0.7rem;
         padding: 0.18rem 0.42rem;
