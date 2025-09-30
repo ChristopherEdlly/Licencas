@@ -1,137 +1,75 @@
-# Dashboard de Licenças — Manual de Continuidade
 
-Este repositório contém um painel (dashboard) para visualização e análise de cronogramas de licenças de servidores. Foi desenvolvido como um projeto frontend leve (HTML/CSS/JS) com um parser próprio para interpretar cronogramas exportados de planilhas.
+# Dashboard de Licenças
 
- # Dashboard de Licenças
+Descrição curta
 
- Este repositório contém um dashboard frontend (HTML/CSS/JS) para visualização e análise de cronogramas de licenças de servidores.
+Este projeto é um painel web simples para visualizar e acompanhar cronogramas de licenças de servidores (ex.: licenças por mês, períodos, recorrências).
 
- Documentação principal (em português):
+Demo hospedado
 
- - `docs/USO.md` — Guia de uso: como preparar a planilha/CSV, exemplos, passos para carregar e interpretar os resultados.
- - `docs/DESENVOLVEDOR.md` — Guia técnico: arquitetura, funções e handlers do parser, entrada/saída de cada função, como estender e testar.
+- Site: https://christopheredlly.github.io/Licencas/
 
- OBS: Se desejar, eu faço o commit e push desses arquivos para o repositório quando autorizar.
+Quero usar? Comece por aqui:
 
----
+- Guia do Usuário (instruções passo a passo): [docs/GUIA-DO-USUARIO.md](docs/GUIA-DO-USUARIO.md)
 
-**Última atualização:** 2025-09-23
+Quem deve usar este repositório
 
-**Observação importante sobre o repositório remoto:** o remoto principal foi movido para `https://github.com/ChristopherEdlly/Licencas.git`. Verifique o `git remote -v` e atualize seu `origin` se necessário.
+- Usuários finais (que têm planilhas Excel e querem visualizar/filtrar os cronogramas).
+- Desenvolvedores (que queiram Recriar o projeto).
 
----
+## Comportamento do sistema.
 
-**Índice**
-- Visão Geral
-- Arquitetura e arquivos chave
-- Funcionalidades principais
-- Formato de entrada (CSV) e exemplos
-- Como rodar localmente
-- Desenvolvimento e workflow
-- Como o parser funciona (cronograma)
-- Debugging e testes rápidos
-- Checklist para continuidade / Handoff
-- Melhores práticas e ideias futuras
-Josivania Maria Santos,00000000000,Of. Administrativo,"Janeiro/2025,fevereiro/2026",14
-```
+Importante sobre como os dados são tratados
 
-- Exemplos de formatos que o parser tenta reconhecer:
-  - `Janeiro/2025` ou `Jan/25`
-  - `16/11/25` (interpreta como data específica)
-  - `Início em 01/2025 (12 meses consecutivos)`
-  - `Janeiro a cada ano, a partir de 2027`
+- Todo o processamento de planilhas ocorre no navegador do usuário (client‑side). Os arquivos que você seleciona são lidos e processados localmente pelo seu navegador; o sistema não envia automaticamente o conteúdo desses arquivos para servidores externos.
+- O aplicativo não publica nem distribui os dados por conta própria, nem grava automaticamente os arquivos em servidores remotos. Se você fechar a página, os dados carregados não são publicados nem salvos por este sistema.
+
+Se precisar de suporte para implantação ou tiver dúvidas sobre privacidade, entre em contato com o mantenedor (informações abaixo).
 
 
-**Como rodar localmente (rápido)**
-- Requisitos: navegador moderno (Chrome/Edge/Firefox). Node/NPM não são obrigatórios.
-- Modo rápido: abra `index.html` no navegador (recomendado via servidor local para evitar restrições de CORS quando carregar arquivos):
+## Para usuários
 
-```bash
-# Usando Python 3 (servidor simples)
-python3 -m http.server 8000
-# abra http://localhost:8000 no navegador
-```
+- Leia o Guia do Usuário: [docs/GUIA-DO-USUARIO.md](docs/GUIA-DO-USUARIO.md)
+- Demo online: https://christopheredlly.github.io/Licencas/
 
-- Carregue um CSV via interface (botão de upload) ou edite `teste_completo.csv` para testes.
+Quickstart para não técnicos (3 passos)
+1. Abra o link do Demo ou abra `index.html` no navegador.
+2. Clique em "Importar Planilha Excel" e selecione seu `.xlsx`/`.xls`/`.csv`.
+3. Use busca e filtros; clique em um nome para ver detalhes.
 
+Dicas práticas (linguagem simples)
 
-**Desenvolvimento e workflow**
-- Para mudanças rápidas em CSS/JS: editar arquivos em `css/` e `js/`, recarregar a página.
-- Commit/push padrão:
+- Colunas mínimas: `SERVIDOR` e uma coluna de período (`CRONOGRAMA`) ou `INICIO` + `FINAL`.
+- Prefira inserir anos nas datas (`01/2026`, `jan/2026`) para evitar ambiguidade.
+- Se o demo não aceitar seu arquivo, abra o Excel e salve como `.xlsx` novamente.
 
-```bash
-git add -A
-git commit -m "feat: descrição curta"
-git push origin main
-```
+## Para desenvolvedores
 
-- Se o remoto foi movido (mensagem do servidor), atualize `origin` com:
+- Guia do Desenvolvedor: [docs/GUIA-DO-DESENVOLVEDOR.md](docs/GUIA-DO-DESENVOLVEDOR.md)
 
-```bash
-git remote set-url origin https://github.com/ChristopherEdlly/Licencas.git
-git push -u origin main
-```
+Onde olhar primeiro
 
+- `js/cronogramaParser.js` — lógica de interpretação dos cronogramas.
+- `js/dashboard.js` — handlers de upload, orquestração do parser e renderização.
+- `index.html` — estrutura da UI e pontos de integração (IDs de botões e modais).
 
-**Como o parser funciona (resumo técnico)**
-- Arquivo principal: `js/cronogramaParser.js`.
-- Fluxo geral:
-  1. `processarDadosCSV(csvData)` divide linhas e headers, cria objetos `servidor` por linha.
-  2. Para cada `servidor.cronograma`, chamamos `parseCronograma(cronograma)` — que tenta vários "handlers" em ordem: `handleInicioEm`, `handleAPartirDe`, `handleDataEspecificaComAnual`, `handleDatasEspecificas`, `handleMesesListados`, `handleMesAno`, `handleMesAnoUmaPorAno`.
-  3. Para licenças prêmio (formato `inícioMes,finalMes`), existe `processarPeriodoLicencaPremio` e `processarPeriodoLicencaPremioMultiplo` que agora entendem meses com anos e iteram mês-a-mês gerando cada licença com `inicio` (1º dia) e `fim` (último dia desse mês).
-  4. Datas com ano em dois dígitos são normalizadas (`adjustYear`).
+Executando localmente (rápido)
 
-- Entrada ambígua: o parser tenta detectar padrões ambíguos e, em alguns casos, retorna `[]` (cronograma não interpretado) e marca `servidor.cronogramaComErro = true` para facilitar revisão manual.
+1. Sirva o diretório com um servidor estático (ex.: `python -m http.server 8000`) ou abra `index.html` localmente.
+2. Abra o console do navegador para ver logs e erros.
+
+## Estrutura do repositório
+
+- `index.html`, `css/`, `js/`, `img/`, `docs/`.
 
 
-**Debugging e testes rápidos (desenvolvimento)**
+## Contato
 
-- Para debug e testes rápidos veja `docs/DESENVOLVEDOR.md` — lá constam instruções sobre como habilitar logs e executar casos de teste de forma controlada.
-
-- O parser expõe pontos onde logs podem ser ativados de forma controlada; prefira usar uma API do parser (ex: `parser.setDebug(true)`) ou habilitar logs centralizados em vez de definir variáveis globais diretamente.
-
-```note
-Se precisar executar um teste local rápido, consulte `docs/USO.md` e `docs/DESENVOLVEDOR.md` para o fluxo recomendado; evite deixar flags de debug globais no código de produção.
-```
-
-
-**Checklist para continuidade / Handoff**
-- Prioridade imediata para TI que for assumir:
-  - Revisar `js/cronogramaParser.js` — este é o núcleo da lógica; compreenda cada handler.
-  - Verificar entradas reais do CSV que serão usadas em produção — ajustar handlers ou adicionar padrões conforme formatos que o RH fornecer.
-  - Revisar `css/new-styles.css` para componentes visuais; as variáveis no topo do arquivo controlam as cores do site.
-  - Remover dados sensíveis em `teste_completo.csv` antes de compartilhar publicamente.
-  - Ajustar o remoto Git: atualizar `origin` se o repositório foi movido.
-
-- Arquivos/locais que merecem atenção:
-  - `index.html` — estrutura do modal e marcação de conteúdo dinâmico
-  - `js/dashboard.js` — renderização de cartões e interação do usuário
-  - `js/cronogramaParser.js` — parsing e regras de transformação
-  - `css/new-styles.css` — estilos e temas (light/dark variables)
-
-
-**Sugestões de melhorias (prioritárias)**
-- Cobertura de testes automatizados (unit tests) para `cronogramaParser` — sugerido usar Jest (Node) com pequenos harnesses que validem todos os exemplos reais de CSV.
-- Normalizar/forçar headers do CSV (mapear sinônimos de colunas) para reduzir erros na produção.
-- Adicionar página de administração com upload de CSV e validação prévia (report de linhas com problemas).
-- Internacionalização (i18n) se precisar atender unidades com diferentes formatos de data.
-
-
-**Padrões de código / Contribuição**
-- JavaScript: estilo imperativo, funções responsáveis por um único propósito preferencialmente.
-- CSS: variáveis no topo de `new-styles.css` definem cores. Reutilizar `--primary`, `--primary-dark`, `--bg-primary`, etc.
-
-
-**Licença e dados sensíveis**
-- Se houver dados pessoais (nomes, CPFs, datas), trate com cautela e remova antes de publicar. Repositorio atual contém exemplos; revisar antes de disponibilizar publicamente.
-
-
-**Contatos / Observações finais**
-- Se alguém da TI for assumir, recomendo começar por testar com os CSVs reais do RH, habilitar os logs do parser e ajustar os patterns.
-- Se quiser, eu posso:
-  - adicionar um conjunto de testes automatizados para `cronogramaParser.js` (Jest + cases), ou
-  - abrir um documento `MIGRATION.md` com notas de deploy (como atualizar remotes e configurar servidor simples).
+- Maintainer: ChristopherEdlly
+- Email: Christopher2004edlly@gmail.com
+- WhatsApp: (79) 98178-1022
 
 ---
 
-Obrigado pelo trabalho e boa transição — deixei comentários importantes no código e marquei áreas sensíveis no `js/cronogramaParser.js` e `css/new-styles.css` para facilitar a continuidade.
+
