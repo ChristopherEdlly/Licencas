@@ -1,5 +1,17 @@
 
+
 # Dashboard de Licenças
+
+
+## Introdução às Documentações
+
+Este projeto acompanha dois guias principais para facilitar o uso e a manutenção do sistema:
+
+- **[Guia do Usuário](docs/GUIA-DO-USUARIO.md)**: Explica, de forma prática e acessível, como utilizar o painel de licenças. Você encontrará instruções passo a passo para importar planilhas, dicas de formatação dos dados, exemplos práticos para copiar/colar no Excel, explicações sobre os campos obrigatórios, como usar filtros e exportar gráficos, além de orientações para resolver erros comuns. Ideal para quem deseja apenas utilizar o sistema sem se preocupar com detalhes técnicos.
+
+- **[Guia do Desenvolvedor](docs/GUIA-DO-DESENVOLVEDOR.md)**: Destinado a quem deseja entender o funcionamento interno do sistema. Traz um mapeamento detalhado dos arquivos JavaScript principais, descrevendo a responsabilidade de cada função, parâmetros, retornos, efeitos colaterais e casos de borda importantes. Serve como referência rápida para manutenção, testes ou evolução do código.
+
+Consulte o [Guia do Usuário](docs/GUIA-DO-USUARIO.md) para aprender a operar o painel e o [Guia do Desenvolvedor](docs/GUIA-DO-DESENVOLVEDOR.md) para compreender ou alterar a lógica do sistema.
 
 Descrição curta
 
