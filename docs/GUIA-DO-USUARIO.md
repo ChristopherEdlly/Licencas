@@ -91,7 +91,7 @@ Observações e formatos recomendados para `INICIO` e `FINAL` (prático e direto
 
 | SERVIDOR        | CPF             | CARGO    | CRONOGRAMA                                              |
 |-----------------|-----------------|----------|---------------------------------------------------------|
-| Mariana Santos  | 222.333.444-55  | Analista | 01/06/2025 - 30/06/2025; 01/09/2025 - 30/09/2025       |
+| Mariana Santos  | 222.333.444-55  | Analista | 01/06/2025 - 30/06/2025; 01/09/2025 - 30/09/2025        |
 | Roberto Alves   | 333.444.555-66  | Técnico  | Início em 01/06/2025 (6 meses consecutivos)             |
 | Paula Costa     | 444.555.666-77  | Gerente  | Janeiro a cada ano — a partir de 2026                   |
 | Fernando Rocha  | 666.777.888-99  | Analista | 01/09/2025; 01/09/2026                                  |
@@ -100,11 +100,22 @@ Observação: no campo `CRONOGRAMA` prefira expressões claras e inclua anos qua
 
 Observações e formatos recomendados para o campo `CRONOGRAMA` (prático e direto):
 
-- Use intervalos explicitos quando possível: `DD/MM/YYYY - DD/MM/YYYY` (ex.: `01/06/2025 - 30/06/2025`).
-- Separe múltiplos períodos com ponto e vírgula `;` (ex.: `01/06/2025 - 30/06/2025; 01/09/2025 - 30/09/2025`).
-- Para indicar início + duração: `Início em DD/MM/YYYY (N meses consecutivos)` (ex.: `Início em 01/06/2025 (6 meses consecutivos)`).
-- Para recorrência anual, use texto claro com ano inicial: `Janeiro a cada ano — a partir de 2026`.
-- Para datas isoladas, use `DD/MM/YYYY` ou `MM/YYYY` com ano explícito: `16/11/2025` ou `09/2025`.
+
+- **Intervalo com hífen (`-`)**: Use o hífen para indicar um período contínuo entre duas datas, normalmente início e fim do período. Exemplo: `01/06/2025 - 30/06/2025` indica um período de 1 a 30 de junho de 2025. O sistema entende que tudo entre a data inicial e final faz parte do mesmo período de licença.
+
+- **Separação de múltiplos períodos com ponto e vírgula (`;`)**: Quando houver mais de um período para o mesmo servidor, separe cada um com ponto e vírgula. Exemplo: `01/06/2025 - 30/06/2025; 01/09/2025 - 30/09/2025` indica dois períodos distintos. O sistema irá criar uma licença para cada intervalo separado por `;`.
+
+- **Início + duração**: Para indicar que a licença começa em uma data e dura um número específico de meses, use o formato `Início em DD/MM/YYYY (N meses consecutivos)`. Exemplo: `Início em 01/06/2025 (6 meses consecutivos)` gera 6 períodos mensais a partir da data inicial.
+
+- **Recorrência anual**: Para licenças que se repetem todo ano, use uma frase clara, sempre incluindo o ano inicial. Exemplo: `Janeiro a cada ano — a partir de 2026`.
+
+- **Datas isoladas**: Para períodos de apenas um dia ou mês, use `DD/MM/YYYY` ou `MM/YYYY` com ano explícito. Exemplo: `16/11/2025` ou `09/2025`.
+
+**Resumo prático:**
+- O hífen (`-`) indica o intervalo entre datas (início e fim).
+- O ponto e vírgula (`;`) separa períodos distintos dentro da mesma célula.
+- O sistema lê cada trecho separado por `;` como um período independente.
+- Sempre inclua o ano para evitar ambiguidade.
 
 Dicas rápidas para o Excel:
 - Coloque toda a descrição do cronograma em uma única célula por servidor.
