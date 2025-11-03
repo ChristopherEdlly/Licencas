@@ -31,7 +31,7 @@ class ReportBuilderPremium {
         // Não inicializar automaticamente - será feito quando abrir pela primeira vez
     }
 
-    async init() {
+    init() {
         if (this.isInitialized || this.isInitializing) {
             return; // Já inicializado ou inicializando
         }
@@ -40,7 +40,7 @@ class ReportBuilderPremium {
         console.log('🎨 Inicializando Report Builder Premium (Figma Style)...');
 
         try {
-            await this.loadManagers();
+            this.loadManagers();
             this.createInterface();
             this.registerListeners();
             this.loadLastState();
@@ -49,7 +49,7 @@ class ReportBuilderPremium {
             this.isInitialized = true;
             console.log('✅ Report Builder Premium inicializado');
         } catch (error) {
-            console.error('❌ Erro:', error);
+            console.error('❌ Erro ao inicializar Premium Builder:', error);
             this.isInitializing = false;
             throw error;
         } finally {
@@ -57,16 +57,20 @@ class ReportBuilderPremium {
         }
     }
 
-    async loadManagers() {
-        const { WidgetLibrary } = await import('./builder/WidgetLibrary.js');
-        const { CanvasManager } = await import('./builder/CanvasManager.js');
-        const { StyleManager } = await import('./builder/StyleManager.js');
-        const { ExportEngine } = await import('./builder/ExportEngine.js');
-
+    loadManagers() {
+        // Os módulos já foram carregados via script tags no HTML
+        // Apenas instanciar as classes
         this.widgetLibrary = new WidgetLibrary(this);
         this.canvasManager = new CanvasManager(this);
         this.styleManager = new StyleManager(this);
         this.exportEngine = new ExportEngine(this);
+
+        console.log('✅ Managers carregados:', {
+            widgetLibrary: !!this.widgetLibrary,
+            canvasManager: !!this.canvasManager,
+            styleManager: !!this.styleManager,
+            exportEngine: !!this.exportEngine
+        });
     }
 
     createInterface() {
@@ -716,8 +720,14 @@ class ReportBuilderPremium {
         }
     }
 
-    async open() {
+    open() {
         const reportsPage = document.getElementById('reportsPage');
+
+        // Ocultar outras páginas primeiro
+        document.querySelectorAll('.page-content:not(#reportsPage)').forEach(page => {
+            page.classList.remove('active');
+            page.style.display = 'none';
+        });
 
         // Mostrar loading se ainda não está inicializado
         if (!this.isInitialized) {
@@ -735,25 +745,14 @@ class ReportBuilderPremium {
                 `;
             }
 
-            // Ocultar outras páginas
-            document.querySelectorAll('.page-content:not(#reportsPage)').forEach(page => {
-                page.classList.remove('active');
-                page.style.display = 'none';
-            });
-
             // Inicializar (isso vai chamar createInterface() que substituirá o HTML)
-            await this.init();
+            this.init();
         } else {
             // Já inicializado, apenas mostrar
             if (reportsPage) {
                 reportsPage.classList.add('active');
                 reportsPage.style.display = 'block';
             }
-
-            document.querySelectorAll('.page-content:not(#reportsPage)').forEach(page => {
-                page.classList.remove('active');
-                page.style.display = 'none';
-            });
         }
 
         console.log('✅ Premium Builder aberto');
@@ -812,5 +811,3 @@ class ReportBuilderPremium {
         return `widget_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
 }
-
-export default ReportBuilderPremium;

@@ -7,7 +7,7 @@
  * @version 5.0.0
  */
 
-export class ExportEngine {
+class ExportEngine {
     constructor(builder) {
         this.builder = builder;
     }

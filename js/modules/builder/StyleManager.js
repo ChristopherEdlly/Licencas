@@ -4,7 +4,7 @@
  * @version 6.0.0
  */
 
-export class StyleManager {
+class StyleManager {
     constructor(builder) {
         this.builder = builder;
     }

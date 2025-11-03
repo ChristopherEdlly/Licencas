@@ -1111,10 +1111,10 @@ class ReportsManager {
      * Mostra página de relatórios
      * NOTA: Agora delega ao Premium Builder
      */
-    async showReportsPage() {
+    showReportsPage() {
         // Delegar ao Premium Builder se disponível
         if (this.dashboard && this.dashboard.reportBuilderPremium) {
-            await this.dashboard.reportBuilderPremium.open();
+            this.dashboard.reportBuilderPremium.open();
         } else if (this.reportsPage) {
             // Fallback: mostrar página vazia
             this.reportsPage.style.display = 'block';

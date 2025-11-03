@@ -4,7 +4,7 @@
  * @version 6.0.0
  */
 
-export class CanvasManager {
+class CanvasManager {
     constructor(builder) {
         this.builder = builder;
         this.isDragging = false;

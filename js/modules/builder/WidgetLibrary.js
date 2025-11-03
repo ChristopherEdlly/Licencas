@@ -4,7 +4,7 @@
  * @version 5.1.0
  */
 
-export class WidgetLibrary {
+class WidgetLibrary {
     constructor(builder) {
         this.builder = builder;
 

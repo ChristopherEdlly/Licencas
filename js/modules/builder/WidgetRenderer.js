@@ -4,7 +4,7 @@
  * @version 5.1.0
  */
 
-export class WidgetRenderer {
+class WidgetRenderer {
     constructor(builder) {
         this.builder = builder;
         this.charts = new Map();
