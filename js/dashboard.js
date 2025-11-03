@@ -1,23 +1,6 @@
 // Dashboard Multi-Páginas SUTRI
 
-// Cores consistentes para charts (compatíveis com ambos os temas)
-const CHART_COLORS = {
-    critical: '#ef4444',  // Vermelho
-    high: '#f97316',      // Laranja
-    moderate: '#eab308',  // Amarelo
-    low: '#059669'        // Verde
-};
 
-// Array de cores para usar nos charts de urgência
-const CHART_COLOR_ARRAY = [
-    CHART_COLORS.critical,
-    CHART_COLORS.high,
-    CHART_COLORS.moderate,
-    CHART_COLORS.low
-];
-
-// Cores consistentes para gráficos de cargo (usadas tanto no chart quanto na legenda)
-// Cores completamente independentes das cores de urgência
 const CARGO_COLORS = [
     '#3b82f6', // Azul
     '#10b981', // Verde esmeralda
@@ -31,12 +14,50 @@ const CARGO_COLORS = [
     '#6366f1'  // Indigo
 ];
 
+
+
 class DashboardMultiPage {
+    // Exibe overlay de loading global
+    showGlobalLoading(message = 'Carregando...') {
+        const overlay = document.getElementById('globalLoadingOverlay');
+        if (overlay) {
+            // salvar foco anterior
+            try { this._lastFocusBeforeLoading = document.activeElement; } catch (e) { this._lastFocusBeforeLoading = null; }
+            overlay.style.display = 'flex';
+            overlay.setAttribute('aria-hidden', 'false');
+            const text = overlay.querySelector('.loading-text');
+            if (text) text.textContent = message;
+            // marcar como ocupado para leitores de tela
+            try { document.body.setAttribute('aria-busy', 'true'); } catch (e) {}
+            // bloquear scroll
+            try { document.documentElement.style.overflow = 'hidden'; } catch (e) {}
+        }
+    }
+
+    // Esconde overlay de loading global
+    hideGlobalLoading() {
+        const overlay = document.getElementById('globalLoadingOverlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+            overlay.setAttribute('aria-hidden', 'true');
+            try { document.body.removeAttribute('aria-busy'); } catch (e) {}
+            try { document.documentElement.style.overflow = ''; } catch (e) {}
+            // restaurar foco
+            try {
+                if (this._lastFocusBeforeLoading && typeof this._lastFocusBeforeLoading.focus === 'function') {
+                    this._lastFocusBeforeLoading.focus();
+                    this._lastFocusBeforeLoading = null;
+                }
+            } catch (e) {}
+        }
+    }
     constructor() {
         this.parser = new CronogramaParser();
         this.allServidores = [];
         this.filteredServidores = [];
         this.loadingProblems = [];
+        this.notificacoes = []; // Array de notificações
+        this.filteredNotificacoes = []; // Notificações filtradas
         this.currentFilters = {
             age: { min: 18, max: 70 },
             period: { type: 'yearly', start: 2025, end: 2028 },
@@ -51,16 +72,126 @@ class DashboardMultiPage {
         this.currentPage = 'home';
         this.selectedChartIndex = -1;
 
+        // Inicializar TableSortManager
+        this.tableSortManager = null;
+
+        // Inicializar CacheManager
+        this.cacheManager = null;
+        this.currentCacheFileId = null; // ID do arquivo atualmente carregado
+
+        // Inicializar ValidationManager e ErrorReporter
+        this.validationManager = null;
+        this.errorReporter = null;
+
+        // Inicializar ExportManager
+        this.exportManager = null;
+
         this.init();
     }
 
-    init() {
+    async init() {
         this.setupEventListeners();
+        this.setupSidebarButtons();
         this.initNavigation();
         this.initPeriodTabs();
         this.updateProblemsCount();
         this.updateLastUpdate();
         this.setupThemeIntegration();
+
+        // Inicializar TableSortManager
+        this.tableSortManager = new TableSortManager(this);
+
+        // Inicializar ValidationManager e ErrorReporter
+        if (typeof ValidationManager !== 'undefined' && typeof ErrorReporter !== 'undefined') {
+            this.validationManager = new ValidationManager();
+            this.errorReporter = new ErrorReporter(this.validationManager);
+            console.log('✅ ValidationManager e ErrorReporter inicializados');
+        } else {
+            console.warn('⚠️ ValidationManager ou ErrorReporter não disponíveis');
+        }
+
+        // Inicializar ExportManager
+        if (typeof ExportManager !== 'undefined') {
+            this.exportManager = new ExportManager(this);
+            this.setupExportEventListeners();
+            console.log('✅ ExportManager inicializado');
+        } else {
+            console.warn('⚠️ ExportManager não disponível');
+        }
+
+        // Inicializar CacheManager
+        if (CacheManager.isAvailable()) {
+            this.cacheManager = new CacheManager();
+            await this.initCacheUI();
+        } else {
+            console.warn('IndexedDB não disponível - cache desabilitado');
+        }
+
+        // Inicializar SmartSearchManager
+        if (typeof SmartSearchManager !== 'undefined') {
+            this.smartSearchManager = new SmartSearchManager(this);
+            console.log('✅ SmartSearchManager inicializado');
+        }
+
+        // Inicializar AdvancedFilterManager
+        if (typeof AdvancedFilterManager !== 'undefined') {
+            this.advancedFilterManager = new AdvancedFilterManager(this);
+            console.log('✅ AdvancedFilterManager inicializado');
+        }
+
+        // Inicializar FilterChipsUI
+        if (typeof FilterChipsUI !== 'undefined' && this.advancedFilterManager) {
+            this.filterChipsUI = new FilterChipsUI(this.advancedFilterManager, this);
+            console.log('✅ FilterChipsUI inicializado');
+        }
+
+        // Inicializar KeyboardShortcutsManager
+        if (typeof KeyboardShortcutsManager !== 'undefined') {
+            this.keyboardShortcutsManager = new KeyboardShortcutsManager(this);
+            console.log('✅ KeyboardShortcutsManager inicializado');
+        }
+
+        // Inicializar LoadingSkeletons
+        if (typeof LoadingSkeletons !== 'undefined') {
+            this.loadingSkeletons = new LoadingSkeletons();
+            console.log('✅ LoadingSkeletons inicializado');
+        }
+
+        // Inicializar HighContrastManager
+        if (typeof HighContrastManager !== 'undefined') {
+            this.highContrastManager = new HighContrastManager(this);
+            console.log('✅ HighContrastManager inicializado');
+        }
+
+        // Inicializar BreadcrumbsManager
+        if (typeof BreadcrumbsManager !== 'undefined') {
+            this.breadcrumbsManager = new BreadcrumbsManager(this);
+            console.log('✅ BreadcrumbsManager inicializado');
+        }
+
+        // Inicializar NotificationManager (Sprint 4)
+        if (typeof NotificationManager !== 'undefined') {
+            this.notificationManager = new NotificationManager(this);
+            console.log('✅ NotificationManager inicializado');
+        }
+
+        // Inicializar ReportsManager (Sprint 4)
+        if (typeof ReportsManager !== 'undefined') {
+            this.reportsManager = new ReportsManager(this);
+            console.log('✅ ReportsManager inicializado');
+        }
+
+        // Inicializar ReportBuilderPremium (Premium Builder)
+        if (typeof ReportBuilderPremium !== 'undefined') {
+            this.reportBuilderPremium = new ReportBuilderPremium(this);
+            console.log('✅ ReportBuilderPremium inicializado');
+        }
+
+        // Inicializar OperationalImpactAnalyzer (Sprint 4)
+        if (typeof OperationalImpactAnalyzer !== 'undefined') {
+            this.operationalImpactAnalyzer = new OperationalImpactAnalyzer(this);
+            console.log('✅ OperationalImpactAnalyzer inicializado');
+        }
 
         const currentYear = new Date().getFullYear();
         const currentYearElement = document.getElementById('currentCalendarYear');
@@ -85,7 +216,10 @@ class DashboardMultiPage {
 
         // Escutar mudanças de tema
         window.addEventListener('themeChanged', (e) => {
-            this.onThemeChanged(e.detail.theme);
+            // Atualizar chart se existir
+            if (window.dashboardChart && window.themeManager) {
+                window.themeManager.updateChartColors();
+            }
         });
 
         // Atualizar cores se necessário (mantemos as mesmas cores para consistência)
@@ -97,6 +231,261 @@ class DashboardMultiPage {
         }
 
     // Outras atualizações de tema podem ser adicionadas aqui
+    }
+
+    // ==================== MÉTODOS DE CACHE ====================
+
+    /**
+     * Inicializa a UI do cache (botões, event listeners, etc)
+     */
+    async initCacheUI() {
+        const recentFilesBtn = document.getElementById('recentFilesButton');
+        const recentFilesDropdown = document.getElementById('recentFilesDropdown');
+        const clearCacheBtn = document.getElementById('clearCacheBtn');
+
+        if (!recentFilesBtn || !recentFilesDropdown) return;
+
+        // Inicializar IndexedDB imediatamente
+        try {
+            console.log('🔧 Inicializando IndexedDB no initCacheUI...');
+            await this.cacheManager.init();
+            console.log('✅ IndexedDB inicializado com sucesso');
+        } catch (error) {
+            console.error('❌ Erro ao inicializar IndexedDB:', error);
+            return;
+        }
+
+        // Event listener para toggle do dropdown
+        recentFilesBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = recentFilesDropdown.style.display === 'block';
+            recentFilesDropdown.style.display = isVisible ? 'none' : 'block';
+
+            if (!isVisible) {
+                this.updateRecentFilesUI();
+            }
+        });
+
+        // Event listener para limpar todo o cache
+        if (clearCacheBtn) {
+            clearCacheBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (confirm('Deseja realmente limpar todo o cache de arquivos?')) {
+                    await this.cacheManager.clearAll();
+                    await this.updateRecentFilesUI();
+                    recentFilesDropdown.style.display = 'none';
+                }
+            });
+        }
+
+        // Fechar dropdown ao clicar fora
+        document.addEventListener('click', (e) => {
+            if (!recentFilesBtn.contains(e.target) && !recentFilesDropdown.contains(e.target)) {
+                recentFilesDropdown.style.display = 'none';
+            }
+        });
+
+        // Atualizar UI inicial
+        await this.updateRecentFilesUI();
+    }
+
+    /**
+     * Atualiza a UI de arquivos recentes
+     */
+    async updateRecentFilesUI() {
+        if (!this.cacheManager) {
+            console.warn('CacheManager não inicializado');
+            return;
+        }
+
+        const recentFilesBtn = document.getElementById('recentFilesButton');
+        const recentFilesCount = document.getElementById('recentFilesCount');
+        const recentFilesList = document.getElementById('recentFilesList');
+
+        if (!recentFilesBtn || !recentFilesList) {
+            console.warn('Elementos de UI de cache não encontrados:', { recentFilesBtn, recentFilesList });
+            return;
+        }
+
+        try {
+            const files = await this.cacheManager.getRecentFiles(3);
+            console.log(`📁 Arquivos recentes no cache: ${files.length}`, files);
+
+            // Atualizar contador
+            if (recentFilesCount) {
+                recentFilesCount.textContent = files.length;
+            }
+
+            // Mostrar/ocultar botão baseado em se há arquivos
+            if (files.length > 0) {
+                recentFilesBtn.style.display = 'flex';
+                console.log('✅ Botão de arquivos recentes mostrado');
+            } else {
+                recentFilesBtn.style.display = 'none';
+                console.log('ℹ️ Nenhum arquivo em cache - botão oculto');
+            }
+
+            // Renderizar lista de arquivos
+            if (files.length === 0) {
+                recentFilesList.innerHTML = `
+                    <div class="recent-files-empty">
+                        <i class="bi bi-inbox"></i>
+                        <p>Nenhum arquivo recente</p>
+                    </div>
+                `;
+            } else {
+                recentFilesList.innerHTML = files.map(file => `
+                    <div class="recent-file-item" data-file-id="${file.id}">
+                        <div class="recent-file-info">
+                            <div class="recent-file-name">
+                                <i class="bi bi-file-earmark-text"></i>
+                                ${this.escapeHtml(file.fileName)}
+                            </div>
+                            <div class="recent-file-meta">
+                                <span>
+                                    <i class="bi bi-clock"></i>
+                                    ${CacheManager.formatTimestamp(file.timestamp)}
+                                </span>
+                                <span>
+                                    <i class="bi bi-people"></i>
+                                    ${file.servidoresCount} servidor${file.servidoresCount !== 1 ? 'es' : ''}
+                                </span>
+                                ${file.metadata?.size ? `
+                                    <span>
+                                        <i class="bi bi-hdd"></i>
+                                        ${CacheManager.formatFileSize(file.metadata.size)}
+                                    </span>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="recent-file-actions">
+                            <button class="btn-icon btn-delete-cache" data-file-id="${file.id}" title="Remover do cache">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Adicionar event listeners para carregar arquivos
+                recentFilesList.querySelectorAll('.recent-file-item').forEach(item => {
+                    const fileId = parseInt(item.dataset.fileId);
+                    const deleteBtn = item.querySelector('.btn-delete-cache');
+
+                    // Carregar arquivo ao clicar no item (exceto no botão de delete)
+                    item.addEventListener('click', async (e) => {
+                        if (e.target.closest('.btn-delete-cache')) return;
+                        await this.loadFileFromCache(fileId);
+                    });
+
+                    // Deletar arquivo
+                    if (deleteBtn) {
+                        deleteBtn.addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            await this.deleteFileFromCache(fileId);
+                        });
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Erro ao atualizar UI de arquivos recentes:', error);
+            recentFilesList.innerHTML = `
+                <div class="recent-files-empty">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <p>Erro ao carregar arquivos</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Carrega um arquivo do cache
+     */
+    async loadFileFromCache(fileId) {
+        if (!this.cacheManager) return;
+
+        const recentFilesDropdown = document.getElementById('recentFilesDropdown');
+        const statusElement = document.getElementById('uploadStatus');
+
+        try {
+            // Mostrar loading
+            this.showLoading('Carregando arquivo do cache...');
+
+            // Carregar arquivo
+            const fileData = await this.cacheManager.loadFileById(fileId);
+
+            if (!fileData || !fileData.csvData) {
+                throw new Error('Dados do arquivo não encontrados');
+            }
+
+            // Processar dados
+            this.processData(fileData.csvData);
+            this.updateLastUpdate();
+            this.currentCacheFileId = fileId;
+
+            // Fechar dropdown
+            if (recentFilesDropdown) {
+                recentFilesDropdown.style.display = 'none';
+            }
+
+            // Mostrar badge de cache hit
+            if (statusElement) {
+                statusElement.className = 'upload-status success';
+                statusElement.innerHTML = `
+                    <i class="bi bi-check-circle"></i>
+                    <span class="file-info">
+                        ✓ ${this.escapeHtml(fileData.fileName)} (${fileData.servidoresCount} servidores)
+                        <span class="cache-hit-badge">
+                            <i class="bi bi-lightning-fill"></i>
+                            Do cache
+                        </span>
+                    </span>
+                `;
+            }
+
+            // Notificação de sucesso
+            this.showImportNotification('success',
+                `Arquivo carregado do cache`,
+                fileData.fileName
+            );
+
+        } catch (error) {
+            console.error('Erro ao carregar arquivo do cache:', error);
+            this.showImportNotification('error',
+                error.message || 'Erro ao carregar arquivo do cache',
+                'Cache'
+            );
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    /**
+     * Deleta um arquivo do cache
+     */
+    async deleteFileFromCache(fileId) {
+        if (!this.cacheManager) return;
+
+        try {
+            await this.cacheManager.deleteFile(fileId);
+            await this.updateRecentFilesUI();
+
+            // Se o arquivo deletado era o atual, limpar referência
+            if (this.currentCacheFileId === fileId) {
+                this.currentCacheFileId = null;
+            }
+        } catch (error) {
+            console.error('Erro ao deletar arquivo do cache:', error);
+            alert('Erro ao remover arquivo do cache');
+        }
+    }
+
+    /**
+     * Escapa HTML para prevenir XSS
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     setupEventListeners() {
@@ -261,20 +650,81 @@ class DashboardMultiPage {
 
     // Busca com filtro automático
         const searchInput = document.getElementById('searchInput');
+        const autocompleteDropdown = document.getElementById('autocompleteDropdown');
 
         if (searchInput) {
             // Ao digitar, mostrar/esconder o botão de limpar
             searchInput.addEventListener('input', () => {
                 this.toggleClearSearchButton();
-                // Aplicar filtro de busca automaticamente
-                this.handleSearch();
+
+                const query = searchInput.value;
+
+                // Se há SmartSearchManager, usar busca inteligente
+                if (this.smartSearchManager && query.length >= 2) {
+                    // Autocomplete
+                    this.smartSearchManager.autocompleteWithDebounce(query, (suggestions) => {
+                        this.renderAutocompleteSuggestions(suggestions);
+                    });
+
+                    // Busca
+                    this.smartSearchManager.searchWithDebounce(query, (results) => {
+                        this.filteredServidores = results;
+                        this.updateTable();
+                        this.updateStats();
+
+                        // Atualizar contador de chips
+                        if (this.filterChipsUI) {
+                            this.filterChipsUI.updateCounter(
+                                this.filteredServidores.length,
+                                this.allServidores.length
+                            );
+                        }
+                    });
+                } else if (query.length < 2) {
+                    // Limpar autocomplete
+                    if (autocompleteDropdown) {
+                        autocompleteDropdown.style.display = 'none';
+                    }
+
+                    // Se busca vazia, mostrar todos
+                    this.filteredServidores = this.allServidores;
+                    this.updateTable();
+                    this.updateStats();
+
+                    if (this.filterChipsUI) {
+                        this.filterChipsUI.updateCounter(
+                            this.filteredServidores.length,
+                            this.allServidores.length
+                        );
+                    }
+                } else {
+                    // Fallback para busca tradicional
+                    this.handleSearch();
+                }
             });
 
             // Tecla Enter executa a busca
             searchInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
+                    if (autocompleteDropdown) {
+                        autocompleteDropdown.style.display = 'none';
+                    }
                     this.handleSearch();
+                }
+
+                // Escape fecha autocomplete
+                if (e.key === 'Escape') {
+                    if (autocompleteDropdown) {
+                        autocompleteDropdown.style.display = 'none';
+                    }
+                }
+            });
+
+            // Fechar autocomplete ao clicar fora
+            document.addEventListener('click', (e) => {
+                if (autocompleteDropdown && !searchInput.contains(e.target) && !autocompleteDropdown.contains(e.target)) {
+                    autocompleteDropdown.style.display = 'none';
                 }
             });
         }
@@ -282,7 +732,12 @@ class DashboardMultiPage {
     // Botão de limpar busca
         const clearSearchBtn = document.getElementById('clearSearchBtn');
         if (clearSearchBtn) {
-            clearSearchBtn.addEventListener('click', () => this.clearSearch());
+            clearSearchBtn.addEventListener('click', () => {
+                this.clearSearch();
+                if (autocompleteDropdown) {
+                    autocompleteDropdown.style.display = 'none';
+                }
+            });
         }
 
         // Age filter inputs
@@ -307,7 +762,7 @@ class DashboardMultiPage {
         // Period filter (month selector)
         const periodFilter = document.getElementById('mesFilter');
         if (periodFilter) {
-            periodFilter.addEventListener('change', () => this.applyLicencaFilters());
+            periodFilter.addEventListener('change', () => this.applyAllFilters());
         }
 
     // Navegação entre páginas
@@ -361,10 +816,19 @@ class DashboardMultiPage {
             nextYearBtn.addEventListener('click', () => this.changeCalendarYear(1));
         }
 
-        // Close day details panel
-        const closePanelBtn = document.getElementById('closePanelBtn');
-        if (closePanelBtn) {
-            closePanelBtn.addEventListener('click', () => this.closeDayDetailsPanel());
+        // Close calendar day modal
+        const calendarDayCloseBtn = document.getElementById('calendarDayCloseBtn');
+        if (calendarDayCloseBtn) {
+            calendarDayCloseBtn.addEventListener('click', () => this.closeCalendarDayModal());
+        }
+        
+        // Close modal ao clicar no backdrop
+        const calendarDayModal = document.getElementById('calendarDayModal');
+        if (calendarDayModal) {
+            const backdrop = calendarDayModal.querySelector('.modal-backdrop');
+            if (backdrop) {
+                backdrop.addEventListener('click', () => this.closeCalendarDayModal());
+            }
         }
 
     // Cliques na legenda de urgência
@@ -380,7 +844,7 @@ class DashboardMultiPage {
             mesFilter.addEventListener('change', () => {
                 const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
                 if (isLicencaPremio) {
-                    this.applyLicencaFilters();
+                    this.applyAllFilters();
                 } else {
                     // Para tabelas regulares, também pode haver necessidade de filtros
                     this.applyTableFilter();
@@ -411,7 +875,7 @@ class DashboardMultiPage {
                     this.closePeriodStatsModal();
                 }
             } else if (e.target.classList.contains('modal-backdrop')) {
-                if (e.target.closest('#detailsModal')) {
+                if (e.target.closest('#modal') || e.target.closest('#detailsModal')) {
                     this.closeModal();
                 } else if (e.target.closest('#problemsModal')) {
                     this.closeProblemsModal();
@@ -424,7 +888,7 @@ class DashboardMultiPage {
         });
 
     // Botão de fechar modal
-        const modalCloseBtn = document.getElementById('modalCloseBtn');
+        const modalCloseBtn = document.getElementById('closeModal') || document.getElementById('modalCloseBtn');
         if (modalCloseBtn) {
             modalCloseBtn.addEventListener('click', () => this.closeModal());
         }
@@ -455,6 +919,24 @@ class DashboardMultiPage {
             errorCard.addEventListener('click', () => this.showProblemsModal());
         }
 
+        // Busca de notificações
+        const notificationsSearchInput = document.getElementById('notificationsSearchInput');
+        if (notificationsSearchInput) {
+            notificationsSearchInput.addEventListener('input', () => {
+                this.filterNotifications();
+            });
+        }
+
+        // Filtro de status
+        const statusFilter = document.getElementById('statusFilter');
+        if (statusFilter) {
+            statusFilter.addEventListener('change', () => {
+                this.filterNotifications();
+            });
+        }
+
+        // Exportar notificações - Será configurado pelo ExportManager em setupExportEventListeners()
+
     // Delegação de eventos para botões criados dinamicamente
         document.addEventListener('click', (e) => {
             // Botões de detalhes do servidor
@@ -471,44 +953,213 @@ class DashboardMultiPage {
                 const legendCard = e.target.closest('.legend-card[data-urgency]');
                 const urgency = legendCard.getAttribute('data-urgency');
                 const urgencyIndex = ['critical', 'high', 'moderate', 'low'].indexOf(urgency);
-                this.filterTableByUrgency(urgency, urgencyIndex);
+                
+                // Legendas podem destacar o gráfico (comportamento tradicional)
+                this.filterTableByUrgency(urgency, urgencyIndex, true);
 
                 // Atualizar estado visual da legenda
                 document.querySelectorAll('.legend-card').forEach(card => card.classList.remove('active'));
                 legendCard.classList.add('active');
             }
 
-            // Clique em stat-card - apenas informativo na página inicial
+            // Clique em stat-card - filtrar por urgência
             if (e.target.closest('.stat-card')) {
-                if (this.currentPage === 'home') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return false;
+                const statCard = e.target.closest('.stat-card');
+                
+                // Não filtrar se for o card de "Problemas"
+                if (statCard.id === 'errorCard') {
+                    return; // Já tem handler específico acima
+                }
+                
+                // Mapear classes de cards para urgências
+                let urgency = null;
+                let urgencyIndex = -1;
+                
+                if (statCard.classList.contains('critical')) {
+                    urgency = 'critical';
+                    urgencyIndex = 0;
+                } else if (statCard.classList.contains('high')) {
+                    urgency = 'high';
+                    urgencyIndex = 1;
+                } else if (statCard.classList.contains('moderate')) {
+                    urgency = 'moderate';
+                    urgencyIndex = 2;
+                }
+                
+                if (urgency !== null) {
+                    // Toggle: se já estiver ativo, desativar
+                    if (statCard.classList.contains('active')) {
+                        statCard.classList.remove('active');
+                        this.clearUrgencyFilter(false); // false = não destacar gráfico
+                    } else {
+                        // Remover active de todos os cards
+                        document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('active'));
+                        statCard.classList.add('active');
+                        
+                        // Cards NÃO destacam o gráfico (false)
+                        this.filterTableByUrgency(urgency, urgencyIndex, false);
+                    }
                 }
             }
         });
+        
+        // Botões de filtro da sidebar
+        const btnAdvancedFilters = document.getElementById('btnAdvancedFilters');
+        const btnClearAllFilters = document.getElementById('btnClearAllFilters');
+        
+        if (btnAdvancedFilters) {
+            btnAdvancedFilters.addEventListener('click', () => {
+                // Abrir modal de filtros avançados
+                this.openFiltersModal();
+            });
+        }
+        
+        if (btnClearAllFilters) {
+            btnClearAllFilters.addEventListener('click', () => {
+                // Limpar todos os filtros
+                this.clearAllFilters();
+            });
+        }
+        
+        // Link de Dicas e Atalhos no footer da sidebar
+        const sidebarInfoLink = document.querySelector('.sidebar-info-link[data-page]');
+        if (sidebarInfoLink) {
+            sidebarInfoLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                const pageId = sidebarInfoLink.dataset.page;
+                this.switchPage(pageId);
+            });
+        }
+    }
+    
+    /**
+     * Mostrar toast de feedback
+     */
+    showToast(message, type = 'info') {
+        // Centraliza todas as notificações no NotificationManager
+        if (this.notificationManager && typeof this.notificationManager.showToast === 'function') {
+            this.notificationManager.showToast({
+                title: type === 'success' ? 'Sucesso' : type === 'error' ? 'Erro' : 'Aviso',
+                message,
+                priority: type === 'success' ? 'low' : type === 'error' ? 'critical' : 'high',
+                icon: type === 'success' ? 'bi-check-circle' : type === 'error' ? 'bi-x-circle' : 'bi-exclamation-circle'
+            });
+        } else {
+            // fallback mínimo
+            alert(message);
+        }
+    }
+
+    /**
+     * Atualizar badge de filtros ativos
+     */
+    updateFiltersBadge() {
+        const badge = document.getElementById('activeFiltersBadge');
+        if (!badge) return;
+
+        let activeCount = 0;
+
+        // Contar filtros básicos
+        if (this.currentFilters.search) activeCount++;
+        if (this.currentFilters.age.min !== 18 || this.currentFilters.age.max !== 70) activeCount++;
+        if (this.currentFilters.cargo) activeCount++;
+        if (this.currentFilters.urgency && this.currentFilters.urgency !== 'all') activeCount++;
+
+        // Contar filtros avançados se existirem
+        if (window.advancedFilterManager && window.advancedFilterManager.activeFilters) {
+            const advFilters = window.advancedFilterManager.activeFilters;
+            if (advFilters.cargo) activeCount++;
+            if (advFilters.lotacao) activeCount++;
+            if (advFilters.superintendencia) activeCount++;
+            if (advFilters.subsecretaria) activeCount++;
+            if (advFilters.urgencia && advFilters.urgencia !== 'all') activeCount++;
+            if (advFilters.status && advFilters.status.length > 0) activeCount += advFilters.status.length;
+        }
+
+        // Atualizar badge
+        if (activeCount > 0) {
+            badge.textContent = activeCount;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+
+        // Atualizar estado do botão limpar
+        const clearBtn = document.getElementById('btnClearAllFilters');
+        if (clearBtn) {
+            clearBtn.disabled = activeCount === 0;
+        }
+    }
+
+    /**
+     * Configurar event listeners para exportação
+     */
+    setupExportEventListeners() {
+        // Botão de exportação de servidores
+        const exportServidoresBtn = document.getElementById('exportServidoresBtn');
+        if (exportServidoresBtn && this.exportManager) {
+            exportServidoresBtn.addEventListener('click', async () => {
+                if (this.filteredServidores && this.filteredServidores.length > 0) {
+                    this.showGlobalLoading('Exportando servidores...');
+                    try {
+                        await this.exportManager.showExportModal('servidores');
+                    } finally {
+                        this.hideGlobalLoading();
+                    }
+                } else {
+                    this.exportManager.showErrorToast('Não há dados para exportar');
+                }
+            });
+        }
+
+        // Botão de exportação de notificações
+        const exportNotificacoesBtn = document.getElementById('exportNotificacoesBtn');
+        if (exportNotificacoesBtn && this.exportManager) {
+            exportNotificacoesBtn.addEventListener('click', async () => {
+                if (this.filteredNotificacoes && this.filteredNotificacoes.length > 0) {
+                    this.showGlobalLoading('Exportando notificações...');
+                    try {
+                        await this.exportManager.showExportModal('notificacoes');
+                    } finally {
+                        this.hideGlobalLoading();
+                    }
+                } else {
+                    this.exportManager.showErrorToast('Não há notificações para exportar');
+                }
+            });
+        }
     }
 
     initNavigation() {
-        this.switchPage('home');
+        // Restaurar última página visitada ou usar 'home' como padrão
+        const lastPage = localStorage.getItem('sutri_lastPage') || 'home';
+        this.switchPage(lastPage);
     }
 
     switchPage(pageId) {
+        // Salvar página atual no localStorage
+        localStorage.setItem('sutri_lastPage', pageId);
+        
     // Atualizar botões de navegação
         document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('active'));
         document.querySelector(`.nav-link[data-page="${pageId}"]`)?.classList.add('active');
 
     // Mostrar/ocultar páginas
         document.querySelectorAll('.page-content').forEach(page => page.classList.remove('active'));
-        document.getElementById(`${pageId}Page`).classList.add('active');
+        const targetPage = document.getElementById(`${pageId}Page`);
+        targetPage?.classList.add('active');
 
-    // Atualizar título da página
+    // Atualizar título do documento (aba do navegador)
         const titles = {
             'home': 'Visão Geral',
             'calendar': 'Calendário',
-            'timeline': 'Timeline'
+            'timeline': 'Timeline',
+            'reports': 'Relatórios',
+            'notifications': 'Notificações',
+            'tips': 'Dicas e Atalhos',
+            'settings': 'Configurações'
         };
-        document.getElementById('pageTitle').textContent = titles[pageId] || pageId;
+        document.title = `${titles[pageId] || pageId} - Dashboard Licenças`;
 
         this.currentPage = pageId;
 
@@ -517,9 +1168,24 @@ class DashboardMultiPage {
             this.updateYearlyHeatmap();
         } else if (pageId === 'timeline') {
             this.createTimelineChart();
+        } else if (pageId === 'reports') {
+            // Atualizar estatísticas da página de relatórios
+            this.updateReportsStats();
         } else if (pageId === 'home') {
             this.createUrgencyChart();
             this.updateTable();
+        } else if (pageId === 'notifications') {
+            // Atualizar estatísticas e tabela de notificações
+            this.updateNotificationsStats();
+            this.renderNotificationsTable();
+        } else if (pageId === 'tips') {
+            // Popular atalhos de teclado na página de dicas
+            this.populateTipsKeyboardShortcuts();
+        } else if (pageId === 'settings') {
+            // Inicializar UI de configurações
+            if (window.settingsManager) {
+                window.settingsManager.updateUI();
+            }
         }
     }
 
@@ -541,6 +1207,25 @@ class DashboardMultiPage {
         const filtersBar = document.querySelector('.filters-bar');
         if (filtersBar) {
             filtersBar.style.display = currentFilters ? 'block' : 'none';
+        }
+    }
+
+    /**
+     * Alterna entre as visualizações de Cronograma e Notificações automaticamente
+     */
+    switchView(viewType) {
+        // Atualizar conteúdo - esconder todas as views primeiro
+        document.querySelectorAll('.view-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        if (viewType === 'cronograma') {
+            document.getElementById('cronogramaView')?.classList.add('active');
+        } else if (viewType === 'notificacoes') {
+            document.getElementById('notificacoesView')?.classList.add('active');
+            // Atualizar dados quando trocar para notificações
+            this.updateNotificationsStats();
+            this.renderNotificationsTable();
         }
     }
 
@@ -580,7 +1265,7 @@ class DashboardMultiPage {
             `;
         }
 
-        this.showLoading();
+    this.showGlobalLoading('Importando arquivo...');
 
         try {
             let data = '';
@@ -596,6 +1281,14 @@ class DashboardMultiPage {
                 throw new Error('Arquivo vazio ou não foi possível ler o conteúdo');
             }
 
+            // Validação adicional: verificar se parece ser texto válido
+            // Detectar arquivos binários que passaram pela leitura
+            const invalidCharsCount = (data.match(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g) || []).length;
+            const totalChars = Math.min(data.length, 1000); // Verificar primeiros 1000 caracteres
+            if (invalidCharsCount > totalChars * 0.1) { // Se mais de 10% são caracteres inválidos
+                throw new Error('O arquivo parece ser binário ou corrompido. Use um arquivo CSV ou Excel válido');
+            }
+
             // Validar headers CSV básicos
             const lines = data.split('\n');
             if (lines.length < 2) {
@@ -604,10 +1297,76 @@ class DashboardMultiPage {
 
             const headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g, ''));
 
-            // Detectar tipo de tabela para validar headers apropriados
+            // ==================== DETECÇÃO AUTOMÁTICA DO TIPO DE ARQUIVO ====================
             const headersStr = headers.join(',').toLowerCase();
-            const isLicencaPremio = headersStr.includes('inicio de licença') || headersStr.includes('final de licença');
+            
+            // Detectar se é arquivo de NOTIFICAÇÕES
+            const isNotificacoes = headersStr.includes('interessado') && 
+                                  (headersStr.includes('processo') || headersStr.includes('notifica'));
+            
+            // Detectar se é arquivo de LICENÇA PRÊMIO (cronograma)
+            const isLicencaPremio = headersStr.includes('inicio de licença') || 
+                                   headersStr.includes('final de licença');
 
+            // Se for notificações, processar como tal e trocar de aba
+            if (isNotificacoes) {
+                try {
+                    this.notificacoes = this.parser.processarNotificacoes(data);
+                    this.filteredNotificacoes = [...this.notificacoes];
+                    
+                    // Limpar dados de servidores/licenças (é um ou outro, não ambos)
+                    this.allServidores = [];
+                    this.filteredServidores = [];
+                    
+                    // Trocar para aba de notificações
+                    this.switchView('notificacoes');
+                    
+                    // Atualizar interface
+                    this.updateNotificationsStats();
+                    this.renderNotificationsTable();
+                    
+                    // Atualizar calendário e timeline se estiverem na página atual
+                    if (this.currentPage === 'calendar') {
+                        this.updateYearlyHeatmap();
+                    } else if (this.currentPage === 'timeline') {
+                        this.createTimelineChart();
+                    }
+                    
+                    // Mostrar mensagem de sucesso
+                    this.showImportNotification('success', 
+                        `${this.notificacoes.length} notificações carregadas com sucesso`, 
+                        file.name
+                    );
+                    
+                    if (statusElement) {
+                        statusElement.className = 'upload-status success';
+                        statusElement.innerHTML = `
+                            <i class="bi bi-check-circle"></i>
+                            <span class="file-info">✓ ${file.name} (${this.notificacoes.length} notificações)</span>
+                        `;
+                    }
+
+                    // Salvar no cache (IndexedDB) se disponível
+                    console.log(`🔍 Verificando cache para notificações: cacheManager=${!!this.cacheManager}, notificacoes=${this.notificacoes.length}`);
+                    if (this.cacheManager && this.notificacoes.length > 0) {
+                        try {
+                            console.log(`💾 Tentando salvar ${file.name} no cache...`);
+                            const fileId = await this.cacheManager.saveFile(file.name, data, this.notificacoes);
+                            this.currentCacheFileId = fileId;
+                            console.log(`✅ Arquivo salvo no cache (ID: ${fileId})`);
+                            await this.updateRecentFilesUI();
+                        } catch (cacheError) {
+                            console.error('❌ Erro ao salvar no cache:', cacheError);
+                        }
+                    }
+
+                    return; // Sair da função - não processar como cronograma
+                } catch (notifError) {
+                    throw new Error(`Erro ao processar notificações: ${notifError.message}`);
+                }
+            }
+
+            // Validação para cronograma
             let requiredHeaders, missingHeaders;
 
             if (isLicencaPremio) {
@@ -625,12 +1384,32 @@ class DashboardMultiPage {
             }
 
             if (missingHeaders.length > 0) {
-                console.warn('Headers disponíveis:', headers);
                 throw new Error(`Colunas obrigatórias não encontradas: ${missingHeaders.join(', ')}`);
             }
 
             this.processData(data);
             this.updateLastUpdate();
+
+            // Salvar no cache (IndexedDB) se disponível - APÓS processamento
+            console.log(`🔍 Verificando cache: cacheManager=${!!this.cacheManager}, servidores=${this.allServidores.length}`);
+
+            if (this.cacheManager) {
+                if (this.allServidores.length > 0) {
+                    try {
+                        console.log(`💾 Tentando salvar ${file.name} no cache...`);
+                        const fileId = await this.cacheManager.saveFile(file.name, data, this.allServidores);
+                        this.currentCacheFileId = fileId;
+                        console.log(`✅ Arquivo salvo no cache (ID: ${fileId})`);
+                        await this.updateRecentFilesUI();
+                    } catch (cacheError) {
+                        console.error('❌ Erro ao salvar no cache:', cacheError);
+                    }
+                } else {
+                    console.warn('⚠️ Nenhum servidor processado - não salvando no cache');
+                }
+            } else {
+                console.warn('⚠️ CacheManager não inicializado');
+            }
 
             // Tentar obter file handle se suportado
             let fileHandle = null;
@@ -654,6 +1433,9 @@ class DashboardMultiPage {
 
             await this.updateStoredFileIndicators();
 
+            // Mostrar notificação de sucesso com resumo
+            this.showImportSuccessNotification(file.name, this.allServidores.length, this.loadingProblems.length);
+
             if (statusElement) {
                 statusElement.className = 'upload-status success';
                 statusElement.innerHTML = `
@@ -664,6 +1446,13 @@ class DashboardMultiPage {
 
         } catch (error) {
             console.error('Erro ao processar arquivo:', error);
+            
+            // Adicionar problema detalhado
+            this.addLoadingProblem('Importação de arquivo', this.diagnosticarErroImportacao(error), `Arquivo: ${file.name}`);
+            
+            // Mostrar notificação de erro
+            this.showImportNotification('error', error.message, file.name);
+            
             if (statusElement) {
                 statusElement.className = 'upload-status error';
                 statusElement.innerHTML = `
@@ -678,7 +1467,7 @@ class DashboardMultiPage {
             event.target.value = '';
 
         } finally {
-            this.hideLoading();
+            this.hideGlobalLoading();
         }
     }
 
@@ -983,7 +1772,64 @@ class DashboardMultiPage {
                 data = await this.readExcelFileContent(file);
             }
 
-            // Processar dados
+            // ==================== DETECÇÃO AUTOMÁTICA DO TIPO DE ARQUIVO ====================
+            const lines = data.split('\n');
+            if (lines.length < 2) {
+                throw new Error('Arquivo deve ter pelo menos uma linha de header e uma linha de dados');
+            }
+
+            const headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g, ''));
+            const headersStr = headers.join(',').toLowerCase();
+            
+            // Detectar se é arquivo de NOTIFICAÇÕES
+            const isNotificacoes = headersStr.includes('interessado') && 
+                                  (headersStr.includes('processo') || headersStr.includes('notifica'));
+            
+            // Se for notificações, processar como tal
+            if (isNotificacoes) {
+                try {
+                    this.notificacoes = this.parser.processarNotificacoes(data);
+                    this.filteredNotificacoes = [...this.notificacoes];
+                    
+                    // Limpar dados de servidores/licenças (é um ou outro, não ambos)
+                    this.allServidores = [];
+                    this.filteredServidores = [];
+                    
+                    // Trocar para aba de notificações
+                    this.switchView('notificacoes');
+                    
+                    // Atualizar interface
+                    this.updateNotificationsStats();
+                    this.renderNotificationsTable();
+                    
+                    // Atualizar calendário e timeline se estiverem na página atual
+                    if (this.currentPage === 'calendar') {
+                        this.updateYearlyHeatmap();
+                    } else if (this.currentPage === 'timeline') {
+                        this.createTimelineChart();
+                    }
+                    
+                    // Salvar file handle
+                    await this.saveFileHandleToStorage(fileHandle, file.name, data, fileExtension);
+                    await this.updateStoredFileIndicators();
+                    
+                    // Mostrar mensagem de sucesso
+                    if (statusElement) {
+                        statusElement.className = 'upload-status success';
+                        statusElement.innerHTML = `
+                            <i class="bi bi-check-circle"></i>
+                            <span class="file-info">✓ ${file.name} (${this.notificacoes.length} notificações)</span>
+                        `;
+                    }
+                    
+                    this.hideLoading();
+                    return; // Sair - não processar como cronograma
+                } catch (notifError) {
+                    throw new Error(`Erro ao processar notificações: ${notifError.message}`);
+                }
+            }
+
+            // Processar como cronograma
             this.processData(data);
             this.updateLastUpdate();
 
@@ -1298,8 +2144,46 @@ class DashboardMultiPage {
                 throw new Error('Dados do arquivo inválidos ou arquivo vazio');
             }
 
-            // Processar dados
-            this.processData(fileData);
+            // ==================== DETECÇÃO AUTOMÁTICA DO TIPO DE ARQUIVO ====================
+            const lines = fileData.split('\n');
+            if (lines.length < 2) {
+                throw new Error('Arquivo deve ter pelo menos uma linha de header e uma linha de dados');
+            }
+
+            const headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g, ''));
+            const headersStr = headers.join(',').toLowerCase();
+            
+            // Detectar se é arquivo de NOTIFICAÇÕES
+            const isNotificacoes = headersStr.includes('interessado') && 
+                                  (headersStr.includes('processo') || headersStr.includes('notifica'));
+            
+            // Se for notificações, processar como tal
+            if (isNotificacoes) {
+                this.notificacoes = this.parser.processarNotificacoes(fileData);
+                this.filteredNotificacoes = [...this.notificacoes];
+                
+                // Limpar dados de servidores/licenças (é um ou outro, não ambos)
+                this.allServidores = [];
+                this.filteredServidores = [];
+                
+                // Trocar para aba de notificações
+                this.switchView('notificacoes');
+                
+                // Atualizar interface
+                this.updateNotificationsStats();
+                this.renderNotificationsTable();
+                
+                // Atualizar calendário e timeline se estiverem na página atual
+                if (this.currentPage === 'calendar') {
+                    this.updateYearlyHeatmap();
+                } else if (this.currentPage === 'timeline') {
+                    this.createTimelineChart();
+                }
+            } else {
+                // Processar como cronograma
+                this.processData(fileData);
+            }
+            
             this.updateLastUpdate();
 
             if (statusElement) {
@@ -1396,7 +2280,47 @@ class DashboardMultiPage {
             // Limpar problemas anteriores
             this.clearLoadingProblems();
 
+            // Limpar dados de notificações (é um ou outro, não ambos)
+            this.notificacoes = [];
+            this.filteredNotificacoes = [];
+
+            // Validar se o CSV tem conteúdo mínimo
+            if (!csvData || csvData.trim().length === 0) {
+                throw new Error('Arquivo vazio ou sem conteúdo válido');
+            }
+
+            // Validar se tem pelo menos 2 linhas (header + dados)
+            const lines = csvData.trim().split('\n').filter(line => line.trim().length > 0);
+            if (lines.length < 2) {
+                throw new Error('Arquivo deve ter pelo menos uma linha de cabeçalho e uma linha de dados');
+            }
+
+            // Validar se parece com CSV (tem vírgulas ou ponto-e-vírgula)
+            const firstLine = lines[0];
+            if (!firstLine.includes(',') && !firstLine.includes(';')) {
+                throw new Error('Arquivo não parece ser um CSV válido. Certifique-se de que as colunas estão separadas por vírgulas');
+            }
+
+            // Processar dados
             this.allServidores = this.parser.processarDadosCSV(csvData);
+
+            // VALIDAÇÃO CRÍTICA: Verificar se algum servidor foi processado
+            if (!this.allServidores || this.allServidores.length === 0) {
+                throw new Error('Nenhum servidor foi encontrado no arquivo. Verifique se o CSV tem as colunas obrigatórias: SERVIDOR e CRONOGRAMA (ou INICIO/FINAL para licença prêmio)');
+            }
+
+            // VALIDAÇÃO: Verificar se os servidores têm dados básicos
+            const servidoresValidos = this.allServidores.filter(s => s.nome && s.nome !== 'Nome não informado');
+            if (servidoresValidos.length === 0) {
+                throw new Error('Nenhum servidor válido foi encontrado. Verifique se a coluna SERVIDOR contém nomes');
+            }
+
+            // Se mais de 50% dos servidores não têm nome válido, provavelmente é arquivo errado
+            const percentualValidos = (servidoresValidos.length / this.allServidores.length) * 100;
+            if (percentualValidos < 50) {
+                throw new Error(`Apenas ${Math.round(percentualValidos)}% dos registros têm nomes válidos. Verifique se este é o arquivo correto`);
+            }
+
             this.filteredServidores = [...this.allServidores];
 
             // Detectar tipo de tabela e adaptar interface
@@ -1423,7 +2347,13 @@ class DashboardMultiPage {
         } catch (error) {
             console.error('Erro ao processar dados:', error);
             this.addLoadingProblem('Processamento de dados', error.message);
-            alert('Erro ao processar dados: ' + error.message);
+            
+            // Limpar servidores para não mostrar dados inválidos
+            this.allServidores = [];
+            this.filteredServidores = [];
+            
+            // Re-throw para ser capturado pelo handleFileUpload
+            throw error;
         }
     }
 
@@ -1456,8 +2386,13 @@ class DashboardMultiPage {
                 const nome = servidor?.nome || 'Servidor desconhecido';
 
                 // 1) Cronograma não interpretado pelo parser
-                if (servidor.cronogramaComErro) {
-                    this.addLoadingProblem(nome, 'Cronograma ambíguo ou não interpretável', `cronograma: ${servidor.cronograma || ''}`);
+                if (servidor.cronogramaComErro || (servidor.cronograma && servidor.cronograma.length > 0 && (!servidor.licencas || servidor.licencas.length === 0))) {
+                    const cronogramaTexto = servidor.cronograma || '';
+                    this.addLoadingProblem(nome, 'Cronograma não pôde ser interpretado', `"${cronogramaTexto}"`);
+                    // Marcar servidor para exibir aviso no modal
+                    servidor.avisoInterpretacao = `⚠️ Sistema não conseguiu interpretar: "${cronogramaTexto}"`;
+                    // Marcar como erro para contabilizar no errorCard
+                    servidor.cronogramaComErro = true;
                 }
 
                 // 2) Licenças extraídas: verificar se existem e se as datas são válidas
@@ -1530,13 +2465,8 @@ class DashboardMultiPage {
 
             // Atualizar contagem/estado do card de problemas
             this.updateProblemsCount();
-
-            // Se houver problemas, log resumido
-            if (this.loadingProblems && this.loadingProblems.length > 0) {
-                console.warn(`⚠️  Encontrados ${this.loadingProblems.length} problema(s) durante a validação dos dados.`);
-            }
         } catch (e) {
-            console.error('Erro na verificação de erros do cronograma:', e);
+            // Erro na validação
         }
     }
 
@@ -1560,64 +2490,6 @@ class DashboardMultiPage {
         this.applyAllFilters();
     }
 
-    clearAllFilters() {
-        // Reset age filter
-        const minAgeInput = document.getElementById('minAge');
-        const maxAgeInput = document.getElementById('maxAge');
-        if (minAgeInput) minAgeInput.value = 18;
-        if (maxAgeInput) maxAgeInput.value = 70;
-        this.currentFilters.age = { min: 18, max: 70 };
-        const currentYear = new Date().getFullYear();
-        const startYearInput = document.getElementById('startYear');
-        const endYearInput = document.getElementById('endYear');
-        if (startYearInput) startYearInput.value = currentYear;
-        if (endYearInput) endYearInput.value = currentYear + 3;
-        this.currentFilters.period = { type: 'yearly', start: currentYear, end: currentYear + 3 };
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) searchInput.value = '';
-        this.currentFilters.search = '';
-        this.currentFilters.urgency = '';
-        const mesFilter = document.getElementById('mesFilter');
-        if (mesFilter) {
-            try {
-                mesFilter.value = 'all';
-                mesFilter.dispatchEvent(new Event('change', { bubbles: true }));
-            } catch (e) {
-                // Se ocorrer erro ao disparar o evento (ex.: browsers antigos), apenas definir o valor
-                mesFilter.value = 'all';
-            }
-        }
-        this.currentFilters.cargo = ''; // Reset cargo filter
-
-        // Clear legend highlights
-        document.querySelectorAll('.legend-item').forEach(item => item.classList.remove('selected'));
-
-        // Clear chart highlights
-        this.selectedChartIndex = -1;
-        this.updateChartHighlight();
-
-        // Clear legend and stat card active states
-        document.querySelectorAll('.legend-card').forEach(card => card.classList.remove('active'));
-        document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('selected'));
-
-        // Aplicar filtros baseado no tipo de tabela
-        if (!this.allServidores || this.allServidores.length === 0) {
-            // Se não há dados carregados, apenas limpar a interface
-            this.filteredServidores = [];
-            this.updateStats();
-            this.updateHeaderStatus();
-            return;
-        }
-
-        const isLicencaPremio = this.allServidores[0].tipoTabela === 'licenca-premio';
-
-        if (isLicencaPremio) {
-            this.applyLicencaFilters();
-        } else {
-            this.applyTableFilter();
-        }
-    }
-
     // Função para adaptar filtros baseado no tipo de tabela
     adaptFiltersForTableType(isLicencaPremio) {
         const originalFilters = document.querySelectorAll('.original-filters');
@@ -1639,19 +2511,22 @@ class DashboardMultiPage {
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
 
         if (isLicencaPremio) {
-            this.applyLicencaFilters();
+            this.applyAllFilters();
         } else {
             this.applyAgeFilter();
         }
     }
 
+    // DEPRECATED: Função substituída por applyAllFilters() que agora suporta todos os filtros
+    // Mantido comentado apenas como referência histórica
+    /*
     applyLicencaFilters() {
         const rawMes = document.getElementById('mesFilter')?.value?.trim() || '';
         const mesFilter = (rawMes && rawMes.toLowerCase() === 'all') ? '' : rawMes;
         const searchTerm = document.getElementById('searchInput')?.value?.toLowerCase().trim() || '';
 
         // Se nenhum filtro está ativo, mostrar todos os dados
-        if (!mesFilter && !searchTerm && !this.currentFilters.cargo) {
+        if (!mesFilter && !searchTerm && !this.currentFilters.cargo && !this.currentFilters.urgency) {
             this.filteredServidores = [...this.allServidores];
         } else {
             this.filteredServidores = this.allServidores.filter(servidor => {
@@ -1663,6 +2538,14 @@ class DashboardMultiPage {
                 // Filtro de cargo do gráfico - usar currentFilters ao invés do dropdown
                 if (this.currentFilters.cargo && servidor.cargo !== this.currentFilters.cargo) {
                     return false;
+                }
+                
+                // Filtro de urgência (de cards ou legendas)
+                if (this.currentFilters.urgency) {
+                    const servidorUrgency = (servidor.urgencia || servidor.nivelUrgencia || '').toLowerCase();
+                    if (servidorUrgency !== this.currentFilters.urgency.toLowerCase()) {
+                        return false;
+                    }
                 }
 
                 // Filtro de mês - só aplicar se há mês selecionado
@@ -1678,21 +2561,52 @@ class DashboardMultiPage {
 
         this.updateTable();
         this.updateStats();
+        this.updateUrgencyChart(); // Atualizar gráfico de pizza
+        this.updateUrgencyCards(); // Atualizar cards de urgência
         this.updateHeaderStatus();
-        this.updateTimelineChart(); // Atualizar timeline quando filtros mudarem
+        // NÃO atualizar timeline - filtro de mês só afeta visão geral
     }
+    */
     matchesMonth(servidor, targetMonth) {
-        if (!servidor.proximaLicencaInicio || !servidor.proximaLicencaFim) {
-            return false;
-        }
-
         const months = [
             'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
             'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
         ];
 
         const targetMonthIndex = months.indexOf(targetMonth.toLowerCase());
-        if (targetMonthIndex === -1) return false;
+        if (targetMonthIndex === -1) {
+            return false;
+        }
+
+        // Verificar se é licença-prêmio (tem array de licenças)
+        if (servidor.licencas && servidor.licencas.length > 0) {
+            // Para licença-prêmio, verificar QUALQUER licença que contenha o mês
+            return servidor.licencas.some(licenca => {
+                const inicio = new Date(licenca.inicio);
+                const fim = licenca.fim ? new Date(licenca.fim) : new Date(licenca.inicio);
+                
+                // Verificar todos os meses cobertos pela licença
+                const currentDate = new Date(inicio);
+                const endDate = new Date(fim);
+
+                while (currentDate <= endDate) {
+                    if (currentDate.getMonth() === targetMonthIndex) {
+                        return true;
+                    }
+
+                    // Avançar para o próximo mês
+                    currentDate.setMonth(currentDate.getMonth() + 1);
+                    currentDate.setDate(1);
+                }
+                
+                return false;
+            });
+        }
+        
+        // Para cronograma regular (proximaLicencaInicio/Fim)
+        if (!servidor.proximaLicencaInicio || !servidor.proximaLicencaFim) {
+            return false;
+        }
 
         const inicio = servidor.proximaLicencaInicio;
         const fim = servidor.proximaLicencaFim;
@@ -1773,6 +2687,11 @@ class DashboardMultiPage {
                 return false;
             }
 
+            // Cargo filter - aplicar se houver filtro de cargo ativo
+            if (filters.cargo && servidor.cargo !== filters.cargo) {
+                return false;
+            }
+
             // Otimização do filtro por período - verificar apenas se o servidor possui licenças
             if (servidor.licencas && servidor.licencas.length > 0) {
                 if (filters.period.type === 'yearly' && (filters.period.start || filters.period.end)) {
@@ -1808,14 +2727,11 @@ class DashboardMultiPage {
             return true;
         });
 
-    // Verifica duração da filtragem e registra se acima do limiar
         const endTime = performance.now();
-        if (endTime - startTime > 10) {
-            console.warn(`Desempenho do filtro: ${(endTime - startTime).toFixed(2)}ms para ${this.allServidores.length} servidores`);
-        }
 
         this.updateStats();
         this.updateHeaderStatus();
+        this.updateFiltersBadge();
 
     // Atualizar página atual
         if (this.currentPage === 'home') {
@@ -1838,98 +2754,102 @@ class DashboardMultiPage {
             this.charts.urgency.destroy();
         }
 
-        // Detectar tipo de tabela
-        const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-
-    // Atualizar título do gráfico
-        const chartTitle = document.querySelector('.chart-title');
-        if (chartTitle) {
-            chartTitle.textContent = isLicencaPremio ? 'Distribuição por Cargos' : 'Distribuição por Urgência';
-        }
-
-        if (isLicencaPremio) {
-            this.createCargoChart();
-        } else {
-            this.createOriginalUrgencyChart();
-        }
+        // SEMPRE mostrar gráfico de CARGO/LOTAÇÃO (lógica adaptativa)
+        // Independente do tipo de tabela
+        this.createCargoChart();
     }
 
-    createOriginalUrgencyChart() {
-        const ctx = document.getElementById('urgencyChart');
-        const urgencyData = this.getStaticUrgencyData();
-
-        this.charts.urgency = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Crítico', 'Alto', 'Moderado', 'Baixo'],
-                datasets: [{
-                    data: urgencyData.values,
-                    backgroundColor: CHART_COLOR_ARRAY,
-                    borderWidth: 2,
-                    borderColor: '#ffffff',
-                    hoverOffset: 8,
-                    hoverBorderWidth: 3
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '50%',
-                plugins: {
-                    legend: {
-                        display: false  // Desabilitar legenda padrão
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleColor: '#ffffff',
-                        bodyColor: '#ffffff',
-                        cornerRadius: 8,
-                        callbacks: {
-                            label: (context) => {
-                                const label = context.label;
-                                const value = context.parsed;
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                                return `${label}: ${value} (${percentage}%)`;
-                            }
-                        }
-                    }
-                },
-                onClick: (event, elements) => {
-                    if (elements.length > 0) {
-                        const index = elements[0].index;
-                        const urgencyLevels = ['critical', 'high', 'moderate', 'low'];
-                        const urgency = urgencyLevels[index];
-                        this.filterTableByUrgency(urgency, index);
-                    } else {
-                        // Clicou fora das fatias - limpar filtro
-                        const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-
-                        if (isLicencaPremio) {
-                            // Para licenças prêmio, limpar filtro de cargo
-                            this.clearCargoFilter();
-                        } else {
-                            // limpar filtro de urgência
-                            this.clearUrgencyFilter();
-                        }
-                    }
-                },
-                onHover: (event, elements) => {
-                    event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+    getAdaptiveChartData() {
+        // Lógica adaptativa: cargo → lotação → subsecretaria → superintendência
+        const fields = ['cargo', 'lotacao', 'subsecretaria', 'superintendencia'];
+        
+        for (const field of fields) {
+            const counts = {};
+            let hasData = false;
+            
+            this.filteredServidores.forEach(servidor => {
+                const value = (servidor[field] || '').toString().trim();
+                if (value && value.length > 0 && value.toLowerCase() !== 'n/a') {
+                    counts[value] = (counts[value] || 0) + 1;
+                    hasData = true;
                 }
+            });
+            
+            if (hasData) {
+                const labels = Object.keys(counts).sort();
+                const values = labels.map(label => counts[label]);
+                
+                // 🎨 CRIAR MAPA DE CORES FIXAS
+                // Cada label sempre terá a mesma cor, independente da ordem
+                const colors = this.getFixedColorsForLabels(labels);
+                
+                return {
+                    labels,
+                    values,
+                    colors,  // Array de cores na ordem dos labels
+                    fieldUsed: field,
+                    counts
+                };
             }
+        }
+        
+        // Fallback se nenhum campo tem dados
+        return {
+            labels: ['Sem Dados'],
+            values: [this.filteredServidores.length],
+            colors: [CARGO_COLORS[0]],
+            fieldUsed: 'none',
+            counts: { 'Sem Dados': this.filteredServidores.length }
+        };
+    }
+    
+    // Gerar cores fixas para labels baseado em hash do nome
+    getFixedColorsForLabels(labels) {
+        // Criar mapa de cores consistente
+        if (!this.labelColorMap) {
+            this.labelColorMap = new Map();
+        }
+        
+        return labels.map(label => {
+            // Se já tem cor mapeada, usar
+            if (this.labelColorMap.has(label)) {
+                return this.labelColorMap.get(label);
+            }
+            
+            // Gerar índice baseado em hash do label
+            let hash = 0;
+            for (let i = 0; i < label.length; i++) {
+                hash = ((hash << 5) - hash) + label.charCodeAt(i);
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            const colorIndex = Math.abs(hash) % CARGO_COLORS.length;
+            const color = CARGO_COLORS[colorIndex];
+            
+            // Salvar no mapa
+            this.labelColorMap.set(label, color);
+            
+            return color;
         });
-
-        // Registrar chart globalmente para ThemeManager
-        window.dashboardChart = this.charts.urgency;
-
-    // Atualizar contagens da legenda com dados estáticos
-        this.updateUrgencyLegend(this.getStaticUrgencyData());
     }
 
     createCargoChart() {
         const ctx = document.getElementById('urgencyChart');
-        const cargoData = this.getStaticCargoData();
+        const cargoData = this.getAdaptiveChartData();
+
+        // Atualizar título do gráfico baseado no campo usado
+        const chartTitle = document.querySelector('.chart-title');
+        if (chartTitle && cargoData.fieldUsed) {
+            const titleMap = {
+                'cargo': 'Distribuição por Cargos',
+                'lotacao': 'Distribuição por Lotação',
+                'subsecretaria': 'Distribuição por Subsecretaria',
+                'superintendencia': 'Distribuição por Superintendência'
+            };
+            chartTitle.textContent = titleMap[cargoData.fieldUsed] || 'Distribuição';
+        }
+
+        // 🔒 SALVAR CORES ORIGINAIS para referência futura (imutável)
+        this.originalChartColors = (cargoData.colors || CARGO_COLORS.slice(0, cargoData.labels.length)).map(c => c);
 
         this.charts.urgency = new Chart(ctx, {
             type: 'doughnut',
@@ -1937,7 +2857,7 @@ class DashboardMultiPage {
                 labels: cargoData.labels,
                 datasets: [{
                     data: cargoData.values,
-                    backgroundColor: CARGO_COLORS.slice(0, cargoData.labels.length),
+                    backgroundColor: this.originalChartColors.slice(),
                     borderWidth: 2,
                     borderColor: '#ffffff',
                     hoverOffset: 8,
@@ -1986,8 +2906,8 @@ class DashboardMultiPage {
         // Registrar chart globalmente
         window.dashboardChart = this.charts.urgency;
 
-    // Atualizar contagens da legenda com dados estáticos
-    this.updateCargoLegend(this.getStaticCargoData());
+    // Atualizar contagens da legenda com dados adaptativos
+    this.updateCargoLegend(cargoData);
     }
 
     createTimelineChart() {
@@ -2184,57 +3104,26 @@ class DashboardMultiPage {
     }
 
     initializeTimelineControls() {
-        // Populate year selector
-        const yearSelect = document.getElementById('timelineYear');
-        if (yearSelect) {
-            yearSelect.innerHTML = '';
-
-            // Extrair anos que realmente têm dados
-            const yearsWithData = new Set();
-            this.filteredServidores.forEach(servidor => {
-                servidor.licencas.forEach(licenca => {
-                    yearsWithData.add(licenca.inicio.getFullYear());
-                });
-            });
-
-            // Converter para array e ordenar
-            const sortedYears = Array.from(yearsWithData).sort((a, b) => a - b);
-
-            // Se não há dados, usar anos padrão
-            if (sortedYears.length === 0) {
-                const currentYear = new Date().getFullYear();
-                for (let year = currentYear - 1; year <= currentYear + 2; year++) {
-                    sortedYears.push(year);
-                }
+        const dailyInput = document.getElementById('timelineDailyMonth');
+        if (dailyInput) {
+            const today = new Date();
+            const yearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            dailyInput.value = yearMonth;
+            
+            if (this.dailyPicker) {
+                this.dailyPicker.destroy();
             }
-
-            // Popular dropdown
-            sortedYears.forEach((year, index) => {
-                const option = document.createElement('option');
-                option.value = year;
-                option.textContent = year;
-                if (index === 0) option.selected = true; // Selecionar o primeiro ano com dados
-                yearSelect.appendChild(option);
+            
+            this.dailyPicker = new CustomDatePicker('timelineDailyMonth', {
+                type: 'month',
+                onSelect: () => this.createTimelineChart()
             });
-
-            yearSelect.addEventListener('change', () => {
-                this.createTimelineChart();
-            });
+            
+            this.dailyPicker.selectedYear = today.getFullYear();
+            this.dailyPicker.selectedMonth = today.getMonth();
+            this.dailyPicker.updateTriggerButton();
         }
 
-        // Timeline month selector
-        const monthSelect = document.getElementById('timelineMonth');
-        if (monthSelect) {
-            // HTML values are 0-based (0=Janeiro, 1=Fevereiro, etc.) which matches JavaScript months
-            const currentMonth = new Date().getMonth();  // 0-based month (0-11)
-            monthSelect.value = currentMonth;
-
-            monthSelect.addEventListener('change', () => {
-                this.createTimelineChart();
-            });
-        }
-
-        // Timeline view selector
         const viewSelect = document.getElementById('timelineView');
         if (viewSelect) {
             viewSelect.addEventListener('change', () => {
@@ -2242,11 +3131,9 @@ class DashboardMultiPage {
                 this.createTimelineChart();
             });
 
-            // Inicializar visibilidade
             this.toggleControlsVisibility();
         }
 
-        // Show period stats button
         const periodStatsBtn = document.getElementById('showPeriodStatsBtn');
         if (periodStatsBtn) {
             periodStatsBtn.addEventListener('click', () => {
@@ -2254,7 +3141,6 @@ class DashboardMultiPage {
             });
         }
 
-        // Export button
         const exportBtn = document.getElementById('exportTimelineBtn');
         if (exportBtn) {
             exportBtn.addEventListener('click', () => {
@@ -2265,25 +3151,150 @@ class DashboardMultiPage {
 
     toggleControlsVisibility() {
         const viewType = document.getElementById('timelineView')?.value || 'monthly';
-        const monthGroup = document.getElementById('timelineMonthGroup');
-        const yearGroup = document.getElementById('timelineYearGroup');
+        const dailyGroup = document.getElementById('timelineDailyGroup');
         const periodStatsBtn = document.getElementById('showPeriodStatsBtn');
+        const periodRangeGroupMonthly = document.getElementById('timelinePeriodRangeGroupMonthly');
+        const periodRangeGroupYearly = document.getElementById('timelinePeriodRangeGroupYearly');
 
-        if (monthGroup && yearGroup && periodStatsBtn) {
+        if (periodStatsBtn) {
             if (viewType === 'daily') {
-                monthGroup.style.display = 'flex';
-                yearGroup.style.display = 'flex';
+                // Daily: Mostra input type="month" único
+                if (dailyGroup) dailyGroup.style.display = 'flex';
                 periodStatsBtn.style.display = 'flex';
+                if (periodRangeGroupMonthly) periodRangeGroupMonthly.style.display = 'none';
+                if (periodRangeGroupYearly) periodRangeGroupYearly.style.display = 'none';
             } else if (viewType === 'monthly') {
-                monthGroup.style.display = 'none';
-                yearGroup.style.display = 'flex';
+                // Monthly: Mostra faixa de meses
+                if (dailyGroup) dailyGroup.style.display = 'none';
                 periodStatsBtn.style.display = 'flex';
+                if (periodRangeGroupMonthly) {
+                    periodRangeGroupMonthly.style.display = 'flex';
+                    this.populateMonthlyPeriodRange();
+                }
+                if (periodRangeGroupYearly) periodRangeGroupYearly.style.display = 'none';
             } else { // yearly
-                monthGroup.style.display = 'none';
-                yearGroup.style.display = 'none';
+                // Yearly: Mostra faixa de anos
+                if (dailyGroup) dailyGroup.style.display = 'none';
                 periodStatsBtn.style.display = 'flex';
+                if (periodRangeGroupMonthly) periodRangeGroupMonthly.style.display = 'none';
+                if (periodRangeGroupYearly) {
+                    periodRangeGroupYearly.style.display = 'flex';
+                    this.populateYearlyPeriodRange();
+                }
             }
         }
+    }
+    
+    // Popular month pickers de período (type="month" para seleção mês/ano)
+    populateMonthlyPeriodRange() {
+        const startInput = document.getElementById('timelinePeriodStartMonth');
+        const endInput = document.getElementById('timelinePeriodEndMonth');
+        
+        if (!startInput || !endInput) return;
+        
+        // Destruir datepickers antigos se existirem
+        if (this.monthStartPicker) {
+            this.monthStartPicker.destroy();
+        }
+        if (this.monthEndPicker) {
+            this.monthEndPicker.destroy();
+        }
+        
+        // Criar novos datepickers customizados
+        this.monthStartPicker = new CustomDatePicker('timelinePeriodStartMonth', {
+            type: 'month',
+            onSelect: () => this.createTimelineChart()
+        });
+        
+        this.monthEndPicker = new CustomDatePicker('timelinePeriodEndMonth', {
+            type: 'month',
+            onSelect: () => this.createTimelineChart()
+        });
+        
+        // Definir valores padrão se vazios
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth();
+        if (!startInput.value) {
+            startInput.value = `${currentYear}-01`;
+            this.monthStartPicker.selectedYear = currentYear;
+            this.monthStartPicker.selectedMonth = 0;
+            this.monthStartPicker.updateTriggerButton();
+        }
+        if (!endInput.value) {
+            endInput.value = `${currentYear}-12`;
+            this.monthEndPicker.selectedYear = currentYear;
+            this.monthEndPicker.selectedMonth = 11;
+            this.monthEndPicker.updateTriggerButton();
+        }
+    }
+    
+    // Popular year pickers de período (type="number" para seleção de ano)
+    populateYearlyPeriodRange() {
+        const startInput = document.getElementById('timelinePeriodStartYear');
+        const endInput = document.getElementById('timelinePeriodEndYear');
+        
+        if (!startInput || !endInput) return;
+        
+        // Destruir datepickers antigos se existirem
+        if (this.yearStartPicker) {
+            this.yearStartPicker.destroy();
+        }
+        if (this.yearEndPicker) {
+            this.yearEndPicker.destroy();
+        }
+        
+        // Criar novos datepickers customizados
+        this.yearStartPicker = new CustomDatePicker('timelinePeriodStartYear', {
+            type: 'year',
+            onSelect: () => this.createTimelineChart()
+        });
+        
+        this.yearEndPicker = new CustomDatePicker('timelinePeriodEndYear', {
+            type: 'year',
+            onSelect: () => this.createTimelineChart()
+        });
+        
+        const yearsWithLicenses = this.getYearsWithLicenses();
+        
+        if (yearsWithLicenses.length === 0) {
+            const currentYear = new Date().getFullYear();
+            if (!startInput.value) {
+                startInput.value = currentYear;
+                this.yearStartPicker.selectedYear = currentYear;
+                this.yearStartPicker.updateTriggerButton();
+            }
+            if (!endInput.value) {
+                endInput.value = currentYear;
+                this.yearEndPicker.selectedYear = currentYear;
+                this.yearEndPicker.updateTriggerButton();
+            }
+            return;
+        }
+        
+        const minYear = yearsWithLicenses[0];
+        const maxYear = yearsWithLicenses[yearsWithLicenses.length - 1];
+        
+        // Definir valores padrão se vazios
+        if (!startInput.value) {
+            startInput.value = minYear;
+            this.yearStartPicker.selectedYear = minYear;
+            this.yearStartPicker.currentYear = minYear;
+            this.yearStartPicker.updateTriggerButton();
+        }
+        if (!endInput.value) {
+            endInput.value = maxYear;
+            this.yearEndPicker.selectedYear = maxYear;
+            this.yearEndPicker.currentYear = maxYear;
+            this.yearEndPicker.updateTriggerButton();
+        }
+    }
+    
+    // Helper para formatar data no formato YYYY-MM-DD
+    formatDateForInput(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 
     showCurrentPeriodStats() {
@@ -2367,10 +3378,9 @@ class DashboardMultiPage {
     // Obter elementos do modal
         const modal = document.getElementById('timelineModal');
         const modalTitle = document.getElementById('timelineModalTitle');
-        const serversList = document.getElementById('timelineServersList');
-        const serversCount = document.getElementById('serversCount');
+        const modalBody = document.getElementById('timelineModalBody');
 
-        if (!modal || !modalTitle || !serversList || !serversCount) {
+        if (!modal || !modalTitle || !modalBody) {
             console.error('Elementos do modal da timeline não encontrados');
             return;
         }
@@ -2392,47 +3402,54 @@ class DashboardMultiPage {
         }
 
         modalTitle.textContent = titleText;
-        serversCount.textContent = servidores.length;
 
-    // Criar lista limpa de servidores
-        if (servidores.length === 0) {
-            serversList.innerHTML = '<p class="text-muted">Nenhum servidor em licença neste período.</p>';
+        // Detectar tipo de dados
+        const hasLicencas = this.filteredServidores && this.filteredServidores.length > 0;
+        const hasNotificacoes = this.notificacoes && this.notificacoes.length > 0;
+
+        // Limpar conteúdo anterior
+        modalBody.innerHTML = '';
+
+        // Criar seção apropriada baseada no tipo de dados
+        if (hasLicencas && !hasNotificacoes && servidores.length > 0) {
+            // Usar helper unificado para criar seção de licenças
+            const licencasSection = this.createModalSection({
+                title: 'Licenças',
+                icon: 'bi-calendar-check',
+                badge: { count: servidores.length, class: 'success' },
+                contentId: 'timelineServersList'
+            });
+            modalBody.appendChild(licencasSection);
+
+            const serversList = document.getElementById('timelineServersList');
+            if (serversList) {
+                serversList.innerHTML = this.renderServidoresList(servidores, {
+                    showLicenseInfo: false,
+                    emptyIcon: 'bi-people',
+                    emptyMessage: 'Nenhum servidor em licença neste período.'
+                });
+            }
+        } else if (hasNotificacoes && !hasLicencas && servidores.length > 0) {
+            // Usar helper unificado para criar seção de notificações
+            const notifSection = this.createModalSection({
+                title: 'Notificações',
+                icon: 'bi-bell',
+                badge: { count: servidores.length, class: 'info' },
+                contentId: 'timelineNotifsList'
+            });
+            modalBody.appendChild(notifSection);
+
+            // TODO: Implementar seção de notificações quando necessário
+            const notifsList = document.getElementById('timelineNotifsList');
+            if (notifsList) {
+                notifsList.innerHTML = '<p class="text-muted">Visualização de notificações em desenvolvimento.</p>';
+            }
         } else {
-            serversList.innerHTML = servidores.map(servidor => {
-                const urgencyClass = servidor.nivelUrgencia ? `urgency-${servidor.nivelUrgencia.toLowerCase()}` : 'urgency-low';
-                const details = [];
-
-                if (servidor.cargo) {
-                    details.push(`<span><i class="bi bi-person-badge"></i> ${this.escapeHtml(servidor.cargo)}</span>`);
-                }
-                if (servidor.idade || servidor.idade === 0) {
-                    details.push(`<span><i class="bi bi-calendar-date"></i> ${this.escapeHtml(String(servidor.idade))} anos</span>`);
-                }
-                if (servidor.lotacao) {
-                    details.push(`<span><i class="bi bi-building"></i> ${this.escapeHtml(servidor.lotacao)}</span>`);
-                }
-
-                const detailsHtml = details.length > 0 ? `<div class="timeline-server-details">${details.join('')}</div>` : '';
-
-                return `
-                    <div class="timeline-server-item">
-                        <div class="timeline-server-info">
-                            <div class="timeline-server-name">${this.escapeHtml(servidor.nome)}</div>
-                            ${detailsHtml}
-                        </div>
-                        <div class="timeline-server-actions">
-                            ${servidor.nivelUrgencia ? `<span class="status-badge ${urgencyClass}">${this.escapeHtml(servidor.nivelUrgencia)}</span>` : ''}
-                            <button class="btn-icon" onclick="dashboard.showServidorDetails('${this.escapeHtml(servidor.nome)}')" title="Ver detalhes completos">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            modalBody.innerHTML = '<p class="text-muted">Nenhum dado disponível para este período.</p>';
         }
 
     // Exibir modal
-        modal.classList.add('show');
+        this._openModalElement(modal);
     }
 
     showPeriodStatsModal(periodLabel, servidores, periodFilter) {
@@ -2606,7 +3623,7 @@ class DashboardMultiPage {
             `;
         }
 
-        modal.classList.add('show');
+        this._openModalElement(modal);
     }
 
     exportTimelineData() {
@@ -2639,9 +3656,35 @@ class DashboardMultiPage {
             currentYearElement.textContent = year;
         }
 
-    // Verificar se temos dados válidos
-        if (!this.filteredServidores || this.filteredServidores.length === 0) {
-            container.innerHTML = '<p style="text-align: center; padding: 2rem; color: var(--text-muted);">Nenhum dado disponível para visualização.</p>';
+    // Verificar se temos dados válidos (licenças OU notificações)
+        const hasLicencas = this.filteredServidores && this.filteredServidores.length > 0;
+        const hasNotificacoes = this.notificacoes && this.notificacoes.length > 0;
+        const hasImportedData = this.allServidores && this.allServidores.length > 0;
+        
+        if (!hasLicencas && !hasNotificacoes) {
+            // Diferenciar entre "nenhum arquivo importado" vs "filtros não retornaram resultados"
+            const isFiltered = hasImportedData && (!hasLicencas && !hasNotificacoes);
+            const messageTitle = isFiltered 
+                ? 'Nenhum resultado encontrado' 
+                : 'Nenhum dado carregado';
+            const messageText = isFiltered
+                ? 'Nenhum servidor corresponde aos filtros aplicados. Tente ajustar ou limpar os filtros.'
+                : 'Importe um arquivo CSV para visualizar o calendário de licenças e notificações';
+            const iconClass = isFiltered ? 'bi-funnel-fill' : 'bi-calendar-x';
+            const showButton = !isFiltered;
+            
+            container.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem; text-align: center;">
+                    <i class="${iconClass}" style="font-size: 4rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                    <h3 style="color: var(--text-secondary); margin-bottom: 0.5rem;">${messageTitle}</h3>
+                    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">${messageText}</p>
+                    ${showButton ? `
+                    <button onclick="document.getElementById('uploadButton')?.click()" class="btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                        <i class="bi bi-upload"></i>
+                        <span>Importar arquivo</span>
+                    </button>` : ''}
+                </div>
+            `;
             return;
         }
 
@@ -2651,12 +3694,23 @@ class DashboardMultiPage {
         const monthsContainer = document.createElement('div');
         monthsContainer.className = 'months-grid';
 
-        for (let month = 0; month < 12; month++) {
-            const monthDiv = this.createMonthHeatmap(year, month);
-            monthsContainer.appendChild(monthDiv);
-        }
+        try {
+            for (let month = 0; month < 12; month++) {
+                const monthDiv = this.createMonthHeatmap(year, month);
+                monthsContainer.appendChild(monthDiv);
+            }
 
-        container.appendChild(monthsContainer);
+            container.appendChild(monthsContainer);
+        } catch (error) {
+            console.error('❌ Erro ao renderizar calendário:', error);
+            console.error('Stack:', error.stack);
+            container.innerHTML = `
+                <div style="padding: 2rem; text-align: center; color: red;">
+                    <h3>❌ Erro ao carregar calendário</h3>
+                    <p>Verifique o console para detalhes: ${error.message}</p>
+                </div>
+            `;
+        }
     }
 
     changeCalendarYear(direction) {
@@ -2664,12 +3718,64 @@ class DashboardMultiPage {
         if (!currentYearElement) return;
 
         const currentYear = parseInt(currentYearElement.textContent);
-        const newYear = currentYear + direction;
-
-        // Limitar anos (por exemplo, entre 2020 e 2030)
-        if (newYear >= 2020 && newYear <= 2030) {
+        
+        // Calcular anos disponíveis (anos com licenças agendadas)
+        const yearsWithLicenses = this.getYearsWithLicenses();
+        
+        if (yearsWithLicenses.length === 0) {
+            // Sem dados, permitir navegação livre entre 2020 e 2035
+            const newYear = currentYear + direction;
+            if (newYear >= 2020 && newYear <= 2035) {
+                this.updateYearlyHeatmap(newYear);
+            }
+            return;
+        }
+        
+        const minYear = Math.min(...yearsWithLicenses);
+        const maxYear = Math.max(...yearsWithLicenses);
+        
+        let newYear = currentYear + direction;
+        
+        // Pular anos sem licenças ao navegar
+        if (direction > 0) {
+            // Avançar: encontrar próximo ano com licenças
+            const nextYears = yearsWithLicenses.filter(y => y > currentYear).sort((a, b) => a - b);
+            newYear = nextYears.length > 0 ? nextYears[0] : maxYear;
+        } else {
+            // Voltar: encontrar ano anterior com licenças
+            const prevYears = yearsWithLicenses.filter(y => y < currentYear).sort((a, b) => b - a);
+            newYear = prevYears.length > 0 ? prevYears[0] : minYear;
+        }
+        
+        // Limitar entre min e max dos dados
+        if (newYear >= minYear && newYear <= maxYear) {
             this.updateYearlyHeatmap(newYear);
         }
+    }
+    
+    // Obter lista de anos que têm licenças agendadas
+    getYearsWithLicenses() {
+        const years = new Set();
+        
+        if (!this.filteredServidores || this.filteredServidores.length === 0) {
+            return [];
+        }
+        
+        this.filteredServidores.forEach(servidor => {
+            if (servidor.licencas && servidor.licencas.length > 0) {
+                servidor.licencas.forEach(licenca => {
+                    const startYear = licenca.inicio.getFullYear();
+                    const endYear = licenca.fim ? licenca.fim.getFullYear() : startYear;
+                    
+                    // Adicionar todos os anos entre início e fim
+                    for (let y = startYear; y <= endYear; y++) {
+                        years.add(y);
+                    }
+                });
+            }
+        });
+        
+        return Array.from(years).sort((a, b) => a - b);
     }
 
     createMonthHeatmap(year, month) {
@@ -2701,10 +3807,19 @@ class DashboardMultiPage {
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    // Calcular dados de licença para este mês
+    // Calcular dados para este mês (APENAS licenças OU notificações, nunca ambos)
         const dayData = {};
-        this.filteredServidores.forEach(servidor => {
-            servidor.licencas.forEach(licenca => {
+        
+        // Determinar qual tipo de dado processar
+        const hasLicencas = this.filteredServidores && this.filteredServidores.length > 0;
+        const hasNotificacoes = this.notificacoes && this.notificacoes.length > 0;
+        
+        // Processar APENAS licenças (se existirem E não houver notificações)
+        if (hasLicencas && !hasNotificacoes) {
+            this.filteredServidores.forEach((servidor) => {
+                if (!servidor.licencas || servidor.licencas.length === 0) return;
+                
+                servidor.licencas.forEach(licenca => {
                 // Verificar se a licença se sobrepõe a este mês
                 const licenseStart = licenca.inicio;
                 // Calcular fim da licença: mesmo dia no mês seguinte menos 1 dia
@@ -2759,7 +3874,25 @@ class DashboardMultiPage {
                     }
                 }
             });
-        });
+        }); // Fim do forEach de filteredServidores
+        } 
+        // Processar APENAS notificações (se existirem E não houver licenças)
+        else if (hasNotificacoes && !hasLicencas) {
+            this.notificacoes.forEach(notif => {
+                // Processar todas as datas de notificação
+                if (notif.datas && Array.isArray(notif.datas)) {
+                    notif.datas.forEach(dataObj => {
+                        if (dataObj.data) {
+                            const notifDate = new Date(dataObj.data);
+                            if (notifDate.getFullYear() === year && notifDate.getMonth() === month) {
+                                const day = notifDate.getDate();
+                                dayData[day] = (dayData[day] || 0) + 1;
+                            }
+                        }
+                    });
+                }
+            });
+        }
 
     // Células vazias para dias antes do início do mês
         for (let i = 0; i < firstDay; i++) {
@@ -2774,7 +3907,8 @@ class DashboardMultiPage {
             dayCell.className = 'day-cell';
 
             const count = dayData[day] || 0;
-            // Lógica de cores consistente: level baseado na quantidade absoluta, não relativa ao mês
+            
+            // Lógica de cores baseada na contagem
             let level = 0;
             if (count > 0) {
                 if (count === 1) level = 1;
@@ -2784,12 +3918,23 @@ class DashboardMultiPage {
             }
 
             dayCell.classList.add(`level-${level}`);
+            
             dayCell.textContent = day;
-            dayCell.title = `${day}/${month + 1}/${year}: ${count} licenças`;
+            
+            // Tooltip com informações detalhadas (APENAS um tipo de dado)
+            let tooltip = `${day}/${month + 1}/${year}`;
+            if (count > 0) {
+                if (hasLicencas) {
+                    tooltip += `\n${count} licença(s)`;
+                } else if (hasNotificacoes) {
+                    tooltip += `\n${count} notificação(ões)`;
+                }
+            }
+            dayCell.title = tooltip;
 
             if (count > 0) {
                 dayCell.addEventListener('click', () => {
-                    this.showCalendarDayDetails(year, month, day, count);
+                    this.showCalendarDayDetails(year, month, day);
                 });
                 dayCell.style.cursor = 'pointer';
             }
@@ -2801,7 +3946,7 @@ class DashboardMultiPage {
         return monthDiv;
     }
 
-    showCalendarDayDetails(year, month, day, count) {
+    showCalendarDayDetails(year, month, day) {
         const targetDate = new Date(year, month, day);
         const dateStr = targetDate.toLocaleDateString('pt-BR', {
             weekday: 'long',
@@ -2810,40 +3955,81 @@ class DashboardMultiPage {
             day: 'numeric'
         });
 
-        // Encontrar servidores com licenças neste dia
-        const servidores = this.filteredServidores.filter(servidor => {
-            return servidor.licencas.some(licenca => {
-                const licenseStart = licenca.inicio;
-                // Calcular fim da licença: mesmo dia no mês seguinte menos 1 dia
-                let licenseEnd = licenca.fim;
-                if (!licenseEnd) {
-                    const nextMonth = new Date(licenseStart);
-                    nextMonth.setMonth(nextMonth.getMonth() + 1);
-                    nextMonth.setDate(nextMonth.getDate() - 1);
-                    licenseEnd = nextMonth;
-                }
+        const hasLicencas = this.filteredServidores && this.filteredServidores.length > 0;
+        const hasNotificacoes = this.notificacoes && this.notificacoes.length > 0;
 
-                // Verificar se a data alvo está dentro do período da licença
-                return targetDate >= licenseStart && targetDate <= licenseEnd;
+        let servidores = [];
+        let notificacoes = [];
+
+        // Processar APENAS licenças OU APENAS notificações
+        if (hasLicencas && !hasNotificacoes) {
+            // Encontrar servidores com licenças neste dia
+            servidores = this.filteredServidores.filter(servidor => {
+                return servidor.licencas && servidor.licencas.some(licenca => {
+                    const licenseStart = licenca.inicio;
+                    // Calcular fim da licença: mesmo dia no mês seguinte menos 1 dia
+                    let licenseEnd = licenca.fim;
+                    if (!licenseEnd) {
+                        const nextMonth = new Date(licenseStart);
+                        nextMonth.setMonth(nextMonth.getMonth() + 1);
+                        nextMonth.setDate(nextMonth.getDate() - 1);
+                        licenseEnd = nextMonth;
+                    }
+
+                    // Verificar se a data alvo está dentro do período da licença
+                    return targetDate >= licenseStart && targetDate <= licenseEnd;
+                });
             });
-        });
-
-        // Atualizar título do painel
-        const titleElement = document.getElementById('selectedDateTitle');
-        if (titleElement) {
-            titleElement.textContent = `${dateStr} - ${servidores.length} servidor(es)`;
+        } else if (hasNotificacoes && !hasLicencas) {
+            // Encontrar notificações neste dia
+            this.notificacoes.forEach(notif => {
+                if (notif.datas && Array.isArray(notif.datas)) {
+                    notif.datas.forEach(dataObj => {
+                        if (dataObj.data) {
+                            const notifDate = new Date(dataObj.data);
+                            if (notifDate.getFullYear() === year && 
+                                notifDate.getMonth() === month && 
+                                notifDate.getDate() === day) {
+                                notificacoes.push({
+                                    ...notif,
+                                    dataEspecifica: dataObj
+                                });
+                            }
+                        }
+                    });
+                }
+            });
         }
 
-        // Gerar HTML para a lista de servidores
-        const serversListElement = document.getElementById('selectedDateServers');
-        if (serversListElement && servidores.length > 0) {
-            serversListElement.innerHTML = servidores.map(servidor => {
-                const initials = servidor.nome.split(' ')
-                    .map(word => word[0])
-                    .join('')
-                    .substring(0, 2)
-                    .toUpperCase();
+        // Atualizar modal
+        const modal = document.getElementById('calendarDayModal');
+        const modalTitle = document.getElementById('calendarDayTitle');
+        const modalBody = document.getElementById('calendarServersList');
 
+        if (!modal || !modalTitle || !modalBody) {
+            console.error('Elementos do modal do calendário não encontrados');
+            return;
+        }
+
+        // Atualizar título
+        modalTitle.textContent = dateStr;
+
+        // Limpar conteúdo anterior
+        modalBody.innerHTML = '';
+
+        // Adicionar seção de licenças (se houver)
+        if (servidores.length > 0) {
+            // Usar helper unificado para criar seção de licenças
+            const licencasSection = this.createModalSection({
+                title: 'Licenças',
+                icon: 'bi-calendar-check',
+                badge: { count: servidores.length, class: 'success' },
+                contentId: 'licencasList'
+            });
+            modalBody.appendChild(licencasSection);
+
+            // Adicionar informação de licença a cada servidor para exibição
+            const servidoresComInfo = servidores.map(servidor => {
                 // Encontrar licença ativa neste dia
                 const activeLicense = servidor.licencas.find(licenca => {
                     const licenseStart = licenca.inicio;
@@ -2862,57 +4048,82 @@ class DashboardMultiPage {
                     ? `${activeLicense.inicio.toLocaleDateString('pt-BR')} até ${activeLicense.fim ? activeLicense.fim.toLocaleDateString('pt-BR') : 'Data não especificada'}`
                     : 'Período não especificado';
 
-                return `
-                    <div class="server-card" onclick="dashboard.showServidorDetails('${servidor.nome}')">
-                        <div class="server-avatar">${initials}</div>
-                        <div class="server-info">
-                            <h5 class="server-name">${servidor.nome}</h5>
-                            <p class="server-details">${servidor.cargo || 'Cargo não    do'} • ${licenseInfo}</p>
+                return {
+                    ...servidor,
+                    licenseInfo: licenseInfo
+                };
+            });
+
+            const licencasList = document.getElementById('licencasList');
+            if (licencasList) {
+                licencasList.innerHTML = this.renderServidoresList(servidoresComInfo, {
+                    showLicenseInfo: true,
+                    emptyIcon: 'bi-calendar-x',
+                    emptyMessage: 'Nenhuma licença neste dia.'
+                });
+            }
+        }
+
+        // Adicionar seção de notificações (se houver)
+        if (notificacoes.length > 0) {
+            // Usar helper unificado para criar seção de notificações
+            const notifSection = this.createModalSection({
+                title: 'Notificações',
+                icon: 'bi-bell',
+                badge: { count: notificacoes.length, class: 'info' },
+                contentId: 'notifsList'
+            });
+            modalBody.appendChild(notifSection);
+
+            const notifsList = document.getElementById('notifsList');
+            if (notifsList) {
+                notifsList.innerHTML = notificacoes.map(notif => `
+                    <div class="servidor-item">
+                        <div class="servidor-info">
+                            <h5 class="servidor-nome">${notif.interessado || 'Nome não informado'}</h5>
+                            <div class="servidor-details">
+                                <span class="detail-item">
+                                    <i class="bi bi-file-text"></i>
+                                    ${notif.processo || 'Sem processo'}
+                                </span>
+                                <span class="detail-item">
+                                    <i class="bi bi-geo-alt"></i>
+                                    ${notif.lotacao || 'Sem lotação'}
+                                </span>
+                            </div>
                         </div>
-                        <div class="server-status">
-                            <div class="status-indicator"></div>
+                        <div class="servidor-status">
+                            <span class="status-badge status-${notif.status}">
+                                ${notif.status === 'respondeu' ? '🟢 Respondeu' : 
+                                  notif.status === 'pendente' ? '🟡 Pendente' : 
+                                  '🔴 Não Concorda'}
+                            </span>
                         </div>
                     </div>
-                `;
-            }).join('');
-        } else if (serversListElement) {
-            serversListElement.innerHTML = `
-                <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
-                    <i class="bi bi-calendar-x" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                    <p>Nenhum servidor encontrado neste dia.</p>
+                `).join('');
+            }
+        }
+
+        // Se não houver nada, mostrar mensagem apropriada
+        if (servidores.length === 0 && notificacoes.length === 0) {
+            modalBody.innerHTML = `
+                <div class="empty-state">
+                    <i class="bi bi-calendar-x"></i>
+                    <p>Nenhuma informação encontrada para este dia.</p>
                 </div>
             `;
         }
 
-        // Mostrar o painel
-        const panel = document.getElementById('dayDetailsPanel');
-        if (panel) {
-            panel.style.display = 'flex';
-
-            // Adicionar evento para fechar clicando fora
-            setTimeout(() => {
-                document.addEventListener('click', this.handlePanelOutsideClick.bind(this));
-            }, 100);
-        }
+        // Mostrar o modal
+    this._openModalElement(modal);
+        modal.style.display = 'flex';
     }
 
-    handlePanelOutsideClick(event) {
-        const panel = document.getElementById('dayDetailsPanel');
-        const target = event.target;
-
-        // Se clicou fora do painel, fechá-lo
-        if (panel && !panel.contains(target) && !target.closest('.day-cell')) {
-            this.closeDayDetailsPanel();
-        }
-    }
-
-    closeDayDetailsPanel() {
-        const panel = document.getElementById('dayDetailsPanel');
-        if (panel) {
-            panel.style.display = 'none';
-
-            // Remover evento de clique fora
-            document.removeEventListener('click', this.handlePanelOutsideClick.bind(this));
+    closeCalendarDayModal() {
+        const modal = document.getElementById('calendarDayModal');
+        if (modal) {
+            this._closeModalElement(modal);
+            modal.style.display = 'none';
         }
     }
 
@@ -2989,7 +4200,7 @@ class DashboardMultiPage {
             </div>
         `;
 
-        modal.classList.add('show');
+    this._openModalElement(modal);
 
     // Adicionar listeners para os botões de detalhes
         setTimeout(() => {
@@ -3113,10 +4324,10 @@ class DashboardMultiPage {
         }
 
     // Aplicar filtros
-        this.applyLicencaFilters();
+        this.applyAllFilters();
     }
 
-    filterTableByUrgency(urgencyLevel, chartIndex) {
+    filterTableByUrgency(urgencyLevel, chartIndex, shouldHighlightChart = true) {
         const urgencyMap = {
             'critical': 'crítico',
             'high': 'alto',
@@ -3129,34 +4340,42 @@ class DashboardMultiPage {
         // Toggle filter
         if (this.currentFilters.urgency === mappedUrgency && this.selectedChartIndex === chartIndex) {
             // Remove filter
-            this.clearUrgencyFilter();
+            this.clearUrgencyFilter(shouldHighlightChart);
         } else {
             // Add filter
             this.selectedChartIndex = chartIndex;
             this.currentFilters.urgency = mappedUrgency;
-            this.updateChartHighlight();
+            
+            // Destacar gráfico apenas se solicitado (legendas = sim, cards = não)
+            if (shouldHighlightChart) {
+                this.updateChartHighlight();
+            }
 
             // Usar filtro apropriado baseado no tipo de tabela
             const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
 
             if (isLicencaPremio) {
-                this.applyLicencaFilters();
+                this.applyAllFilters();
             } else {
                 this.applyTableFilter();
             }
         }
     }
 
-    clearUrgencyFilter() {
+    clearUrgencyFilter(shouldHighlightChart = true) {
         this.selectedChartIndex = -1;
         this.currentFilters.urgency = '';
-        this.updateChartHighlight();
+        
+        // Resetar highlight do gráfico apenas se solicitado
+        if (shouldHighlightChart) {
+            this.updateChartHighlight();
+        }
 
         // Usar filtro adaptativo baseado no tipo de tabela
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
 
         if (isLicencaPremio) {
-            this.applyLicencaFilters();
+            this.applyAllFilters();
         } else {
             this.applyTableFilter();
         }
@@ -3164,8 +4383,11 @@ class DashboardMultiPage {
         // Clear legend active states
         document.querySelectorAll('.legend-card').forEach(card => card.classList.remove('active'));
 
-        // Clear stat-card selected states
-        document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('selected'));
+        // Clear stat-card selected and active states
+        document.querySelectorAll('.stat-card').forEach(card => {
+            card.classList.remove('selected');
+            card.classList.remove('active'); // Remove a classe active dos cards de urgência
+        });
         document.querySelectorAll('.legend-item').forEach(item => item.classList.remove('selected'));
     }
 
@@ -3184,7 +4406,7 @@ class DashboardMultiPage {
             const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
 
             if (isLicencaPremio) {
-                this.applyLicencaFilters();
+                this.applyAllFilters();
             } else {
                 this.applyTableFilter();
             }
@@ -3200,7 +4422,7 @@ class DashboardMultiPage {
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
 
         if (isLicencaPremio) {
-            this.applyLicencaFilters();
+            this.applyAllFilters();
         } else {
             this.applyTableFilter();
         }
@@ -3214,35 +4436,55 @@ class DashboardMultiPage {
             const chart = this.charts.urgency;
             const dataset = chart.data.datasets[0];
 
-            // Detectar tipo de gráfico para usar as cores corretas
-            const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-            const correctColors = isLicencaPremio ? CARGO_COLORS : CHART_COLOR_ARRAY;
-
-            // Reset todas as cores para o padrão correto baseado no tipo de gráfico
-            dataset.backgroundColor = correctColors.slice(0, dataset.data.length);
-            dataset.borderWidth = 2;
-
-            // Se há uma seleção, destacar a fatia selecionada
-            if (this.selectedChartIndex >= 0) {
-                dataset.backgroundColor = dataset.backgroundColor.map((color, index) => {
-                    if (index === this.selectedChartIndex) {
-                        return color; // Cor normal para selecionada
-                    } else {
-                        return color + '60'; // Adiciona transparência às outras
-                    }
-                });
-                dataset.borderWidth = dataset.backgroundColor.map((color, index) => {
-                    return index === this.selectedChartIndex ? 4 : 2; // Borda mais grossa na selecionada
-                });
+            // 🔒 USAR CORES ORIGINAIS SALVAS (imutáveis)
+            // Se não existir, recriar do cargoData
+            if (!this.originalChartColors) {
+                const cargoData = this.getAdaptiveChartData();
+                this.originalChartColors = (cargoData.colors || CARGO_COLORS.slice(0, dataset.data.length)).map(c => c);
             }
 
-            chart.update('none'); // Atualiza sem animação
+            // Criar NOVO array de cores (nunca modificar original)
+            const numColors = dataset.data.length;
+            
+            // Se há uma seleção, destacar a fatia selecionada
+            if (this.selectedChartIndex >= 0 && this.selectedChartIndex < numColors) {
+                // Aplicar transparência às não selecionadas
+                dataset.backgroundColor = this.originalChartColors.slice(0, numColors).map((color, index) => {
+                    if (index === this.selectedChartIndex) {
+                        return color; // Cor original para selecionada
+                    } else {
+                        // Adicionar transparência
+                        if (color && color.startsWith('#')) {
+                            return color + '60';
+                        }
+                        return color;
+                    }
+                });
+                // Borda mais grossa na selecionada
+                dataset.borderWidth = Array(numColors).fill(2).map((w, index) => {
+                    return index === this.selectedChartIndex ? 4 : 2;
+                });
+            } else {
+                // SEM seleção - resetar para cores originais PURAS
+                dataset.backgroundColor = this.originalChartColors.slice(0, numColors);
+                dataset.borderWidth = 2;
+            }
+
+            chart.update('none');
         }
     }
 
     applyTableFilter() {
         // Aplica apenas os filtros existentes sem recriar gráficos
         let filtered = [...this.allServidores];
+
+    // Aplicar filtro de mês (ADICIONADO PARA COMPATIBILIDADE)
+        const rawMes = document.getElementById('mesFilter')?.value?.trim() || '';
+        const mesFilter = (rawMes && rawMes.toLowerCase() === 'all') ? '' : rawMes;
+        
+        if (mesFilter) {
+            filtered = filtered.filter(servidor => this.matchesMonth(servidor, mesFilter));
+        }
 
     // Aplicar filtro de idade
         if (this.currentFilters.age) {
@@ -3280,25 +4522,93 @@ class DashboardMultiPage {
         this.updateTable(); // Apenas atualiza a tabela
     }
 
-    createServidoresList(servidores) {
+    /**
+     * Helper unificado para criar seções modais com header padronizado
+     * @param {Object} options - Opções de configuração
+     * @param {string} options.title - Título da seção
+     * @param {string} options.icon - Classe do ícone Bootstrap (ex: 'bi-calendar-check')
+     * @param {Object} options.badge - Configuração do badge { count: number, class: string }
+     * @param {string} options.contentId - ID único para o elemento de conteúdo
+     * @returns {HTMLElement} Elemento div.modal-section criado
+     */
+    createModalSection({ title, icon, badge, contentId }) {
+        const section = document.createElement('div');
+        section.className = 'modal-section';
+        section.innerHTML = `
+            <div class="section-header">
+                <i class="bi ${icon} section-icon"></i>
+                <h4 class="section-title">${this.escapeHtml(title)}</h4>
+                <span class="section-badge ${badge.class}">${badge.count}</span>
+            </div>
+            <div class="section-content" id="${contentId}"></div>
+        `;
+        return section;
+    }
+
+    // Função unificada para renderizar lista de servidores (usada em calendário e timeline)
+    renderServidoresList(servidores, options = {}) {
+        const {
+            showLicenseInfo = false,
+            emptyIcon = 'bi-people',
+            emptyMessage = 'Nenhum servidor encontrado para este período.'
+        } = options;
+
         if (servidores.length === 0) {
-            return '<p>Nenhum servidor encontrado para este período.</p>';
+            return `
+                <div class="empty-state">
+                    <i class="bi ${emptyIcon}"></i>
+                    <p>${emptyMessage}</p>
+                </div>
+            `;
         }
 
         let html = `<div class="servidores-list">`;
         servidores.forEach(servidor => {
             const nomeEscapado = servidor.nome.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-            const lotacaoEscapada = (servidor.lotacao || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            const lotacaoEscapada = (servidor.lotacao || 'Não especificado').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            const cargoEscapado = (servidor.cargo || 'Cargo não especificado').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            
+            // Gerar iniciais para o avatar
+            const initials = servidor.nome.split(' ')
+                .map(word => word[0])
+                .join('')
+                .substring(0, 2)
+                .toUpperCase();
+            
             html += `
-                <div class="servidor-item">
+                <div class="servidor-item" onclick="dashboard.showServidorDetails('${nomeEscapado}')">
+                    <div class="server-avatar">${initials}</div>
                     <div class="servidor-info">
-                        <strong>${nomeEscapado}</strong>
-                        <span class="servidor-idade">${servidor.idade} anos</span>
+                        <strong class="servidor-nome">${nomeEscapado}</strong>
+                        <div class="servidor-meta">
+                            <span class="meta-item">
+                                <i class="bi bi-briefcase"></i>
+                                <span>${cargoEscapado}</span>
+                            </span>
+                            ${servidor.idade ? `
+                                <span class="meta-item">
+                                    <i class="bi bi-person"></i>
+                                    <span>${servidor.idade} anos</span>
+                                </span>
+                                ${servidor.lotacao && servidor.lotacao !== 'Não especificado' ? `
+                            <div class="servidor-lotacao-info">
+                                <i class="bi bi-building"></i>
+                                <span>${lotacaoEscapada}</span>
+                            </div>
+                        ` : ''}
+                            ` : ''}
+                        </div>
+                        ${showLicenseInfo && servidor.licenseInfo ? `
+                            <div class="servidor-licenca">
+                                <i class="bi bi-calendar-check"></i>
+                                <span>${servidor.licenseInfo}</span>
+                            </div>
+                        ` : ''}
+                        
                     </div>
                     <div class="servidor-details">
-                        <span class="servidor-lotacao">${lotacaoEscapada}</span>
                         ${servidor.nivelUrgencia ? `<span class="urgency-badge urgency-${servidor.nivelUrgencia.toLowerCase()}">${servidor.nivelUrgencia}</span>` : ''}
-                        <button class="btn-icon" data-servidor-nome="${nomeEscapado}" title="Ver detalhes">
+                        <button class="btn-icon" onclick="event.stopPropagation(); dashboard.showServidorDetails('${nomeEscapado}')" title="Ver detalhes">
                             <i class="bi bi-eye"></i>
                         </button>
                     </div>
@@ -3308,6 +4618,11 @@ class DashboardMultiPage {
         html += '</div>';
 
         return html;
+    }
+
+    // Manter compatibilidade com código existente
+    createServidoresList(servidores) {
+        return this.renderServidoresList(servidores);
     }
 
     // Utility methods (continuing with existing methods...)
@@ -3406,14 +4721,56 @@ class DashboardMultiPage {
     getTimelineData() {
         const viewType = document.getElementById('timelineView') ?
             document.getElementById('timelineView').value : 'monthly';
-        const selectedYear = parseInt(document.getElementById('timelineYear')?.value) || new Date().getFullYear();
-        // HTML month values are already 0-based (0=Janeiro, 1=Fevereiro, etc.)
-        const selectedMonth = parseInt(document.getElementById('timelineMonth')?.value) || new Date().getMonth();
+        
+        let selectedYear, selectedMonth;
+        
+        if (viewType === 'daily') {
+            const dailyInput = document.getElementById('timelineDailyMonth');
+            if (dailyInput && dailyInput.value) {
+                const [year, month] = dailyInput.value.split('-').map(Number);
+                selectedYear = year;
+                selectedMonth = month - 1;
+            } else {
+                const today = new Date();
+                selectedYear = today.getFullYear();
+                selectedMonth = today.getMonth();
+            }
+        }
+        
+        let periodStart = null;
+        let periodEnd = null;
+        
+        if (viewType === 'monthly') {
+            // Para vista mensal, usar input type="month" (formato YYYY-MM)
+            const periodStartStr = document.getElementById('timelinePeriodStartMonth')?.value;
+            const periodEndStr = document.getElementById('timelinePeriodEndMonth')?.value;
+            
+            if (periodStartStr && periodEndStr) {
+                const [startYear, startMonth] = periodStartStr.split('-').map(Number);
+                const [endYear, endMonth] = periodEndStr.split('-').map(Number);
+                periodStart = new Date(startYear, startMonth - 1, 1); // mês é 0-based
+                periodEnd = new Date(endYear, endMonth - 1, 28); // último dia aproximado
+            }
+        } else if (viewType === 'yearly') {
+            // Para vista anual, usar input type="number" (apenas ano)
+            const periodStartYear = document.getElementById('timelinePeriodStartYear')?.value;
+            const periodEndYear = document.getElementById('timelinePeriodEndYear')?.value;
+            
+            if (periodStartYear && periodEndYear) {
+                periodStart = new Date(parseInt(periodStartYear), 0, 1);
+                periodEnd = new Date(parseInt(periodEndYear), 11, 31);
+            }
+        }
+        
         const data = {};
+
+        // Verificar qual tipo de dado está sendo usado
+        const hasLicencas = this.filteredServidores && this.filteredServidores.length > 0;
+        const hasNotificacoes = this.notificacoes && this.notificacoes.length > 0;
 
     // Preparar dados para exibição na timeline
     // Detectar se os dados são do tipo 'licença-prêmio' e adaptar processamento
-        const isLicencaPremio = this.filteredServidores.length > 0 && this.filteredServidores[0].tipoTabela === 'licenca-premio';
+        const isLicencaPremio = hasLicencas && this.filteredServidores[0].tipoTabela === 'licenca-premio';
             if (isLicencaPremio) {
                 // Para 'licença-prêmio' alguns buckets e contagens são tratados de forma diferente
             }
@@ -3421,9 +4778,25 @@ class DashboardMultiPage {
         let totalLicenses = 0;
         let filteredLicenses = 0;
 
-        // Criar esqueleto completo dos períodos com valor 0
-        if (viewType === 'monthly') {
-            // Para vista mensal, criar todos os 12 meses do ano selecionado
+        // Criar esqueleto completo dos períodos com valor 0 (apenas para monthly e daily)
+        if (viewType === 'monthly' && periodStart && periodEnd) {
+            // Para vista mensal com range: criar todos os meses entre periodStart e periodEnd
+            let current = new Date(periodStart.getFullYear(), periodStart.getMonth(), 1);
+            const end = new Date(periodEnd.getFullYear(), periodEnd.getMonth(), 1);
+            
+            while (current <= end) {
+                const year = current.getFullYear();
+                const month = current.getMonth();
+                const key = `${year}-${month.toString().padStart(2, '0')}`;
+                data[key] = {
+                    count: 0,
+                    period: { type: 'month', year, month },
+                    servidores: new Set()
+                };
+                current.setMonth(current.getMonth() + 1);
+            }
+        } else if (viewType === 'monthly') {
+            // Fallback: criar todos os 12 meses do ano selecionado
             for (let month = 0; month < 12; month++) {
                 const key = `${selectedYear}-${month.toString().padStart(2, '0')}`;
                 data[key] = {
@@ -3443,9 +4816,23 @@ class DashboardMultiPage {
                     servidores: new Set()
                 };
             }
+        } else if (viewType === 'yearly' && periodStart && periodEnd) {
+            // Para vista anual com range: criar todos os anos entre periodStart e periodEnd
+            const startYear = periodStart.getFullYear();
+            const endYear = periodEnd.getFullYear();
+            
+            for (let year = startYear; year <= endYear; year++) {
+                const key = year.toString();
+                data[key] = {
+                    count: 0,
+                    period: { type: 'year', value: year },
+                    servidores: new Set()
+                };
+            }
         }
-        // Para yearly, não precisamos de esqueleto pois mostra apenas anos com dados
 
+        // Processar APENAS licenças (se existirem E não houver notificações)
+        if (hasLicencas && !hasNotificacoes) {
         this.filteredServidores.forEach(servidor => {
             servidor.licencas.forEach(licenca => {
                 totalLicenses++;
@@ -3453,15 +4840,39 @@ class DashboardMultiPage {
                 let shouldInclude = true;
 
                 if (viewType === 'yearly') {
-                    const year = licenca.inicio.getFullYear();
-                    key = year.toString();
-                    period = { type: 'year', value: year };
-                    if (!shouldInclude) return;
-                    filteredLicenses++;
-
-                    if (!data[key]) data[key] = { count: 0, period, servidores: new Set() };
-                    data[key].count++;
-                    data[key].servidores.add(servidor.nome);
+                    // Para vista anual, incluir TODOS os anos em que a licença está ativa
+                    const startYear = licenca.inicio.getFullYear();
+                    const endYear = licenca.fim ? licenca.fim.getFullYear() : startYear;
+                    
+                    // Aplicar filtro de range se disponível
+                    let minYear = startYear;
+                    let maxYear = endYear;
+                    
+                    if (periodStart && periodEnd) {
+                        const rangeStart = periodStart.getFullYear();
+                        const rangeEnd = periodEnd.getFullYear();
+                        minYear = Math.max(startYear, rangeStart);
+                        maxYear = Math.min(endYear, rangeEnd);
+                    }
+                    
+                    // Adicionar todos os anos entre início e fim (dentro do range)
+                    for (let year = minYear; year <= maxYear; year++) {
+                        key = year.toString();
+                        period = { type: 'year', value: year };
+                        
+                        if (!shouldInclude) continue;
+                        
+                        // Garantir que o bucket existe (caso não tenha esqueleto por range ausente)
+                        if (!data[key]) {
+                            data[key] = { count: 0, period, servidores: new Set() };
+                        }
+                        
+                        data[key].servidores.add(servidor.nome);
+                        // Incrementar apenas na primeira vez que incluímos esta licença
+                        if (year === minYear) {
+                            filteredLicenses++;
+                        }
+                    }
                 } else if (viewType === 'daily') {
                     // Para a vista diária, uma licença pode abranger vários dias; incluir todos os dias que caem dentro do mês/ano selecionado
                     const licStart = new Date(licenca.inicio);
@@ -3486,7 +4897,7 @@ class DashboardMultiPage {
                     // Count this license once as filtered (it contributes to the daily view)
                     filteredLicenses++;
 
-                    // Iterate each day in the intersection and increment that day's bucket
+                    // Iterate each day in the intersection and add servidor (Set evita duplicatas)
                     const currentDay = new Date(includeStart);
                     while (currentDay <= includeEnd) {
                         const day = currentDay.getDate();
@@ -3494,32 +4905,120 @@ class DashboardMultiPage {
                         const dayPeriod = { type: 'day', date: new Date(selectedYear, selectedMonth, day), day, month: selectedMonth, year: selectedYear };
 
                         if (!data[dayKey]) data[dayKey] = { count: 0, period: dayPeriod, servidores: new Set() };
-                        data[dayKey].count++;
                         data[dayKey].servidores.add(servidor.nome);
 
                         currentDay.setDate(currentDay.getDate() + 1);
                     }
                 } else { // monthly
-                    const year = licenca.inicio.getFullYear();
-                    const month = licenca.inicio.getMonth();
+                    // Para visualização mensal, contar servidor em todos os meses que ele está ativo
+                    const licStart = new Date(licenca.inicio);
+                    const licEnd = licenca.fim ? new Date(licenca.fim) : new Date(licenca.inicio);
+                    
+                    // Normalizar para evitar problemas com horas
+                    licStart.setHours(0, 0, 0, 0);
+                    licEnd.setHours(0, 0, 0, 0);
 
-                    // Para visualização mensal, filtrar pelo ano selecionado
-                    if (year !== selectedYear) {
-                        shouldInclude = false;
+                    // Determinar os limites de processamento
+                    let processStart, processEnd;
+                    
+                    if (periodStart && periodEnd) {
+                        // Se houver range ativo, processar todos os meses no range
+                        processStart = new Date(periodStart.getFullYear(), periodStart.getMonth(), 1);
+                        processEnd = new Date(periodEnd.getFullYear(), periodEnd.getMonth(), 28);
                     } else {
-                        key = `${year}-${month.toString().padStart(2, '0')}`;
-                        period = { type: 'month', year, month };
+                        // Sem range, processar apenas o ano selecionado
+                        processStart = new Date(selectedYear, 0, 1);
+                        processEnd = new Date(selectedYear, 11, 31);
                     }
 
-                    if (!shouldInclude) return;
-                    filteredLicenses++;
-
-                    if (!data[key]) data[key] = { count: 0, period, servidores: new Set() };
-                    data[key].count++;
-                    data[key].servidores.add(servidor.nome);
+                    // Iterar por cada mês que a licença cobre
+                    const currentMonth = new Date(licStart);
+                    let addedToAnyMonth = false;
+                    
+                    while (currentMonth <= licEnd) {
+                        const year = currentMonth.getFullYear();
+                        const month = currentMonth.getMonth();
+                        
+                        // Verificar se este mês está dentro dos limites de processamento
+                        const monthStart = new Date(year, month, 1);
+                        const monthEnd = new Date(year, month + 1, 0);
+                        
+                        // Verificar se o mês está dentro do range de processamento
+                        if (monthEnd >= processStart && monthStart <= processEnd) {
+                            // Verificar se a licença está ativa em algum dia deste mês
+                            if (licStart <= monthEnd && licEnd >= monthStart) {
+                                key = `${year}-${month.toString().padStart(2, '0')}`;
+                                period = { type: 'month', year, month };
+                                
+                                if (!data[key]) data[key] = { count: 0, period, servidores: new Set() };
+                                data[key].servidores.add(servidor.nome);
+                                addedToAnyMonth = true;
+                            }
+                        }
+                        
+                        // Avançar para o próximo mês
+                        currentMonth.setMonth(currentMonth.getMonth() + 1);
+                        currentMonth.setDate(1); // Resetar para dia 1 para evitar problemas
+                    }
+                    
+                    if (addedToAnyMonth) {
+                        filteredLicenses++;
+                    }
                 }
             });
         });
+        }
+        
+        // Processar APENAS notificações (se existirem E não houver licenças)
+        else if (hasNotificacoes && !hasLicencas) {
+            this.notificacoes.forEach(notif => {
+                if (notif.datas && Array.isArray(notif.datas)) {
+                    notif.datas.forEach(dataObj => {
+                        if (dataObj.data) {
+                            const notifDate = new Date(dataObj.data);
+                            let key, period;
+                            
+                            if (viewType === 'yearly') {
+                                const year = notifDate.getFullYear();
+                                key = year.toString();
+                                period = { type: 'year', value: year };
+                                
+                                // Garantir que o bucket existe
+                                if (!data[key]) {
+                                    data[key] = { count: 0, period, servidores: new Set() };
+                                }
+                                data[key].servidores.add(notif.interessado || 'Desconhecido');
+                            } else if (viewType === 'monthly') {
+                                const year = notifDate.getFullYear();
+                                const month = notifDate.getMonth();
+                                key = `${year}-${month.toString().padStart(2, '0')}`;
+                                period = { type: 'month', year, month };
+                                
+                                // Garantir que o bucket existe
+                                if (!data[key]) {
+                                    data[key] = { count: 0, period, servidores: new Set() };
+                                }
+                                data[key].servidores.add(notif.interessado || 'Desconhecido');
+                            } else if (viewType === 'daily') {
+                                // Para daily, verificar se a data está no mês/ano selecionado
+                                if (notifDate.getFullYear() === selectedYear && 
+                                    notifDate.getMonth() === selectedMonth) {
+                                    const day = notifDate.getDate();
+                                    key = day.toString();
+                                    period = { type: 'day', date: new Date(selectedYear, selectedMonth, day), day, month: selectedMonth, year: selectedYear };
+                                    
+                                    // Garantir que o bucket existe
+                                    if (!data[key]) {
+                                        data[key] = { count: 0, period, servidores: new Set() };
+                                    }
+                                    data[key].servidores.add(notif.interessado || 'Desconhecido');
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+        }
 
     // Dados da timeline processados
 
@@ -3551,7 +5050,7 @@ class DashboardMultiPage {
 
         const result = {
             labels,
-            data: sortedKeys.map(key => data[key].count),
+            data: sortedKeys.map(key => data[key].servidores.size), // Contar servidores únicos
             periods: sortedKeys.map(key => data[key].period),
             servidoresData: sortedKeys.map(key => Array.from(data[key].servidores))
         };
@@ -3571,8 +5070,11 @@ class DashboardMultiPage {
     updateUrgencyChart() {
         if (this.charts.urgency) {
             const urgencyData = this.getStaticUrgencyData();
-            this.charts.urgency.data.datasets[0].data = urgencyData.values;
-            this.charts.urgency.update('active');
+            
+            // Destruir e recriar o gráfico para evitar bugs visuais
+            this.charts.urgency.destroy();
+            this.createUrgencyChart();
+            
             this.updateUrgencyLegend(urgencyData);
         }
     }
@@ -3580,6 +5082,14 @@ class DashboardMultiPage {
     updateTimelineChart() {
         if (this.charts.timeline) {
             const timelineData = this.getTimelineData();
+            
+            // DEBUG: Verificar dados da timeline
+            console.log('Timeline Data:', {
+                labels: timelineData.labels,
+                data: timelineData.data,
+                servidoresData: timelineData.servidoresData
+            });
+            
             this.charts.timeline.data.labels = timelineData.labels;
             this.charts.timeline.data.datasets[0].data = timelineData.data;
             this.charts.timeline.update('none'); // Força atualização completa
@@ -3624,8 +5134,12 @@ class DashboardMultiPage {
             const legendCard = document.createElement('div');
             legendCard.className = 'legend-card cargo';
             legendCard.dataset.cargo = cargo;
+            
+            // 🎨 USAR CORES FIXAS do array cargoData.colors
+            const color = cargoData.colors ? cargoData.colors[index] : CARGO_COLORS[index];
+            
             legendCard.innerHTML = `
-                <div class="legend-color" style="background-color: ${CARGO_COLORS[index]}"></div>
+                <div class="legend-color" style="background-color: ${color}"></div>
                 <span class="legend-label">${cargo}</span>
                 <span class="legend-count">${cargoData.values[index]}</span>
             `;
@@ -3654,18 +5168,16 @@ class DashboardMultiPage {
             const emptyRow = document.createElement('tr');
             emptyRow.innerHTML = `
                 <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
-                    <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
-                        <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.5;"></i>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 1.5rem;">
+                        <img src="img/empty-state-table.svg" alt="Nenhum dado" style="max-width:120px; opacity:0.7; margin-bottom:0.5rem;" onerror="this.style.display='none'">
                         <div>
-                            <h4 style="margin: 0; color: var(--text-secondary);">Nenhum dado carregado</h4>
-                            <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem;">Faça upload de um arquivo CSV ou Excel para começar</p>
-                            <div style="margin-top:0.75rem; display:flex; gap:0.5rem; justify-content:center;">
-                                <button class="btn-primary" id="tableUploadBtn" style="display:inline-flex; align-items:center; gap:0.5rem;">
-                                    <i class="bi bi-upload"></i>
-                                    <span>Fazer upload</span>
-                                </button>
-                            </div>
+                            <h4 style="margin: 0; color: var(--text-secondary); font-weight:600;">Nenhum dado carregado</h4>
+                            <p style="margin: 0.5rem 0 0 0; font-size: 0.95rem; color:var(--text-secondary);">Faça upload de um arquivo CSV ou Excel para começar</p>
                         </div>
+                        <button class="btn-primary" id="tableUploadBtn" style="display:inline-flex; align-items:center; gap:0.5rem; font-size:1rem;">
+                            <i class="bi bi-upload"></i>
+                            <span>Fazer upload</span>
+                        </button>
                     </div>
                 </td>
             `;
@@ -3681,7 +5193,17 @@ class DashboardMultiPage {
 
         if (this.filteredServidores.length === 0) {
             const emptyRow = document.createElement('tr');
-            emptyRow.innerHTML = '<td colspan="6" style="text-align: center; color: #666;">Nenhum servidor encontrado</td>';
+            emptyRow.innerHTML = `
+                <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 1.5rem;">
+                        <img src="img/empty-state-search.svg" alt="Nenhum resultado" style="max-width:100px; opacity:0.7; margin-bottom:0.5rem;" onerror="this.style.display='none'">
+                        <div>
+                            <h4 style="margin: 0; color: var(--text-secondary); font-weight:600;">Nenhum servidor encontrado</h4>
+                            <p style="margin: 0.5rem 0 0 0; font-size: 0.95rem; color:var(--text-secondary);">Tente ajustar os filtros ou buscar outro termo</p>
+                        </div>
+                    </div>
+                </td>
+            `;
             tbody.appendChild(emptyRow);
             return;
         }
@@ -3695,27 +5217,10 @@ class DashboardMultiPage {
         // Atualizar headers da tabela se necessário
         this.updateTableHeaders(isLicencaPremio);
 
-    // Aplicar ordenação
+    // Aplicar ordenação usando TableSortManager
         let sortedServidores = [...this.filteredServidores];
-        if (this.sortColumn) {
-            sortedServidores.sort((a, b) => {
-                let aVal = a[this.sortColumn];
-                let bVal = b[this.sortColumn];
-
-                if (this.sortColumn === 'proximaLicencaInicio' || this.sortColumn === 'proximaLicencaFim') {
-                    aVal = aVal ? aVal.getTime() : 0;
-                    bVal = bVal ? bVal.getTime() : 0;
-                }
-
-                if (typeof aVal === 'string') {
-                    aVal = aVal.toLowerCase();
-                    bVal = bVal.toLowerCase();
-                }
-
-                if (aVal < bVal) return this.sortDirection === 'asc' ? -1 : 1;
-                if (aVal > bVal) return this.sortDirection === 'asc' ? 1 : -1;
-                return 0;
-            });
+        if (this.tableSortManager) {
+            sortedServidores = this.tableSortManager.sortData(sortedServidores);
         }
 
         sortedServidores.forEach(servidor => {
@@ -3902,6 +5407,13 @@ class DashboardMultiPage {
                 <th>Ações</th>
             `;
         }
+
+        // Inicializar headers ordenáveis com TableSortManager
+        if (this.tableSortManager) {
+            setTimeout(() => {
+                this.tableSortManager.initializeTableHeaders();
+            }, 100);
+        }
     }
 
     handleSort(column) {
@@ -3925,6 +5437,150 @@ class DashboardMultiPage {
         }
 
         this.updateTable();
+    }
+
+    // Helper para renderizar período de forma detalhada e consistente
+    renderPeriodoDetalhado(licenca, index, total) {
+        const inicio = this.formatDateBR(licenca.inicio);
+        const fim = this.formatDateBR(licenca.fim);
+        const dias = Math.ceil((licenca.fim - licenca.inicio) / (1000 * 60 * 60 * 24)) + 1;
+        const meses = Math.floor(dias / 30);
+        
+        // Calcular os marcos de 30 em 30 dias
+        const marcos = [];
+        let dataAtual = new Date(licenca.inicio);
+        let diasRestantes = dias;
+        let marcoNum = 1;
+        
+        while (diasRestantes > 0) {
+            const diasNoMarco = Math.min(30, diasRestantes);
+            const dataFimMarco = new Date(dataAtual);
+            dataFimMarco.setDate(dataFimMarco.getDate() + diasNoMarco - 1);
+            
+            marcos.push({
+                num: marcoNum,
+                inicio: this.formatDateBR(dataAtual),
+                fim: this.formatDateBR(dataFimMarco),
+                dias: diasNoMarco
+            });
+            
+            dataAtual = new Date(dataFimMarco);
+            dataAtual.setDate(dataAtual.getDate() + 1);
+            diasRestantes -= diasNoMarco;
+            marcoNum++;
+        }
+        
+        let html = `
+            <div class="period-card" style="
+                background: var(--bg-primary);
+                border: 1px solid var(--border);
+                padding: 1rem;
+                border-radius: 8px;
+                transition: all 0.2s ease;
+            ">
+                <!-- Header único com info resumida -->
+                <div style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 1rem;
+                    padding-bottom: 0.75rem;
+                    border-bottom: 1px solid var(--border);
+                ">
+                    <div style="font-weight: 600; color: var(--text-primary); font-size: 1rem;">
+                        <i class="bi bi-calendar-check" style="color: var(--primary);"></i> Período ${index + 1}${total > 1 ? ` de ${total}` : ''}
+                    </div>
+                    <span style="
+                        background-color: rgba(37, 99, 235, 0.1);
+                        color: var(--primary);
+                        border: 1px solid rgba(37, 99, 235, 0.2);
+                        padding: 0.25rem 0.75rem;
+                        border-radius: 12px;
+                        font-size: 0.8rem;
+                        font-weight: 600;
+                    ">
+                        ${meses} ${meses === 1 ? 'mês' : 'meses'} (${dias} dias)
+                    </span>
+                </div>
+
+                <!-- Timeline detalhada de 30 em 30 dias -->
+                <div style="
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0.75rem;
+                    padding: 0.5rem 0;
+                ">
+                    ${marcos.map((marco, idx) => {
+                        const isFirst = idx === 0;
+                        const isLast = idx === marcos.length - 1;
+                        
+                        let diasAcumulados = 0;
+                        for (let i = 0; i <= idx; i++) {
+                            diasAcumulados += marcos[i].dias;
+                        }
+                        
+                        let accentColor, icon, label;
+                        
+                        if (isFirst) {
+                            accentColor = '#3b82f6';
+                            icon = '🚀';
+                            label = 'INÍCIO';
+                        } else if (isLast) {
+                            accentColor = '#10b981';
+                            icon = '🏁';
+                            label = 'FIM';
+                        } else {
+                            accentColor = '#8b5cf6';
+                            icon = '📅';
+                            label = `MÊS ${marco.num}`;
+                        }
+                        
+                        return `
+                            <div style="
+                                flex: 1;
+                                min-width: 200px;
+                                background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(99, 102, 241, 0.02));
+                                border: 1.5px solid ${accentColor};
+                                border-radius: 8px;
+                                padding: 0.75rem;
+                                position: relative;
+                            ">
+                                <div style="
+                                    display: flex;
+                                    justify-content: space-between;
+                                    align-items: center;
+                                    margin-bottom: 0.5rem;
+                                ">
+                                    <span style="
+                                        font-size: 0.7rem;
+                                        font-weight: 700;
+                                        color: ${accentColor};
+                                        letter-spacing: 0.5px;
+                                    ">${icon} ${label}</span>
+                                    <span style="
+                                        font-size: 0.7rem;
+                                        color: var(--text-muted);
+                                        font-weight: 600;
+                                    ">${marco.dias} ${marco.dias === 1 ? 'dia' : 'dias'}</span>
+                                </div>
+                                <div style="
+                                    font-size: 0.85rem;
+                                    color: var(--text-primary);
+                                    font-weight: 500;
+                                    line-height: 1.4;
+                                ">
+                                    ${marco.inicio}<br>
+                                    <span style="color: var(--text-muted); font-size: 0.75rem;">até</span><br>
+                                    ${marco.fim}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+        
+        return html;
     }
 
     showServidorDetails(nomeServidor) {
@@ -4067,17 +5723,13 @@ class DashboardMultiPage {
             };
 
             servidor.todosOsDadosOriginais.forEach((dados) => {
-                // Coletar apenas dados não pessoais
+                // Coletar TODOS os dados da planilha (exceto apenas o nome do servidor)
                 Object.entries(dados).forEach(([key, value]) => {
                     const keyUpper = key.toUpperCase();
-                    // Pular informações pessoais e desnecessárias
+                    // Pular apenas o nome do servidor (já está no título do modal) e campos técnicos internos
                     if (!keyUpper.includes('SERVIDOR') &&
                         !keyUpper.includes('NOME') &&
-                        !keyUpper.includes('CPF') &&
-                        !keyUpper.includes('MATRÍCULA') &&
-                        !keyUpper.includes('MATRICULA') &&
-                        !keyUpper.includes('INICIO') &&
-                        !keyUpper.includes('FINAL') &&
+                        !key.startsWith('_') && // Filtrar campos técnicos como _colIndexMap
                         value && value !== '' && value !== 'undefined' && value !== 'null') {
                         dadosConsolidados.set(key, value);
                     }
@@ -4096,8 +5748,52 @@ class DashboardMultiPage {
 
             // Mostrar apenas se houver dados relevantes
             if (dadosConsolidados.size > 0 || periodos.length > 0) {
+                // Analisar quais campos variam entre registros
+                const camposPorRegistro = [];
+                servidor.todosOsDadosOriginais.forEach((dados) => {
+                    const registro = {};
+                    Object.entries(dados).forEach(([key, value]) => {
+                        const keyUpper = key.toUpperCase();
+                        if (!keyUpper.includes('SERVIDOR') &&
+                            !keyUpper.includes('NOME') &&
+                            !key.startsWith('_') && // Filtrar campos técnicos como _colIndexMap
+                            value && value !== '' && value !== 'undefined' && value !== 'null') {
+                            registro[key] = value;
+                        }
+                    });
+                    if (Object.keys(registro).length > 0) {
+                        camposPorRegistro.push(registro);
+                    }
+                });
+
+                // Identificar campos únicos vs múltiplos
+                const camposUnicos = new Map(); // campos iguais em todos
+                const camposMultiplos = new Map(); // campos diferentes
+                
+                if (camposPorRegistro.length > 0) {
+                    const todasChaves = new Set();
+                    camposPorRegistro.forEach(reg => {
+                        Object.keys(reg).forEach(k => todasChaves.add(k));
+                    });
+                    
+                    todasChaves.forEach(chave => {
+                        const valores = camposPorRegistro.map(r => r[chave]).filter(v => v);
+                        const valoresUnicos = new Set(valores.map(v => String(v)));
+                        
+                        if (valoresUnicos.size === 1) {
+                            // Campo único (igual em todos os registros)
+                            camposUnicos.set(chave, valores[0]);
+                        } else if (valoresUnicos.size > 1) {
+                            // Campo múltiplo (diferente entre registros)
+                            camposMultiplos.set(chave, valores);
+                        }
+                    });
+                }
+                
                 originalDataContent += '<div class="planilha-info">';
-                dadosConsolidados.forEach((value, key) => {
+                
+                // Renderizar campos únicos primeiro
+                camposUnicos.forEach((value, key) => {
                     originalDataContent += `
                         <div class="info-item">
                             <span class="info-label">${this.escapeHtml(key)}</span>
@@ -4105,17 +5801,112 @@ class DashboardMultiPage {
                         </div>
                     `;
                 });
+                
+                // Renderizar campos múltiplos - um info-item por campo
+                if (camposMultiplos.size > 0) {
+                    const numRegistros = camposPorRegistro.length;
+                    
+                    // Identificar INICIO e MESES para renderizar no final
+                    const campoInicio = Array.from(camposMultiplos.entries()).find(([key]) => {
+                        const keyUpper = key.toUpperCase();
+                        return keyUpper.includes('INICIO');
+                    });
+                    
+                    const campoMeses = Array.from(camposMultiplos.entries()).find(([key]) => {
+                        const keyUpper = key.toUpperCase();
+                        return keyUpper.includes('MESES') || keyUpper.includes('QUANTIDADE');
+                    });
+                    
+                    // Remover INICIO e MESES da lista temporariamente (renderizar depois)
+                    if (campoInicio) camposMultiplos.delete(campoInicio[0]);
+                    if (campoMeses) camposMultiplos.delete(campoMeses[0]);
+                    
+                    // Renderizar outros campos múltiplos PRIMEIRO
+                    camposMultiplos.forEach((valores, key) => {
+                        // Simplificar nome e adicionar ícone
+                        let label = key;
+                        let icone = '';
+                        
+                        const keyUpper = key.toUpperCase();
+                        if (keyUpper.includes('FINAL') || keyUpper.includes('FIM')) {
+                            label = 'Final';
+                            icone = '🔴';
+                        } else if (keyUpper.includes('CPF')) {
+                            icone = '🆔';
+                        } else if (keyUpper.includes('LOTAC')) {
+                            icone = '🏢';
+                        }
+                        
+                        // Agrupar valores iguais com seus índices
+                        const valoresAgrupados = new Map();
+                        valores.forEach((val, idx) => {
+                            const valStr = String(val);
+                            if (!valoresAgrupados.has(valStr)) {
+                                valoresAgrupados.set(valStr, []);
+                            }
+                            valoresAgrupados.get(valStr).push(idx + 1);
+                        });
+                        
+                        // Renderizar apenas valores únicos com seus índices inline
+                        const valoresHTML = Array.from(valoresAgrupados.entries()).map(([val, indices]) => {
+                            const indicesStr = indices.map(i => `[${i}]`).join('');
+                            return `<strong>${indicesStr}</strong> ${this.escapeHtml(val)}`;
+                        }).join(' <span class="sep">|</span> ');
+                        
+                        originalDataContent += `
+                            <div class="info-item info-item-multi">
+                                <span class="info-label">${icone} ${this.escapeHtml(label)}</span>
+                                <span class="info-value info-value-inline">${valoresHTML}</span>
+                            </div>
+                        `;
+                    });
+                    
+                    // Renderizar INICIO por último (badges visuais)
+                    if (campoInicio && campoMeses) {
+                        const [keyInicio, valoresInicio] = campoInicio;
+                        const [keyMeses, valoresMeses] = campoMeses;
+                        
+                        let periodosHTML = '<div class="periodos-badges">';
+                        valoresInicio.forEach((valorInicio, idx) => {
+                            const valorMeses = valoresMeses[idx];
+                            const mesesTexto = valorMeses == 1 ? '1 mês' : `${valorMeses} meses`;
+                            const registroNum = idx + 1;
+                            periodosHTML += `
+                                <div class="periodo-badge">
+                                    <span class="periodo-registro">Registro ${registroNum}</span>
+                                    <span class="periodo-data">${this.escapeHtml(String(valorInicio))}</span>
+                                    <span class="periodo-duracao">${mesesTexto}</span>
+                                </div>
+                            `;
+                        });
+                        periodosHTML += '</div>';
+                        
+                        originalDataContent += `
+                            <div class="info-item info-item-periodos">
+                                <span class="info-label">Períodos de Licença</span>
+                                <div class="info-value">${periodosHTML}</div>
+                            </div>
+                        `;
+                    }
+                }
+                
                 originalDataContent += '</div>';
 
-                // Mostrar períodos solicitados se houver
+                // Mostrar períodos solicitados de forma compacta
                 if (periodos.length > 0) {
                     originalDataContent += `
                         <div class="periodos-solicitados">
-                            <div class="periodos-title">Períodos Solicitados</div>
+                            <div class="periodos-title">
+                                <i class="bi bi-calendar2-range"></i> Períodos (${periodos.length})
+                            </div>
                             <div class="periodos-list">
                     `;
-                    periodos.forEach(periodo => {
-                        originalDataContent += `<span class="periodo-tag">${this.escapeHtml(periodo)}</span>`;
+                    periodos.forEach((periodo) => {
+                        originalDataContent += `
+                            <div class="periodo-tag">
+                                ${this.escapeHtml(periodo)}
+                            </div>
+                        `;
                     });
                     originalDataContent += '</div></div>';
                 }
@@ -4138,110 +5929,342 @@ class DashboardMultiPage {
         // Interpretação do Sistema
         let interpretationContent = '';
         const issues = [];
+        
+        // Adicionar aviso se cronograma não foi interpretado
+        if (servidor.avisoInterpretacao) {
+            interpretationContent += `
+                <div class="alert alert-warning" style="margin-bottom: 1rem; padding: 0.75rem; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;">
+                    <i class="bi bi-exclamation-triangle" style="color: #856404;"></i>
+                    <strong style="color: #856404;">Aviso:</strong> ${servidor.avisoInterpretacao}
+                </div>
+            `;
+        }
 
-        if (isLicencaPremio) {
-            interpretationContent = '<div class="info-grid">';
+        // Unificado: usar sempre a versão visual detalhada para ambos os tipos de planilha
+        interpretationContent = '<div class="info-grid">';
 
-            if (periodosAgrupados && periodosAgrupados.length > 0) {
-                interpretationContent += `
-                    <div class="info-label">Períodos de Licença:</div>
-                    <div class="info-value">${periodosAgrupados.length} período(s) identificado(s)</div>
-                `;
+        // Determinar qual array de licenças usar baseado no tipo
+        const licencasParaExibir = (isLicencaPremio && periodosAgrupados && periodosAgrupados.length > 0)
+            ? periodosAgrupados.map(p => ({ inicio: p.inicio, fim: p.fim }))
+            : servidor.licencas;
 
-                // Criar seção visual para cada período
-                let periodosHtml = '<div class="periods-container">';
+        // Mostrar períodos interpretados de forma detalhada
+        if (licencasParaExibir && licencasParaExibir.length > 0) {
+                // Criar cards visuais para cada período
+                interpretationContent += '<div class="periods-container" style="display: grid; grid-template-columns: 1fr; gap: 1rem;">';
 
-                periodosAgrupados.forEach((periodo, index) => {
-                    const formatoInicio = this.formatDateBR(periodo.inicio);
-                    const formatoFim = this.formatDateBR(periodo.fim);
-                    const totalLicencas = periodo.licencas.length;
-                    const licencaLabel = totalLicencas === 1 ? 'mês' : 'meses';
-
-                    periodosHtml += `
-                        <div class="period-card">
-                            <div class="period-header">
-                                <div class="period-title">
-                                    <i class="bi bi-calendar-range"></i>
-                                    Período ${index + 1}
+                licencasParaExibir.forEach((licenca, index) => {
+                    const inicio = this.formatDateBR(licenca.inicio);
+                    const fim = this.formatDateBR(licenca.fim);
+                    const dias = Math.ceil((licenca.fim - licenca.inicio) / (1000 * 60 * 60 * 24)) + 1;
+                    const meses = Math.floor(dias / 30);
+                    
+                    // Calcular os marcos de 30 em 30 dias
+                    const marcos = [];
+                    let dataAtual = new Date(licenca.inicio);
+                    let diasRestantes = dias;
+                    let marcoNum = 1;
+                    
+                    while (diasRestantes > 0) {
+                        const diasNoMarco = Math.min(30, diasRestantes);
+                        const dataFimMarco = new Date(dataAtual);
+                        dataFimMarco.setDate(dataFimMarco.getDate() + diasNoMarco - 1);
+                        
+                        marcos.push({
+                            num: marcoNum,
+                            inicio: this.formatDateBR(dataAtual),
+                            fim: this.formatDateBR(dataFimMarco),
+                            dias: diasNoMarco
+                        });
+                        
+                        dataAtual = new Date(dataFimMarco);
+                        dataAtual.setDate(dataAtual.getDate() + 1);
+                        diasRestantes -= diasNoMarco;
+                        marcoNum++;
+                    }
+                    
+                    interpretationContent += `
+                        <div class="period-card" style="
+                            background: var(--bg-primary);
+                            border: 1px solid var(--border);
+                            padding: 1rem;
+                            border-radius: 8px;
+                            transition: all 0.2s ease;
+                        ">
+                            <!-- Header único com info resumida -->
+                            <div style="
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                                margin-bottom: 1rem;
+                                padding-bottom: 0.75rem;
+                                border-bottom: 1px solid var(--border);
+                            ">
+                                <div style="font-weight: 600; color: var(--text-primary); font-size: 1rem;">
+                                    <i class="bi bi-calendar-check" style="color: var(--primary);"></i> Período ${index + 1}
                                 </div>
-                                <div class="period-count">${totalLicencas} ${licencaLabel}</div>
+                                <span style="
+                                    background-color: rgba(37, 99, 235, 0.1);
+                                    color: white;
+                                    border: 1px solid rgba(37, 99, 235, 0.2);
+                                    padding: 0.25rem 0.75rem;
+                                    border-radius: 12px;
+                                    font-size: 0.8rem;
+                                    font-weight: 600;
+                                ">
+                                    ${meses} ${meses === 1 ? 'mês' : 'meses'} (${dias} dias)
+                                </span>
                             </div>
-                            <div class="period-dates">
-                                <span class="date-range">${formatoInicio} - ${formatoFim}</span>
-                            </div>
-                            <div class="months-breakdown">
-                                ${this.gerarMesesPeriodo(periodo.licencas)}
+
+                            <!-- Timeline detalhada de 30 em 30 dias -->
+                            <div style="
+                                display: flex;
+                                flex-wrap: wrap;
+                                gap: 0.75rem;
+                                padding: 0.5rem 0;
+                            ">
+                                ${marcos.map((marco, idx) => {
+                                    const isFirst = idx === 0;
+                                    const isLast = idx === marcos.length - 1;
+                                    const progress = ((idx + 1) / marcos.length) * 100;
+                                    
+                                    // Calcular dias acumulados até este bloco
+                                    let diasAcumulados = 0;
+                                    for (let i = 0; i <= idx; i++) {
+                                        diasAcumulados += marcos[i].dias;
+                                    }
+                                    
+                                    // Definir cores e estilos baseados na posição
+                                    let accentColor, accentGlow, gradientFrom, gradientTo, icon, label;
+                                    
+                                    if (isFirst) {
+                                        accentColor = '#3b82f6';
+                                        accentGlow = 'rgba(59, 130, 246, 0.3)';
+                                        gradientFrom = 'rgba(59, 130, 246, 0.15)';
+                                        gradientTo = 'rgba(99, 102, 241, 0.05)';
+                                        icon = '🚀';
+                                        label = 'INÍCIO';
+                                    } else if (isLast) {
+                                        accentColor = '#10b981';
+                                        accentGlow = 'rgba(16, 185, 129, 0.3)';
+                                        gradientFrom = 'rgba(16, 185, 129, 0.15)';
+                                        gradientTo = 'rgba(5, 150, 105, 0.05)';
+                                        icon = '🏁';
+                                        label = 'FIM';
+                                    } else {
+                                        accentColor = '#8b5cf6';
+                                        accentGlow = 'rgba(139, 92, 246, 0.25)';
+                                        gradientFrom = 'rgba(139, 92, 246, 0.12)';
+                                        gradientTo = 'rgba(124, 58, 237, 0.05)';
+                                        icon = '⚡';
+                                        label = `BLOCO ${idx + 1}`;
+                                    }
+                                    
+                                    return `
+                                        <div style="
+                                            flex: 1 1 155px;
+                                            min-width: 155px;
+                                            max-width: 200px;
+                                            background: linear-gradient(135deg, ${gradientFrom} 0%, ${gradientTo} 50%, rgba(15, 23, 42, 0.3) 100%);
+                                            backdrop-filter: blur(10px);
+                                            border: 1.5px solid rgba(51, 65, 85, 0.5);
+                                            border-radius: 10px;
+                                            padding: 0.675rem;
+                                            position: relative;
+                                            overflow: hidden;
+                                            transition: all 0.3s ease;
+                                            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+                                        " onmouseover="this.style.borderColor='${accentColor}'; this.style.transform='translateY(-4px) scale(1.02)'; this.style.boxShadow='0 8px 20px ${accentGlow}'" onmouseout="this.style.borderColor='rgba(51, 65, 85, 0.5)'; this.style.transform=''; this.style.boxShadow='0 2px 8px rgba(0, 0, 0, 0.2)'">
+                                            
+                                            <!-- Brilho decorativo superior -->
+                                            <div style="
+                                                position: absolute;
+                                                top: 0;
+                                                left: 0;
+                                                right: 0;
+                                                height: 3px;
+                                                background: linear-gradient(90deg, transparent 0%, ${accentColor} 50%, transparent 100%);
+                                                opacity: 0.8;
+                                            "></div>
+                                            
+                                            <!-- Header com ícone e badge -->
+                                            <div style="
+                                                display: flex;
+                                                align-items: center;
+                                                justify-content: space-between;
+                                                margin-bottom: 0.75rem;
+                                            ">
+                                                <div style="
+                                                    display: flex;
+                                                    align-items: center;
+                                                ">
+                                                    <span style="
+                                                        font-size: 1.5rem;
+                                                        filter: drop-shadow(0 0 8px ${accentGlow});
+                                                    ">${icon}</span>
+                                                    <div style="
+                                                        font-size: 0.7rem;
+                                                        color: ${accentColor};
+                                                        font-weight: 800;
+                                                        text-transform: uppercase;
+                                                        letter-spacing: 0.8px;
+                                                        text-shadow: 0 0 10px ${accentGlow};
+                                                    ">${label}</div>
+                                                </div>
+                                                <div style="
+                                                    background: linear-gradient(135deg, ${accentColor} 0%, ${accentColor}dd 100%);
+                                                    color: white;
+                                                    padding: 0.3rem 0.65rem;
+                                                    border-radius: 6px;
+                                                    font-size: 0.85rem;
+                                                    font-weight: 900;
+                                                    box-shadow: 0 2px 8px ${accentGlow}, 0 0 20px ${accentGlow};
+                                                    border: 1px solid ${accentColor}aa;
+                                                ">${diasAcumulados}<span style="font-size: 0.7rem; opacity: 0.9;">d</span></div>
+                                            </div>
+                                            
+                                            <!-- Box de datas com design destacado -->
+                                            <div style="
+                                                background: linear-gradient(135deg, rgba(15, 23, 42, 0.6) 0%, rgba(30, 41, 59, 0.4) 100%);
+                                                border-radius: 8px;
+                                                padding: 0.75rem 0.5rem;
+                                                margin-bottom: 0.625rem;
+                                                border: 1px solid ${accentColor}40;
+                                                position: relative;
+                                                overflow: hidden;
+                                            ">
+                                                <!-- Brilho de fundo -->
+                                                <div style="
+                                                    position: absolute;
+                                                    top: 50%;
+                                                    left: 50%;
+                                                    transform: translate(-50%, -50%);
+                                                    width: 60px;
+                                                    height: 60px;
+                                                    background: radial-gradient(circle, ${accentGlow} 0%, transparent 70%);
+                                                    pointer-events: none;
+                                                "></div>
+                                                
+                                                <div style="
+                                                    display: flex;
+                                                    flex-direction: column;
+                                                    align-items: center;
+                                                    gap: 0.5rem;
+                                                    font-family: 'Courier New', monospace;
+                                                    position: relative;
+                                                    z-index: 1;
+                                                ">
+                                                    <div style="
+                                                        white-space: nowrap;
+                                                        overflow: hidden;
+                                                        text-overflow: ellipsis;
+                                                        max-width: 100%;
+                                                        font-size: 0.8rem;
+                                                        color: #f1f5f9;
+                                                        font-weight: 800;
+                                                        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+                                                    ">${marco.inicio}</div>
+                                                    
+                                                    <div style="
+                                                        color: ${accentColor};
+                                                        font-size: 1.25rem;
+                                                        font-weight: 900;
+                                                        text-shadow: 0 0 12px ${accentGlow}, 0 0 24px ${accentGlow};
+                                                        line-height: 1;
+                                                    ">↓</div>
+                                                    
+                                                    <div style="
+                                                        white-space: nowrap;
+                                                        overflow: hidden;
+                                                        text-overflow: ellipsis;
+                                                        max-width: 100%;
+                                                        font-size: 0.8rem;
+                                                        color: #f1f5f9;
+                                                        font-weight: 800;
+                                                        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+                                                    ">${marco.fim}</div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Barra de progresso com efeito neon -->
+                                            <div style="
+                                                height: 4px;
+                                                background: rgba(30, 41, 59, 0.6);
+                                                border-radius: 3px;
+                                                overflow: hidden;
+                                                position: relative;
+                                                box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+                                            ">
+                                                <div style="
+                                                    width: ${progress}%;
+                                                    height: 100%;
+                                                    background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #10b981 100%);
+                                                    box-shadow: 0 0 10px ${accentGlow}, 0 0 20px ${accentGlow};
+                                                    border-radius: 3px;
+                                                    transition: width 0.6s ease;
+                                                    position: relative;
+                                                ">
+                                                    <!-- Brilho animado -->
+                                                    <div style="
+                                                        position: absolute;
+                                                        top: 0;
+                                                        left: 0;
+                                                        right: 0;
+                                                        height: 100%;
+                                                        background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+                                                    "></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
                             </div>
                         </div>
                     `;
                 });
+                
+                interpretationContent += '</div>';
+        } else {
+            // Nenhuma licença encontrada
+            interpretationContent += `
+                <div class="info-label">Status:</div>
+                <div class="info-value warning" style="color: #d97706;">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    ${isLicencaPremio ? 'Nenhuma licença processada pelo sistema' : 'Nenhuma licença identificada no cronograma'}
+                </div>
+            `;
 
-                periodosHtml += '</div>';
-                interpretationContent += periodosHtml;
-
-            } else {
-                interpretationContent += `
-                    <div class="info-label">Status:</div>
-                    <div class="info-value warning">Nenhuma licença processada pelo sistema</div>
-                `;
+            if (isLicencaPremio) {
                 issues.push({
                     title: 'Nenhuma licença identificada',
                     description: 'O sistema não conseguiu interpretar ou encontrar informações de licenças nos dados fornecidos.'
                 });
             }
-            interpretationContent += '</div>';
-        } else {
-            interpretationContent = '<div class="info-grid">';
-
-            if (servidor.cronograma) {
-                interpretationContent += `
-                    <div class="info-label">Cronograma:</div>
-                    <div class="info-value highlight">${this.escapeHtml(servidor.cronograma)}</div>
-                `;
-            }
-
-            if (servidor.tempoContribuicao) {
-                interpretationContent += `
-                    <div class="info-label">Tempo de Contribuição:</div>
-                    <div class="info-value">${this.escapeHtml(servidor.tempoContribuicao)}</div>
-                `;
-            }
-
-            if (servidor.tempoServico) {
-                interpretationContent += `
-                    <div class="info-label">Tempo de Serviço:</div>
-                    <div class="info-value">${this.escapeHtml(servidor.tempoServico)}</div>
-                `;
-            }
-
-            if (servidor.nivelUrgencia) {
-                const urgencyClass = this.getUrgencyClass(servidor.nivelUrgencia);
-                interpretationContent += `
-                    <div class="info-label">Nível de Urgência:</div>
-                    <div class="info-value">
-                        <span class="status-badge ${urgencyClass}">${this.escapeHtml(servidor.nivelUrgencia)}</span>
-                    </div>
-                `;
-
-                // Verificar se a urgência é alta sem dados suficientes
-                if ((servidor.nivelUrgencia === 'Crítico' || servidor.nivelUrgencia === 'Alto') &&
-                    (!servidor.tempoContribuicao || !servidor.tempoServico)) {
-                    issues.push({
-                        title: 'Urgência alta com dados incompletos',
-                        description: 'O sistema classificou como urgência alta, mas pode estar faltando dados de tempo de contribuição ou serviço.'
-                    });
-                }
-            }
-
-            if (servidor.proximaLicenca) {
-                interpretationContent += `
-                    <div class="info-label">Próxima Licença:</div>
-                    <div class="info-value highlight">${this.escapeHtml(servidor.proximaLicenca)}</div>
-                `;
-            }
-
-            interpretationContent += '</div>';
         }
+
+        // Informações adicionais (tempo de contribuição, serviço, próxima licença)
+        if (servidor.tempoContribuicao) {
+            interpretationContent += `
+                <div class="info-label">Tempo de Contribuição:</div>
+                <div class="info-value">${this.escapeHtml(servidor.tempoContribuicao)}</div>
+            `;
+        }
+
+        if (servidor.tempoServico) {
+            interpretationContent += `
+                <div class="info-label">Tempo de Serviço:</div>
+                <div class="info-value">${this.escapeHtml(servidor.tempoServico)}</div>
+            `;
+        }
+
+        if (servidor.proximaLicenca) {
+            interpretationContent += `
+                <div class="info-label">Próxima Licença:</div>
+                <div class="info-value highlight">${this.escapeHtml(servidor.proximaLicenca)}</div>
+            `;
+        }
+
+        interpretationContent += '</div>';
 
         // Preencher conteúdos do modal
         const originalDataElement = document.getElementById('originalDataContent');
@@ -4257,6 +6280,12 @@ class DashboardMultiPage {
 
         originalDataElement.innerHTML = originalDataContent;
         interpretationElement.innerHTML = interpretationContent;
+
+        // Atualizar badge do header de interpretação com quantidade de períodos
+        const interpretationBadge = document.querySelector('#interpretationSection .section-badge');
+        if (interpretationBadge && servidor.licencas) {
+            interpretationBadge.textContent = `${servidor.licencas.length} ${servidor.licencas.length === 1 ? 'período' : 'períodos'}`;
+        }
 
         // Secção de problemas identificados
         const issuesSection = document.getElementById('issuesSection');
@@ -4276,21 +6305,29 @@ class DashboardMultiPage {
             }
         }
 
-    // Atualizar título do modal - apenas o nome do servidor
+    // Atualizar título do modal - nome do servidor + badge de urgência
         const modalTitle = document.getElementById('modalTitle');
         if (!modalTitle) {
             console.error('Elemento de título do modal não encontrado');
             return;
         }
-        modalTitle.textContent = servidor.nome;
+        
+        // Criar HTML do título com badge de urgência se existir
+        let titleHTML = `<span>${servidor.nome}</span>`;
+        if (servidor.nivelUrgencia) {
+            const urgencyClass = this.getUrgencyClass(servidor.nivelUrgencia);
+            const urgencyClassFull = `urgency-badge ${urgencyClass}`;
+            titleHTML += ` <span class="${urgencyClassFull}" style="margin-left: 0.5rem; font-size: 0.7rem;">${this.escapeHtml(servidor.nivelUrgencia)}</span>`;
+        }
+        modalTitle.innerHTML = titleHTML;
 
     // Exibir modal
-        const detailsModal = document.getElementById('detailsModal');
+        const detailsModal = document.getElementById('modal') || document.getElementById('detailsModal');
         if (!detailsModal) {
             console.error('Modal de detalhes não encontrado');
             return;
         }
-        detailsModal.classList.add('show');
+        this._openModalElement(detailsModal);
     }
 
     getUrgencyClass(urgencia) {
@@ -4518,49 +6555,62 @@ class DashboardMultiPage {
             statLabel.textContent = isLicencaPremio ? 'Licenças Prêmio' : 'Licenças Futuras';
         }
 
-    // Atualizar cards com base no tipo de tabela
-        if (isLicencaPremio) {
-            this.updateCargoCards();
-        } else {
-            this.updateUrgencyCards();
-        }
+    // SEMPRE atualizar cards com níveis de urgência (independente do tipo de tabela)
+    this.updateUrgencyCards();
     }
 
     updateUrgencyCards() {
-        // Calcular licenças ativas
-        const licensasAtivas = this.allServidores.reduce((total, servidor) => {
-            const licensasAtivasServidor = servidor.licencas.filter(licenca => {
-                const licenseStart = licenca.inicio;
-                // Calcular data de término padrão se não fornecida
-                let licenseEnd = licenca.fim;
-                if (!licenseEnd) {
-                    const nextMonth = new Date(licenseStart);
-                    nextMonth.setMonth(nextMonth.getMonth() + 1);
-                    nextMonth.setDate(nextMonth.getDate() - 1);
-                    licenseEnd = nextMonth;
+        // Calcular distribuição de urgência baseado em critérios:
+        // - CRÍTICO: licenças terminam ≤ 2 anos antes da aposentadoria
+        // - ALTO: licenças terminam entre 2-5 anos antes
+        // - MODERADO: licenças terminam > 5 anos antes
+        // - BAIXO: sem urgência (aposentadoria distante ou sem licenças)
+        
+        const urgencyCounts = {
+            'Crítico': 0,
+            'Alto': 0,
+            'Moderado': 0,
+            'Baixo': 0
+        };
+        
+        this.filteredServidores.forEach(servidor => {
+            // Se servidor já tem nível de urgência calculado, usar
+            if (servidor.nivelUrgencia) {
+                const nivel = servidor.nivelUrgencia.toLowerCase();
+                if (nivel.includes('crítico') || nivel.includes('critico')) urgencyCounts['Crítico']++;
+                else if (nivel.includes('alto')) urgencyCounts['Alto']++;
+                else if (nivel.includes('moderado')) urgencyCounts['Moderado']++;
+                else urgencyCounts['Baixo']++;
+            } else {
+                // Calcular baseado nas licenças e idade
+                const ultimaLicenca = servidor.licencas && servidor.licencas.length > 0 
+                    ? servidor.licencas[servidor.licencas.length - 1].fim 
+                    : null;
+                    
+                if (!ultimaLicenca) {
+                    urgencyCounts['Baixo']++;
+                } else {
+                    // Estimar aposentadoria (simplificado: 65 anos para homens, 62 para mulheres)
+                    const idadeAposentadoria = (servidor.sexo === 'M' || servidor.sexo === 'MASC') ? 65 : 62;
+                    const anoNascimento = new Date().getFullYear() - Math.floor(servidor.idade || 0);
+                    const anoAposentadoria = anoNascimento + idadeAposentadoria;
+                    const dataAposentadoria = new Date(anoAposentadoria, 0, 1);
+                    
+                    const anosEntreLicencaEAposentadoria = (dataAposentadoria - ultimaLicenca) / (365 * 24 * 60 * 60 * 1000);
+                    
+                    if (anosEntreLicencaEAposentadoria <= 2) urgencyCounts['Crítico']++;
+                    else if (anosEntreLicencaEAposentadoria <= 5) urgencyCounts['Alto']++;
+                    else if (anosEntreLicencaEAposentadoria > 5) urgencyCounts['Moderado']++;
+                    else urgencyCounts['Baixo']++;
                 }
-
-                const hoje = new Date();
-                hoje.setHours(0, 0, 0, 0);
-
-                // Vrificar se a licença está ativa no período atual
-                return hoje >= licenseStart && hoje <= licenseEnd;
-            }).length;
-
-            return total + licensasAtivasServidor;
-        }, 0);
-
-    // Atualizar contagens de urgência nos cards (dados estáticos)
-        const urgencyData = this.getStaticUrgencyData();
-        const urgencyKeys = ['critical', 'high', 'moderate', 'low'];
-        const urgencyLabels = ['Crítico', 'Alto', 'Moderado', 'Baixo'];
-
-        urgencyKeys.forEach((key, index) => {
-            const countElement = document.getElementById(`${key}Count`);
-            if (countElement) {
-                countElement.textContent = urgencyData.counts[urgencyLabels[index]] || 0;
             }
         });
+
+        // Atualizar contagens nos cards
+        document.getElementById('criticalCount').textContent = urgencyCounts['Crítico'];
+        document.getElementById('highCount').textContent = urgencyCounts['Alto'];
+        document.getElementById('moderateCount').textContent = urgencyCounts['Moderado'];
+        // Baixo não tem card próprio, mas podemos calcular se necessário
     }
 
     updateCargoCards() {
@@ -4614,14 +6664,16 @@ class DashboardMultiPage {
     }
 
     updateLastUpdate() {
+        const lastUpdateElement = document.getElementById('lastUpdate');
+        if (!lastUpdateElement) return; // Elemento removido do header redesenhado
+
         const now = new Date();
-        document.getElementById('lastUpdate').textContent =
-            now.toLocaleString('pt-BR', {
-                day: '2-digit',
-                month: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+        lastUpdateElement.textContent = now.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     }
 
     showModal(title, content, modalClass = '') {
@@ -4644,59 +6696,143 @@ class DashboardMultiPage {
                 }
             }
 
-            if (modal) modal.classList.add('show');
+            if (modal) {
+                this._openModalElement(modal);
+            }
         }
     }
 
     closeModal() {
     // Fechar modal de detalhes
-        document.getElementById('detailsModal').classList.remove('show');
+        const modal = document.getElementById('modal') || document.getElementById('detailsModal');
+        if (modal) this._closeModalElement(modal);
     }
 
     showProblemsModal() {
-    // Abrir modal de problemas carregamento
-        const modal = document.getElementById('problemsModal');
-        const content = document.getElementById('problemsContent');
-
-        if (this.loadingProblems.length === 0) {
-            content.innerHTML = `
-                <div class="no-problems">
-                    <i class="bi bi-check-circle" style="font-size: 2rem; color: var(--success); margin-bottom: 0.5rem;"></i>
-                    <p>Nenhum problema encontrado durante o carregamento dos dados.</p>
-                </div>
-            `;
+        // Usar ErrorReporter se disponível, senão usar modal básico
+        if (this.errorReporter && this.loadingProblems.length > 0) {
+            this.errorReporter.showProblemsModal(this.loadingProblems, this.allServidores);
         } else {
-            content.innerHTML = this.loadingProblems.map(problem => `
-                <div class="problem-item">
-                    <i class="bi bi-exclamation-triangle problem-icon"></i>
-                    <div class="problem-details">
-                        <h4 class="problem-name">${this.escapeHtml(problem.name || 'Servidor desconhecido')}</h4>
-                        <p class="problem-error">${this.escapeHtml(problem.error || 'Erro desconhecido')}</p>
-                        ${problem.details ? `<pre class="problem-details-pre">${this.escapeHtml(problem.details)}</pre>` : ''}
-                    </div>
-                </div>
-            `).join('');
-        }
+            // Fallback para modal básico se ErrorReporter não estiver disponível
+            const modal = document.getElementById('problemsModal');
+            const content = document.getElementById('problemsContent');
 
-        if (modal) modal.classList.add('show');
+            if (this.loadingProblems.length === 0) {
+                content.innerHTML = `
+                    <div class="no-problems">
+                        <i class="bi bi-check-circle" style="font-size: 2rem; color: var(--success); margin-bottom: 0.5rem;"></i>
+                        <p>Nenhum problema encontrado durante o carregamento dos dados.</p>
+                    </div>
+                `;
+            } else {
+                content.innerHTML = this.loadingProblems.map(problem => `
+                    <div class="problem-item">
+                        <i class="bi bi-exclamation-triangle problem-icon"></i>
+                        <div class="problem-details">
+                            <h4 class="problem-name">${this.escapeHtml(problem.name || 'Servidor desconhecido')}</h4>
+                            <p class="problem-error">${this.escapeHtml(problem.error || 'Erro desconhecido')}</p>
+                            ${problem.details ? `<pre class="problem-details-pre">${this.escapeHtml(problem.details)}</pre>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            if (modal) this._openModalElement(modal);
+        }
     }
 
     closeProblemsModal() {
-    // Fechar modal de problemas
-        const modal = document.getElementById('problemsModal');
-        if (modal) modal.classList.remove('show');
+        // Usar ErrorReporter se disponível, senão usar modal básico
+        if (this.errorReporter) {
+            this.errorReporter.closeModal();
+        } else {
+            // Fallback para modal básico
+            const modal = document.getElementById('problemsModal');
+            if (modal) this._closeModalElement(modal);
+        }
     }
 
     closeTimelineModal() {
     // Fechar modal da timeline
         const modal = document.getElementById('timelineModal');
-        if (modal) modal.classList.remove('show');
+        if (modal) this._closeModalElement(modal);
     }
 
     closePeriodStatsModal() {
     // Fechar modal de estatísticas do período
         const modal = document.getElementById('periodStatsModal');
-        if (modal) modal.classList.remove('show');
+        if (modal) this._closeModalElement(modal);
+    }
+
+    // Helpers para abrir/fechar modais com gerenciamento de foco e focus-trap
+    _openModalElement(modal) {
+        if (!modal) return;
+        try {
+            // salvar foco anterior
+            this._previousFocus = document.activeElement;
+        } catch (e) {
+            this._previousFocus = null;
+        }
+
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        modal.setAttribute('tabindex', '-1');
+
+        // focar primeiro elemento focável ou o próprio modal
+        const firstFocusable = modal.querySelector('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (firstFocusable && typeof firstFocusable.focus === 'function') {
+            firstFocusable.focus();
+        } else {
+            try { modal.focus(); } catch (e) {}
+        }
+
+        // ativar focus trap
+        this._enableFocusTrap(modal);
+    }
+
+    _closeModalElement(modal) {
+        if (!modal) return;
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        this._disableFocusTrap();
+        // restaurar foco
+        if (this._previousFocus && typeof this._previousFocus.focus === 'function') {
+            try { this._previousFocus.focus(); } catch (e) {}
+        }
+    }
+
+    _enableFocusTrap(modal) {
+        if (!modal) return;
+        this._focusTrapHandler = (e) => {
+            if (e.key !== 'Tab') return;
+            const focusable = Array.from(modal.querySelectorAll('a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'))
+                .filter(el => el.offsetParent !== null);
+            if (focusable.length === 0) {
+                e.preventDefault();
+                return;
+            }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (e.shiftKey) {
+                if (document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                }
+            } else {
+                if (document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
+        };
+        document.addEventListener('keydown', this._focusTrapHandler);
+    }
+
+    _disableFocusTrap() {
+        if (this._focusTrapHandler) {
+            document.removeEventListener('keydown', this._focusTrapHandler);
+            this._focusTrapHandler = null;
+        }
     }
 
     addLoadingProblem(name, error, details) {
@@ -4739,6 +6875,79 @@ class DashboardMultiPage {
                 errorCard.setAttribute('title', 'Nenhum problema');
             }
         }
+
+        // Atualizar badge de qualidade dos dados
+        this.updateDataQualityBadge();
+    }
+
+    /**
+     * Atualiza o badge de qualidade dos dados no header
+     */
+    updateDataQualityBadge() {
+        if (!this.validationManager) return;
+
+        const badge = document.getElementById('dataQualityBadge');
+        const scoreValue = document.getElementById('qualityScoreValue');
+        const qualityIcon = document.getElementById('qualityIcon');
+
+        if (!badge || !scoreValue || !qualityIcon) return;
+
+        // Se não há servidores, esconder badge
+        if (!this.allServidores || this.allServidores.length === 0) {
+            badge.style.display = 'none';
+            return;
+        }
+
+        // Calcular score de qualidade
+        const qualityResult = this.validationManager.calculateDataQualityScore(
+            this.allServidores,
+            this.loadingProblems
+        );
+
+        const score = qualityResult.score;
+
+        // Atualizar valor
+        scoreValue.textContent = `${score}%`;
+
+        // Determinar categoria de qualidade
+        let category = 'poor';
+        let iconClass = 'bi-shield-x';
+        let tooltipText = '';
+
+        if (score >= 90) {
+            category = 'excellent';
+            iconClass = 'bi-shield-check';
+            tooltipText = `Excelente (${score}%) - Completude: ${qualityResult.breakdown.completeness}%, Validade: ${qualityResult.breakdown.validity}%, Consistência: ${qualityResult.breakdown.consistency}%`;
+        } else if (score >= 75) {
+            category = 'good';
+            iconClass = 'bi-shield-fill-check';
+            tooltipText = `Bom (${score}%) - Completude: ${qualityResult.breakdown.completeness}%, Validade: ${qualityResult.breakdown.validity}%, Consistência: ${qualityResult.breakdown.consistency}%`;
+        } else if (score >= 60) {
+            category = 'fair';
+            iconClass = 'bi-shield-exclamation';
+            tooltipText = `Regular (${score}%) - Completude: ${qualityResult.breakdown.completeness}%, Validade: ${qualityResult.breakdown.validity}%, Consistência: ${qualityResult.breakdown.consistency}%`;
+        } else {
+            category = 'poor';
+            iconClass = 'bi-shield-x';
+            tooltipText = `Ruim (${score}%) - Completude: ${qualityResult.breakdown.completeness}%, Validade: ${qualityResult.breakdown.validity}%, Consistência: ${qualityResult.breakdown.consistency}%`;
+        }
+
+        // Limpar classes antigas
+        scoreValue.className = 'quality-score';
+        qualityIcon.className = 'quality-icon';
+
+        // Adicionar nova classe
+        scoreValue.classList.add(category);
+        qualityIcon.classList.add(category);
+
+        // Atualizar ícone
+        qualityIcon.innerHTML = `<i class="bi ${iconClass}"></i>`;
+
+        // Adicionar tooltip
+        badge.setAttribute('data-tooltip', tooltipText);
+
+        // Mostrar badge
+        badge.style.display = 'flex';
     }
 
     // Função utilitária para escapar HTML e prevenir XSS
@@ -4750,6 +6959,159 @@ class DashboardMultiPage {
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
+    }
+
+    /**
+     * Diagnostica erro de importação e retorna mensagem explicativa
+     */
+    diagnosticarErroImportacao(error) {
+        const errorMsg = error.message.toLowerCase();
+        
+        // Nenhum servidor encontrado
+        if (errorMsg.includes('nenhum servidor foi encontrado')) {
+            return 'Arquivo incompatível - Este não parece ser um arquivo de licenças. Verifique se o CSV tem as colunas: SERVIDOR, CRONOGRAMA (ou INICIO/FINAL para licença prêmio)';
+        }
+        
+        // Arquivo vazio
+        if (errorMsg.includes('vazio') || errorMsg.includes('empty') || errorMsg.includes('sem conteúdo')) {
+            return 'Arquivo vazio - Verifique se o arquivo contém dados';
+        }
+        
+        // Não parece CSV
+        if (errorMsg.includes('não parece ser um csv')) {
+            return 'Formato incorreto - O arquivo não parece ser um CSV. Certifique-se de exportar como CSV (separado por vírgulas)';
+        }
+        
+        // Percentual baixo de válidos
+        if (errorMsg.includes('% dos registros')) {
+            return 'Arquivo suspeito - ' + error.message + '. Este provavelmente não é um arquivo de licenças';
+        }
+        
+        // Colunas obrigatórias faltando
+        if (errorMsg.includes('colunas obrigatórias') || errorMsg.includes('required')) {
+            return 'Colunas obrigatórias ausentes - Verifique se o arquivo tem as colunas SERVIDOR e CRONOGRAMA (ou INICIO/FINAL para licença prêmio)';
+        }
+        
+        // Arquivo sem dados suficientes
+        if (errorMsg.includes('pelo menos uma linha')) {
+            return 'Arquivo sem dados - O CSV deve ter pelo menos uma linha de cabeçalho e uma linha de dados';
+        }
+        
+        // Nenhum servidor válido
+        if (errorMsg.includes('nenhum servidor válido')) {
+            return 'Dados inválidos - A coluna SERVIDOR não contém nomes válidos. Verifique se este é o arquivo correto';
+        }
+        
+        // Formato inválido
+        if (errorMsg.includes('formato') || errorMsg.includes('parse')) {
+            return 'Formato de arquivo inválido - Verifique se é um CSV válido com vírgulas separando as colunas';
+        }
+        
+        // Encoding
+        if (errorMsg.includes('encoding') || errorMsg.includes('charset')) {
+            return 'Problema de codificação - Salve o arquivo como CSV UTF-8';
+        }
+        
+        // Erro genérico
+        return error.message;
+    }
+
+    /**
+     * Mostra notificação de importação com resumo de problemas
+     */
+    showImportNotification(type, message, fileName) {
+        // Remover notificação anterior se existir
+        const existingNotification = document.querySelector('.import-notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+
+        // Criar notificação
+        const notification = document.createElement('div');
+        notification.className = `import-notification ${type}`;
+        
+        const icon = type === 'error' ? 'bi-exclamation-circle' : 
+                     type === 'warning' ? 'bi-exclamation-triangle' : 
+                     type === 'success' ? 'bi-check-circle' : 'bi-info-circle';
+        
+        const title = type === 'error' ? 'Erro na Importação' :
+                     type === 'warning' ? 'Aviso de Importação' :
+                     type === 'success' ? 'Importação Concluída' : 'Informação';
+        
+        notification.innerHTML = `
+            <div class="import-notification-header">
+                <i class="bi ${icon}"></i>
+                <h4>${title}</h4>
+                <button class="import-notification-close" onclick="this.parentElement.parentElement.remove()">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="import-notification-body">
+                <p><strong>Arquivo:</strong> ${this.escapeHtml(fileName)}</p>
+                <p><strong>Problema:</strong> ${this.escapeHtml(message)}</p>
+                ${this.loadingProblems.length > 0 ? `
+                    <p class="notification-problems-link">
+                        <i class="bi bi-list-ul"></i>
+                        <a href="#" onclick="event.preventDefault(); document.getElementById('errorCard')?.click();">
+                            Ver ${this.loadingProblems.length} problema${this.loadingProblems.length > 1 ? 's' : ''} detectado${this.loadingProblems.length > 1 ? 's' : ''}
+                        </a>
+                    </p>
+                ` : ''}
+            </div>
+        `;
+
+        document.body.appendChild(notification);
+
+        // Animar entrada
+        setTimeout(() => notification.classList.add('show'), 10);
+
+        // Remover automaticamente após 8 segundos (mais tempo para erro)
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, type === 'error' ? 8000 : 5000);
+    }
+
+    /**
+     * Mostra notificação de sucesso com resumo
+     */
+    showImportSuccessNotification(fileName, servidoresCount, problemsCount) {
+        const notification = document.createElement('div');
+        notification.className = 'import-notification success';
+        
+        notification.innerHTML = `
+            <div class="import-notification-header">
+                <i class="bi bi-check-circle"></i>
+                <h4>Importação Concluída</h4>
+                <button class="import-notification-close" onclick="this.parentElement.parentElement.remove()">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="import-notification-body">
+                <p><strong>Arquivo:</strong> ${this.escapeHtml(fileName)}</p>
+                <p><strong>Servidores carregados:</strong> ${servidoresCount}</p>
+                ${problemsCount > 0 ? `
+                    <p class="notification-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        ${problemsCount} registro${problemsCount > 1 ? 's' : ''} com problema${problemsCount > 1 ? 's' : ''}
+                        <a href="#" onclick="event.preventDefault(); document.getElementById('errorCard')?.click();">Ver detalhes</a>
+                    </p>
+                ` : `
+                    <p class="notification-success-text">
+                        <i class="bi bi-check2"></i>
+                        Todos os registros foram importados com sucesso!
+                    </p>
+                `}
+            </div>
+        `;
+
+        document.body.appendChild(notification);
+        setTimeout(() => notification.classList.add('show'), 10);
+
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, 6000);
     }
 
     showLoading(message = 'Carregando...') {
@@ -4781,7 +7143,7 @@ class DashboardMultiPage {
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
 
         if (isLicencaPremio) {
-            this.applyLicencaFilters();
+            this.applyAllFilters();
         } else {
             this.applyAllFilters();
             this.updateActiveFilters();
@@ -4803,7 +7165,7 @@ class DashboardMultiPage {
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
 
         if (isLicencaPremio) {
-            this.applyLicencaFilters();
+            this.applyAllFilters();
         } else {
             this.applyAllFilters();
             this.updateActiveFilters();
@@ -4937,13 +7299,35 @@ class DashboardMultiPage {
             period: { type: 'yearly', start: 2025, end: 2028 },
             search: '',
             urgency: '',
+            cargo: '',
             selectedData: null
         };
 
-        // Resetar campos de entrada
-        document.getElementById('searchInput').value = '';
-        document.getElementById('minAge').value = 18;
-        document.getElementById('maxAge').value = 70;
+        // Resetar campos de entrada (com verificação)
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        
+        const headerSearchInput = document.getElementById('headerSearchInput');
+        if (headerSearchInput) {
+            headerSearchInput.value = '';
+        }
+        
+        const minAge = document.getElementById('minAge');
+        if (minAge) {
+            minAge.value = 18;
+        }
+        
+        const maxAge = document.getElementById('maxAge');
+        if (maxAge) {
+            maxAge.value = 70;
+        }
+        
+        const headerAgeFilter = document.getElementById('headerAgeFilter');
+        if (headerAgeFilter) {
+            headerAgeFilter.value = 'all';
+        }
 
         // resetar filtro de mês se existir
         try {
@@ -4956,7 +7340,15 @@ class DashboardMultiPage {
         } catch (e) {
         }
 
-        this.currentFilters.cargo = '';
+        // Limpar filtros avançados
+        if (this.advancedFilterManager && typeof this.advancedFilterManager.clearAll === 'function') {
+            this.advancedFilterManager.clearAll();
+        }
+
+        // Limpar destaques visuais
+        document.querySelectorAll('.legend-item.selected, .legend-card.active, .stat-card.active').forEach(el => {
+            el.classList.remove('selected', 'active');
+        });
 
         document.querySelectorAll('.btn-preset').forEach(btn => {
             btn.classList.remove('active');
@@ -4966,12 +7358,16 @@ class DashboardMultiPage {
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
 
         if (isLicencaPremio) {
-            this.applyLicencaFilters();
+            this.applyAllFilters();
         } else {
             this.applyTableFilter();
         }
 
         this.updateActiveFilters();
+        this.updateFiltersBadge();
+        
+        // Feedback visual
+        this.showToast('Todos os filtros foram removidos', 'success');
     }
 
     updateActiveFilters() {
@@ -5039,7 +7435,1321 @@ class DashboardMultiPage {
             filteredElement.textContent = this.filteredServidores.length;
         }
     }
+
+    // ==================== MÉTODOS DE NOTIFICAÇÕES ====================
+
+    /**
+     * Processa upload de arquivo de notificações
+     */
+    async handleNotificationsUpload(file) {
+        try {
+            const reader = new FileReader();
+            
+            reader.onload = async (e) => {
+                try {
+                    const csvData = e.target.result;
+                    
+                    // Processar notificações usando o parser
+                    this.notificacoes = this.parser.processarNotificacoes(csvData);
+                    this.filteredNotificacoes = [...this.notificacoes];
+                    
+                    // Atualizar interface
+                    this.updateNotificationsStats();
+                    this.renderNotificationsTable();
+                    
+                    // Mostrar mensagem de sucesso
+                    this.showImportNotification('success', 
+                        `${this.notificacoes.length} notificações carregadas com sucesso`, 
+                        file.name
+                    );
+                    
+                } catch (error) {
+                    console.error('Erro ao processar notificações:', error);
+                    this.showImportNotification('error', 
+                        error.message || 'Erro ao processar arquivo de notificações', 
+                        file.name
+                    );
+                }
+            };
+            
+            reader.onerror = () => {
+                this.showImportNotification('error', 
+                    'Erro ao ler o arquivo', 
+                    file.name
+                );
+            };
+            
+            reader.readAsText(file, 'UTF-8');
+            
+        } catch (error) {
+            console.error('Erro no upload de notificações:', error);
+            this.showImportNotification('error', 
+                'Erro ao fazer upload do arquivo', 
+                file.name
+            );
+        }
+    }
+
+    /**
+     * Atualiza os cards de estatísticas de notificações
+     */
+    updateNotificationsStats() {
+        const total = this.notificacoes.length;
+        const respondidos = this.notificacoes.filter(n => n.status === 'respondeu').length;
+        const pendentes = this.notificacoes.filter(n => n.status === 'pendente').length;
+        const taxaResposta = total > 0 ? Math.round((respondidos / total) * 100) : 0;
+        
+        // Atualizar cards
+        const totalEl = document.getElementById('totalNotificacoesCount');
+        const respondidosEl = document.getElementById('respondidosCount');
+        const pendentesEl = document.getElementById('pendentesCount');
+        const taxaEl = document.getElementById('taxaRespostaCount');
+        
+        if (totalEl) totalEl.textContent = total;
+        if (respondidosEl) respondidosEl.textContent = respondidos;
+        if (pendentesEl) pendentesEl.textContent = pendentes;
+        if (taxaEl) taxaEl.textContent = `${taxaResposta}%`;
+    }
+
+    /**
+     * Filtra notificações baseado nos filtros ativos
+     */
+    filterNotifications() {
+        const searchTerm = document.getElementById('notificationsSearchInput')?.value.toLowerCase() || '';
+        const statusFilter = document.getElementById('statusFilter')?.value || 'all';
+        
+        this.filteredNotificacoes = this.notificacoes.filter(notif => {
+            // Filtro de busca
+            const matchesSearch = !searchTerm || 
+                notif.interessado.toLowerCase().includes(searchTerm) ||
+                notif.processo.toLowerCase().includes(searchTerm) ||
+                notif.lotacao.toLowerCase().includes(searchTerm);
+            
+            // Filtro de status
+            const matchesStatus = statusFilter === 'all' || notif.status === statusFilter;
+            
+            return matchesSearch && matchesStatus;
+        });
+        
+        this.renderNotificationsTable();
+    }
+
+    /**
+     * Renderiza a tabela de notificações
+     */
+    renderNotificationsTable() {
+        const tbody = document.getElementById('notificationsTableBody');
+        if (!tbody) return;
+        
+        if (this.filteredNotificacoes.length === 0) {
+            tbody.innerHTML = `
+                <tr class="empty-state">
+                    <td colspan="8">
+                        <div class="empty-state-content">
+                            <i class="bi bi-inbox"></i>
+                            <p>Nenhuma notificação encontrada</p>
+                            <small>${this.notificacoes.length === 0 ? 
+                                'Importe um arquivo CSV com as notificações' : 
+                                'Tente ajustar os filtros'
+                            }</small>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = this.filteredNotificacoes.map(notif => {
+            const statusBadge = this.getStatusBadge(notif.status);
+            
+            return `
+                <tr>
+                    <td>
+                        <strong>${this.escapeHtml(notif.interessado)}</strong>
+                    </td>
+                    <td>${this.escapeHtml(notif.processo)}</td>
+                    <td>${this.escapeHtml(notif.dataNotificacao1)}</td>
+                    <td>${this.escapeHtml(notif.dataNotificacao2)}</td>
+                    <td>${this.escapeHtml(notif.periodoGozo)}</td>
+                    <td>${this.escapeHtml(notif.lotacao)}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <button class="btn-icon" onclick="window.dashboard.showNotificationDetails('${this.escapeHtml(notif.interessado).replace(/'/g, "\\'")}')">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Retorna o badge HTML para o status
+     */
+    getStatusBadge(status) {
+        const badges = {
+            'respondeu': '<span class="status-badge status-success"><i class="bi bi-check-circle-fill"></i> Respondeu</span>',
+            'pendente': '<span class="status-badge status-warning"><i class="bi bi-clock-fill"></i> Pendente</span>',
+            'nao-concorda': '<span class="status-badge status-danger"><i class="bi bi-x-circle-fill"></i> Não Concorda</span>'
+        };
+        return badges[status] || '<span class="status-badge status-secondary">-</span>';
+    }
+
+    /**
+     * Mostra detalhes de uma notificação
+     */
+    showNotificationDetails(interessado) {
+        const notif = this.notificacoes.find(n => n.interessado === interessado);
+        if (!notif) return;
+        
+        // Você pode criar um modal similar ao de detalhes do servidor
+        // Por enquanto, vou usar alert (pode ser melhorado depois)
+        const detalhes = `
+NOTIFICAÇÃO - ${notif.interessado}
+
+Processo: ${notif.processo}
+1ª Notificação: ${notif.dataNotificacao1}
+2ª Notificação: ${notif.dataNotificacao2}
+Período Escolhido: ${notif.periodoGozo || 'Não informado'}
+Lotação: ${notif.lotacao}
+Status: ${notif.status}
+${notif.obs ? `\nObservações: ${notif.obs}` : ''}
+        `.trim();
+        
+        alert(detalhes);
+    }
+
+    /**
+     * Exporta notificações filtradas para CSV
+     */
+    exportNotifications() {
+        if (this.filteredNotificacoes.length === 0) {
+            alert('Nenhuma notificação para exportar');
+            return;
+        }
+        
+        // Criar CSV
+        const headers = ['Interessado', 'Processo', '1ª Notificação', '2ª Notificação', 'Período do Gozo', 'Lotação', 'Status', 'OBS'];
+        const rows = this.filteredNotificacoes.map(notif => [
+            notif.interessado,
+            notif.processo,
+            notif.dataNotificacao1,
+            notif.dataNotificacao2,
+            notif.periodoGozo,
+            notif.lotacao,
+            notif.status,
+            notif.obs
+        ]);
+        
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+        
+        // Download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', `notificacoes_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // ==================== MÉTODOS DA PÁGINA DE RELATÓRIOS ====================
+
+    /**
+     * Atualizar estatísticas da página de relatórios
+     */
+    updateReportsStats() {
+        const totalElement = document.getElementById('reportTotalServidores');
+        const filteredElement = document.getElementById('reportFilteredServidores');
+
+        if (totalElement) {
+            totalElement.textContent = this.allServidores.length;
+        }
+
+        if (filteredElement) {
+            filteredElement.textContent = this.filteredServidores.length;
+        }
+    }
+
+    /**
+     * Inicializar event listeners da página de relatórios
+     */
+    setupReportsPageListeners() {
+        // Seleção de templates
+        document.querySelectorAll('.report-template-card').forEach(card => {
+            card.addEventListener('click', () => {
+                this.selectReportTemplate(card.dataset.template);
+            });
+        });
+
+        // Botão cancelar
+        const cancelBtn = document.getElementById('cancelExportBtn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                this.hideExportConfig();
+            });
+        }
+
+        // Botão gerar relatório
+        const generateBtn = document.getElementById('generateReportBtn');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', () => {
+                this.generateReport();
+            });
+        }
+
+        // Mudança de formato
+        document.querySelectorAll('input[name="exportFormat"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                this.updateReportPreview();
+            });
+        });
+
+        // Mudança de opções
+        ['includeCharts', 'includeStats', 'includeFilters', 'includeTimestamp'].forEach(id => {
+            const checkbox = document.getElementById(id);
+            if (checkbox) {
+                checkbox.addEventListener('change', () => {
+                    this.updateReportPreview();
+                });
+            }
+        });
+    }
+
+    /**
+     * Selecionar template de relatório
+     */
+    selectReportTemplate(templateType) {
+        // Remover seleção anterior
+        document.querySelectorAll('.report-template-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+
+        // Selecionar novo template
+        const selectedCard = document.querySelector(`[data-template="${templateType}"]`);
+        if (selectedCard) {
+            selectedCard.classList.add('selected');
+        }
+
+        // Armazenar template selecionado
+        this.selectedReportTemplate = templateType;
+
+        // Abrir modal de configuração
+        this.openReportModal(templateType);
+    }
+
+    /**
+     * Mostrar seção de configuração de exportação
+     */
+    showExportConfig(templateType) {
+        const configSection = document.getElementById('exportConfigSection');
+        if (configSection) {
+            configSection.style.display = 'block';
+            // Scroll suave até a seção
+            configSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    /**
+     * Esconder seção de configuração
+     */
+    hideExportConfig() {
+        const configSection = document.getElementById('exportConfigSection');
+        if (configSection) {
+            configSection.style.display = 'none';
+        }
+
+        // Remover seleção de template
+        document.querySelectorAll('.report-template-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+
+        this.currentReportTemplate = null;
+    }
+
+    /**
+     * Atualizar pré-visualização do relatório
+     */
+    updateReportPreview() {
+        const previewElement = document.getElementById('reportPreview');
+        if (!previewElement || !this.currentReportTemplate) return;
+
+        const includeCharts = document.getElementById('includeCharts')?.checked ?? true;
+        const includeStats = document.getElementById('includeStats')?.checked ?? true;
+
+        let previewHTML = '';
+
+        switch (this.currentReportTemplate) {
+            case 'executive':
+                previewHTML = this.generateExecutivePreview(includeCharts, includeStats);
+                break;
+            case 'complete':
+                previewHTML = this.generateCompletePreview(includeCharts, includeStats);
+                break;
+            case 'urgency':
+                previewHTML = this.generateUrgencyPreview(includeCharts, includeStats);
+                break;
+            case 'department':
+                previewHTML = this.generateDepartmentPreview(includeCharts, includeStats);
+                break;
+        }
+
+        previewElement.innerHTML = previewHTML;
+    }
+
+    /**
+     * Gerar pré-visualização do relatório executivo
+     */
+    generateExecutivePreview(includeCharts, includeStats) {
+        const data = this.filteredServidores;
+        
+        let html = '<div class="preview-report">';
+        html += '<h3 style="margin-top: 0;">📊 Relatório Executivo</h3>';
+
+        if (includeStats) {
+            const urgencias = {
+                critical: data.filter(s => s.nivelUrgencia === 'critical').length,
+                high: data.filter(s => s.nivelUrgencia === 'high').length,
+                moderate: data.filter(s => s.nivelUrgencia === 'moderate').length,
+                low: data.filter(s => s.nivelUrgencia === 'low').length
+            };
+
+            html += '<div style="margin: 1rem 0; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">';
+            html += `<p style="margin: 0 0 0.5rem 0;"><strong>Total de Servidores:</strong> ${data.length}</p>`;
+            html += `<p style="margin: 0 0 0.5rem 0;"><strong>Crítica:</strong> ${urgencias.critical} | <strong>Alta:</strong> ${urgencias.high} | <strong>Moderada:</strong> ${urgencias.moderate} | <strong>Baixa:</strong> ${urgencias.low}</p>`;
+            html += '</div>';
+        }
+
+        if (includeCharts) {
+            html += '<p style="color: var(--text-secondary); font-style: italic;">📈 Gráficos serão incluídos na exportação</p>';
+        }
+
+        html += '<p style="font-size: 0.875rem; color: var(--text-secondary);">Resumo executivo com as principais métricas e indicadores.</p>';
+        html += '</div>';
+
+        return html;
+    }
+
+    /**
+     * Gerar pré-visualização do relatório completo
+     */
+    generateCompletePreview(includeCharts, includeStats) {
+        const data = this.filteredServidores;
+        
+        let html = '<div class="preview-report">';
+        html += '<h3 style="margin-top: 0;">📋 Relatório Completo</h3>';
+        html += `<p style="margin: 0.5rem 0;"><strong>Servidores:</strong> ${data.length}</p>`;
+        html += '<p style="font-size: 0.875rem; color: var(--text-secondary);">Inclui tabela completa com todos os servidores, cronogramas detalhados, estatísticas completas e todos os gráficos disponíveis.</p>';
+        html += '</div>';
+
+        return html;
+    }
+
+    /**
+     * Gerar pré-visualização do relatório por urgência
+     */
+    generateUrgencyPreview(includeCharts, includeStats) {
+        const data = this.filteredServidores;
+        const urgencias = {
+            critical: data.filter(s => s.nivelUrgencia === 'critical').length,
+            high: data.filter(s => s.nivelUrgencia === 'high').length,
+            moderate: data.filter(s => s.nivelUrgencia === 'moderate').length,
+            low: data.filter(s => s.nivelUrgencia === 'low').length
+        };
+
+        let html = '<div class="preview-report">';
+        html += '<h3 style="margin-top: 0;">⚠️ Relatório por Urgência</h3>';
+        html += '<div style="margin: 1rem 0;">';
+        html += `<p style="margin: 0.5rem 0;">🔴 <strong>Crítica:</strong> ${urgencias.critical} servidores</p>`;
+        html += `<p style="margin: 0.5rem 0;">🟠 <strong>Alta:</strong> ${urgencias.high} servidores</p>`;
+        html += `<p style="margin: 0.5rem 0;">🟡 <strong>Moderada:</strong> ${urgencias.moderate} servidores</p>`;
+        html += `<p style="margin: 0.5rem 0;">🟢 <strong>Baixa:</strong> ${urgencias.low} servidores</p>`;
+        html += '</div>';
+        html += '<p style="font-size: 0.875rem; color: var(--text-secondary);">Dados agrupados por nível de urgência para priorização de ações.</p>';
+        html += '</div>';
+
+        return html;
+    }
+
+    /**
+     * Gerar pré-visualização do relatório por departamento
+     */
+    generateDepartmentPreview(includeCharts, includeStats) {
+        const data = this.filteredServidores;
+        const lotacoes = {};
+        
+        data.forEach(s => {
+            const lot = s.lotacao || 'Sem lotação';
+            lotacoes[lot] = (lotacoes[lot] || 0) + 1;
+        });
+
+        const topLotacoes = Object.entries(lotacoes)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+
+        let html = '<div class="preview-report">';
+        html += '<h3 style="margin-top: 0;">🏢 Relatório por Departamento</h3>';
+        html += '<p style="margin-bottom: 1rem;"><strong>Top 5 Lotações:</strong></p>';
+        html += '<div style="margin: 1rem 0;">';
+        topLotacoes.forEach(([lot, count]) => {
+            html += `<p style="margin: 0.5rem 0;">• <strong>${lot}:</strong> ${count} servidores</p>`;
+        });
+        html += '</div>';
+        html += '<p style="font-size: 0.875rem; color: var(--text-secondary);">Análise organizada por lotação/departamento com impacto operacional.</p>';
+        html += '</div>';
+
+        return html;
+    }
+
+    /**
+     * Gerar relatório final
+     */
+    generateReport() {
+        if (!this.exportManager) {
+            alert('Sistema de exportação não disponível');
+            return;
+        }
+
+        const format = document.querySelector('input[name="exportFormat"]:checked')?.value || 'excel';
+        const template = this.currentReportTemplate;
+
+        if (!template) {
+            alert('Selecione um template de relatório');
+            return;
+        }
+
+        const options = {
+            includeCharts: document.getElementById('includeCharts')?.checked ?? true,
+            includeStats: document.getElementById('includeStats')?.checked ?? true,
+            includeFilters: document.getElementById('includeFilters')?.checked ?? true,
+            includeTimestamp: document.getElementById('includeTimestamp')?.checked ?? true,
+            template: template
+        };
+
+        // Usar o ExportManager para gerar o relatório
+        if (format === 'excel') {
+            this.exportManager.exportServidoresToExcel(this.filteredServidores, options);
+        } else if (format === 'csv') {
+            this.exportManager.exportServidoresToCSV(this.filteredServidores);
+        } else if (format === 'pdf') {
+            // PDF será implementado posteriormente
+            alert('Exportação para PDF será implementada em breve!');
+        }
+    }
+
+    /**
+     * Abrir modal de configuração de relatório
+     */
+    openReportModal(templateType) {
+        const modal = document.getElementById('reportConfigModal');
+        const modalTitle = document.getElementById('modalTemplateTitle');
+
+        if (!modal) return;
+
+        // Definir título do template
+        const templateTitles = {
+            'executive': 'Relatório Executivo',
+            'complete': 'Relatório Completo',
+            'urgency': 'Por Nível de Urgência',
+            'department': 'Por Departamento'
+        };
+
+        if (modalTitle) {
+            modalTitle.textContent = templateTitles[templateType] || 'Relatório';
+        }
+
+        // Armazenar template atual
+        this.currentReportTemplate = templateType;
+
+        // Atualizar informações de filtros
+        this.updateModalFilterInfo();
+
+        // Gerar preview inicial
+        this.updateModalPreview();
+
+        // Mostrar modal
+        modal.classList.add('active');
+
+        // Prevenir scroll do body
+        document.body.style.overflow = 'hidden';
+    }
+
+    /**
+     * Fechar modal de configuração
+     */
+    closeReportModal() {
+        const modal = document.getElementById('reportConfigModal');
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    }
+
+    /**
+     * Atualizar informações de filtros no modal
+     */
+    updateModalFilterInfo() {
+        const filterCount = document.getElementById('modalActiveFiltersCount');
+        if (!filterCount) return;
+
+        const total = this.allServidores.length;
+        const filtered = this.filteredServidores.length;
+
+        if (filtered === total) {
+            filterCount.textContent = 'Todos os servidores';
+        } else {
+            filterCount.textContent = `${filtered} de ${total} servidores`;
+        }
+    }
+
+    /**
+     * Atualizar preview do modal
+     */
+    updateModalPreview() {
+        const previewContainer = document.getElementById('modalReportPreview');
+        if (!previewContainer) return;
+
+        // Mostrar loading
+        previewContainer.innerHTML = `
+            <div class="preview-loading">
+                <div class="spinner"></div>
+                <p>Gerando pré-visualização...</p>
+            </div>
+        `;
+
+        // Simular delay de processamento
+        setTimeout(() => {
+            const includeCharts = document.getElementById('modalIncludeCharts')?.checked || false;
+            const includeStats = document.getElementById('modalIncludeStats')?.checked || false;
+
+            let previewHTML = '';
+
+            switch (this.currentReportTemplate) {
+                case 'executive':
+                    previewHTML = this.generateExecutivePreview(includeCharts, includeStats);
+                    break;
+                case 'complete':
+                    previewHTML = this.generateCompletePreview(includeCharts, includeStats);
+                    break;
+                case 'urgency':
+                    previewHTML = this.generateUrgencyPreview(includeCharts, includeStats);
+                    break;
+                case 'department':
+                    previewHTML = this.generateDepartmentPreview(includeCharts, includeStats);
+                    break;
+                default:
+                    previewHTML = '<p class="text-muted">Template não encontrado</p>';
+            }
+
+            previewContainer.innerHTML = previewHTML;
+        }, 500);
+    }
+
+    /**
+     * Inicializar listeners do modal
+     */
+    setupReportModalListeners() {
+        // Fechar modal
+        const closeBtn = document.getElementById('closeReportModal');
+        const cancelBtn = document.getElementById('cancelReportModalBtn');
+        const modal = document.getElementById('reportConfigModal');
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.closeReportModal());
+        }
+
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => this.closeReportModal());
+        }
+
+        // Fechar ao clicar fora
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.closeReportModal();
+                }
+            });
+        }
+
+        // Botão de download
+        const downloadBtn = document.getElementById('downloadReportBtn');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', () => {
+                this.downloadReportFromModal();
+            });
+        }
+
+        // Botão de refresh do preview
+        const refreshBtn = document.getElementById('refreshPreviewBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                this.updateModalPreview();
+            });
+        }
+
+        // Listeners para mudanças de configuração
+        document.querySelectorAll('input[name="modalExportFormat"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                this.updateModalPreview();
+            });
+        });
+
+        // Listeners para checkboxes
+        ['modalIncludeCharts', 'modalIncludeStats', 'modalIncludeFilters', 'modalIncludeTimestamp'].forEach(id => {
+            const checkbox = document.getElementById(id);
+            if (checkbox) {
+                checkbox.addEventListener('change', () => {
+                    this.updateModalPreview();
+                });
+            }
+        });
+
+        // Tecla ESC para fechar
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeReportModal();
+            }
+        });
+    }
+
+    /**
+     * Baixar relatório a partir do modal
+     */
+    downloadReportFromModal() {
+        const format = document.querySelector('input[name="modalExportFormat"]:checked')?.value || 'excel';
+        const includeCharts = document.getElementById('modalIncludeCharts')?.checked || false;
+        const includeStats = document.getElementById('modalIncludeStats')?.checked || false;
+        const includeFilters = document.getElementById('modalIncludeFilters')?.checked || false;
+        const includeTimestamp = document.getElementById('modalIncludeTimestamp')?.checked || false;
+
+        const options = {
+            includeCharts,
+            includeStats,
+            includeFilters,
+            includeTimestamp,
+            template: this.currentReportTemplate
+        };
+
+        // Fechar modal
+        this.closeReportModal();
+
+        // Gerar relatório
+        if (format === 'excel') {
+            this.exportManager.exportServidoresToExcel(this.filteredServidores, options);
+        } else if (format === 'csv') {
+            this.exportManager.exportServidoresToCSV(this.filteredServidores);
+        } else if (format === 'pdf') {
+            alert('Exportação para PDF será implementada em breve!');
+        }
+    }
+
+    /**
+     * Renderiza sugestões de autocomplete
+     */
+    renderAutocompleteSuggestions(suggestions) {
+        const autocompleteList = document.getElementById('autocompleteList');
+        const autocompleteDropdown = document.getElementById('autocompleteDropdown');
+
+        if (!autocompleteList || !autocompleteDropdown) return;
+
+        // Limpar lista
+        autocompleteList.innerHTML = '';
+
+        if (!suggestions || suggestions.length === 0) {
+            autocompleteDropdown.style.display = 'none';
+            return;
+        }
+
+        // Criar sugestões
+        suggestions.forEach((suggestion, index) => {
+            const item = document.createElement('div');
+            item.className = 'autocomplete-suggestion';
+            item.setAttribute('data-type', suggestion.type);
+
+            const icon = document.createElement('div');
+            icon.className = 'autocomplete-suggestion-icon';
+
+            let iconClass = 'bi bi-person';
+            if (suggestion.type === 'cargo') iconClass = 'bi bi-briefcase';
+            else if (suggestion.type === 'lotacao') iconClass = 'bi bi-building';
+
+            icon.innerHTML = `<i class="${iconClass}"></i>`;
+
+            const content = document.createElement('div');
+            content.className = 'autocomplete-suggestion-content';
+
+            const text = document.createElement('div');
+            text.className = 'autocomplete-suggestion-text';
+            text.textContent = suggestion.text;
+
+            const type = document.createElement('div');
+            type.className = 'autocomplete-suggestion-type';
+            type.textContent = suggestion.type === 'nome' ? 'Nome' :
+                               suggestion.type === 'cargo' ? 'Cargo' : 'Lotação';
+
+            content.appendChild(text);
+            content.appendChild(type);
+
+            item.appendChild(icon);
+            item.appendChild(content);
+
+            // Click seleciona sugestão
+            item.addEventListener('click', () => {
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    searchInput.value = suggestion.text;
+                    autocompleteDropdown.style.display = 'none';
+                    this.handleSearch();
+                }
+            });
+
+            autocompleteList.appendChild(item);
+        });
+
+        // Mostrar dropdown
+        autocompleteDropdown.style.display = 'block';
+        autocompleteDropdown.classList.add('show');
+    }
+
+    /**
+     * Abre modal de filtros avançados
+     */
+    openFiltersModal(focusType = null) {
+        const modal = document.getElementById('filtersModal');
+        if (!modal) return;
+
+        // Extrair valores únicos se ainda não foi feito
+        if (this.advancedFilterManager && this.allServidores.length > 0) {
+            this.advancedFilterManager.extractUniqueValues(this.allServidores);
+        }
+
+        // Preencher dropdowns
+        this.populateFilterDropdowns();
+
+        // Restaurar valores dos filtros ativos
+        this.restoreFilterValues();
+
+        // Setup listeners do modal
+        this.setupFiltersModalListeners();
+
+        // Mostrar modal (usar helper para foco e aria)
+        modal.style.display = 'flex';
+        // permitir que o browser pinte antes de abrir
+        setTimeout(() => this._openModalElement(modal), 10);
+
+        // Focar em filtro específico se solicitado
+        if (focusType) {
+            const focusElement = document.getElementById(`${focusType}Filter`);
+            if (focusElement) {
+                setTimeout(() => focusElement.focus(), 300);
+            }
+        }
+    }
+
+    /**
+     * Fecha modal de filtros avançados
+     */
+    closeFiltersModal() {
+        const modal = document.getElementById('filtersModal');
+        if (!modal) return;
+
+        this._closeModalElement(modal);
+        // Manter animação de saída e depois esconder o elemento
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+
+    /**
+     * Preenche dropdowns do modal de filtros
+     */
+    populateFilterDropdowns() {
+        if (!this.advancedFilterManager) return;
+
+        // Cargo
+        const cargoFilter = document.getElementById('cargoFilter');
+        if (cargoFilter) {
+            const cargos = this.advancedFilterManager.getUniqueValues('cargo');
+            cargoFilter.innerHTML = '<option value="">Todos</option>';
+            cargos.forEach(cargo => {
+                const option = document.createElement('option');
+                option.value = cargo;
+                option.textContent = cargo;
+                cargoFilter.appendChild(option);
+            });
+        }
+
+        // Lotação
+        const lotacaoFilter = document.getElementById('lotacaoFilter');
+        if (lotacaoFilter) {
+            const lotacoes = this.advancedFilterManager.getUniqueValues('lotacao');
+            lotacaoFilter.innerHTML = '<option value="">Todas</option>';
+            lotacoes.forEach(lotacao => {
+                const option = document.createElement('option');
+                option.value = lotacao;
+                option.textContent = lotacao;
+                lotacaoFilter.appendChild(option);
+            });
+        }
+
+        // Superintendência
+        const superFilter = document.getElementById('superintendenciaFilter');
+        if (superFilter) {
+            const supers = this.advancedFilterManager.getUniqueValues('superintendencia');
+            superFilter.innerHTML = '<option value="">Todas</option>';
+            supers.forEach(super_ => {
+                const option = document.createElement('option');
+                option.value = super_;
+                option.textContent = super_;
+                superFilter.appendChild(option);
+            });
+        }
+    }
+
+    /**
+     * Restaura valores dos filtros ativos
+     */
+    restoreFilterValues() {
+        if (!this.advancedFilterManager) return;
+
+        const filters = this.advancedFilterManager.activeFilters;
+
+        // Cargo
+        const cargoFilter = document.getElementById('cargoFilter');
+        if (cargoFilter && filters.cargo) {
+            cargoFilter.value = filters.cargo;
+        }
+
+        // Lotação
+        const lotacaoFilter = document.getElementById('lotacaoFilter');
+        if (lotacaoFilter && filters.lotacao) {
+            lotacaoFilter.value = filters.lotacao;
+        }
+
+        // Superintendência
+        const superFilter = document.getElementById('superintendenciaFilter');
+        if (superFilter && filters.superintendencia) {
+            superFilter.value = filters.superintendencia;
+            this.updateSubsecretariaOptions(filters.superintendencia);
+        }
+
+        // Subsecretaria
+        const subFilter = document.getElementById('subsecretariaFilter');
+        if (subFilter && filters.subsecretaria) {
+            subFilter.value = filters.subsecretaria;
+        }
+
+        // Urgência
+        if (filters.urgencia) {
+            const urgenciaRadio = document.querySelector(`input[name="urgencia"][value="${filters.urgencia}"]`);
+            if (urgenciaRadio) {
+                urgenciaRadio.checked = true;
+            }
+        }
+
+        // Status
+        const statusCom = document.getElementById('statusComLicenca');
+        const statusSem = document.getElementById('statusSemLicenca');
+        const statusVenc = document.getElementById('statusVencidas');
+
+        if (statusCom) statusCom.checked = filters.status.includes('com-licenca');
+        if (statusSem) statusSem.checked = filters.status.includes('sem-licenca');
+        if (statusVenc) statusVenc.checked = filters.status.includes('vencidas');
+    }
+
+    /**
+     * Setup listeners do modal de filtros
+     */
+    setupFiltersModalListeners() {
+        // Fechar modal
+        const closeBtn = document.getElementById('closeFiltersModal');
+        const cancelBtn = document.getElementById('cancelFiltersBtn');
+        const applyBtn = document.getElementById('applyFiltersBtn');
+
+        if (closeBtn) {
+            closeBtn.onclick = () => this.closeFiltersModal();
+        }
+
+        if (cancelBtn) {
+            cancelBtn.onclick = () => this.closeFiltersModal();
+        }
+
+        if (applyBtn) {
+            applyBtn.onclick = () => this.applyAdvancedFilters();
+        }
+
+        // Filtro cascata (Super → Sub)
+        const superFilter = document.getElementById('superintendenciaFilter');
+        if (superFilter) {
+            superFilter.onchange = (e) => {
+                this.updateSubsecretariaOptions(e.target.value);
+            };
+        }
+
+        // Searchable dropdowns
+        this.setupSearchableDropdown('cargoSearch', 'cargoFilter');
+        this.setupSearchableDropdown('lotacaoSearch', 'lotacaoFilter');
+
+        // ESC fecha modal
+        const modal = document.getElementById('filtersModal');
+        if (modal) {
+            const handleEsc = (e) => {
+                if (e.key === 'Escape') {
+                    this.closeFiltersModal();
+                    modal.removeEventListener('keydown', handleEsc);
+                }
+            };
+            modal.addEventListener('keydown', handleEsc);
+        }
+    }
+
+    /**
+     * Atualiza opções de subsecretaria baseado na superintendência
+     */
+    updateSubsecretariaOptions(superintendencia) {
+        const subFilter = document.getElementById('subsecretariaFilter');
+        if (!subFilter || !this.advancedFilterManager) return;
+
+        if (!superintendencia) {
+            subFilter.disabled = true;
+            subFilter.innerHTML = '<option value="">Selecione a superintendência primeiro</option>';
+            return;
+        }
+
+        const subsecretarias = this.advancedFilterManager.getSubsecretariasBySuper(superintendencia);
+        subFilter.disabled = false;
+        subFilter.innerHTML = '<option value="">Todas</option>';
+
+        subsecretarias.forEach(sub => {
+            const option = document.createElement('option');
+            option.value = sub;
+            option.textContent = sub;
+            subFilter.appendChild(option);
+        });
+    }
+
+    /**
+     * Setup para dropdown searchable
+     */
+    setupSearchableDropdown(searchId, selectId) {
+        const searchInput = document.getElementById(searchId);
+        const select = document.getElementById(selectId);
+
+        if (!searchInput || !select) return;
+
+        // Guardar opções originais
+        const originalOptions = Array.from(select.options);
+
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+
+            // Filtrar opções
+            select.innerHTML = '';
+
+            originalOptions.forEach(option => {
+                if (option.textContent.toLowerCase().includes(query)) {
+                    select.appendChild(option.cloneNode(true));
+                }
+            });
+        });
+    }
+
+    /**
+     * Aplica filtros avançados
+     */
+    applyAdvancedFilters() {
+        if (!this.advancedFilterManager) return;
+
+        // Coletar valores dos filtros
+        const cargoFilter = document.getElementById('cargoFilter');
+        const lotacaoFilter = document.getElementById('lotacaoFilter');
+        const superFilter = document.getElementById('superintendenciaFilter');
+        const subFilter = document.getElementById('subsecretariaFilter');
+
+        // Definir filtros
+        if (cargoFilter) {
+            this.advancedFilterManager.setFilter('cargo', cargoFilter.value || null);
+        }
+
+        if (lotacaoFilter) {
+            this.advancedFilterManager.setFilter('lotacao', lotacaoFilter.value || null);
+        }
+
+        if (superFilter) {
+            this.advancedFilterManager.setFilter('superintendencia', superFilter.value || null);
+        }
+
+        if (subFilter) {
+            this.advancedFilterManager.setFilter('subsecretaria', subFilter.value || null);
+        }
+
+        // Urgência
+        const urgenciaRadio = document.querySelector('input[name="urgencia"]:checked');
+        if (urgenciaRadio) {
+            this.advancedFilterManager.setFilter('urgencia', urgenciaRadio.value);
+        }
+
+        // Status
+        const statusArray = [];
+        const statusCom = document.getElementById('statusComLicenca');
+        const statusSem = document.getElementById('statusSemLicenca');
+        const statusVenc = document.getElementById('statusVencidas');
+
+        if (statusCom && statusCom.checked) statusArray.push('com-licenca');
+        if (statusSem && statusSem.checked) statusArray.push('sem-licenca');
+        if (statusVenc && statusVenc.checked) statusArray.push('vencidas');
+
+        this.advancedFilterManager.setFilter('status', statusArray);
+
+        // Aplicar filtros e atualizar UI
+        this.applyFiltersAndSearch();
+
+        // Fechar modal
+        this.closeFiltersModal();
+    }
+
+    /**
+     * Aplica filtros e busca combinados
+     */
+    applyFiltersAndSearch() {
+        // Começar com todos os servidores
+        let filtered = [...this.allServidores];
+
+        // Aplicar filtros avançados
+        if (this.advancedFilterManager && this.advancedFilterManager.hasActiveFilters()) {
+            filtered = this.advancedFilterManager.applyFilters(filtered);
+        }
+
+        // Aplicar busca se houver
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput && searchInput.value && this.smartSearchManager) {
+            filtered = this.smartSearchManager.search(searchInput.value, filtered);
+        }
+
+        // Atualizar servidores filtrados
+        this.filteredServidores = filtered;
+
+        // Atualizar UI
+        this.updateTable();
+        this.updateStats();
+
+        // Atualizar chips e contador
+        if (this.filterChipsUI) {
+            this.filterChipsUI.render();
+            this.filterChipsUI.updateCounter(filtered.length, this.allServidores.length);
+        }
+
+        console.log(`Filtros aplicados: ${filtered.length} de ${this.allServidores.length} servidores`);
+    }
+
+    /**
+     * Popular atalhos de teclado na página de dicas
+     */
+    populateTipsKeyboardShortcuts() {
+        const grid = document.getElementById('keyboardShortcutsGrid');
+        if (!grid) return;
+
+        // Lista de atalhos disponíveis
+        const shortcuts = [
+            { keys: ['Ctrl', 'K'], description: 'Abrir busca rápida' },
+            { keys: ['Ctrl', 'D'], description: 'Alternar modo escuro/claro' },
+            { keys: ['Ctrl', 'F'], description: 'Abrir filtros avançados' },
+            { keys: ['Ctrl', 'E'], description: 'Exportar dados' },
+            { keys: ['Esc'], description: 'Fechar modais e diálogos' },
+            { keys: ['Ctrl', '/'], description: 'Mostrar/ocultar atalhos' },
+            { keys: ['1'], description: 'Navegar para Visão Geral' },
+            { keys: ['2'], description: 'Navegar para Calendário' },
+            { keys: ['3'], description: 'Navegar para Timeline' },
+            { keys: ['4'], description: 'Navegar para Relatórios' },
+            { keys: ['5'], description: 'Navegar para Dicas' },
+            { keys: ['6'], description: 'Navegar para Configurações' }
+        ];
+
+        // Gerar HTML dos atalhos
+        const html = shortcuts.map(shortcut => {
+            const keysHtml = shortcut.keys.map(key => `<kbd class="shortcut-key">${key}</kbd>`).join('<span class="shortcut-plus">+</span>');
+            return `
+                <div class="shortcut-card">
+                    <div class="shortcut-keys">${keysHtml}</div>
+                    <p class="shortcut-description">${shortcut.description}</p>
+                </div>
+            `;
+        }).join('');
+
+        grid.innerHTML = html;
+    }
+
+    /**
+     * Configurar event listeners para filtros do header
+     */
+    setupHeaderFilters() {
+        // Busca no header
+        const headerSearchInput = document.getElementById('headerSearchInput');
+        const clearHeaderSearchBtn = document.getElementById('clearHeaderSearchBtn');
+
+        if (headerSearchInput) {
+            headerSearchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.trim();
+
+                // Mostrar/ocultar botão limpar
+                if (clearHeaderSearchBtn) {
+                    clearHeaderSearchBtn.style.display = searchTerm ? 'block' : 'none';
+                }
+
+                // Aplicar filtro
+                this.currentFilters.search = searchTerm;
+                this.applyTableFilter();
+            });
+
+            // Limpar busca
+            if (clearHeaderSearchBtn) {
+                clearHeaderSearchBtn.addEventListener('click', () => {
+                    headerSearchInput.value = '';
+                    clearHeaderSearchBtn.style.display = 'none';
+                    this.currentFilters.search = '';
+                    this.applyTableFilter();
+                });
+            }
+        }
+
+        // Select de idade no header (faixas pré-definidas)
+        const headerAgeFilter = document.getElementById('headerAgeFilter');
+        if (headerAgeFilter) {
+            headerAgeFilter.addEventListener('change', (e) => {
+                const value = e.target.value;
+                this.applyAgeRangeFilter(value);
+            });
+        }
+
+        // Botão de notificações - gerenciado pelo NotificationManager
+        // O event listener é adicionado em NotificationManager.createNotificationBell()
+
+        // Configurar modal de filtros avançados (para atalhos de teclado)
+        const closeFiltersBtn = document.getElementById('closeFiltersModal');
+        const cancelFiltersBtn = document.getElementById('cancelFiltersBtn');
+
+        if (closeFiltersBtn) {
+            closeFiltersBtn.addEventListener('click', () => {
+                const modal = document.getElementById('filtersModal');
+                if (modal) {
+                    this._closeModalElement(modal);
+                    setTimeout(() => { modal.style.display = 'none'; }, 300);
+                }
+            });
+        }
+
+        if (cancelFiltersBtn) {
+            cancelFiltersBtn.addEventListener('click', () => {
+                const modal = document.getElementById('filtersModal');
+                if (modal) {
+                    this._closeModalElement(modal);
+                    setTimeout(() => { modal.style.display = 'none'; }, 300);
+                }
+            });
+        }
+
+        // Clicar fora do modal para fechar
+        const filtersModal = document.getElementById('filtersModal');
+        if (filtersModal) {
+            filtersModal.addEventListener('click', (e) => {
+                if (e.target === filtersModal) {
+                    this._closeModalElement(filtersModal);
+                    setTimeout(() => { filtersModal.style.display = 'none'; }, 300);
+                }
+            });
+        }
+
+        // Botão de aplicar filtros
+        const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+        if (applyFiltersBtn && this.advancedFilterManager) {
+            applyFiltersBtn.addEventListener('click', () => {
+                // Aplicar filtros avançados
+                this.advancedFilterManager.applyFilters();
+
+                // Atualizar badge
+                this.updateFiltersBadge();
+
+                // Feedback visual
+                const btn = document.getElementById('btnAdvancedFilters');
+                if (btn) {
+                    btn.classList.add('success');
+                    setTimeout(() => btn.classList.remove('success'), 600);
+                }
+
+                // Fechar modal
+                const modal = document.getElementById('filtersModal');
+                if (modal) {
+                    this._closeModalElement(modal);
+                    setTimeout(() => { modal.style.display = 'none'; }, 300);
+                }
+            });
+        }
+    }
+
+    /**
+     * Aplicar filtro por faixa de idade
+     */
+    applyAgeRangeFilter(value) {
+        if (value === 'all') {
+            // Não filtrar por idade
+            this.currentFilters.age = null;
+        } else {
+            // Determinar min e max com base na faixa selecionada
+            let min, max;
+
+            switch (value) {
+                case '18-30':
+                    min = 18;
+                    max = 30;
+                    break;
+                case '31-40':
+                    min = 31;
+                    max = 40;
+                    break;
+                case '41-50':
+                    min = 41;
+                    max = 50;
+                    break;
+                case '51-60':
+                    min = 51;
+                    max = 60;
+                    break;
+                case '61-70':
+                    min = 61;
+                    max = 70;
+                    break;
+                case '71+':
+                    min = 71;
+                    max = 150;
+                    break;
+                default:
+                    this.currentFilters.age = null;
+                    this.applyTableFilter();
+                    return;
+            }
+
+            this.currentFilters.age = { min, max };
+        }
+
+        this.applyTableFilter();
+    }
+
+    /**
+     * Configurar event listeners para botões da sidebar (compatibilidade)
+     */
+    setupSidebarButtons() {
+        // Chamar setupHeaderFilters para compatibilidade
+        this.setupHeaderFilters();
+    }
 }
+
 
 // exportar a classe para uso global
 window.DashboardMultiPage = DashboardMultiPage;
@@ -5052,8 +8762,27 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             console.error('DashboardMultiPage não está disponível em window no DOMContentLoaded');
         }
+        
+        // Inicializar tooltips customizados
+        if (typeof window.CustomTooltip === 'function') {
+            window.customTooltip = new window.CustomTooltip();
+            // Pequeno delay para garantir que os elementos foram renderizados
+            setTimeout(() => {
+                window.customTooltip.initAll();
+            }, 200);
+        }
+        
+        // Configurar listeners da página de relatórios após inicialização
+        setTimeout(() => {
+            if (window.dashboard && typeof window.dashboard.setupReportsPageListeners === 'function') {
+                window.dashboard.setupReportsPageListeners();
+            }
+            if (window.dashboard && typeof window.dashboard.setupReportModalListeners === 'function') {
+                window.dashboard.setupReportModalListeners();
+            }
+        }, 300);
     } catch (e) {
-    console.error('Erro ao inicializar DashboardMultiPage:', e);
+        console.error('Erro ao inicializar DashboardMultiPage:', e);
     }
 });
 

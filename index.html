@@ -4,15 +4,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard SUTRI - Sistema de Licenças</title>
+    <title>Licenças premio</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <link href="css/new-styles.css" rel="stylesheet">
+    <link href="css/components/smart-search.css" rel="stylesheet">
+    <link href="css/components/advanced-filters.css" rel="stylesheet">
+    <link href="css/components/filter-chips.css" rel="stylesheet">
+    <link href="css/components/keyboard-shortcuts.css" rel="stylesheet">
+    <link href="css/components/loading-skeletons.css" rel="stylesheet">
+    <link href="css/components/high-contrast.css" rel="stylesheet">
+    <link href="css/components/breadcrumbs.css" rel="stylesheet">
+    <link href="css/components/notification-center.css" rel="stylesheet">
+    <link href="css/components/reports-page.css" rel="stylesheet">
+    <link href="css/components/tips-page.css" rel="stylesheet">
+    <link href="css/report-builder-premium.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
     <script src="js/themeManager.js"></script>
 </head>
 
 <body>
+    <!-- Overlay de Loading Global -->
+    <div id="globalLoadingOverlay" class="global-loading-overlay" style="display: none;" aria-hidden="true">
+        <div class="global-loading-content">
+            <div class="spinner" aria-hidden="true"></div>
+            <span class="loading-text" role="status" aria-live="polite">Carregando...</span>
+        </div>
+    </div>
+
+    <!-- Skip link para acessibilidade -->
+    <a class="skip-link" href="#mainContent">Pular para o conteúdo</a>
     <!-- Layout Principal -->
     <div class="app-layout">
         <!-- Sidebar -->
@@ -20,9 +43,11 @@
             <!-- Header da Sidebar -->
             <div class="sidebar-header">
                 <div class="brand">
-                    <img src="img/logo.png" alt="SEFAZ" class="brand-text" data-compact-src="img/logo-compacta.png" data-original-src="img/logo.png">
+                    <img src="img/logo.png" alt="SEFAZ" class="brand-text" data-compact-src="img/logo-compacta.png"
+                        data-original-src="img/logo.png">
                 </div>
-                <button class="sidebar-toggle" id="sidebarToggle" title="Recolher sidebar" aria-label="Alternar sidebar" aria-expanded="true">
+                <button class="sidebar-toggle" id="sidebarToggle" title="Recolher sidebar" aria-label="Alternar sidebar"
+                    aria-expanded="true">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
@@ -41,105 +66,124 @@
                     <i class="bi bi-clock-history"></i>
                     <span>Timeline</span>
                 </a>
+                <a href="#" class="nav-link" data-page="reports" data-tooltip="Relatórios">
+                    <i class="bi bi-file-earmark-bar-graph"></i>
+                    <span>Relatórios</span>
+                </a>
+                <a href="#" class="nav-link" data-page="settings" data-tooltip="Configurações">
+                    <i class="bi bi-gear"></i>
+                    <span>Configurações</span>
+                </a>
             </nav>
 
-            <!-- Filtros Compactos -->
-            <div class="sidebar-filters">
-                <div class="filter-section">
-                    <label class="filter-label">Buscar</label>
-                    <div class="search-box">
-                        <i class="bi bi-search"></i>
-                        <input type="text" id="searchInput" placeholder="Nome, cargo...">
-                        <button class="btn-clear" id="clearSearchBtn" style="display: none;">
-                            <i class="bi bi-x"></i>
+            <!-- Sidebar Footer (opcional para informações adicionais) -->
+            <div class="sidebar-footer">
+                <div class="sidebar-info">
+                    <!-- Botão para Dicas e Atalhos -->
+                    <a href="#" class="sidebar-info-link" data-page="tips">
+                        <i class="bi bi-lightbulb"></i>
+                        <span>Dicas e Atalhos</span>
+                    </a>
+                    
+                    <!-- Botões de filtro -->
+                    <div class="sidebar-filter-actions">
+                        <button class="btn-advanced-filters" id="btnAdvancedFilters" 
+                                title="Abrir painel de filtros avançados"
+                                aria-label="Filtros avançados"
+                                tabindex="0"
+                                aria-pressed="false"
+                                role="button">
+                            <i class="bi bi-sliders"></i>
+                            <span>Filtros Avançados</span>
+                            <span class="filter-badge" id="activeFiltersBadge" style="display: none;">0</span>
+                        </button>
+                        <button class="btn-clear-all-filters" id="btnClearAllFilters"
+                                title="Remover todos os filtros aplicados"
+                                aria-label="Limpar todos os filtros"
+                                tabindex="0"
+                                aria-pressed="false"
+                                role="button">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                            <span>Limpar Filtros</span>
                         </button>
                     </div>
-                </div>
-
-                <!-- Filtro de Idade (para cronograma) -->
-                <div class="filter-section" id="ageFilterSection">
-                    <label class="filter-label">Idade</label>
-                    <div class="age-filter">
-                        <input type="number" id="minAge" value="18" min="18" max="100">
-                        <span>-</span>
-                        <input type="number" id="maxAge" value="70" min="18" max="100">
-                    </div>
-                    <div class="age-presets">
-                        <button class="preset-btn"
-                            onclick="window.dashboard && dashboard.setAgePreset(18, 35)">18-35</button>
-                        <button class="preset-btn"
-                            onclick="window.dashboard && dashboard.setAgePreset(36, 50)">36-50</button>
-                        <button class="preset-btn"
-                            onclick="window.dashboard && dashboard.setAgePreset(51, 70)">51+</button>
-                    </div>
-                </div>
-
-                <!-- Filtro de Período/Mês (para licenças prêmio) -->
-                <div class="filter-section" id="periodFilterSection" style="display: none;">
-                    <label class="filter-label">Período de Licença</label>
-                    <div class="period-filter">
-                        <select id="mesFilter">
-                            <option value="all">Todos os meses</option>
-                            <option value="janeiro">Janeiro</option>
-                            <option value="fevereiro">Fevereiro</option>
-                            <option value="março">Março</option>
-                            <option value="abril">Abril</option>
-                            <option value="maio">Maio</option>
-                            <option value="junho">Junho</option>
-                            <option value="julho">Julho</option>
-                            <option value="agosto">Agosto</option>
-                            <option value="setembro">Setembro</option>
-                            <option value="outubro">Outubro</option>
-                            <option value="novembro">Novembro</option>
-                            <option value="dezembro">Dezembro</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="filter-actions">
-                    <button id="clearFiltersBtn" class="btn-secondary"
-                        onclick="dashboard && dashboard.clearAllFilters && dashboard.clearAllFilters()">
-                        <i class="bi bi-x-circle"></i>
-                        Limpar Filtros
-                    </button>
                 </div>
             </div>
         </aside>
 
-        <!-- Área Principal -->
-        <main class="main-content">
-            <!-- Header Compacto -->
+    <!-- Área Principal -->
+    <main id="mainContent" class="main-content" tabindex="-1">
+            <!-- Header Reorganizado -->
             <header class="main-header">
-                <div class="header-info">
-                    <h1 class="page-title" id="pageTitle">Visão Geral</h1>
-                </div>
-                <div class="header-stats">
-                    <div class="stat-badge">
-                        <span class="stat-count" id="totalServidores">0</span>
-                        <span class="stat-label">Servidores</span>
-                    </div>
-                    <div class="last-update" id="lastUpdate">--:--</div>
+                <!-- Contador de Servidores -->
+                <div class="server-count">
+                    <i class="bi bi-people"></i>
+                    <span id="totalServidores">0</span>
                 </div>
 
-                <!-- Actions do Header -->
-                <div class="header-actions">
-                    <div class="upload-buttons">
-                        <button class="btn-upload-header" title="Carregar Dados" id="uploadButton">
-                            <i class="bi bi-folder2-open"></i>
-                            <span class="upload-label">Importar Planilha Excel</span>
-                        </button>
-                    </div>
-                    <button class="theme-toggle" id="themeToggle" title="Alternar tema">
-                        <i class="bi bi-sun theme-icon sun-icon"></i>
-                        <i class="bi bi-moon theme-icon moon-icon"></i>
+                <!-- Busca -->
+                <div class="header-search">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="headerSearchInput" placeholder="Buscar servidor...">
+                    <button class="btn-clear-search" id="clearHeaderSearchBtn" style="display: none;">
+                        <i class="bi bi-x"></i>
                     </button>
                 </div>
+
+                <!-- Filtro de Idade -->
+                <select id="headerAgeFilter" class="age-select">
+                    <option value="all">Todas as idades</option>
+                    <option value="18-30">18-30 anos</option>
+                    <option value="31-40">31-40 anos</option>
+                    <option value="41-50">41-50 anos</option>
+                    <option value="51-60">51-60 anos</option>
+                    <option value="61-70">61-70 anos</option>
+                    <option value="71+">71+ anos</option>
+                </select>
+
+                <!-- Botão Importar -->
+                <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" style="display: none;">
+                <div class="upload-wrapper">
+                    <button class="btn-import" id="uploadButton">
+                        <i class="bi bi-upload" aria-hidden="true"></i>
+                        <span>Importar</span>
+                    </button>
+                    <button class="btn-recent-files" id="recentFilesButton" title="Arquivos recentes" style="display: none;">
+                        <i class="bi bi-clock-history" aria-hidden="true"></i>
+                    </button>
+                    <!-- Dropdown de arquivos recentes -->
+                    <div class="recent-files-dropdown" id="recentFilesDropdown" style="display: none;">
+                        <div class="dropdown-header">
+                            <h4>Arquivos Recentes</h4>
+                            <button class="btn-clear-cache" id="clearCacheBtn" title="Limpar cache">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                        <div class="dropdown-body" id="recentFilesList">
+                            <!-- Preenchido dinamicamente -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notificações -->
+                <button class="notification-bell" id="notificationsBtn" title="Notificações">
+                    <i class="bi bi-bell" aria-hidden="true"></i>
+                    <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+                </button>
+
+                <!-- Toggle de Tema -->
+                <button class="btn-theme theme-toggle" id="themeToggle">
+                    <i class="bi bi-sun theme-icon sun-icon" aria-hidden="true"></i>
+                    <i class="bi bi-moon theme-icon moon-icon" aria-hidden="true"></i>
+                </button>
             </header>
 
             <!-- Conteúdo das Páginas -->
             <div class="content-area">
                 <!-- Home Page -->
                 <div class="page-content active" id="homePage">
+                    <!-- Vista de Cronograma -->
+                    <div class="view-content active" id="cronogramaView">
                     <!-- Cards de Estatísticas - Linha Superior -->
                     <div class="stats-cards">
                         <div class="stat-card critical">
@@ -169,14 +213,15 @@
                                 <p>Urgência Moderada</p>
                             </div>
                         </div>
-                        <div class="stat-card error" id="errorCard" title="Clique para ver detalhes">
+                        <div class="stat-card error" id="errorCard">
                             <div class="card-icon">
                                 <i class="bi bi-exclamation-octagon"></i>
                             </div>
                             <div class="card-content">
                                 <h3 id="errorCount">0</h3>
-                                    <p>Problemas</p>
-                                    <span id="errorBadge" class="error-badge" aria-hidden="true" style="display:none"></span>
+                                <p>Problemas</p>
+                                <span id="errorBadge" class="error-badge" aria-hidden="true"
+                                    style="display:none"></span>
                             </div>
                         </div>
                     </div>
@@ -219,7 +264,13 @@
                         <div class="table-area">
                             <div class="table-header">
                                 <h3 class="table-title">Servidores</h3>
-                                <span class="result-count" id="resultCount">0 resultados</span>
+                                <div class="table-header-actions">
+                                    <span class="result-count" id="resultCount">0 resultados</span>
+                                    <button class="btn-export" id="exportServidoresBtn" title="Exportar dados">
+                                        <i class="bi bi-download"></i>
+                                        <span>Exportar</span>
+                                    </button>
+                                </div>
                             </div>
                             <div class="table-container">
                                 <table class="data-table" id="servidoresTable">
@@ -240,12 +291,107 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Vista de Notificações -->
+                <div class="view-content" id="notificacoesView">
+                    <!-- Cards de Resumo -->
+                    <div class="stats-cards">
+                        <div class="stat-card info">
+                            <div class="card-icon">
+                                <i class="bi bi-bell-fill"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3 id="totalNotificacoesCount">0</h3>
+                                <p>Total Notificados</p>
+                            </div>
+                        </div>
+                        <div class="stat-card success">
+                            <div class="card-icon">
+                                <i class="bi bi-check-circle-fill"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3 id="respondidosCount">0</h3>
+                                <p>Responderam</p>
+                            </div>
+                        </div>
+                        <div class="stat-card warning">
+                            <div class="card-icon">
+                                <i class="bi bi-clock-fill"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3 id="pendentesCount">0</h3>
+                                <p>Pendentes</p>
+                            </div>
+                        </div>
+                        <div class="stat-card moderate">
+                            <div class="card-icon">
+                                <i class="bi bi-percent"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3 id="taxaRespostaCount">0%</h3>
+                                <p>Taxa de Resposta</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Controles de Filtro e Exportação -->
+                    <div class="table-controls">
+                        <div class="table-controls-left">
+                            <div class="search-box">
+                                <i class="bi bi-search"></i>
+                                <input type="text" id="notificationsSearchInput" placeholder="Buscar servidor...">
+                            </div>
+                            <select id="statusFilter" class="filter-select">
+                                <option value="all">Todos os Status</option>
+                                <option value="respondeu">Responderam</option>
+                                <option value="pendente">Pendentes</option>
+                                <option value="nao-concorda">Não Concorda</option>
+                            </select>
+                        </div>
+                        <div class="table-controls-right">
+                            <button class="btn-secondary" id="exportNotificacoesBtn">
+                                <i class="bi bi-download"></i>
+                                <span>Exportar</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tabela de Notificações -->
+                    <div class="table-container">
+                        <table class="data-table" id="notificationsTable">
+                            <thead>
+                                <tr>
+                                    <th>Servidor</th>
+                                    <th>Processo</th>
+                                    <th>1ª Notificação</th>
+                                    <th>2ª Notificação</th>
+                                    <th>Período Escolhido</th>
+                                    <th>Lotação</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="notificationsTableBody">
+                                <tr class="empty-state">
+                                    <td colspan="8">
+                                        <div class="empty-state-content">
+                                            <i class="bi bi-inbox"></i>
+                                            <p>Nenhuma notificação carregada</p>
+                                            <small>Importe um arquivo CSV com as notificações</small>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
                 <!-- Calendar Page -->
                 <div class="page-content" id="calendarPage">
                     <div class="calendar-page-container">
-                <!-- Cabeçalho do Calendário com Navegação de Ano -->
-                    <div class="calendar-header">
+                        <!-- Cabeçalho do Calendário com Navegação de Ano -->
+                        <div class="calendar-header">
                             <div class="year-navigation">
                                 <button class="btn-year-nav" id="prevYearBtn">
                                     <i class="bi bi-chevron-left"></i>
@@ -291,22 +437,28 @@
                             </div>
                         </div>
 
-                        <!-- Day Details Panel -->
-                        <div class="day-details-panel" id="dayDetailsPanel" style="display: none;">
-                            <div class="panel-header">
-                                <h4 id="selectedDateTitle">Licenças do Dia</h4>
-                                <button class="btn-close-panel" id="closePanelBtn">
-                                    <i class="bi bi-x"></i>
-                                </button>
-                            </div>
-                            <div class="panel-content">
-                                <div class="servers-list" id="selectedDateServers">
-                                    <!-- Conteúdo dinâmico -->
+                        <!-- Calendar Day Details Modal -->
+                        <div class="modal" id="calendarDayModal" style="display: none;">
+                            <div class="modal-backdrop"></div>
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <div class="modal-title-section">
+                                        <h3 id="calendarDayTitle">Licenças do Dia</h3>
+                                    </div>
+                                    <button class="btn-close" id="calendarDayCloseBtn">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="modal-sections" id="calendarServersList">
+                                        <!-- Conteúdo gerado dinamicamente -->
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+                <!-- Fim da Página de Calendário -->
 
                 <!-- Página: Timeline -->
                 <div class="page-content" id="timelinePage">
@@ -319,32 +471,35 @@
                                     <option value="yearly">Anual</option>
                                 </select>
                             </div>
-                            <div class="control-group" id="timelineYearGroup">
-                                <select id="timelineYear" class="form-select">
-                                    <!-- Options will be populated by JavaScript -->
-                                </select>
+                            
+                            <!-- Seletor de Mês/Ano para modo Diário (CustomDatePicker) -->
+                            <div class="control-group" id="timelineDailyGroup" style="display: none;">
+                                <input type="month" id="timelineDailyMonth" style="position: absolute; opacity: 0; pointer-events: none;">
                             </div>
-                            <div class="control-group" id="timelineMonthGroup" style="display: none;">
-                                <select id="timelineMonth" class="form-select">
-                                    <option value="0">Janeiro</option>
-                                    <option value="1">Fevereiro</option>
-                                    <option value="2">Março</option>
-                                    <option value="3">Abril</option>
-                                    <option value="4">Maio</option>
-                                    <option value="5">Junho</option>
-                                    <option value="6">Julho</option>
-                                    <option value="7">Agosto</option>
-                                    <option value="8">Setembro</option>
-                                    <option value="9">Outubro</option>
-                                    <option value="10">Novembro</option>
-                                    <option value="11">Dezembro</option>
-                                </select>
+                            
+                            <!-- Filtros de Período (Range) - Vista Mensal -->
+                            <div class="control-group" id="timelinePeriodRangeGroupMonthly" style="display: none;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                    <input type="month" id="timelinePeriodStartMonth" style="position: absolute; opacity: 0; pointer-events: none;">
+                                    <span style="color: var(--text-secondary); font-weight: 500;">até</span>
+                                    <input type="month" id="timelinePeriodEndMonth" style="position: absolute; opacity: 0; pointer-events: none;">
+                                </div>
                             </div>
-                            <button id="showPeriodStatsBtn" class="btn btn-primary" style="display: none;">
+                            
+                            <!-- Filtros de Período (Range) - Vista Anual -->
+                            <div class="control-group" id="timelinePeriodRangeGroupYearly" style="display: none;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                    <input type="number" id="timelinePeriodStartYear" style="position: absolute; opacity: 0; pointer-events: none;" min="2020" max="2050" placeholder="Ano" title="Ano inicial">
+                                    <span style="color: var(--text-secondary); font-weight: 500;">até</span>
+                                    <input type="number" id="timelinePeriodEndYear" style="position: absolute; opacity: 0; pointer-events: none;" min="2020" max="2050" placeholder="Ano" title="Ano final">
+                                </div>
+                            </div>
+                            
+                            <button id="showPeriodStatsBtn" class="btn-secondary" style="display: none;">
                                 <i class="bi bi-bar-chart"></i>
-                                Ver Estatísticas do Período
+                                Ver Estatísticas
                             </button>
-                            <button id="exportTimelineBtn" class="btn btn-secondary">
+                            <button id="exportTimelineBtn" class="btn-secondary">
                                 <i class="bi bi-download"></i>
                                 Exportar
                             </button>
@@ -357,50 +512,509 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Reports Page -->
+                <div class="page-content" id="reportsPage"></div>
+
+                <!-- Modal de Configuração de Relatório -->
+                <div class="modal-overlay" id="reportConfigModal">
+                    <div class="modal-container report-modal">
+                        <div class="modal-header">
+                            <div class="modal-title">
+                                <i class="bi bi-sliders"></i>
+                                <h2>Configurar Relatório</h2>
+                                <span class="modal-subtitle" id="modalTemplateTitle">Relatório Executivo</span>
+                            </div>
+                            <button class="modal-close" id="closeReportModal" aria-label="Fechar modal">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+
+                        <div class="modal-body">
+                            <div class="modal-content-grid">
+                                <!-- Coluna Esquerda: Configurações -->
+                                <div class="modal-config-panel">
+                                    <div class="config-section">
+                                        <h3 class="config-section-title">
+                                            <i class="bi bi-file-earmark"></i>
+                                            Formato de Exportação
+                                        </h3>
+                                        <div class="format-options-grid">
+                                            <label class="format-option-card">
+                                                <input type="radio" name="modalExportFormat" value="excel" checked>
+                                                <div class="format-card-content">
+                                                    <i class="bi bi-file-earmark-excel text-success"></i>
+                                                    <span class="format-name">Excel</span>
+                                                    <span class="format-ext">.xlsx</span>
+                                                </div>
+                                            </label>
+                                            <label class="format-option-card">
+                                                <input type="radio" name="modalExportFormat" value="csv">
+                                                <div class="format-card-content">
+                                                    <i class="bi bi-file-earmark-text text-info"></i>
+                                                    <span class="format-name">CSV</span>
+                                                    <span class="format-ext">.csv</span>
+                                                </div>
+                                            </label>
+                                            <label class="format-option-card">
+                                                <input type="radio" name="modalExportFormat" value="pdf">
+                                                <div class="format-card-content">
+                                                    <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                                    <span class="format-name">PDF</span>
+                                                    <span class="format-ext">.pdf</span>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="config-section">
+                                        <h3 class="config-section-title">
+                                            <i class="bi bi-layout-text-sidebar"></i>
+                                            Conteúdo do Relatório
+                                        </h3>
+                                        <div class="config-options-list">
+                                            <label class="config-option-item">
+                                                <input type="checkbox" id="modalIncludeCharts" checked>
+                                                <div class="option-content">
+                                                    <i class="bi bi-bar-chart"></i>
+                                                    <div class="option-text">
+                                                        <span class="option-title">Incluir Gráficos</span>
+                                                        <span class="option-description">Gráficos e visualizações de dados</span>
+                                                    </div>
+                                                </div>
+                                                <i class="bi bi-check-circle-fill option-check"></i>
+                                            </label>
+                                            <label class="config-option-item">
+                                                <input type="checkbox" id="modalIncludeStats" checked>
+                                                <div class="option-content">
+                                                    <i class="bi bi-calculator"></i>
+                                                    <div class="option-text">
+                                                        <span class="option-title">Incluir Estatísticas</span>
+                                                        <span class="option-description">Totalizadores e indicadores</span>
+                                                    </div>
+                                                </div>
+                                                <i class="bi bi-check-circle-fill option-check"></i>
+                                            </label>
+                                            <label class="config-option-item">
+                                                <input type="checkbox" id="modalIncludeFilters" checked>
+                                                <div class="option-content">
+                                                    <i class="bi bi-funnel"></i>
+                                                    <div class="option-text">
+                                                        <span class="option-title">Filtros Aplicados</span>
+                                                        <span class="option-description">Mostrar filtros ativos</span>
+                                                    </div>
+                                                </div>
+                                                <i class="bi bi-check-circle-fill option-check"></i>
+                                            </label>
+                                            <label class="config-option-item">
+                                                <input type="checkbox" id="modalIncludeTimestamp" checked>
+                                                <div class="option-content">
+                                                    <i class="bi bi-clock"></i>
+                                                    <div class="option-text">
+                                                        <span class="option-title">Data/Hora de Geração</span>
+                                                        <span class="option-description">Timestamp do relatório</span>
+                                                    </div>
+                                                </div>
+                                                <i class="bi bi-check-circle-fill option-check"></i>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="config-section">
+                                        <h3 class="config-section-title">
+                                            <i class="bi bi-funnel-fill"></i>
+                                            Filtros de Dados
+                                        </h3>
+                                        <div class="filter-info-box">
+                                            <i class="bi bi-info-circle"></i>
+                                            <div>
+                                                <strong>Filtros Ativos:</strong>
+                                                <span id="modalActiveFiltersCount">Todos os servidores</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Coluna Direita: Preview -->
+                                <div class="modal-preview-panel">
+                                    <div class="preview-panel-header">
+                                        <i class="bi bi-eye"></i>
+                                        <span>Pré-visualização</span>
+                                        <div class="preview-controls">
+                                            <button class="btn-icon" id="refreshPreviewBtn" title="Atualizar preview">
+                                                <i class="bi bi-arrow-clockwise"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="preview-panel-content" id="modalReportPreview">
+                                        <div class="preview-loading">
+                                            <div class="spinner"></div>
+                                            <p>Gerando pré-visualização...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button class="btn-secondary" id="cancelReportModalBtn">
+                                <i class="bi bi-x-circle"></i>
+                                Cancelar
+                            </button>
+                            <button class="btn-primary" id="downloadReportBtn">
+                                <i class="bi bi-download"></i>
+                                Baixar Relatório
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tips Page -->
+                <div class="page-content" id="tipsPage">
+                    <div class="tips-container">
+                        <div class="tips-header">
+                            <h2>Dicas e Atalhos</h2>
+                            <p class="tips-subtitle">Aprenda atalhos de teclado e dicas para usar o sistema com mais eficiência</p>
+                        </div>
+
+                        <!-- Atalhos de Teclado -->
+                        <div class="tips-section">
+                            <h3><i class="bi bi-keyboard"></i> Atalhos de Teclado</h3>
+                            <div class="shortcuts-grid" id="keyboardShortcutsGrid">
+                                <!-- Preenchido dinamicamente pelo KeyboardShortcutsManager -->
+                            </div>
+                        </div>
+
+                        <!-- Dicas de Uso -->
+                        <div class="tips-section">
+                            <h3><i class="bi bi-lightbulb"></i> Dicas de Uso</h3>
+                            <div class="tips-grid">
+                                <div class="tip-card">
+                                    <div class="tip-icon"><i class="bi bi-funnel"></i></div>
+                                    <h4>Filtros Avançados</h4>
+                                    <p>Use os filtros avançados na sidebar para refinar sua busca por cargo, lotação, superintendência e nível de urgência.</p>
+                                </div>
+                                <div class="tip-card">
+                                    <div class="tip-icon"><i class="bi bi-calendar3"></i></div>
+                                    <h4>Calendário Visual</h4>
+                                    <p>Clique em qualquer dia no calendário para ver todos os servidores em licença naquela data.</p>
+                                </div>
+                                <div class="tip-card">
+                                    <div class="tip-icon"><i class="bi bi-clock-history"></i></div>
+                                    <h4>Timeline</h4>
+                                    <p>Use a timeline para visualizar licenças distribuídas ao longo do tempo. Escolha entre visualização mensal, trimestral ou anual.</p>
+                                </div>
+                                <div class="tip-card">
+                                    <div class="tip-icon"><i class="bi bi-download"></i></div>
+                                    <h4>Exportação</h4>
+                                    <p>Exporte seus dados filtrados em PDF, Excel ou CSV para análise offline.</p>
+                                </div>
+                                <div class="tip-card">
+                                    <div class="tip-icon"><i class="bi bi-search"></i></div>
+                                    <h4>Busca Inteligente</h4>
+                                    <p>A busca na sidebar procura por nome, cargo e lotação automaticamente. Use o autocomplete para resultados mais rápidos.</p>
+                                </div>
+                                <div class="tip-card">
+                                    <div class="tip-icon"><i class="bi bi-moon-stars"></i></div>
+                                    <h4>Modo Escuro</h4>
+                                    <p>Alterne entre modo claro e escuro usando o botão no canto superior direito ou o atalho Ctrl+D.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Glossário -->
+                        <div class="tips-section">
+                            <h3><i class="bi bi-book"></i> Glossário</h3>
+                            <div class="glossary-grid">
+                                <div class="glossary-item">
+                                    <strong>Urgência Crítica:</strong>
+                                    <p>Licença termina ≤ 2 anos antes da aposentadoria</p>
+                                </div>
+                                <div class="glossary-item">
+                                    <strong>Urgência Alta:</strong>
+                                    <p>Licença termina entre 2-5 anos antes da aposentadoria</p>
+                                </div>
+                                <div class="glossary-item">
+                                    <strong>Urgência Moderada:</strong>
+                                    <p>Licença termina entre 5-7 anos antes da aposentadoria</p>
+                                </div>
+                                <div class="glossary-item">
+                                    <strong>Urgência Baixa:</strong>
+                                    <p>Licença termina > 7 anos antes da aposentadoria</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Page -->
+                <div class="page-content" id="settingsPage">
+                    <div class="settings-container">
+                        <!-- Grid Principal: 2 Colunas -->
+                        <div class="settings-main-grid">
+                            
+                            <!-- BLOCO 1: Aposentadoria -->
+                            <div class="settings-block">
+                                <div class="block-header">
+                                    <i class="bi bi-calendar-check"></i>
+                                    <h2>Aposentadoria</h2>
+                                </div>
+                                <div class="block-content">
+                                    <!-- Grid compacto: 2 colunas -->
+                                    <div class="settings-compact-grid">
+                                        <!-- Idade Compulsória - linha inteira -->
+                                        <div class="setting-field setting-field-full">
+                                            <label>
+                                                <i class="bi bi-hourglass-top"></i>
+                                                <span>Idade Compulsória</span>
+                                            </label>
+                                            <div class="input-wrapper">
+                                                <input type="number" id="idadeCompulsoriaInput" value="75" min="0" max="200">
+                                                <span class="input-unit">anos</span>
+                                            </div>
+                                        </div>
+
+
+                                        <!-- Pontos Homem -->
+                                        <div class="setting-field">
+                                            <label>
+                                                <i class="bi bi-award"></i>
+                                                <span>Pontos Homem</span>
+                                            </label>
+                                            <div class="input-wrapper">
+                                                <input type="number" id="pontosMinHomemInput" value="102" min="0" max="999">
+                                                <span class="input-unit">pts</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Idade Homem -->
+                                        <div class="setting-field">
+                                            <label>
+                                                <i class="bi bi-calendar-range"></i>
+                                                <span>Idade Homem</span>
+                                            </label>
+                                            <div class="input-wrapper">
+                                                <input type="number" id="idadeMinHomemInput" value="63" min="0" max="200">
+                                                <span class="input-unit">anos</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Pontos Mulher -->
+                                        <div class="setting-field">
+                                            <label>
+                                                <i class="bi bi-award"></i>
+                                                <span>Pontos Mulher</span>
+                                            </label>
+                                            <div class="input-wrapper">
+                                                <input type="number" id="pontosMinMulherInput" value="92" min="85" max="105">
+                                                <span class="input-unit">pts</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Idade Mulher -->
+                                        <div class="setting-field">
+                                            <label>
+                                                <i class="bi bi-calendar-range"></i>
+                                                <span>Idade Mulher</span>
+                                            </label>
+                                            <div class="input-wrapper">
+                                                <input type="number" id="idadeMinMulherInput" value="58" min="50" max="65">
+                                                <span class="input-unit">anos</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- BLOCO 2: Urgências -->
+                            <div class="settings-block">
+                                <div class="block-header">
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                    <h2>Níveis de Urgência</h2>
+                                </div>
+                                <div class="block-content">
+                                    <!-- Inputs em coluna única - limpo e espaçoso -->
+                                    <div class="urgency-inputs-only">
+                                        <!-- Baixo (só leitura) -->
+                                        <div class="urgency-step urgency-low">
+                                            <label>
+                                                <i class="bi bi-check-circle-fill"></i>
+                                                <span>Baixo</span>
+                                                <span class="urgency-badge badge-low">> 7 anos</span>
+                                            </label>
+                                            <div class="urgency-display">
+                                                <span class="input-prefix">></span>
+                                                <span class="auto-value">84</span>
+                                                <span class="input-unit">meses</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Moderado -->
+                                        <div class="urgency-step urgency-moderate">
+                                            <label>
+                                                <i class="bi bi-exclamation-circle-fill"></i>
+                                                <span>Moderado</span>
+                                                <span class="urgency-badge badge-moderate">≤ 7 anos</span>
+                                            </label>
+                                            <div class="input-wrapper">
+                                                <span class="input-prefix">≤</span>
+                                                <input type="number" id="urgenciaModInput" value="84" min="48" max="120" step="6">
+                                                <span class="input-unit">meses</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Alto -->
+                                        <div class="urgency-step urgency-high">
+                                            <label>
+                                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                                <span>Alto</span>
+                                                <span class="urgency-badge badge-high">≤ 5 anos</span>
+                                            </label>
+                                            <div class="input-wrapper">
+                                                <span class="input-prefix">≤</span>
+                                                <input type="number" id="urgenciaAltoInput" value="60" min="24" max="96" step="6">
+                                                <span class="input-unit">meses</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Crítico -->
+                                        <div class="urgency-step urgency-critical">
+                                            <label>
+                                                <i class="bi bi-exclamation-octagon-fill"></i>
+                                                <span>Crítico</span>
+                                                <span class="urgency-badge badge-critical">≤ 2 anos</span>
+                                            </label>
+                                            <div class="input-wrapper">
+                                                <span class="input-prefix">≤</span>
+                                                <input type="number" id="urgenciaCriticoInput" value="24" min="6" max="48" step="6">
+                                                <span class="input-unit">meses</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- BLOCO 3: Interface & Acessibilidade -->
+                            <div class="settings-block">
+                                <div class="block-header">
+                                    <i class="bi bi-palette-fill"></i>
+                                    <h2>Interface & Acessibilidade</h2>
+                                </div>
+                                <div class="block-content">
+                                    <div class="interface-toggles-vertical">
+                                        <!-- Alto Contraste -->
+                                        <div class="toggle-item-vertical toggle-item-featured">
+                                            <div class="toggle-header">
+                                                <div class="toggle-label">
+                                                    <i class="bi bi-eye-fill"></i>
+                                                    <span>Modo Alto Contraste</span>
+                                                    <span class="badge-wcag">WCAG AAA</span>
+                                                </div>
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" id="highContrastCheckbox">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </div>
+                                            <p class="toggle-description">Ativa cores com contraste aumentado para melhor legibilidade e acessibilidade. Recomendado para usuários com baixa visão.</p>
+                                            <div class="toggle-shortcut">
+                                                <i class="bi bi-keyboard"></i>
+                                                <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>H</kbd>
+                                            </div>
+                                        </div>
+
+                                        <!-- Tooltips -->
+                                        <div class="toggle-item-vertical">
+                                            <div class="toggle-header">
+                                                <div class="toggle-label">
+                                                    <i class="bi bi-chat-square-text-fill"></i>
+                                                    <span>Tooltips Informativos</span>
+                                                </div>
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" id="tooltipsEnabledCheckbox" checked>
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </div>
+                                            <p class="toggle-description">Exibe dicas de ajuda ao passar o mouse sobre elementos da interface</p>
+                                        </div>
+                                        
+                                        <!-- Animações -->
+                                        <div class="toggle-item-vertical">
+                                            <div class="toggle-header">
+                                                <div class="toggle-label">
+                                                    <i class="bi bi-stars"></i>
+                                                    <span>Animações</span>
+                                                </div>
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" id="animationsEnabledCheckbox" checked>
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </div>
+                                            <p class="toggle-description">Ativa transições e efeitos visuais suaves na interface</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Footer com Ações -->
+                        <div class="settings-footer">
+                            <div class="settings-footer-left">
+                                <div class="settings-status" id="settingsStatus">
+                                    <i class="bi bi-cloud-check"></i>
+                                    <span>Salvo</span>
+                                </div>
+                                <button class="btn-reset" id="resetSettingsBtn">
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                    Restaurar Padrões
+                                </button>
+                            </div>
+                            <div class="settings-footer-right">
+                                <button class="btn-export" id="exportSettingsBtn">
+                                    <i class="bi bi-download"></i>
+                                    Exportar
+                                </button>
+                                <button class="btn-save" id="saveSettingsBtn">
+                                    <i class="bi bi-check-lg"></i>
+                                    Salvar Alterações
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
 
     <!-- Modal de Timeline -->
-    <div class="modal" id="timelineModal">
+    <div class="modal" id="timelineModal" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Detalhes do Período" tabindex="-1">
         <div class="modal-backdrop"></div>
         <div class="modal-content">
             <div class="modal-header">
                 <div class="modal-title-section">
                     <h3 id="timelineModalTitle">Detalhes do Período</h3>
                 </div>
-                <button class="btn-close" id="timelineModalCloseBtn">
-                    <i class="bi bi-x"></i>
+                <button class="btn-close" id="timelineModalCloseBtn" aria-label="Fechar modal de detalhes">
+                    <i class="bi bi-x" aria-hidden="true"></i>
                 </button>
             </div>
-            <div class="modal-body" id="timelineModalBody">
-                <div class="modal-sections">
-                    <!-- Seção: Servidores em Licença -->
-                    <div class="modal-section">
-                        <div class="section-header">
-                            <i class="bi bi-people section-icon"></i>
-                            <h4 class="section-title">Servidores em Licença</h4>
-                            <span class="section-badge" id="serversCount">0</span>
-                        </div>
-                        <div class="section-content" id="timelineServersList">
-                            <!-- Lista de servidores -->
-                        </div>
-                    </div>
+            <div class="modal-body">
+                <div class="modal-sections" id="timelineModalBody">
+                    <!-- Conteúdo gerado dinamicamente -->
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Modal de Estatísticas do Período -->
-    <div class="modal" id="periodStatsModal">
+    <div class="modal" id="periodStatsModal" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Estatísticas do Período" tabindex="-1">
         <div class="modal-backdrop"></div>
         <div class="modal-content">
             <div class="modal-header">
                 <div class="modal-title-section">
                     <h3 id="periodStatsModalTitle">Estatísticas do Período</h3>
                 </div>
-                <button class="btn-close" id="periodStatsModalCloseBtn">
-                    <i class="bi bi-x"></i>
+                <button class="btn-close" id="periodStatsModalCloseBtn" aria-label="Fechar modal de estatísticas">
+                    <i class="bi bi-x" aria-hidden="true"></i>
                 </button>
             </div>
             <div class="modal-body" id="periodStatsModalBody">
@@ -412,15 +1026,15 @@
     </div>
 
     <!-- Modal de Detalhes -->
-    <div class="modal" id="detailsModal">
+    <div class="modal" id="detailsModal" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Detalhes do Servidor" tabindex="-1">
         <div class="modal-backdrop"></div>
         <div class="modal-content modal-enhanced">
             <div class="modal-header">
                 <div class="modal-title-section">
                     <h3 id="modalTitle">Detalhes do Servidor</h3>
                 </div>
-                <button class="btn-close" id="modalCloseBtn">
-                    <i class="bi bi-x"></i>
+                <button class="btn-close" id="modalCloseBtn" aria-label="Fechar detalhes do servidor">
+                    <i class="bi bi-x" aria-hidden="true"></i>
                 </button>
             </div>
             <div class="modal-body" id="modalBody">
@@ -459,23 +1073,110 @@
     </div>
 
     <!-- Modal de Problemas -->
-    <div class="modal" id="problemsModal">
+    <div class="modal" id="problemsModal" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Servidores com Problemas" tabindex="-1">
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Servidores com Problemas</h3>
-                <button class="btn-close" id="problemsModalCloseBtn">
-                    <i class="bi bi-x"></i>
+                <button class="btn-close" id="problemsModalCloseBtn" aria-label="Fechar modal de problemas">
+                    <i class="bi bi-x" aria-hidden="true"></i>
                 </button>
             </div>
             <div class="modal-body" id="problemsModalBody">
                 <div class="problems-list">
-                    <p class="problems-description">
-                        <i class="bi bi-info-circle"></i>
-                        Lista de servidores que apresentaram problemas durante o carregamento dos dados:
-                    </p>
                     <div class="problems-content" id="problemsContent">
                         <!-- Conteúdo será inserido dinamicamente -->
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Filtros Avançados -->
+    <div id="filtersModal" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Filtros Avançados" tabindex="-1">
+        <div class="modal-content filters-modal">
+            <div class="modal-header">
+                <h3><i class="bi bi-funnel"></i> Filtros Avançados</h3>
+                <button class="modal-close" id="closeFiltersModal" aria-label="Fechar filtros avançados">
+                    <i class="bi bi-x" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Filtro de Cargo -->
+                <div class="filter-group">
+                    <label class="filter-label">Cargo</label>
+                    <div class="searchable-dropdown">
+                        <input type="text" id="cargoSearch" placeholder="Buscar cargo...">
+                        <select id="cargoFilter" size="5">
+                            <option value="">Todos</option>
+                            <!-- Opções dinâmicas -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Filtro de Lotação -->
+                <div class="filter-group">
+                    <label class="filter-label">Lotação</label>
+                    <div class="searchable-dropdown">
+                        <input type="text" id="lotacaoSearch" placeholder="Buscar lotação...">
+                        <select id="lotacaoFilter" size="5">
+                            <option value="">Todas</option>
+                            <!-- Opções dinâmicas -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Filtro Cascata: Superintendência → Subsecretaria -->
+                <div class="filter-group">
+                    <label class="filter-label">Superintendência</label>
+                    <select id="superintendenciaFilter">
+                        <option value="">Todas</option>
+                        <!-- Opções dinâmicas -->
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Subsecretaria</label>
+                    <select id="subsecretariaFilter" disabled>
+                        <option value="">Selecione a superintendência primeiro</option>
+                    </select>
+                </div>
+
+                <!-- Filtro de Urgência (Radio Buttons) -->
+                <div class="filter-group">
+                    <label class="filter-label">Urgência</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="urgencia" value="all" checked> Todas</label>
+                        <label><input type="radio" name="urgencia" value="critica"> Crítica</label>
+                        <label><input type="radio" name="urgencia" value="alta"> Alta</label>
+                        <label><input type="radio" name="urgencia" value="moderada"> Moderada</label>
+                        <label><input type="radio" name="urgencia" value="baixa"> Baixa</label>
+                    </div>
+                </div>
+
+                <!-- Filtro de Status (Checkboxes) -->
+                <div class="filter-group">
+                    <label class="filter-label">Status da Licença</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" id="statusComLicenca" value="com-licenca"> Com licença agendada</label>
+                        <label><input type="checkbox" id="statusSemLicenca" value="sem-licenca"> Sem licença agendada</label>
+                        <label><input type="checkbox" id="statusVencidas" value="vencidas"> Licenças vencidas</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="modal-footer-info">
+                    <i class="bi bi-info-circle"></i>
+                    <span>Os filtros serão aplicados aos dados visualizados</span>
+                </div>
+                <div class="modal-footer-actions">
+                    <button class="btn-secondary" id="cancelFiltersBtn">
+                        <i class="bi bi-x-circle"></i>
+                        Cancelar
+                    </button>
+                    <button class="btn-primary" id="applyFiltersBtn">
+                        <i class="bi bi-check-circle"></i>
+                        Aplicar Filtros
+                    </button>
                 </div>
             </div>
         </div>
@@ -489,9 +1190,46 @@
         </div>
     </div>
 
-    <!-- Scripts -->
+
+    <!-- 1. Utilitários -->
+    <script src="js/utils/DateUtils.js"></script>
+    <script src="js/utils/ValidationUtils.js"></script>
+    <script src="js/utils/FormatUtils.js"></script>
+    <script src="js/utils/FuzzySearch.js"></script>
+
+    <!-- 2. Custom DatePicker -->
+    <script src="js/customDatePicker.js"></script>
+
+    <!-- 2.5. Custom Tooltip (detalhado) -->
+    <script src="js/customTooltip.js"></script>
+
+    <!-- 2.6. Settings Manager -->
+    <script src="js/settingsManager.js"></script>
+
+    <!-- 3. Parser de cronograma -->
     <script src="js/cronogramaParser.js"></script>
+
+    <!-- 4. Módulos de gerenciamento -->
+    <script src="js/modules/TableSortManager.js"></script>
+    <script src="js/modules/CacheManager.js"></script>
+    <script src="js/modules/ValidationManager.js"></script>
+    <script src="js/modules/ErrorReporter.js"></script>
+    <script src="js/modules/ExportManager.js"></script>
+    <script src="js/modules/SmartSearchManager.js"></script>
+    <script src="js/modules/AdvancedFilterManager.js"></script>
+    <script src="js/modules/FilterChipsUI.js"></script>
+    <script src="js/modules/KeyboardShortcutsManager.js"></script>
+    <script src="js/modules/LoadingSkeletons.js"></script>
+    <script src="js/modules/HighContrastManager.js"></script>
+    <script src="js/modules/BreadcrumbsManager.js"></script>
+    <script src="js/modules/NotificationManager.js"></script>
+    <script src="js/modules/ReportsManager.js"></script>
+    <script src="js/modules/OperationalImpactAnalyzer.js"></script>
+    <script src="js/modules/ReportBuilderPremium.js"></script>
+
+    <!-- 5. Dashboard Principal (versão refatorada) -->
     <script src="js/dashboard.js"></script>
+
 </body>
 
 </html>
