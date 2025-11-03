@@ -1,0 +1,357 @@
+/**
+ * filter-chips.css
+ * Estilos para chips/tags de filtros ativos
+ */
+
+/* ==================== Container Principal ==================== */
+.filter-chips-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.filter-chips-container.show {
+    animation: slideInDown 0.3s ease;
+}
+
+/* ==================== Header dos Chips ==================== */
+.chips-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.chips-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.btn-clear-all {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.btn-clear-all:hover {
+    background: var(--danger-alpha-20);
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+/* ==================== Lista de Chips ==================== */
+.filter-chips-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+/* ==================== Chip Individual ==================== */
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--surface-hover);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.filter-chip:hover {
+    background: var(--surface);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.filter-chip i:first-child {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.chip-text {
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.chip-text strong {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.chip-remove {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin-left: 0.25rem;
+}
+
+.chip-remove:hover {
+    background: var(--danger-alpha-20);
+    color: var(--danger);
+}
+
+.chip-remove i {
+    font-size: 0.875rem;
+}
+
+/* ==================== Chips Coloridos por Tipo ==================== */
+.filter-chip-cargo {
+    background: var(--primary-alpha-10);
+    border-color: var(--primary-alpha-30);
+}
+
+.filter-chip-cargo:hover {
+    background: var(--primary-alpha-20);
+    border-color: var(--primary);
+}
+
+.filter-chip-cargo i:first-child {
+    color: var(--primary);
+}
+
+.filter-chip-lotacao {
+    background: var(--success-alpha-10);
+    border-color: var(--success-alpha-30);
+}
+
+.filter-chip-lotacao:hover {
+    background: var(--success-alpha-20);
+    border-color: var(--success);
+}
+
+.filter-chip-lotacao i:first-child {
+    color: var(--success);
+}
+
+.filter-chip-superintendencia {
+    background: var(--warning-alpha-10);
+    border-color: var(--warning-alpha-30);
+}
+
+.filter-chip-superintendencia:hover {
+    background: var(--warning-alpha-20);
+    border-color: var(--warning);
+}
+
+.filter-chip-superintendencia i:first-child {
+    color: var(--warning);
+}
+
+.filter-chip-subsecretaria {
+    background: var(--info-alpha-10);
+    border-color: var(--info-alpha-30);
+}
+
+.filter-chip-subsecretaria:hover {
+    background: var(--info-alpha-20);
+    border-color: var(--info);
+}
+
+.filter-chip-subsecretaria i:first-child {
+    color: var(--info);
+}
+
+.filter-chip-urgencia {
+    background: var(--danger-alpha-10);
+    border-color: var(--danger-alpha-30);
+}
+
+.filter-chip-urgencia:hover {
+    background: var(--danger-alpha-20);
+    border-color: var(--danger);
+}
+
+.filter-chip-urgencia i:first-child {
+    color: var(--danger);
+}
+
+.filter-chip-status {
+    background: var(--purple-alpha-10);
+    border-color: var(--purple-alpha-30);
+}
+
+.filter-chip-status:hover {
+    background: var(--purple-alpha-20);
+    border-color: var(--purple);
+}
+
+.filter-chip-status i:first-child {
+    color: var(--purple);
+}
+
+/* ==================== Footer dos Chips ==================== */
+.chips-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+}
+
+.btn-add-filter {
+    background: var(--primary);
+    border: none;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-add-filter:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-add-filter:active {
+    transform: translateY(0);
+}
+
+.btn-add-filter i {
+    font-size: 1rem;
+}
+
+/* ==================== Contador de Resultados ==================== */
+.results-counter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.results-counter i {
+    color: var(--primary);
+    font-size: 1rem;
+}
+
+.results-counter.filtered {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+/* ==================== Responsive ==================== */
+@media (max-width: 768px) {
+    .chips-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .btn-clear-all {
+        align-self: flex-end;
+    }
+
+    .chips-footer {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: stretch;
+    }
+
+    .btn-add-filter,
+    .results-counter {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .filter-chips-list {
+        gap: 0.375rem;
+    }
+
+    .filter-chip {
+        font-size: 0.8125rem;
+        padding: 0.375rem 0.625rem;
+    }
+}
+
+/* ==================== Animações ==================== */
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+}
+
+.filter-chip {
+    animation: fadeIn 0.3s ease;
+}
+
+.filter-chip.removing {
+    animation: fadeOut 0.3s ease;
+}
+
+/* Animação escalonada para chips */
+.filter-chip:nth-child(1) { animation-delay: 0s; }
+.filter-chip:nth-child(2) { animation-delay: 0.05s; }
+.filter-chip:nth-child(3) { animation-delay: 0.1s; }
+.filter-chip:nth-child(4) { animation-delay: 0.15s; }
+.filter-chip:nth-child(5) { animation-delay: 0.2s; }
+.filter-chip:nth-child(6) { animation-delay: 0.25s; }
+
+/* ==================== Variáveis de Cor (fallback) ==================== */
+:root {
+    --purple: #8b5cf6;
+    --purple-alpha-10: rgba(139, 92, 246, 0.1);
+    --purple-alpha-20: rgba(139, 92, 246, 0.2);
+    --purple-alpha-30: rgba(139, 92, 246, 0.3);
+}

@@ -1,0 +1,71 @@
+/* ==================== SCROLLBARS MINIMALISTAS ==================== */
+/* Padrão para Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-hover) transparent;
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: var(--border-hover);
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: var(--primary);
+}
+
+/* Scrollbar mais fina e elegante para modals e listas */
+.modal-body::-webkit-scrollbar,
+#timelineServersList::-webkit-scrollbar,
+#calendarServersList::-webkit-scrollbar,
+.table-container::-webkit-scrollbar,
+.servers-list::-webkit-scrollbar,
+.chart-legends::-webkit-scrollbar {
+    width: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb,
+#timelineServersList::-webkit-scrollbar-thumb,
+#calendarServersList::-webkit-scrollbar-thumb,
+.table-container::-webkit-scrollbar-thumb,
+.servers-list::-webkit-scrollbar-thumb,
+.chart-legends::-webkit-scrollbar-thumb {
+    width: 6px;
+    height: 6px;
+    background: var(--text-tertiary);
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover,
+#timelineServersList::-webkit-scrollbar-thumb:hover,
+#calendarServersList::-webkit-scrollbar-thumb:hover,
+.table-container::-webkit-scrollbar-thumb:hover,
+.servers-list::-webkit-scrollbar-thumb:hover,
+.chart-legends::-webkit-scrollbar-thumb:hover {
+    background: var(--primary);
+}
+
+.modal-body::-webkit-scrollbar-track,
+#timelineServersList::-webkit-scrollbar-track,
+#calendarServersList::-webkit-scrollbar-track,
+.table-container::-webkit-scrollbar-track,
+.servers-list::-webkit-scrollbar-track,
+.chart-legends::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    margin: 2px;
+}

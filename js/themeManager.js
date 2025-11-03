@@ -139,14 +139,10 @@ class ThemeManager {
 
     updateChartColors() {
         if (!window.dashboardChart || !window.dashboardChart.data) return;
-
-        // As cores dos gráficos devem permanecer consistentes
-        // mas podemos ajustar se necessário para melhor contraste
-        const chartColors = ['#ef4444', '#f97316', '#eab308', '#059669'];
         
         if (window.dashboardChart.data.datasets[0]) {
-            window.dashboardChart.data.datasets[0].backgroundColor = chartColors;
-            window.dashboardChart.update('none'); // Atualizar sem animação
+            window.dashboardChart.data.datasets[0].backgroundColor = CARGO_COLORS;
+            window.dashboardChart.update('none');
         }
     }
 

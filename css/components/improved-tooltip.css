@@ -1,0 +1,437 @@
+/**
+ * improved-tooltip.css
+ * 
+ * Estilos para sistema avançado de tooltips
+ * 
+ * Características:
+ * - Design moderno e acessível
+ * - Animações suaves
+ * - Temas claro e escuro
+ * - Arrows dinâmicas
+ * - Suporte para movimento reduzido
+ * 
+ * @version 3.0.0
+ */
+
+/* ========================================
+   Container Principal
+   ======================================== */
+
+.improved-tooltips-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10000;
+}
+
+/* ========================================
+   Tooltip Base
+   ======================================== */
+
+.improved-tooltip {
+    position: fixed;
+    max-width: 300px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.4;
+    font-weight: 400;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: auto;
+    z-index: 10001;
+    word-wrap: break-word;
+}
+
+.improved-tooltip.show {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* ========================================
+   Temas
+   ======================================== */
+
+/* Tema Escuro (padrão) */
+.improved-tooltip-dark {
+    background-color: #2d3748;
+    color: #ffffff;
+    border: 1px solid #4a5568;
+}
+
+/* Tema Claro */
+.improved-tooltip-light {
+    background-color: #ffffff;
+    color: #2d3748;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Tema Primário */
+.improved-tooltip-primary {
+    background-color: #0d6efd;
+    color: #ffffff;
+    border: 1px solid #0a58ca;
+}
+
+/* Tema Sucesso */
+.improved-tooltip-success {
+    background-color: #198754;
+    color: #ffffff;
+    border: 1px solid #146c43;
+}
+
+/* Tema Aviso */
+.improved-tooltip-warning {
+    background-color: #ffc107;
+    color: #000000;
+    border: 1px solid #ffb000;
+}
+
+/* Tema Perigo */
+.improved-tooltip-danger {
+    background-color: #dc3545;
+    color: #ffffff;
+    border: 1px solid #b02a37;
+}
+
+/* Tema Info */
+.improved-tooltip-info {
+    background-color: #0dcaf0;
+    color: #000000;
+    border: 1px solid #0aa8cc;
+}
+
+/* ========================================
+   Arrows (Setas)
+   ======================================== */
+
+.improved-tooltip-arrow {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: inherit;
+    border: inherit;
+    transform: rotate(45deg);
+    z-index: -1;
+}
+
+/* Posição Top */
+.improved-tooltip[data-position="top"] .improved-tooltip-arrow {
+    bottom: -5px;
+    left: 50%;
+    margin-left: -5px;
+    border-left: none;
+    border-top: none;
+}
+
+/* Posição Bottom */
+.improved-tooltip[data-position="bottom"] .improved-tooltip-arrow {
+    top: -5px;
+    left: 50%;
+    margin-left: -5px;
+    border-right: none;
+    border-bottom: none;
+}
+
+/* Posição Left */
+.improved-tooltip[data-position="left"] .improved-tooltip-arrow {
+    right: -5px;
+    top: 50%;
+    margin-top: -5px;
+    border-left: none;
+    border-bottom: none;
+}
+
+/* Posição Right */
+.improved-tooltip[data-position="right"] .improved-tooltip-arrow {
+    left: -5px;
+    top: 50%;
+    margin-top: -5px;
+    border-right: none;
+    border-top: none;
+}
+
+/* ========================================
+   Conteúdo Rico (HTML)
+   ======================================== */
+
+.improved-tooltip strong,
+.improved-tooltip b {
+    font-weight: 700;
+}
+
+.improved-tooltip em,
+.improved-tooltip i {
+    font-style: italic;
+}
+
+.improved-tooltip ul,
+.improved-tooltip ol {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.improved-tooltip li {
+    margin: 4px 0;
+}
+
+.improved-tooltip code {
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+.improved-tooltip-light code {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.improved-tooltip a {
+    color: inherit;
+    text-decoration: underline;
+    font-weight: 500;
+}
+
+.improved-tooltip a:hover {
+    text-decoration: none;
+}
+
+/* ========================================
+   Tooltips em Elementos Específicos
+   ======================================== */
+
+/* Tooltips em botões desabilitados */
+button:disabled[data-tooltip],
+.btn:disabled[data-tooltip] {
+    pointer-events: auto; /* Permite tooltip em botões desabilitados */
+}
+
+button:disabled[data-tooltip]:hover,
+.btn:disabled[data-tooltip]:hover {
+    cursor: not-allowed;
+}
+
+/* Tooltips em ícones */
+i[data-tooltip],
+.bi[data-tooltip] {
+    cursor: help;
+}
+
+/* Tooltips em badges */
+.badge[data-tooltip] {
+    cursor: help;
+}
+
+/* ========================================
+   Alto Contraste
+   ======================================== */
+
+.high-contrast-mode .improved-tooltip {
+    border-width: 2px;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.3);
+}
+
+.high-contrast-mode .improved-tooltip-dark {
+    background-color: #000000;
+    color: #ffffff;
+    border-color: #ffffff;
+}
+
+.high-contrast-mode .improved-tooltip-light {
+    background-color: #ffffff;
+    color: #000000;
+    border-color: #000000;
+}
+
+.high-contrast-mode .improved-tooltip-arrow {
+    border-width: 2px;
+}
+
+/* ========================================
+   Movimento Reduzido
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    .improved-tooltip {
+        transition: none;
+        transform: none !important;
+    }
+    
+    .improved-tooltip.show {
+        opacity: 1;
+    }
+}
+
+/* ========================================
+   Dark Theme
+   ======================================== */
+
+.dark-theme .improved-tooltip-light {
+    background-color: #2d3748;
+    color: #f7fafc;
+    border-color: #4a5568;
+}
+
+.dark-theme .improved-tooltip-dark {
+    background-color: #1a202c;
+    color: #ffffff;
+    border-color: #2d3748;
+}
+
+/* ========================================
+   Responsividade
+   ======================================== */
+
+@media (max-width: 768px) {
+    .improved-tooltip {
+        max-width: 250px;
+        font-size: 13px;
+        padding: 6px 10px;
+    }
+}
+
+@media (max-width: 576px) {
+    .improved-tooltip {
+        max-width: 200px;
+        font-size: 12px;
+        padding: 5px 8px;
+    }
+}
+
+/* ========================================
+   Impressão
+   ======================================== */
+
+@media print {
+    .improved-tooltips-container,
+    .improved-tooltip {
+        display: none !important;
+    }
+}
+
+/* ========================================
+   Acessibilidade com Leitores de Tela
+   ======================================== */
+
+/* Garante que tooltips sejam lidos por leitores de tela */
+.improved-tooltip[role="tooltip"] {
+    position: fixed;
+    visibility: visible;
+}
+
+/* Elementos com tooltip sem aria-describedby (aviso em dev) */
+[data-tooltip]:not([aria-describedby]):focus {
+    outline: 2px dashed orange;
+    outline-offset: 2px;
+}
+
+/* ========================================
+   Animações Customizadas
+   ======================================== */
+
+@keyframes tooltip-fade-in {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes tooltip-fade-out {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+}
+
+/* ========================================
+   Estados de Hover/Focus
+   ======================================== */
+
+[data-tooltip]:hover,
+[data-tooltip]:focus {
+    position: relative;
+}
+
+/* Indicador visual de que elemento tem tooltip */
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: transparent;
+    transition: background 0.2s ease;
+}
+
+[data-tooltip]:hover::after,
+[data-tooltip]:focus::after {
+    background: currentColor;
+    opacity: 0.3;
+}
+
+/* Remove indicador de alguns elementos */
+button[data-tooltip]::after,
+.btn[data-tooltip]::after,
+.badge[data-tooltip]::after,
+i[data-tooltip]::after {
+    display: none;
+}
+
+/* ========================================
+   Tooltips com Largura Customizada
+   ======================================== */
+
+.improved-tooltip[data-width="small"] {
+    max-width: 150px;
+}
+
+.improved-tooltip[data-width="medium"] {
+    max-width: 300px;
+}
+
+.improved-tooltip[data-width="large"] {
+    max-width: 450px;
+}
+
+.improved-tooltip[data-width="full"] {
+    max-width: 90vw;
+}
+
+/* ========================================
+   Z-index para Contextos Específicos
+   ======================================== */
+
+/* Tooltips em modais */
+.modal .improved-tooltip {
+    z-index: 10060;
+}
+
+/* Tooltips em dropdowns */
+.dropdown-menu .improved-tooltip {
+    z-index: 10010;
+}
+
+/* Tooltips em popovers */
+.popover .improved-tooltip {
+    z-index: 10070;
+}

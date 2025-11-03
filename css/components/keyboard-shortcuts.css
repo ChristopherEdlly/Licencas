@@ -1,0 +1,380 @@
+/**
+ * keyboard-shortcuts.css
+ * Estilos para o sistema de atalhos de teclado
+ */
+
+/* ========================================
+   Toast de Notificação de Atalho
+   ======================================== */
+
+.shortcut-toast {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 9999;
+    opacity: 0;
+    transform: translateX(100px);
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    pointer-events: none;
+    backdrop-filter: blur(10px);
+}
+
+.shortcut-toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.shortcut-toast-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.shortcut-key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 8px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.shortcut-desc {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* ========================================
+   Modal de Ajuda de Atalhos
+   ======================================== */
+
+.shortcuts-category {
+    margin-bottom: 24px;
+}
+
+.shortcuts-category:last-child {
+    margin-bottom: 0;
+}
+
+.shortcuts-category-title {
+    color: var(--primary-color, #007bff);
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border-color, #e0e0e0);
+}
+
+.shortcuts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.shortcut-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--bg-secondary, #f8f9fa);
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+
+.shortcut-item:hover {
+    background: var(--hover-bg, #e9ecef);
+}
+
+.shortcut-kbd {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%);
+    border: 1px solid #c0c0c0;
+    border-radius: 4px;
+    box-shadow: 
+        0 1px 0 rgba(0, 0, 0, 0.1),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+    min-width: 80px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.shortcut-description {
+    flex: 1;
+    font-size: 14px;
+    color: var(--text-color, #333);
+    margin-left: 16px;
+}
+
+/* ========================================
+   Indicadores Visuais de Foco
+   ======================================== */
+
+/* Outline customizado para acessibilidade */
+*:focus-visible {
+    outline: 2px solid var(--primary-color, #007bff);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* Remover outline padrão do navegador */
+*:focus {
+    outline: none;
+}
+
+/* Indicador visual quando elemento está focado via teclado */
+.keyboard-focus {
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+/* ========================================
+   Temas Especiais para Modal
+   ======================================== */
+
+#keyboardShortcutsModal .modal-header {
+    background: linear-gradient(135deg, var(--primary-color, #007bff) 0%, var(--primary-dark, #0056b3) 100%);
+    color: white;
+    border-bottom: none;
+}
+
+#keyboardShortcutsModal .modal-header .btn-close {
+    filter: invert(1);
+}
+
+#keyboardShortcutsModal .modal-title i {
+    margin-right: 8px;
+    font-size: 20px;
+}
+
+#keyboardShortcutsModal .modal-body {
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+#keyboardShortcutsModal .modal-footer {
+    background: var(--bg-secondary, #f8f9fa);
+    border-top: 1px solid var(--border-color, #e0e0e0);
+}
+
+/* ========================================
+   Responsividade Mobile
+   ======================================== */
+
+@media (max-width: 640px) {
+    .shortcut-toast {
+        bottom: 60px;
+        right: 10px;
+        left: 10px;
+        transform: translateY(100px);
+    }
+    
+    .shortcut-toast.show {
+        transform: translateY(0);
+    }
+    
+    .shortcut-toast-content {
+        gap: 8px;
+    }
+    
+    .shortcut-key {
+        min-width: 24px;
+        height: 24px;
+        font-size: 11px;
+    }
+    
+    .shortcut-desc {
+        font-size: 12px;
+    }
+    
+    .shortcut-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .shortcut-kbd {
+        min-width: 60px;
+    }
+    
+    .shortcut-description {
+        margin-left: 0;
+        font-size: 13px;
+    }
+    
+    #keyboardShortcutsModal .modal-body {
+        max-height: 400px;
+        padding: 16px;
+    }
+}
+
+/* ========================================
+   Animações
+   ======================================== */
+
+@keyframes shortcut-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(0, 123, 255, 0);
+    }
+}
+
+.shortcut-hint {
+    animation: shortcut-pulse 2s infinite;
+}
+
+/* ========================================
+   Tooltip de Atalho
+   ======================================== */
+
+[data-keyboard-shortcut] {
+    position: relative;
+}
+
+[data-keyboard-shortcut]::after {
+    content: attr(data-keyboard-shortcut);
+    position: absolute;
+    bottom: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    border-radius: 4px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 1000;
+}
+
+[data-keyboard-shortcut]:hover::after {
+    opacity: 1;
+}
+
+/* ========================================
+   Dark Mode Support
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+    .shortcut-item {
+        background: rgba(255, 255, 255, 0.05);
+    }
+    
+    .shortcut-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .shortcut-kbd {
+        background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
+        border-color: #555;
+        color: #f0f0f0;
+        box-shadow: 
+            0 1px 0 rgba(255, 255, 255, 0.1),
+            inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    }
+    
+    .shortcuts-category-title {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+}
+
+/* ========================================
+   Customização de Scrollbar (Modal)
+   ======================================== */
+
+#keyboardShortcutsModal .modal-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+#keyboardShortcutsModal .modal-body::-webkit-scrollbar-track {
+    background: var(--bg-secondary, #f8f9fa);
+    border-radius: 4px;
+}
+
+#keyboardShortcutsModal .modal-body::-webkit-scrollbar-thumb {
+    background: var(--border-color, #c0c0c0);
+    border-radius: 4px;
+}
+
+#keyboardShortcutsModal .modal-body::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color, #007bff);
+}
+
+/* ========================================
+   Indicadores de Navegação por Tab
+   ======================================== */
+
+.tab-navigation-active *:focus-visible {
+    outline: 3px solid var(--primary-color, #007bff);
+    outline-offset: 3px;
+}
+
+/* Skip Links para Acessibilidade */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--primary-color, #007bff);
+    color: white;
+    padding: 8px 16px;
+    text-decoration: none;
+    border-radius: 0 0 4px 0;
+    z-index: 10000;
+    transition: top 0.2s;
+}
+
+.skip-link:focus {
+    top: 0;
+}
+
+/* ========================================
+   Badge de Atalho nos Botões
+   ======================================== */
+
+.btn-with-shortcut {
+    position: relative;
+    padding-right: 40px !important;
+}
+
+.btn-with-shortcut .shortcut-badge {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 2px 6px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 3px;
+    font-size: 10px;
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    opacity: 0.7;
+}
+
+.btn-with-shortcut:hover .shortcut-badge {
+    opacity: 1;
+}

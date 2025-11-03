@@ -1,0 +1,17 @@
+{
+    "name": "Meu Projeto Playwright",
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+    "features": {
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "20"
+        }
+    },
+    "postCreateCommand": "npm install && npx playwright install --with-deps",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-playwright.playwright"
+            ]
+        }
+    }
+}

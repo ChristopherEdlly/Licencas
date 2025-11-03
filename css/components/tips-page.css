@@ -1,0 +1,239 @@
+/**
+ * tips-page.css
+ * Estilos para a página de Dicas e Atalhos
+ */
+
+/* ==================== Container Principal ==================== */
+.tips-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* ==================== Header ==================== */
+.tips-header {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 2px solid var(--border);
+}
+
+.tips-header h2 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+}
+
+.tips-subtitle {
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* ==================== Seções ==================== */
+.tips-section {
+    margin-bottom: 3rem;
+}
+
+.tips-section h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+}
+
+.tips-section h3 i {
+    color: var(--primary);
+    font-size: 1.5rem;
+}
+
+/* ==================== Grid de Atalhos ==================== */
+.shortcuts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.shortcut-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+}
+
+.shortcut-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px var(--shadow-color);
+    transform: translateY(-2px);
+}
+
+.shortcut-keys {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.shortcut-key {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.375rem 0.625rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.shortcut-plus {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.shortcut-description {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* ==================== Grid de Dicas ==================== */
+.tips-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.tip-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.2s ease;
+}
+
+.tip-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 6px 16px var(--shadow-color);
+    transform: translateY(-4px);
+}
+
+.tip-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.tip-icon i {
+    font-size: 1.5rem;
+    color: white;
+}
+
+.tip-card h4 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.75rem 0;
+}
+
+.tip-card p {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* ==================== Glossário ==================== */
+.glossary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.glossary-item {
+    background: var(--surface);
+    border-left: 4px solid var(--primary);
+    border-radius: 4px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+}
+
+.glossary-item:hover {
+    background: var(--surface-hover);
+    border-left-width: 6px;
+}
+
+.glossary-item strong {
+    display: block;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.375rem;
+}
+
+.glossary-item p {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* ==================== Responsive ==================== */
+@media (max-width: 768px) {
+    .tips-container {
+        padding: 1rem;
+    }
+
+    .tips-header h2 {
+        font-size: 2rem;
+    }
+
+    .tips-subtitle {
+        font-size: 1rem;
+    }
+
+    .tips-section h3 {
+        font-size: 1.5rem;
+    }
+
+    .shortcuts-grid,
+    .tips-grid,
+    .glossary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .tip-card {
+        padding: 1.25rem;
+    }
+}
+
+/* ==================== Animações ==================== */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tips-section {
+    animation: fadeInUp 0.4s ease;
+}
+
+.tips-section:nth-child(2) { animation-delay: 0.1s; }
+.tips-section:nth-child(3) { animation-delay: 0.2s; }
+.tips-section:nth-child(4) { animation-delay: 0.3s; }

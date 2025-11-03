@@ -1,0 +1,192 @@
+/**
+ * Modal Components - Estilos para modais e seus componentes
+ */
+
+/* ==================== REGISTROS DA PLANILHA ==================== */
+
+/* Container de registro único */
+.record-single {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* Container de registros mesclados */
+.records-merged {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* Linha de registro */
+.record-row {
+    display: flex;
+    align-items: center;
+    padding: 0.625rem 0.75rem;
+    border-radius: 6px;
+    transition: background 0.2s ease;
+}
+
+.record-row:hover {
+    background: var(--bg-tertiary);
+}
+
+/* Linha de campo único (igual em todos) */
+.record-row-unique {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    justify-content: space-between;
+}
+
+/* Linha de campo múltiplo (diferente entre registros) */
+.record-row-multiple {
+    flex-direction: column;
+    align-items: stretch;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border: 2px solid #e2e8f0;
+    border-left: 4px solid #667eea;
+    padding: 1rem;
+}
+
+/* Label do campo */
+.record-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    min-width: 140px;
+}
+
+/* Valor do campo */
+.record-value {
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    word-break: break-word;
+}
+
+/* Label para campos múltiplos */
+.record-label-multiple {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: #667eea;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.record-icon {
+    font-size: 1.125rem;
+}
+
+/* Grid de valores múltiplos */
+.record-values-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--num-registros, 2), 1fr);
+    gap: 0.75rem;
+}
+
+/* Item individual de valor */
+.record-value-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    padding: 0.75rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.record-value-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-color: #667eea;
+}
+
+/* Número do registro */
+.record-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: #667eea;
+    color: white;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* Valores com destaque */
+.record-value-item.highlight {
+    background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
+    border-color: #c7d2fe;
+}
+
+.record-value-item.highlight .record-value {
+    color: #4c1d95;
+    font-weight: 600;
+}
+
+/* Estado vazio */
+.no-data {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-tertiary);
+    font-style: italic;
+}
+
+/* ==================== RESPONSIVIDADE ==================== */
+
+/* Tablet */
+@media (max-width: 768px) {
+    .record-values-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .record-label {
+        min-width: 100px;
+    }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    .record-row-unique {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.375rem;
+    }
+    
+    .record-label {
+        min-width: auto;
+    }
+    
+    .record-row-multiple {
+        padding: 0.75rem;
+    }
+}
+
+/* ==================== ANIMAÇÕES ==================== */
+
+.records-merged {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Animação escalonada para itens */
+.record-row:nth-child(1) { animation-delay: 0.05s; }
+.record-row:nth-child(2) { animation-delay: 0.1s; }
+.record-row:nth-child(3) { animation-delay: 0.15s; }
+.record-row:nth-child(4) { animation-delay: 0.2s; }
+.record-row:nth-child(5) { animation-delay: 0.25s; }

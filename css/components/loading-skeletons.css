@@ -1,0 +1,520 @@
+/**
+ * loading-skeletons.css
+ * Estilos para skeleton screens que substituem spinners genéricos
+ */
+
+/* ========================================
+   Animações Base
+   ======================================== */
+
+@keyframes skeleton-shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+@keyframes skeleton-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.4;
+    }
+}
+
+@keyframes skeleton-fade-out {
+    to {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+}
+
+/* ========================================
+   Elementos Base
+   ======================================== */
+
+.skeleton-box,
+.skeleton-circle {
+    background: linear-gradient(
+        90deg,
+        #f0f0f0 0%,
+        #f8f8f8 20%,
+        #f0f0f0 40%,
+        #f0f0f0 100%
+    );
+    background-size: 1000px 100%;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.skeleton-shimmer {
+    animation: skeleton-shimmer 1.5s infinite linear;
+}
+
+.skeleton-pulse {
+    animation: skeleton-pulse 1.5s infinite ease-in-out;
+}
+
+.skeleton-circle {
+    border-radius: 50%;
+}
+
+.skeleton-fade-out {
+    animation: skeleton-fade-out 0.3s forwards;
+}
+
+/* ========================================
+   Table Skeleton
+   ======================================== */
+
+.skeleton-table {
+    width: 100%;
+    padding: 20px;
+}
+
+.skeleton-table-header {
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+}
+
+.skeleton-table-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.skeleton-row {
+    display: flex;
+    gap: 16px;
+    padding: 12px 8px;
+    background: #fafafa;
+    border-radius: 6px;
+}
+
+.skeleton-header-row {
+    background: transparent;
+}
+
+.skeleton-cell {
+    display: flex;
+    align-items: center;
+}
+
+/* ========================================
+   Stat Cards Skeleton
+   ======================================== */
+
+.skeleton-stat-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.skeleton-stat-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.skeleton-card-icon {
+    flex-shrink: 0;
+}
+
+.skeleton-card-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ========================================
+   Chart Skeletons
+   ======================================== */
+
+.skeleton-chart {
+    width: 100%;
+    height: 100%;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+}
+
+/* Bar Chart */
+.skeleton-bar-chart .skeleton-chart-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    height: 200px;
+    margin-bottom: 20px;
+}
+
+.skeleton-bar {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    animation: skeleton-pulse 1.5s infinite ease-in-out;
+}
+
+.skeleton-bar-fill {
+    width: 100%;
+    background: linear-gradient(
+        90deg,
+        #e3f2fd 0%,
+        #bbdefb 50%,
+        #e3f2fd 100%
+    );
+    background-size: 200% 100%;
+    border-radius: 4px 4px 0 0;
+}
+
+.skeleton-chart-legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.skeleton-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Line Chart */
+.skeleton-line-chart {
+    justify-content: center;
+    align-items: center;
+}
+
+.skeleton-svg {
+    width: 100%;
+    height: 200px;
+}
+
+.skeleton-line {
+    fill: none;
+    stroke: #e0e0e0;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.skeleton-point {
+    fill: #bbdefb;
+}
+
+/* Pie Chart */
+.skeleton-pie-chart {
+    justify-content: center;
+    align-items: center;
+}
+
+.skeleton-pie-container {
+    width: 200px;
+    height: 200px;
+}
+
+.skeleton-pie-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.skeleton-pie-slice {
+    fill: none;
+    stroke-width: 20;
+    stroke: #e0e0e0;
+    animation: skeleton-pulse 1.5s infinite ease-in-out;
+}
+
+.skeleton-pie-slice:nth-child(1) { stroke: #e3f2fd; }
+.skeleton-pie-slice:nth-child(2) { stroke: #bbdefb; }
+.skeleton-pie-slice:nth-child(3) { stroke: #90caf9; }
+.skeleton-pie-slice:nth-child(4) { stroke: #64b5f6; }
+
+/* ========================================
+   Modal Skeleton
+   ======================================== */
+
+.skeleton-modal {
+    padding: 20px;
+}
+
+.skeleton-modal-header {
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+}
+
+.skeleton-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.skeleton-modal-section {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ========================================
+   List Skeleton
+   ======================================== */
+
+.skeleton-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+}
+
+.skeleton-list-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px;
+    background: #fafafa;
+    border-radius: 8px;
+}
+
+.skeleton-list-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ========================================
+   Form Skeleton
+   ======================================== */
+
+.skeleton-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 16px;
+}
+
+.skeleton-form-field {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ========================================
+   Responsividade
+   ======================================== */
+
+@media (max-width: 768px) {
+    .skeleton-stat-cards {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 12px;
+    }
+    
+    .skeleton-stat-card {
+        padding: 16px;
+    }
+    
+    .skeleton-table {
+        padding: 12px;
+    }
+    
+    .skeleton-row {
+        gap: 8px;
+        padding: 8px;
+    }
+    
+    .skeleton-chart {
+        min-height: 250px;
+        padding: 12px;
+    }
+    
+    .skeleton-bar-chart .skeleton-chart-bars {
+        height: 150px;
+        gap: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .skeleton-table-header {
+        display: none;
+    }
+    
+    .skeleton-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .skeleton-cell {
+        width: 100% !important;
+    }
+    
+    .skeleton-chart-legend {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+/* ========================================
+   Dark Mode Support
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+    .skeleton-box,
+    .skeleton-circle {
+        background: linear-gradient(
+            90deg,
+            #2a2a2a 0%,
+            #3a3a3a 20%,
+            #2a2a2a 40%,
+            #2a2a2a 100%
+        );
+        background-size: 1000px 100%;
+    }
+    
+    .skeleton-row {
+        background: rgba(255, 255, 255, 0.03);
+    }
+    
+    .skeleton-stat-card {
+        background: #1e1e1e;
+        border-color: #333;
+    }
+    
+    .skeleton-chart {
+        background: #1e1e1e;
+    }
+    
+    .skeleton-bar-fill {
+        background: linear-gradient(
+            90deg,
+            #1565c0 0%,
+            #1976d2 50%,
+            #1565c0 100%
+        );
+    }
+    
+    .skeleton-line {
+        stroke: #333;
+    }
+    
+    .skeleton-point {
+        fill: #1976d2;
+    }
+    
+    .skeleton-pie-slice {
+        stroke: #333;
+    }
+    
+    .skeleton-pie-slice:nth-child(1) { stroke: #1565c0; }
+    .skeleton-pie-slice:nth-child(2) { stroke: #1976d2; }
+    .skeleton-pie-slice:nth-child(3) { stroke: #1e88e5; }
+    .skeleton-pie-slice:nth-child(4) { stroke: #2196f3; }
+    
+    .skeleton-list-item {
+        background: rgba(255, 255, 255, 0.03);
+    }
+}
+
+/* ========================================
+   Utilidades
+   ======================================== */
+
+.skeleton-text-line {
+    height: 14px;
+    margin-bottom: 8px;
+}
+
+.skeleton-text-line:last-child {
+    margin-bottom: 0;
+    width: 80%;
+}
+
+.skeleton-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+}
+
+.skeleton-button {
+    width: 100px;
+    height: 36px;
+    border-radius: 4px;
+}
+
+.skeleton-badge {
+    width: 60px;
+    height: 24px;
+    border-radius: 12px;
+}
+
+/* Variações de tamanho */
+.skeleton-sm {
+    height: 12px;
+}
+
+.skeleton-md {
+    height: 16px;
+}
+
+.skeleton-lg {
+    height: 24px;
+}
+
+.skeleton-xl {
+    height: 32px;
+}
+
+/* Variações de largura */
+.skeleton-w-25 {
+    width: 25%;
+}
+
+.skeleton-w-50 {
+    width: 50%;
+}
+
+.skeleton-w-75 {
+    width: 75%;
+}
+
+.skeleton-w-100 {
+    width: 100%;
+}
+
+/* ========================================
+   Acessibilidade
+   ======================================== */
+
+[data-skeleton-type] {
+    role: "status";
+    aria-label: "Carregando conteúdo";
+    aria-live: "polite";
+}
+
+/* Redução de movimento */
+@media (prefers-reduced-motion: reduce) {
+    .skeleton-shimmer {
+        animation: none;
+        opacity: 0.7;
+    }
+    
+    .skeleton-pulse {
+        animation: none;
+        opacity: 0.6;
+    }
+    
+    .skeleton-bar {
+        animation: none;
+    }
+}

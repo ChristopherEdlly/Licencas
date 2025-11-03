@@ -70,6 +70,9 @@ class CronogramaParser {
         const linhas = csvData.split('\n');
         const headers = linhas[0].split(',').map(h => h.trim());
         
+        // **NOVO**: Extrair anos dos cabeçalhos das colunas
+        const headerYears = this.extractYearsFromHeaders(headers);
+        
         // Detectar tipo de tabela baseado nos headers
         const isLicencasPremio = this.detectarTipoTabela(headers);
         
@@ -83,9 +86,9 @@ class CronogramaParser {
             if (dados && dados.SERVIDOR) {
                 let servidor;
                 if (isLicencasPremio) {
-                    servidor = this.processarServidorLicencaPremio(dados);
+                    servidor = this.processarServidorLicencaPremio(dados, headerYears);
                 } else {
-                    servidor = this.processarServidor(dados);
+                    servidor = this.processarServidor(dados, headerYears);
                 }
                 
                 if (servidor) {
@@ -96,6 +99,26 @@ class CronogramaParser {
         
     // Servidores processados (logs removidos para produção)
         return servidores;
+    }
+
+    // **NOVO**: Extrair anos dos cabeçalhos das colunas
+    // Retorna um Map: índice da coluna -> ano encontrado
+    extractYearsFromHeaders(headers) {
+        const yearMap = new Map();
+        
+        headers.forEach((header, index) => {
+            // Procurar por ano de 4 dígitos no header
+            const yearMatch = header.match(/\b(20\d{2}|19\d{2})\b/);
+            if (yearMatch) {
+                const year = parseInt(yearMatch[1]);
+                yearMap.set(index, year);
+                if (this.debug) {
+                    console.log(`📅 Ano detectado no header[${index}] "${header}": ${year}`);
+                }
+            }
+        });
+        
+        return yearMap;
     }
 
     // Detectar tipo de tabela baseado nos headers
@@ -125,17 +148,23 @@ class CronogramaParser {
         valores.push(valorAtual.trim());
         
         const dados = {};
+        const colIndexMap = new Map(); // Mapear nome de coluna -> índice original
+        
         headers.forEach((header, index) => {
             // Ignore colunas vazias ou com nomes inválidos
             if (header && header.trim() !== '' && index < valores.length) {
                 dados[header] = valores[index] || '';
+                colIndexMap.set(header, index); // Armazenar índice da coluna
             }
         });
+        
+        // Adicionar mapa de índices ao objeto de dados
+        dados._colIndexMap = colIndexMap;
         
         return dados;
     }
 
-    processarServidor(dados) {
+    processarServidor(dados, headerYears = null) {
         try {
             const servidor = {
                 nome: this.getField(dados, ['SERVIDOR', 'NOME'])?.trim() || 'Nome não informado',
@@ -148,7 +177,7 @@ class CronogramaParser {
                 superintendencia: this.getField(dados, ['SUPERINTENDENCIA', 'SUPERINTENDÊNCIA'])?.trim() || '',
                 subsecretaria: this.getField(dados, ['SUBSECRETARIA'])?.trim() || '',
                 cargo: this.getField(dados, ['CARGO'])?.trim() || '',
-                cronograma: this.getField(dados, ['CRONOGRAMA', 'CRONOGRAMA DE LICENCA'])?.trim() || '',
+                cronograma: this.getField(dados, ['INICIO', 'CRONOGRAMA', 'CRONOGRAMA DE LICENCA'])?.trim() || '',
                 licensas: [],
                 nivelUrgencia: 'Baixo',
                 tipoTabela: 'cronograma',
@@ -156,8 +185,29 @@ class CronogramaParser {
                 dadosOriginais: { ...dados }
             };
 
+            // Determinar ano do header se disponível
+            let anoHeader = null;
+            if (headerYears && dados._colIndexMap) {
+                // Procurar o índice da coluna do cronograma
+                const colunasCronograma = ['INICIO', 'CRONOGRAMA', 'CRONOGRAMA DE LICENCA'];
+                for (const coluna of colunasCronograma) {
+                    if (dados._colIndexMap && dados._colIndexMap.has(coluna)) {
+                        const idx = dados._colIndexMap.get(coluna);
+                        anoHeader = headerYears.get(idx);
+                        if (anoHeader) {
+                            if (this.debug) {
+                                console.log(`📅 Ano detectado do header para coluna "${coluna}": ${anoHeader}`);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
             // Processar cronograma para extrair licenças
-            const licencas = this.parseCronograma(servidor.cronograma);
+            const licencas = anoHeader 
+                ? this.parseCronogramaComAno(servidor.cronograma, anoHeader, servidor.meses)
+                : this.parseCronograma(servidor.cronograma, servidor.meses);
             servidor.licencas = licencas;
             
             // Verificar se houve erro no parsing (cronograma ambíguo)
@@ -166,13 +216,38 @@ class CronogramaParser {
                 console.warn(`⚠️  Servidor ${servidor.nome}: Cronograma não pôde ser interpretado - "${servidor.cronograma}"`);
             }
             
+            // Separar licenças passadas (já usadas) das futuras (agendadas)
+            const agora = new Date();
+            const licencasPassadas = licencas.filter(lic => lic.fim && new Date(lic.fim) < agora);
+            const licencasFuturas = licencas.filter(lic => !lic.fim || new Date(lic.fim) >= agora);
+            
+            // Calcular MESES de cada grupo (não apenas quantidade de períodos)
+            const calcularMesesTotais = (licencasList) => {
+                return licencasList.reduce((total, lic) => {
+                    if (lic.meses) {
+                        return total + lic.meses; // Se já tem meses calculados
+                    } else if (lic.inicio && lic.fim) {
+                        // Calcular meses entre inicio e fim
+                        const inicio = new Date(lic.inicio);
+                        const fim = new Date(lic.fim);
+                        const diffDias = Math.ceil((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
+                        const diffMeses = Math.ceil(diffDias / 30);
+                        return total + diffMeses;
+                    }
+                    return total + 1; // Fallback: considera 1 mês
+                }, 0);
+            };
+            
+            const mesesGozados = calcularMesesTotais(licencasPassadas);
+            const mesesAgendados = calcularMesesTotais(licencasFuturas);
+            
             // Calcular estatísticas
-            servidor.licencasAgendadas = licencas.length;
-            servidor.licencasGozadas = 0; // Implementar lógica baseada em datas passadas
+            servidor.licencasAgendadas = mesesAgendados; // Meses futuros (não períodos)
+            servidor.licencasGozadas = mesesGozados;     // Meses já passados (não períodos)
             servidor.totalLicencasAdquiridas = servidor.meses;
             
-            // Determinar próxima licença
-            const proximaLicenca = this.obterProximaLicenca(licencas);
+            // Determinar próxima licença (apenas entre as futuras)
+            const proximaLicenca = this.obterProximaLicenca(licencasFuturas);
             servidor.proximaLicencaInicio = proximaLicenca?.inicio || null;
             servidor.proximaLicencaFim = proximaLicenca?.fim || null;
             
@@ -220,10 +295,19 @@ class CronogramaParser {
                 }
             }
             
+            // Separar licenças passadas (já usadas) das futuras (agendadas)
+            const agora = new Date();
+            const licencasPassadas = servidor.licencas.filter(lic => lic.fim && new Date(lic.fim) < agora);
+            const licencasFuturas = servidor.licencas.filter(lic => !lic.fim || new Date(lic.fim) >= agora);
+            
+            // Calcular MESES de cada grupo (cada período = 1 mês na tabela de licença prêmio)
+            const mesesGozados = licencasPassadas.length; // Cada período = 1 mês
+            const mesesAgendados = licencasFuturas.length; // Cada período = 1 mês
+            
             // Calcular estatísticas
-            servidor.licencasAgendadas = servidor.licencas.length;
-            servidor.licencasGozadas = 0;
-            servidor.totalLicencasAdquiridas = servidor.licencas.length;
+            servidor.licencasAgendadas = mesesAgendados; // Meses futuros
+            servidor.licencasGozadas = mesesGozados;     // Meses já passados
+            servidor.totalLicencasAdquiridas = servidor.licencas.length; // Total de meses
             
             // Determinar próxima licença
             const proximaLicenca = this.obterProximaLicenca(servidor.licencas);
@@ -302,14 +386,36 @@ class CronogramaParser {
         return parsed;
     }
 
-    parseCronograma(cronograma) {
+    parseCronograma(cronograma, mesesLicenca = 3) {
         if (!cronograma) return [];
         
         const licencas = [];
         const texto = cronograma.toLowerCase().trim();
         
-    // CRONOGRAMA (logs de debug removidos por padrão)
-
+        // Tentar usar DateUtils para parse simples (jan/26, jan/2025, etc)
+        if (typeof DateUtils !== 'undefined') {
+            const dateUtils = new DateUtils();
+            const parsed = dateUtils.parseData(cronograma);
+            
+            if (parsed && parsed.inicio) {
+                // Parse bem-sucedido com DateUtils!
+                const inicio = parsed.inicio;
+                const fim = new Date(inicio);
+                fim.setDate(fim.getDate() + (mesesLicenca * 30) - 1); // meses * 30 dias
+                
+                licencas.push({
+                    inicio: inicio,
+                    fim: fim,
+                    tipo: 'simples'
+                });
+                
+                this.logCronogramaInterpretado(cronograma, licencas);
+                return licencas;
+            }
+        }
+        
+    // CRONOGRAMA
+    
         // Verificar padrões ambíguos ou impossíveis de parsear
         // APENAS casos realmente impossíveis sem informação de ano
         const padroesAmbiguos = [
@@ -373,6 +479,85 @@ class CronogramaParser {
 
         this.logCronogramaInterpretado(cronograma, licencas);
         return licencas;
+    }
+    
+    // **NOVO**: Parse cronograma com contexto de ano do header
+    parseCronogramaComAno(cronograma, anoHeader, mesesLicenca = 3) {
+        if (!cronograma) return [];
+        
+        const texto = cronograma.toLowerCase().trim();
+        const licencas = [];
+        
+        // Se há ano no header, interpretar datas relativas
+        if (anoHeader) {
+            // Padrão: "1 mes 17/08" ou "3 meses 09/dez"
+            const padraoRelativo = /(\d+)\s*m[eê]s(?:es)?\s*(\d{1,2})\/(\d{1,2}|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)/gi;
+            let match;
+            
+            while ((match = padraoRelativo.exec(texto)) !== null) {
+                const qtdMeses = parseInt(match[1]);
+                const dia = parseInt(match[2]);
+                const mesOuNome = match[3];
+                
+                let mes;
+                if (isNaN(parseInt(mesOuNome))) {
+                    // É nome de mês
+                    mes = this.parseMesTexto(mesOuNome);
+                } else {
+                    mes = parseInt(mesOuNome);
+                }
+                
+                if (mes && dia >= 1 && dia <= 31) {
+                    const inicio = new Date(anoHeader, mes - 1, dia);
+                    const fim = this.adicionarMeses(new Date(inicio), qtdMeses);
+                    fim.setDate(0); // Último dia do mês anterior
+                    
+                    licencas.push({
+                        tipo: 'licenca-premio',
+                        inicio: inicio,
+                        fim: fim,
+                        meses: qtdMeses,
+                        descricao: `${this.formatDateBR(inicio)} a ${this.formatDateBR(fim)} (${qtdMeses} ${qtdMeses === 1 ? 'mês' : 'meses'})`
+                    });
+                    
+                    if (this.debug) {
+                        console.log(`✅ Parse com ano do header ${anoHeader}: ${match[0]} -> ${licencas[licencas.length - 1].descricao}`);
+                    }
+                }
+            }
+            
+            // Padrão: "1 mes 01/12 (-/até) 30/12" - período completo
+            const padraoCompleto = /(\d+)\s*m[eê]s(?:es)?\s*(\d{1,2})\/(\d{1,2})\s*(?:-|até|ate)\s*(\d{1,2})\/(\d{1,2})/gi;
+            while ((match = padraoCompleto.exec(texto)) !== null) {
+                const qtdMeses = parseInt(match[1]);
+                const diaInicio = parseInt(match[2]);
+                const mesInicio = parseInt(match[3]);
+                const diaFim = parseInt(match[4]);
+                const mesFim = parseInt(match[5]);
+                
+                const inicio = new Date(anoHeader, mesInicio - 1, diaInicio);
+                const fim = new Date(anoHeader, mesFim - 1, diaFim);
+                
+                licencas.push({
+                    tipo: 'licenca-premio',
+                    inicio: inicio,
+                    fim: fim,
+                    meses: qtdMeses,
+                    descricao: `${this.formatDateBR(inicio)} a ${this.formatDateBR(fim)} (${qtdMeses} ${qtdMeses === 1 ? 'mês' : 'meses'})`
+                });
+                
+                if (this.debug) {
+                    console.log(`✅ Parse período completo com ano ${anoHeader}: ${match[0]} -> ${licencas[licencas.length - 1].descricao}`);
+                }
+            }
+            
+            if (licencas.length > 0) {
+                return licencas;
+            }
+        }
+        
+        // Se não encontrou com ano do header, usar parsing normal
+        return this.parseCronograma(cronograma, mesesLicenca);
     }
     
     // Baseado na função HandleInicioEm do Power Query
@@ -755,14 +940,37 @@ class CronogramaParser {
 
     calcularNivelUrgencia(servidor) {
         try {
-            // Parâmetros / constantes (padronizados conforme sua proposta)
-            const PontosMinimosHomem = 102;
-            const PontosMinimosMulher = 92;
-            const IdadeMinimaHomem = 63;
-            const IdadeMinimaMulher = 58;
-            const IdadeCompulsoria = 75;
-            const MargemDeSegurancaEmAnos = 2;
-            const MargemDeSegurancaEmMeses = MargemDeSegurancaEmAnos * 12;
+            // Obter configurações (usar valores padrão se SettingsManager não estiver disponível)
+            const settings = window.settingsManager || {
+                get: (key) => {
+                    const defaults = {
+                        idadeCompulsoria: 75,
+                        pontosMinHomem: 102,
+                        pontosMinMulher: 92,
+                        idadeMinHomem: 63,
+                        idadeMinMulher: 58,
+                        urgenciaCritico: 12,
+                        urgenciaAltoMax: 36,
+                        urgenciaModMin: 12,
+                        urgenciaModMax: 24,
+                        urgenciaBaixo: 60
+                    };
+                    return defaults[key];
+                }
+            };
+            
+            // Parâmetros de aposentadoria (configuráveis)
+            const PontosMinimosHomem = settings.get('pontosMinHomem');
+            const PontosMinimosMulher = settings.get('pontosMinMulher');
+            const IdadeMinimaHomem = settings.get('idadeMinHomem');
+            const IdadeMinimaMulher = settings.get('idadeMinMulher');
+            const IdadeCompulsoria = settings.get('idadeCompulsoria');
+            
+            // Thresholds de urgência (configuráveis, em meses) - NOVA ESCADINHA
+            const CriticoMax = settings.get('urgenciaCritico');       // ≤ 24 meses (padrão: 2 anos)
+            const AltoMax = settings.get('urgenciaAlto');              // ≤ 60 meses (padrão: 5 anos)
+            const ModMax = settings.get('urgenciaMod');                // ≤ 84 meses (padrão: 7 anos)
+            // Baixo é automático: > ModMax
 
             const agora = new Date();
 
@@ -788,9 +996,10 @@ class CronogramaParser {
             // Total de licenças adquiridas (meses) e quantas já estão agendadas
             const totalAdquiridas = Number(servidor.totalLicencasAdquiridas || servidor.meses || 0);
             const agendadas = Number(servidor.licencasAgendadas || 0);
+            const gozadas = Number(servidor.licencasGozadas || 0);
 
-            // Licenças restantes reais (meses)
-            const LicencasRestantes = Math.max(0, totalAdquiridas - agendadas);
+            // Licenças restantes reais (meses) = Total - (Agendadas + Já Gozadas)
+            const LicencasRestantes = Math.max(0, totalAdquiridas - agendadas - gozadas);
 
             // Licenças não agendadas — interpretar como LicencasRestantes (disponível para agendamento)
             const LicencasNaoAgendadas = LicencasRestantes;
@@ -841,26 +1050,33 @@ class CronogramaParser {
             const ExigeAmbasRegras = true;
             const PodeAposentarAgora = ExigeAmbasRegras ? (AtingiuPontos && AtingiuIdadeMinima) : (AtingiuPontos || AtingiuIdadeMinima);
 
-            // Lógica de níveis (seguindo a estrutura proposta)
-            // Crítico
-            if ((PodeAposentarAgora && LicencasRestantes > 0)
-                || (MesesNecessariosParaLicencas > MesesRestantesPossiveis)
-                || (FolgaEmMeses <= MargemDeSegurancaEmMeses)) {
-                return 'Crítico';
+            // === NOVA LÓGICA DE ESCADINHA DE URGÊNCIA ===
+            
+            // 1. CRÍTICO: Risco imediato (≤ CriticoMax meses até compulsória ou pode aposentar agora com licenças pendentes)
+            if (PodeAposentarAgora && LicencasRestantes > 0) {
+                return 'Crítico'; // Pode aposentar mas ainda tem licenças para usar
+            }
+            
+            if (MesesNecessariosParaLicencas > MesesRestantesPossiveis) {
+                return 'Crítico'; // Não tem tempo suficiente para usar todas as licenças
+            }
+            
+            if (MesesRestantesPossiveis <= CriticoMax) {
+                return 'Crítico'; // ≤ 24 meses até compulsória (padrão: 2 anos)
             }
 
-            // Alto: folga pequena (até 2x a margem)
-            if (FolgaEmMeses <= MargemDeSegurancaEmMeses * 2) {
-                return 'Alto';
+            // 2. ALTO: Até AltoMax meses até compulsória
+            if (MesesRestantesPossiveis <= AltoMax) {
+                return 'Alto'; // ≤ 60 meses até compulsória (padrão: 5 anos)
             }
 
-            // Moderado: pendências de agendamento/organização
-            if (LicencasNaoAgendadas > 0) {
-                return 'Moderado';
+            // 3. MODERADO: Até ModMax meses até compulsória
+            if (MesesRestantesPossiveis <= ModMax) {
+                return 'Moderado'; // ≤ 84 meses até compulsória (padrão: 7 anos)
             }
 
-            // Baixo (padrão)
-            return 'Baixo';
+            // 4. BAIXO: Mais de ModMax meses até compulsória
+            return 'Baixo'; // > 84 meses até compulsória (padrão: > 7 anos)
         } catch (e) {
             console.error('Erro ao calcular nível de urgência:', e);
             return 'Baixo';
@@ -1099,10 +1315,159 @@ class CronogramaParser {
 
         return estatisticas;
     }
+
+    /**
+     * Processa CSV de Notificações de Licença Prêmio
+     * @param {string} csvData - Conteúdo do CSV
+     * @returns {Array} - Array de objetos com dados das notificações
+     */
+    processarNotificacoes(csvData) {
+        if (!csvData || typeof csvData !== 'string') {
+            throw new Error('Dados CSV inválidos');
+        }
+
+        const linhas = csvData.split(/\r?\n/).filter(linha => linha.trim());
+        if (linhas.length < 2) {
+            throw new Error('CSV de notificações vazio ou sem dados');
+        }
+
+        // Detectar delimitador
+        const delimitador = linhas[0].includes(';') ? ';' : ',';
+        
+        // Parse do header
+        const headers = linhas[0].split(delimitador).map(h => h.trim());
+        
+        // Procurar índices das colunas importantes
+        const colunas = {
+            interessado: this.encontrarIndiceColuna(headers, ['Interessado', 'Nome', 'Servidor']),
+            processo: this.encontrarIndiceColuna(headers, ['Processo', 'Número do Processo']),
+            dataNotif1: this.encontrarIndiceColuna(headers, ['Data de Notificação', 'Data Notificação', 'Notificação 1']),
+            dataNotif2: this.encontrarIndiceColuna(headers, ['Data de Notificação 2', 'Data Notificação 2', 'Notificação 2']),
+            periodoGozo: this.encontrarIndiceColuna(headers, ['Período do Gozo', 'Período', 'Gozo']),
+            lotacao: this.encontrarIndiceColuna(headers, ['Lotação', 'Setor']),
+            obs: this.encontrarIndiceColuna(headers, ['OBS', 'Observações', 'Observacao'])
+        };
+
+        // Validar se encontrou colunas essenciais
+        if (colunas.interessado === -1) {
+            throw new Error('Coluna "Interessado" ou "Nome" não encontrada no CSV');
+        }
+
+        const notificacoes = [];
+        
+        // Processar cada linha de dados
+        for (let i = 1; i < linhas.length; i++) {
+            const valores = this.parseCsvLine(linhas[i], delimitador);
+            
+            const interessado = valores[colunas.interessado]?.trim() || '';
+            
+            // Pular linhas vazias ou sem nome
+            if (!interessado) continue;
+            
+            const periodoGozo = valores[colunas.periodoGozo]?.trim() || '';
+            const obs = valores[colunas.obs]?.trim() || '';
+            
+            // Determinar status
+            let status = 'pendente';
+            if (periodoGozo.toLowerCase().includes('não concorda') || 
+                periodoGozo.toLowerCase().includes('nao concorda') ||
+                obs.toLowerCase().includes('não concorda')) {
+                status = 'nao-concorda';
+            } else if (periodoGozo && periodoGozo !== '__' && periodoGozo !== '--') {
+                status = 'respondeu';
+            }
+            
+            // Processar datas de notificação
+            const datas = [];
+            const dataNotif1Raw = valores[colunas.dataNotif1]?.trim() || '';
+            const dataNotif2Raw = valores[colunas.dataNotif2]?.trim() || '';
+            
+            // Adicionar primeira data se existir
+            if (dataNotif1Raw && dataNotif1Raw !== '__' && dataNotif1Raw !== '--') {
+                try {
+                    const data1 = this.parseDate(dataNotif1Raw);
+                    if (data1) {
+                        datas.push({ data: data1, tipo: 'notificacao1' });
+                    }
+                } catch (e) {
+                    console.warn(`Erro ao processar data 1 para ${interessado}:`, dataNotif1Raw);
+                }
+            }
+            
+            // Adicionar segunda data se existir
+            if (dataNotif2Raw && dataNotif2Raw !== '__' && dataNotif2Raw !== '--') {
+                try {
+                    const data2 = this.parseDate(dataNotif2Raw);
+                    if (data2) {
+                        datas.push({ data: data2, tipo: 'notificacao2' });
+                    }
+                } catch (e) {
+                    console.warn(`Erro ao processar data 2 para ${interessado}:`, dataNotif2Raw);
+                }
+            }
+            
+            const notificacao = {
+                interessado: interessado,
+                processo: valores[colunas.processo]?.trim() || '',
+                dataNotificacao1: dataNotif1Raw,
+                dataNotificacao2: dataNotif2Raw,
+                periodoGozo: periodoGozo,
+                lotacao: valores[colunas.lotacao]?.trim() || '',
+                obs: obs,
+                status: status,
+                datas: datas // Array de datas processadas para o calendário
+            };
+            
+            notificacoes.push(notificacao);
+        }
+
+        if (notificacoes.length === 0) {
+            throw new Error('Nenhuma notificação válida encontrada no arquivo');
+        }
+
+        return notificacoes;
+    }
+
+    /**
+     * Encontra o índice de uma coluna no header, tentando várias alternativas
+     */
+    encontrarIndiceColuna(headers, alternativas) {
+        for (const alt of alternativas) {
+            const normalizado = this.normalizeKey(alt);
+            const indice = headers.findIndex(h => this.normalizeKey(h) === normalizado);
+            if (indice !== -1) return indice;
+        }
+        return -1;
+    }
+
+    /**
+     * Parse de uma linha CSV respeitando aspas
+     */
+    parseCsvLine(linha, delimitador) {
+        const valores = [];
+        let valorAtual = '';
+        let dentroAspas = false;
+        
+        for (let i = 0; i < linha.length; i++) {
+            const char = linha[i];
+            
+            if (char === '"') {
+                dentroAspas = !dentroAspas;
+            } else if (char === delimitador && !dentroAspas) {
+                valores.push(valorAtual);
+                valorAtual = '';
+            } else {
+                valorAtual += char;
+            }
+        }
+        
+        // Adicionar último valor
+        valores.push(valorAtual);
+        
+        return valores;
+    }
 }
 
 // Exportar para uso global
 window.CronogramaParser = CronogramaParser;
 }
-
-// Modo debug inline removido para produção. Utilize logs controlados externamente se necessário.

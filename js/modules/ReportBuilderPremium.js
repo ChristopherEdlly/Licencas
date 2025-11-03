@@ -341,6 +341,12 @@ class ReportBuilderPremium {
         // Keyboard
         document.addEventListener('keydown', (e) => this.handleKeyboard(e));
 
+        // Theme changes - ouvir mudanças de tema do ThemeManager
+        window.addEventListener('themeChanged', (e) => {
+            console.log('🎨 Premium Builder: Tema alterado para', e.detail.theme);
+            this.handleThemeChange(e.detail.theme);
+        });
+
         // Click fora fecha modals
         [this.elements.templatesModal, this.elements.exportModal].forEach(modal => {
             modal?.addEventListener('click', (e) => {
@@ -711,22 +717,44 @@ class ReportBuilderPremium {
     }
 
     async open() {
-        // Garantir que está inicializado antes de abrir
+        const reportsPage = document.getElementById('reportsPage');
+
+        // Mostrar loading se ainda não está inicializado
         if (!this.isInitialized) {
             console.log('⏳ Premium Builder não inicializado ainda, inicializando...');
+
+            // Mostrar loading state
+            if (reportsPage) {
+                reportsPage.style.display = 'block';
+                reportsPage.classList.add('active');
+                reportsPage.innerHTML = `
+                    <div class="builder-loading">
+                        <div class="loading-spinner"></div>
+                        <p>Carregando Report Builder...</p>
+                    </div>
+                `;
+            }
+
+            // Ocultar outras páginas
+            document.querySelectorAll('.page-content:not(#reportsPage)').forEach(page => {
+                page.classList.remove('active');
+                page.style.display = 'none';
+            });
+
+            // Inicializar (isso vai chamar createInterface() que substituirá o HTML)
             await this.init();
-        }
+        } else {
+            // Já inicializado, apenas mostrar
+            if (reportsPage) {
+                reportsPage.classList.add('active');
+                reportsPage.style.display = 'block';
+            }
 
-        const reportsPage = document.getElementById('reportsPage');
-        if (reportsPage) {
-            reportsPage.classList.add('active');
-            reportsPage.style.display = 'block';
+            document.querySelectorAll('.page-content:not(#reportsPage)').forEach(page => {
+                page.classList.remove('active');
+                page.style.display = 'none';
+            });
         }
-
-        document.querySelectorAll('.page-content:not(#reportsPage)').forEach(page => {
-            page.classList.remove('active');
-            page.style.display = 'none';
-        });
 
         console.log('✅ Premium Builder aberto');
     }
@@ -739,10 +767,45 @@ class ReportBuilderPremium {
         }
     }
 
+    handleThemeChange(theme) {
+        // O CSS já responde automaticamente ao atributo data-theme no html
+        // Aqui podemos atualizar widgets renderizados que usam canvas ou SVG
+
+        // Se houver charts renderizados nos widgets, atualizar cores
+        if (this.canvasManager && this.canvasManager.charts) {
+            const isDark = theme === 'dark';
+            const chartColor = isDark ? 'rgba(147, 197, 253, 0.8)' : 'rgba(59, 130, 246, 0.8)';
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+
+            Object.values(this.canvasManager.charts || {}).forEach(chart => {
+                if (chart && chart.data && chart.data.datasets) {
+                    chart.data.datasets.forEach(dataset => {
+                        dataset.backgroundColor = chartColor;
+                    });
+                    chart.options.scales.x.grid.color = gridColor;
+                    chart.options.scales.y.grid.color = gridColor;
+                    chart.update('none'); // Update sem animação
+                }
+            });
+        }
+
+        // Re-renderizar canvas se necessário para aplicar novas cores
+        if (this.canvasManager && this.isInitialized) {
+            this.canvasManager.render();
+        }
+
+        console.log(`✅ Premium Builder: Tema ${theme} aplicado`);
+    }
+
     destroy() {
         if (this.autoSaveTimer) {
             clearInterval(this.autoSaveTimer);
         }
+
+        // Limpar event listeners
+        window.removeEventListener('themeChanged', this.handleThemeChange);
+
+        console.log('🗑️ Premium Builder destruído');
     }
 
     generateId() {

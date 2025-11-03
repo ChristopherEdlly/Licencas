@@ -1,0 +1,487 @@
+/**
+ * breadcrumbs.css
+ * 
+ * Estilos para navegação breadcrumb (migalhas de pão)
+ * 
+ * Características:
+ * - Design moderno e intuitivo
+ * - Ícones e labels claros
+ * - Histórico dropdown integrado
+ * - Responsivo e acessível
+ * - Animações suaves
+ * 
+ * @version 3.0.0
+ */
+
+/* ========================================
+   Container Principal
+   ======================================== */
+
+.breadcrumbs-container {
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 12px 20px;
+    margin-bottom: 20px;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.dark-theme .breadcrumbs-container {
+    background: #1a202c;
+    border-bottom-color: #2d3748;
+}
+
+/* ========================================
+   Breadcrumb Base
+   ======================================== */
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 0;
+    padding: 0;
+    list-style: none;
+    gap: 8px;
+}
+
+.breadcrumb-item {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.breadcrumb-item i {
+    font-size: 16px;
+    margin-right: 4px;
+}
+
+/* Separador */
+.breadcrumb-item + .breadcrumb-item::before {
+    content: '/';
+    padding: 0 8px;
+    color: #cbd5e0;
+    font-weight: 400;
+}
+
+/* Item ativo (atual) */
+.breadcrumb-item.active {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+.dark-theme .breadcrumb-item.active {
+    color: #6ea8fe;
+}
+
+/* ========================================
+   Links de Navegação
+   ======================================== */
+
+.breadcrumb-link {
+    display: inline-flex;
+    align-items: center;
+    color: #64748b;
+    text-decoration: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.breadcrumb-link:hover {
+    color: #0d6efd;
+    background-color: #f1f5f9;
+    text-decoration: none;
+}
+
+.breadcrumb-link:focus {
+    outline: 2px solid #0d6efd;
+    outline-offset: 2px;
+}
+
+.dark-theme .breadcrumb-link:hover {
+    color: #6ea8fe;
+    background-color: #2d3748;
+}
+
+/* ========================================
+   Dropdown de Histórico
+   ======================================== */
+
+.breadcrumb-history {
+    margin-left: auto;
+}
+
+.breadcrumb-history-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    color: #64748b;
+    background: transparent;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.breadcrumb-history-btn:hover {
+    color: #0d6efd;
+    background-color: #f1f5f9;
+    border-color: #cbd5e0;
+}
+
+.breadcrumb-history-btn:focus {
+    outline: 2px solid #0d6efd;
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+.dark-theme .breadcrumb-history-btn {
+    color: #94a3b8;
+    border-color: #2d3748;
+}
+
+.dark-theme .breadcrumb-history-btn:hover {
+    color: #6ea8fe;
+    background-color: #2d3748;
+    border-color: #4a5568;
+}
+
+.breadcrumb-history-menu {
+    min-width: 280px;
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.dark-theme .breadcrumb-history-menu {
+    background-color: #1a202c;
+    border-color: #2d3748;
+}
+
+/* ========================================
+   Itens do Histórico
+   ======================================== */
+
+.history-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.history-label {
+    font-weight: 500;
+    color: #1e293b;
+    font-size: 14px;
+}
+
+.history-time {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.dark-theme .history-label {
+    color: #f1f5f9;
+}
+
+.dark-theme .history-time {
+    color: #64748b;
+}
+
+.breadcrumb-history-menu .dropdown-item {
+    padding: 10px 16px;
+    transition: all 0.2s ease;
+}
+
+.breadcrumb-history-menu .dropdown-item:hover {
+    background-color: #f8fafc;
+}
+
+.dark-theme .breadcrumb-history-menu .dropdown-item:hover {
+    background-color: #2d3748;
+}
+
+.breadcrumb-history-menu .dropdown-item:active {
+    background-color: #e2e8f0;
+}
+
+.dark-theme .breadcrumb-history-menu .dropdown-item:active {
+    background-color: #374151;
+}
+
+.breadcrumb-history-menu .dropdown-header {
+    padding: 8px 16px;
+    font-weight: 600;
+    font-size: 13px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.dark-theme .breadcrumb-history-menu .dropdown-header {
+    color: #94a3b8;
+}
+
+.breadcrumb-history-menu .dropdown-divider {
+    margin: 8px 0;
+    border-color: #e2e8f0;
+}
+
+.dark-theme .breadcrumb-history-menu .dropdown-divider {
+    border-color: #2d3748;
+}
+
+/* Botão de limpar histórico */
+.breadcrumb-history-menu .text-danger {
+    color: #dc3545 !important;
+}
+
+.breadcrumb-history-menu .text-danger:hover {
+    background-color: #fef2f2;
+    color: #b91c1c !important;
+}
+
+.dark-theme .breadcrumb-history-menu .text-danger:hover {
+    background-color: #7f1d1d;
+}
+
+/* ========================================
+   Alto Contraste
+   ======================================== */
+
+.high-contrast-mode .breadcrumbs-container {
+    border-width: 2px;
+    border-color: var(--hc-border);
+}
+
+.high-contrast-mode .breadcrumb-link {
+    border: 2px solid transparent;
+}
+
+.high-contrast-mode .breadcrumb-link:hover,
+.high-contrast-mode .breadcrumb-link:focus {
+    border-color: var(--hc-focus);
+    background-color: var(--hc-primary);
+    color: var(--hc-background);
+}
+
+.high-contrast-mode .breadcrumb-item.active {
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+.high-contrast-mode .breadcrumb-history-btn {
+    border-width: 2px;
+}
+
+/* ========================================
+   Responsividade
+   ======================================== */
+
+@media (max-width: 768px) {
+    .breadcrumbs-container {
+        padding: 10px 15px;
+        margin-bottom: 15px;
+    }
+    
+    .breadcrumb {
+        gap: 4px;
+    }
+    
+    .breadcrumb-item {
+        font-size: 13px;
+    }
+    
+    .breadcrumb-item i {
+        font-size: 14px;
+    }
+    
+    .breadcrumb-item + .breadcrumb-item::before {
+        padding: 0 6px;
+    }
+    
+    .breadcrumb-link {
+        padding: 3px 6px;
+    }
+    
+    .breadcrumb-history-btn {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .breadcrumb-history-menu {
+        min-width: 240px;
+    }
+}
+
+@media (max-width: 576px) {
+    .breadcrumbs-container {
+        padding: 8px 12px;
+        border-radius: 0;
+    }
+    
+    .breadcrumb {
+        gap: 2px;
+        font-size: 12px;
+    }
+    
+    .breadcrumb-item span {
+        max-width: 100px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .breadcrumb-item.active span {
+        max-width: 150px;
+    }
+    
+    /* Esconde ícones em mobile para economizar espaço */
+    .breadcrumb-item i:not(.breadcrumb-history-btn i) {
+        display: none;
+    }
+    
+    .breadcrumb-history-menu {
+        min-width: calc(100vw - 40px);
+        max-width: calc(100vw - 40px);
+    }
+}
+
+/* ========================================
+   Animações
+   ======================================== */
+
+@keyframes breadcrumb-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.breadcrumbs-container {
+    animation: breadcrumb-slide-in 0.3s ease;
+}
+
+.breadcrumb-item {
+    animation: breadcrumb-slide-in 0.3s ease;
+    animation-fill-mode: both;
+}
+
+.breadcrumb-item:nth-child(1) { animation-delay: 0.05s; }
+.breadcrumb-item:nth-child(2) { animation-delay: 0.1s; }
+.breadcrumb-item:nth-child(3) { animation-delay: 0.15s; }
+.breadcrumb-item:nth-child(4) { animation-delay: 0.2s; }
+.breadcrumb-item:nth-child(5) { animation-delay: 0.25s; }
+
+/* Movimento Reduzido */
+@media (prefers-reduced-motion: reduce) {
+    .breadcrumbs-container,
+    .breadcrumb-item {
+        animation: none;
+    }
+    
+    .breadcrumb-link,
+    .breadcrumb-history-btn {
+        transition: none;
+    }
+}
+
+/* ========================================
+   Estados de Foco (Acessibilidade)
+   ======================================== */
+
+.breadcrumb-link:focus-visible {
+    outline: 3px solid #0d6efd;
+    outline-offset: 2px;
+}
+
+.breadcrumb-history-btn:focus-visible {
+    outline: 3px solid #0d6efd;
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+/* ========================================
+   Scrollbar do Dropdown
+   ======================================== */
+
+.breadcrumb-history-menu::-webkit-scrollbar {
+    width: 8px;
+}
+
+.breadcrumb-history-menu::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.breadcrumb-history-menu::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 4px;
+}
+
+.breadcrumb-history-menu::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.dark-theme .breadcrumb-history-menu::-webkit-scrollbar-track {
+    background: #1a202c;
+}
+
+.dark-theme .breadcrumb-history-menu::-webkit-scrollbar-thumb {
+    background: #4a5568;
+}
+
+.dark-theme .breadcrumb-history-menu::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+/* ========================================
+   Impressão
+   ======================================== */
+
+@media print {
+    .breadcrumbs-container {
+        background: white;
+        border: 1px solid #000;
+        box-shadow: none;
+    }
+    
+    .breadcrumb-history {
+        display: none;
+    }
+    
+    .breadcrumb-link {
+        color: #000;
+        text-decoration: underline;
+    }
+}
+
+/* ========================================
+   Tooltips em Breadcrumbs
+   ======================================== */
+
+.breadcrumb-link[data-tooltip],
+.breadcrumb-item[data-tooltip] {
+    position: relative;
+}
+
+/* Hover efetivo para touch devices */
+@media (hover: none) {
+    .breadcrumb-link:hover {
+        background-color: transparent;
+    }
+    
+    .breadcrumb-link:active {
+        background-color: #f1f5f9;
+    }
+}
