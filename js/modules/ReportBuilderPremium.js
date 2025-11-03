@@ -33,6 +33,7 @@ class ReportBuilderPremium {
 
     init() {
         if (this.isInitialized || this.isInitializing) {
+            console.log('⚠️ Init já foi chamado, pulando...');
             return; // Já inicializado ou inicializando
         }
 
@@ -40,16 +41,26 @@ class ReportBuilderPremium {
         console.log('🎨 Inicializando Report Builder Premium (Figma Style)...');
 
         try {
+            console.log('📦 Carregando managers...');
             this.loadManagers();
+
+            console.log('🏗️ Criando interface...');
             this.createInterface();
+
+            console.log('🎧 Registrando listeners...');
             this.registerListeners();
+
+            console.log('💾 Carregando último estado...');
             this.loadLastState();
+
+            console.log('⏰ Iniciando auto-save...');
             this.startAutoSave();
 
             this.isInitialized = true;
-            console.log('✅ Report Builder Premium inicializado');
+            console.log('✅ Report Builder Premium inicializado com sucesso!');
         } catch (error) {
             console.error('❌ Erro ao inicializar Premium Builder:', error);
+            console.error('Stack trace:', error.stack);
             this.isInitializing = false;
             throw error;
         } finally {
@@ -58,6 +69,14 @@ class ReportBuilderPremium {
     }
 
     loadManagers() {
+        // Verificar se as classes estão disponíveis
+        console.log('Verificando classes disponíveis:', {
+            WidgetLibrary: typeof WidgetLibrary,
+            CanvasManager: typeof CanvasManager,
+            StyleManager: typeof StyleManager,
+            ExportEngine: typeof ExportEngine
+        });
+
         // Os módulos já foram carregados via script tags no HTML
         // Apenas instanciar as classes
         this.widgetLibrary = new WidgetLibrary(this);
@@ -74,8 +93,13 @@ class ReportBuilderPremium {
     }
 
     createInterface() {
+        console.log('🔨 createInterface() chamado');
         const reportsPage = document.getElementById('reportsPage');
-        if (!reportsPage) return;
+        console.log('📄 reportsPage encontrado:', !!reportsPage);
+        if (!reportsPage) {
+            console.error('❌ Elemento #reportsPage não encontrado!');
+            return;
+        }
 
         reportsPage.innerHTML = `
             <div class="figma-builder">
@@ -721,7 +745,9 @@ class ReportBuilderPremium {
     }
 
     open() {
+        console.log('🚀 open() chamado');
         const reportsPage = document.getElementById('reportsPage');
+        console.log('📄 #reportsPage existe?', !!reportsPage);
 
         // Ocultar outras páginas primeiro
         document.querySelectorAll('.page-content:not(#reportsPage)').forEach(page => {
@@ -743,11 +769,16 @@ class ReportBuilderPremium {
                         <p>Carregando Report Builder...</p>
                     </div>
                 `;
+                console.log('⏳ Loading state mostrado');
+            } else {
+                console.error('❌ reportsPage não encontrado, não é possível mostrar loading');
             }
 
             // Inicializar (isso vai chamar createInterface() que substituirá o HTML)
+            console.log('🔄 Chamando init()...');
             this.init();
         } else {
+            console.log('✅ Já inicializado, apenas mostrando');
             // Já inicializado, apenas mostrar
             if (reportsPage) {
                 reportsPage.classList.add('active');

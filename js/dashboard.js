@@ -1169,6 +1169,13 @@ class DashboardMultiPage {
         } else if (pageId === 'timeline') {
             this.createTimelineChart();
         } else if (pageId === 'reports') {
+            // Abrir Premium Builder
+            console.log('📊 Navegando para reports, abrindo Premium Builder...');
+            if (this.reportBuilderPremium) {
+                this.reportBuilderPremium.open();
+            } else if (this.reportsManager) {
+                this.reportsManager.showReportsPage();
+            }
             // Atualizar estatísticas da página de relatórios
             this.updateReportsStats();
         } else if (pageId === 'home') {
