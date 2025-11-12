@@ -652,6 +652,33 @@ class ReportsManager {
             normalized = String(normalized);
         }
 
+        const trimmed = normalized.trim();
+        if (trimmed.length === 0) {
+            return '<span class="cell-empty">—</span>';
+        }
+
+        const sanitized = trimmed
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase();
+
+        const noDataTokens = new Set([
+            'sem informacao',
+            'sem dados',
+            'sem dado',
+            'nao informado',
+            'nao informada',
+            'nao se aplica',
+            'nao aplicavel',
+            'n/a',
+            'n.d.',
+            'n.d'
+        ]);
+
+        if (noDataTokens.has(sanitized) || /^0\s*anos?$/i.test(trimmed)) {
+            return '<span class="cell-empty">—</span>';
+        }
+
         return this.escapeHTML(normalized).replace(/\n/g, '<br>');
     }
 
@@ -703,7 +730,7 @@ class ReportsManager {
         }).join('');
 
         const tableHtml = `
-            <table class="preview-table">
+            <table class="preview-table-redesign">
                 <thead>
                     <tr>${headers}</tr>
                 </thead>
@@ -803,13 +830,15 @@ class ReportsManager {
 
                 licenses.sort((a, b) => (a.inicio?.getTime?.() || 0) - (b.inicio?.getTime?.() || 0));
 
+                        const segmentJoiner = raw ? '\u000a' : '\n';
                 const segments = licenses.map(licenca => {
                     const inicio = licenca.inicio ? this.formatDate(licenca.inicio) : '-';
                     const fim = licenca.fim ? this.formatDate(licenca.fim) : inicio;
-                    return `${inicio} até ${fim}`;
+                    const label = `${inicio} até ${fim}`;
+                    return label;
                 });
 
-                const joined = segments.join('\n');
+                const joined = segments.join(segmentJoiner);
                 return joined;
             }
             case 'dataInicio':
@@ -862,21 +891,32 @@ class ReportsManager {
         const data = this.getFilteredData();
 
         if (data.length === 0) {
-            alert('Nenhum registro encontrado com os filtros aplicados.');
+            this.notify({
+                type: 'warning',
+                title: 'Geração de PDF',
+                message: 'Nenhum registro encontrado com os filtros aplicados.'
+            });
             return;
         }
 
         if (this.reportConfig.columns.length === 0) {
-            alert('Selecione pelo menos uma coluna para incluir no relatório.');
+            this.notify({
+                type: 'warning',
+                title: 'Geração de PDF',
+                message: 'Selecione pelo menos uma coluna para incluir no relatório.'
+            });
             return;
         }
 
+        const btn = document.getElementById('generatePdfRedesign');
+        let originalText = null;
+
         try {
-            // Mostrar loading
-            const btn = document.getElementById('generatePdfRedesign');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Gerando...';
-            btn.disabled = true;
+            if (btn) {
+                originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Gerando...';
+                btn.disabled = true;
+            }
 
             // Criar documento PDF
             const { jsPDF } = window.jspdf;
@@ -902,7 +942,8 @@ class ReportsManager {
                 doc.setFontSize(9);
                 doc.setFont(undefined, 'normal');
                 doc.setTextColor(120, 120, 120);
-                const dateText = `Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`;
+                const generatedAt = new Date();
+                const dateText = `Gerado em ${generatedAt.toLocaleDateString('pt-BR')} às ${generatedAt.toLocaleTimeString('pt-BR')}`;
                 doc.text(dateText, pageWidth / 2, yPosition, { align: 'center' });
                 yPosition += 10;
             }
@@ -910,7 +951,7 @@ class ReportsManager {
             // Estatísticas
             if (this.reportConfig.includeStats) {
                 const stats = this.calculateStats(data);
-                
+
                 doc.setFontSize(11);
                 doc.setFont(undefined, 'bold');
                 doc.setTextColor(40, 40, 40);
@@ -920,7 +961,7 @@ class ReportsManager {
                 doc.setFontSize(9);
                 doc.setFont(undefined, 'normal');
                 doc.setTextColor(60, 60, 60);
-                
+
                 const urgencySummaryParts = [
                     `Crítica: ${stats.urgencyCounts.critica || 0}`,
                     `Alta: ${stats.urgencyCounts.alta || 0}`,
@@ -938,7 +979,7 @@ class ReportsManager {
                     `Cargos Diferentes: ${stats.cargos}`,
                     `Urgências - ${urgencySummaryParts.join(' | ')}`
                 ];
-                
+
                 statsText.forEach(line => {
                     if (yPosition > pageHeight - margin) {
                         doc.addPage();
@@ -947,7 +988,7 @@ class ReportsManager {
                     doc.text(line, margin, yPosition);
                     yPosition += 5;
                 });
-                
+
                 yPosition += 5;
             }
 
@@ -978,20 +1019,19 @@ class ReportsManager {
                 try {
                     const chartImage = await this.generateChartImage(data);
                     if (chartImage) {
-                        const imgWidth = pageWidth - (margin * 2);
+                        const imgWidth = pageWidth - margin * 2;
                         const imgHeight = 50;
-                        
-                        // Verificar se há espaço na página
+
                         if (yPosition + imgHeight > pageHeight - margin) {
                             doc.addPage();
                             yPosition = margin + 6;
                         }
-                        
+
                         doc.addImage(chartImage, 'PNG', margin, yPosition, imgWidth, imgHeight);
                         yPosition += imgHeight + 8;
                     }
-                } catch (e) {
-                    console.warn('Erro ao gerar gráfico:', e);
+                } catch (chartError) {
+                    console.warn('Erro ao gerar gráfico:', chartError);
                 }
             }
 
@@ -1002,13 +1042,10 @@ class ReportsManager {
             doc.text('Dados Detalhados', margin, yPosition);
             yPosition += 6;
 
-            // Preparar dados da tabela
             const columns = this.reportConfig.columns;
             const headers = columns.map(col => this.columnLabels[col] || col);
-            
-            const tableData = data.map(servidor => {
-                return columns.map(col => this.getCellValue(servidor, col));
-            });
+
+            const tableData = data.map(servidor => columns.map(col => this.getCellValue(servidor, col)));
 
             doc.autoTable({
                 startY: yPosition,
@@ -1033,38 +1070,31 @@ class ReportsManager {
                 theme: 'grid'
             });
 
-            // Rodapé com número de páginas
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
                 doc.setFontSize(8);
                 doc.setTextColor(150);
-                doc.text(
-                    `Página ${i} de ${pageCount}`,
-                    pageWidth / 2,
-                    pageHeight - 10,
-                    { align: 'center' }
-                );
+                doc.text(`Página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
             }
 
-            // Salvar PDF
             const fileName = `${this.reportConfig.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
             doc.save(fileName);
 
-            // Restaurar botão
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-
-            // Feedback de sucesso
             this.showSuccessMessage(`Relatório "${fileName}" gerado com sucesso!`);
 
         } catch (error) {
             console.error('Erro ao gerar PDF:', error);
-            alert('Erro ao gerar relatório PDF. Verifique o console para mais detalhes.');
-
-            const btn = document.getElementById('generatePdfRedesign');
-            btn.innerHTML = '<i class="bi bi-file-pdf"></i> Gerar PDF';
-            btn.disabled = false;
+            this.notify({
+                type: 'error',
+                title: 'Geração de PDF',
+                message: 'Erro ao gerar relatório PDF. Verifique o console para mais detalhes.'
+            });
+        } finally {
+            if (btn) {
+                btn.innerHTML = originalText || '<i class="bi bi-file-earmark-pdf"></i> Gerar PDF';
+                btn.disabled = false;
+            }
         }
     }
 
@@ -1160,17 +1190,29 @@ class ReportsManager {
         const data = this.getFilteredData();
 
         if (data.length === 0) {
-            alert('Nenhum registro encontrado com os filtros aplicados.');
+            this.notify({
+                type: 'warning',
+                title: 'Exportação XLSX',
+                message: 'Nenhum registro encontrado com os filtros aplicados.'
+            });
             return;
         }
 
         if (this.reportConfig.columns.length === 0) {
-            alert('Selecione ao menos uma coluna antes de exportar.');
+            this.notify({
+                type: 'warning',
+                title: 'Exportação XLSX',
+                message: 'Selecione ao menos uma coluna antes de exportar.'
+            });
             return;
         }
 
         if (typeof XLSX === 'undefined') {
-            alert('Biblioteca XLSX não carregada. Verifique as dependências do projeto.');
+            this.notify({
+                type: 'error',
+                title: 'Exportação XLSX',
+                message: 'Biblioteca XLSX não carregada. Verifique as dependências do projeto.'
+            });
             return;
         }
 
@@ -1193,6 +1235,7 @@ class ReportsManager {
 
             const workbook = XLSX.utils.book_new();
             const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+            this.applyWorksheetEnhancements(worksheet, columns, header, rows);
             XLSX.utils.book_append_sheet(workbook, worksheet, 'Dados');
 
             const stats = this.calculateStats(data);
@@ -1207,11 +1250,18 @@ class ReportsManager {
             }
 
             const fileName = `${this.slugify(this.reportConfig.title || 'relatorio')}_${new Date().toISOString().split('T')[0]}.xlsx`;
-            XLSX.writeFile(workbook, fileName);
+            XLSX.writeFile(workbook, fileName, {
+                bookType: 'xlsx',
+                cellStyles: true
+            });
             this.showSuccessMessage(`Arquivo exportado: ${fileName}`);
         } catch (error) {
             console.error('Erro ao exportar XLSX:', error);
-            alert('Não foi possível exportar o arquivo XLSX. Consulte o console para mais detalhes.');
+            this.notify({
+                type: 'error',
+                title: 'Exportação XLSX',
+                message: 'Não foi possível exportar o arquivo XLSX. Consulte o console para mais detalhes.'
+            });
         } finally {
             this.isExportingXlsx = false;
             if (button) {
@@ -1220,6 +1270,143 @@ class ReportsManager {
                 button.disabled = false;
             }
         }
+    }
+
+    applyWorksheetEnhancements(worksheet, columns, header, rows) {
+        if (!worksheet || !Array.isArray(columns) || typeof XLSX === 'undefined') {
+            return;
+        }
+
+        const periodColumnIndex = columns.indexOf('periodoLicenca');
+        const columnWidths = columns.map((_, columnIndex) => {
+            const headerText = header[columnIndex] ? String(header[columnIndex]) : '';
+            let maxLength = headerText.length;
+
+            rows.forEach(row => {
+                const cellValue = row[columnIndex];
+                if (cellValue === null || cellValue === undefined) return;
+                const text = Array.isArray(cellValue) ? cellValue.join(' ') : String(cellValue);
+                text.replace(/\r?\n/g, '\n').split(/\n/).forEach(line => {
+                    if (line.length > maxLength) {
+                        maxLength = line.length;
+                    }
+                });
+            });
+
+            let width = Math.min(Math.max(maxLength + 2, 14), 48);
+            if (columnIndex === periodColumnIndex) {
+                width = Math.min(Math.max(maxLength + 6, 26), 64);
+            }
+            return { wch: width };
+        });
+
+        if (columnWidths.length > 0) {
+            worksheet['!cols'] = columnWidths;
+        }
+
+        const rowHeights = new Array(rows.length + 1);
+        rowHeights[0] = { hpt: 22 };
+        rows.forEach((row, rowIndex) => {
+            let maxLines = 1;
+            row.forEach(cell => {
+                if (typeof cell === 'string' && /\n/.test(cell)) {
+                    const lines = cell.replace(/\r?\n/g, '\n').split('\n').length;
+                    if (lines > maxLines) {
+                        maxLines = lines;
+                    }
+                }
+            });
+
+            if (maxLines > 1) {
+                const height = Math.min(18 + (maxLines - 1) * 9, 72);
+                rowHeights[rowIndex + 1] = { hpt: height };
+            }
+        });
+
+        if (rowHeights.length > 0) {
+            worksheet['!rows'] = rowHeights;
+        }
+
+        if (worksheet['!ref']) {
+            const range = XLSX.utils.decode_range(worksheet['!ref']);
+            const rangeRef = XLSX.utils.encode_range(range);
+            worksheet['!autofilter'] = { ref: rangeRef };
+            worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+            worksheet['!pane'] = {
+                state: 'frozen',
+                ySplit: 1,
+                topLeftCell: 'A2',
+                activePane: 'bottomLeft'
+            };
+        }
+
+        columns.forEach((_, columnIndex) => {
+            const cellRef = XLSX.utils.encode_cell({ r: 0, c: columnIndex });
+            const cell = worksheet[cellRef];
+            if (!cell) return;
+            cell.s = cell.s || {};
+            cell.s.font = Object.assign({}, cell.s.font, { bold: true, color: { rgb: '1F2933' } });
+            cell.s.fill = Object.assign({}, cell.s.fill, {
+                patternType: 'solid',
+                fgColor: { rgb: 'E6ECFF' }
+            });
+            cell.s.alignment = Object.assign({}, cell.s.alignment, {
+                horizontal: 'center',
+                vertical: 'center'
+            });
+        });
+
+        rows.forEach((row, rowIndex) => {
+            row.forEach((value, columnIndex) => {
+                if (typeof value !== 'string') return;
+                const cellRef = XLSX.utils.encode_cell({ r: rowIndex + 1, c: columnIndex });
+                const cell = worksheet[cellRef];
+                if (!cell) return;
+
+                const normalizedValue = value.replace(/\r?\n/g, '\u000a');
+                if (normalizedValue !== value) {
+                    cell.v = normalizedValue;
+                    if (cell.w) {
+                        cell.w = normalizedValue;
+                    }
+                }
+
+                if (!/\n/.test(value)) return;
+
+                cell.s = cell.s || {};
+                const baseAlignment = columnIndex === periodColumnIndex
+                    ? { wrapText: true, horizontal: 'left', vertical: 'top' }
+                    : { wrapText: true, vertical: 'top' };
+
+                cell.s.alignment = Object.assign({}, cell.s.alignment || {}, baseAlignment);
+            });
+        });
+    }
+
+    notify({ type = 'info', title = '', message = '', duration = 5000 } = {}) {
+        const normalizedType = ['success', 'warning', 'error', 'info'].includes(type) ? type : 'info';
+        const payload = {
+            type: normalizedType,
+            title,
+            message,
+            duration
+        };
+
+        try {
+            const manager = this.dashboard?.notificationManager;
+            if (manager && typeof manager.show === 'function') {
+                manager.show(payload);
+                return;
+            }
+        } catch (error) {
+            console.warn('Falha ao usar notificationManager:', error);
+        }
+
+        const consoleMethod = normalizedType === 'error'
+            ? 'error'
+            : (normalizedType === 'warning' ? 'warn' : 'log');
+        const prefix = title ? `[${title}] ` : '';
+        console[consoleMethod](`${prefix}${message}`);
     }
 
     buildSummarySheet(stats) {
@@ -1293,16 +1480,10 @@ class ReportsManager {
      * Mostrar mensagem de sucesso
      */
     showSuccessMessage(message) {
-        // Usar o sistema de notificações se disponível
-        if (this.dashboard.notificationManager) {
-            this.dashboard.notificationManager.show({
-                type: 'success',
-                title: 'Relatório Gerado',
-                message: message,
-                duration: 5000
-            });
-        } else {
-            alert(message);
-        }
+        this.notify({
+            type: 'success',
+            title: 'Relatório Gerado',
+            message
+        });
     }
 }

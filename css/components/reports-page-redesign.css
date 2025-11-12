@@ -563,6 +563,26 @@
   border-bottom: none;
 }
 
+.preview-table-redesign .cell-empty {
+  color: var(--text-secondary, #6b7280);
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.preview-table-redesign .cell-periodo {
+  white-space: pre-line;
+}
+
+.preview-table-redesign .urgency-critica,
+.preview-table-redesign .urgency-alta {
+  font-weight: 600;
+}
+
+.preview-table-redesign .urgency-moderada,
+.preview-table-redesign .urgency-baixa {
+  font-weight: 500;
+}
+
 /* ============================================================================
    16. URGENCY BADGES (Badges de Urgência)
    ============================================================================ */

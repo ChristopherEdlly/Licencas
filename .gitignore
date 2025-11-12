@@ -22,12 +22,15 @@ out/
 *.sublime-workspace
 .DS_Store
 .claude/
+.claude/*
 
 # Exemplos (dados sensíveis)
 Exemplos/*.csv
 Exemplos/*.xlsx
 Exemplos/*.xls
 Exemplos/
+claude.md
+*.txt
 
 # Arquivos de teste
 teste*
