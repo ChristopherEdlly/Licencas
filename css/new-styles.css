@@ -6399,6 +6399,56 @@ input[type="number"] {
     color: var(--success);
 }
 
+/* Políticas e Termos */
+.policy-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    max-width: 520px;
+}
+
+.policy-info p {
+    margin: 0;
+}
+
+.btn-terms-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: fit-content;
+    padding: 0.75rem 1.25rem;
+    border-radius: 10px;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(37, 99, 235, 0.04));
+    color: var(--primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-terms-link i {
+    font-size: 1rem;
+}
+
+.btn-terms-link:hover {
+    border-color: rgba(37, 99, 235, 0.7);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.15);
+    transform: translateY(-1px);
+}
+
+.btn-terms-link:active {
+    transform: translateY(0);
+}
+
+.btn-terms-link:focus-visible {
+    outline: 3px solid rgba(59, 130, 246, 0.45);
+    outline-offset: 3px;
+}
+
 /* Urgency Tags (manter para outras partes do sistema) */
 .urgency-tag {
     margin-left: auto;

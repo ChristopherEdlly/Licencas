@@ -370,6 +370,13 @@ class SettingsManager {
                 this.exportSettings();
             });
         }
+
+        const termsBtn = document.getElementById('viewTermsButton');
+        if (termsBtn) {
+            termsBtn.addEventListener('click', () => {
+                window.open('terms-of-service.html', '_blank', 'noopener');
+            });
+        }
         
         // Checkbox de tooltips - aplicar imediatamente
         const tooltipsCheckbox = document.getElementById('tooltipsEnabledCheckbox');
