@@ -23,7 +23,10 @@ class SettingsManager {
             // Interface
             tooltipsEnabled: true,
             animationsEnabled: true,
-            highContrastEnabled: false
+            highContrastEnabled: false,
+
+            // Integrações
+            sharepointWorkbookUrl: ''
         };
         
         this.settings = this.loadSettings();
@@ -108,6 +111,9 @@ class SettingsManager {
         this.setCheckboxValue('animationsEnabledCheckbox', this.get('animationsEnabled'));
         this.setCheckboxValue('highContrastCheckbox', this.get('highContrastEnabled'));
         
+        // Integrações
+        this.setInputValue('sharepointLinkInput', this.get('sharepointWorkbookUrl'));
+
         // Atualizar visualizações
         this.updateUrgencyHints();
     }
@@ -178,6 +184,10 @@ class SettingsManager {
         this.settings.tooltipsEnabled = document.getElementById('tooltipsEnabledCheckbox')?.checked ?? this.defaults.tooltipsEnabled;
         this.settings.animationsEnabled = document.getElementById('animationsEnabledCheckbox')?.checked ?? this.defaults.animationsEnabled;
         this.settings.highContrastEnabled = document.getElementById('highContrastCheckbox')?.checked ?? this.defaults.highContrastEnabled;
+
+    // Integrações
+    const sharepointLinkInput = document.getElementById('sharepointLinkInput');
+    this.settings.sharepointWorkbookUrl = sharepointLinkInput?.value?.trim() || '';
         
         this.saveSettings();
         
@@ -453,6 +463,13 @@ class SettingsManager {
                 });
             }
         });
+
+        const sharepointLinkInput = document.getElementById('sharepointLinkInput');
+        if (sharepointLinkInput) {
+            sharepointLinkInput.addEventListener('input', () => {
+                this.updateSettingsStatus('unsaved');
+            });
+        }
     }
 
     /**

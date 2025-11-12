@@ -89,6 +89,9 @@ class DashboardMultiPage {
         // Inicializar AdvancedFiltersBuilder
         this.advancedFiltersBuilder = null;
 
+    // Autenticação Microsoft
+    this.authenticationManager = null;
+
         this.init();
     }
 
@@ -176,40 +179,28 @@ class DashboardMultiPage {
         }
 
         // Inicializar HighContrastManager
-        if (typeof HighContrastManager !== 'undefined') {
-            this.highContrastManager = new HighContrastManager(this);
-            console.log('✅ HighContrastManager inicializado');
+        if (typeof AuthenticationManager !== 'undefined') {
+            try {
+                this.authenticationManager = new AuthenticationManager(this);
+                if (typeof window !== 'undefined') {
+                    window.authenticationManager = this.authenticationManager;
+                }
+                console.log('✅ AuthenticationManager inicializado');
+            } catch (error) {
+                console.error('Erro ao inicializar AuthenticationManager:', error);
+            }
         }
 
-        // Inicializar BreadcrumbsManager
-        if (typeof BreadcrumbsManager !== 'undefined') {
-            this.breadcrumbsManager = new BreadcrumbsManager(this);
-            console.log('✅ BreadcrumbsManager inicializado');
-        }
-
-        // Inicializar NotificationManager (Sprint 4)
-        if (typeof NotificationManager !== 'undefined') {
-            this.notificationManager = new NotificationManager(this);
-            console.log('✅ NotificationManager inicializado');
-        }
-
-        // Inicializar ReportsManager (Sprint 4)
-        if (typeof ReportsManager !== 'undefined') {
-            this.reportsManager = new ReportsManager(this);
-            console.log('✅ ReportsManager inicializado');
-        }
-
-        // Inicializar ReportBuilderPremium (Premium Builder)
-        if (typeof ReportBuilderPremium !== 'undefined') {
-            this.reportBuilderPremium = new ReportBuilderPremium(this);
-            console.log('✅ ReportBuilderPremium inicializado');
-        }
-
-        // Inicializar OperationalImpactAnalyzer (Sprint 4)
+        // Inicializar OperationalImpactAnalyzer (Sprint 5)
         if (typeof OperationalImpactAnalyzer !== 'undefined') {
             this.operationalImpactAnalyzer = new OperationalImpactAnalyzer(this);
             console.log('✅ OperationalImpactAnalyzer inicializado');
         }
+    }
+
+    setupThemeIntegration() {
+        // Registrar o chart globalmente para o ThemeManager
+        window.dashboardChart = this.charts.urgency;
 
         const currentYear = new Date().getFullYear();
         const currentYearElement = document.getElementById('currentCalendarYear');
@@ -232,6 +223,17 @@ class DashboardMultiPage {
         // Registrar o chart globalmente para o ThemeManager
         window.dashboardChart = this.charts.urgency;
 
+        if (typeof AuthenticationManager !== 'undefined') {
+            try {
+                this.authenticationManager = new AuthenticationManager(this);
+                if (typeof window !== 'undefined') {
+                    window.authenticationManager = this.authenticationManager;
+                }
+                console.log('✅ AuthenticationManager inicializado');
+            } catch (error) {
+                console.error('Erro ao inicializar AuthenticationManager:', error);
+            }
+        }
         // Escutar mudanças de tema
         window.addEventListener('themeChanged', (e) => {
             // Atualizar chart se existir

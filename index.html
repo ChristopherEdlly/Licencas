@@ -20,8 +20,11 @@
     <link href="css/components/reports-page.css" rel="stylesheet">
     <link href="css/components/reports-page-redesign.css" rel="stylesheet">
     <link href="css/components/widget-library.css" rel="stylesheet">
+    <script>window.__ENV__ = window.__ENV__ || {};</script>
+    <script src="env.config.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"
         defer></script>
@@ -35,6 +38,19 @@
         <div class="global-loading-content">
             <div class="spinner" aria-hidden="true"></div>
             <span class="loading-text" role="status" aria-live="polite">Carregando...</span>
+        </div>
+    </div>
+
+    <!-- Overlay de Autenticação Obrigatória -->
+    <div id="authRequiredOverlay" class="auth-required-overlay" aria-hidden="true" style="display: none;">
+        <div class="auth-required-panel" role="dialog" aria-labelledby="authOverlayTitle" aria-modal="true">
+            <i class="bi bi-lock-fill overlay-icon" aria-hidden="true"></i>
+            <h2 id="authOverlayTitle">Autenticação necessária</h2>
+            <p id="authOverlayMessage">Para acessar o painel, entre com sua conta Microsoft.</p>
+            <button class="btn-microsoft" id="authOverlayLoginButton" type="button">
+                <i class="bi bi-microsoft" aria-hidden="true"></i>
+                <span>Entrar com Microsoft</span>
+            </button>
         </div>
     </div>
 
@@ -145,6 +161,23 @@
                         </div>
                         <div class="dropdown-body" id="recentFilesList">
                             <!-- Preenchido dinamicamente -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Autenticação Microsoft -->
+                <div class="auth-wrapper" id="authWrapper">
+                    <button class="btn-microsoft" id="microsoftLoginButton">
+                        <i class="bi bi-microsoft"></i>
+                        <span>Entrar com Microsoft</span>
+                    </button>
+                    <div class="account-chip" id="microsoftAccountChip" style="display: none;">
+                        <i class="bi bi-person-circle"></i>
+                        <div class="account-details">
+                            <span class="account-name" id="microsoftAccountName">Usuário</span>
+                            <button type="button" class="account-action" id="microsoftLogoutButton">
+                                Sair
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1014,6 +1047,47 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- BLOCO 5: Integração Microsoft -->
+                            <div class="settings-block">
+                                <div class="block-header">
+                                    <i class="bi bi-cloud-arrow-up"></i>
+                                    <h2>Integração Microsoft</h2>
+                                </div>
+                                <div class="block-content integration-content">
+                                    <div class="integration-summary">
+                                        <p>Conecte sua conta corporativa para habilitar importações contínuas via OneDrive ou SharePoint.</p>
+                                        <div class="integration-status-badge" id="azureIntegrationStatus">Microsoft não conectado</div>
+                                        <div class="integration-actions">
+                                            <button type="button" class="btn-microsoft" id="microsoftLoginButtonSettings">
+                                                <i class="bi bi-microsoft"></i>
+                                                <span>Conectar Conta Microsoft</span>
+                                            </button>
+                                            <button type="button" class="btn-disconnect" id="microsoftLogoutButtonSettings" style="display: none;">
+                                                <i class="bi bi-box-arrow-left"></i>
+                                                <span>Desconectar</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="integration-flow">
+                                        <h3>Fluxos Suportados</h3>
+                                        <ol>
+                                            <li><strong>Upload Manual</strong>: continue utilizando o botão de importação na barra superior. Recomende o uso da File System Access API para agilizar reimportações.</li>
+                                            <li><strong>Planilha no SharePoint/OneDrive</strong>: informe abaixo o link compartilhado da planilha corporativa para sincronizações futuras.</li>
+                                        </ol>
+                                    </div>
+
+                                    <div class="integration-form">
+                                        <label for="sharepointLinkInput" class="integration-label">
+                                            <span>Link da planilha (SharePoint ou OneDrive)</span>
+                                            <small>O link deve ter permissões limitadas aos usuários autorizados.</small>
+                                        </label>
+                                        <input type="url" id="sharepointLinkInput" placeholder="https://contoso.sharepoint.com/sites/.../Licencas.xlsx">
+                                        <p class="integration-hint">Se preferir manter o link fora do navegador, armazene-o como variável de ambiente e gere o arquivo <code>env.config.js</code> antes do deploy.</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Footer com Ações -->
@@ -1371,6 +1445,7 @@
     <script src="js/modules/BreadcrumbsManager.js"></script>
     <script src="js/modules/NotificationManager.js"></script>
     <script src="js/modules/ReportsManager.js"></script>
+    <script src="js/modules/AuthenticationManager.js"></script>
     <script src="js/modules/OperationalImpactAnalyzer.js"></script>
 
     <!-- Dashboard Principal -->

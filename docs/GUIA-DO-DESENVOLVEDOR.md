@@ -3,6 +3,7 @@
 ## Sumário
 
 - [Visão rápida](#resumo)
+- [js/modules/AuthenticationManager.js](#arquivo-js-modules-authentication-manager-js)
 - [js/cronogramaParser.js](#arquivo-js-cronograma-parser)
 - [js/dashboard.js](#arquivo-js-dashboard-js)
 - [js/themeManager.js](#arquivo-js-theme-manager-js)
@@ -34,6 +35,35 @@ Casos de borda principais
 - Cronogramas sem ano explícito — heurísticas conservadoras são aplicadas e podem produzir [] (não interpretado).
 - Intervalos que atravessam anos (ex.: nov → fev) — atenção na inferência de ano final.
 - Tamanhos de arquivo grandes (> ~5MB) — fallback de persistência pode ocorrer (IndexedDB/localStorage) e salvamento imediato pode falhar.
+
+---
+
+<a id="arquivo-js-modules-authentication-manager-js"></a>
+## Arquivo: js/modules/AuthenticationManager.js
+
+  Observação geral: encapsula a integração com Microsoft Entra ID usando [MSAL Browser](https://learn.microsoft.com/azure/active-directory/develop/msal-overview#msaljs). A implementação segue o fluxo Authorization Code + PKCE recomendado para aplicações single-page (SPA), evitando o uso de segredos no frontend.
+
+  Configuração obrigatória
+  - Registre o aplicativo no Azure como **Single-page application (SPA)**.
+  - Cadastre o redirect URI que serve o dashboard (ex.: `https://seu-dominio/...`).
+  - Preencha `.env` com `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_REDIRECT_URI`, `AZURE_SCOPES` (lista separada por vírgula) e opcionalmente `AZURE_AUTHORITY`.
+  - Gere `env.config.js` com `node scripts/generate-env-config.mjs` sempre que o `.env` mudar.
+  - Não utilize `Client Secret` no frontend; caso um fluxo de credenciais de aplicativo seja necessário, implemente uma API backend que faça a troca de tokens com MSAL Node.
+
+  Responsabilidades principais
+  - Validar se a configuração mínima (`clientId`, `tenantId`, `redirectUri`) está preenchida.
+  - Instanciar `PublicClientApplication` do MSAL, gerenciar conta ativa e cache local.
+  - Orquestrar login/logout via popup e emitir o evento `azure-auth-changed` para outros módulos.
+  - Fornecer `acquireToken(scopes?)` com fallback para `acquireTokenPopup` quando interação for necessária.
+  - Exibir um overlay bloqueando a interface enquanto não houver uma sessão autenticada (login obrigatório).
+  - Atualizar a UI (botões, chip de conta e badge de status) conforme estado autenticado.
+
+  Casos de borda e boas práticas
+  - Garantir que o redirect URI no Azure coincida com o domínio atual; inconsistências resultam em erro `AADSTS50011`.
+  - Navegadores com bloqueio de popup podem exigir `loginRedirect`; se necessário, exponha essa alternativa.
+  - Tokens possuem tempo de vida curto; sempre use `acquireTokenSilent` antes de chamar APIs, delegando para `acquireTokenPopup` caso a sessão exija nova interação.
+  - Scopes sensíveis como `Files.Read.All` pedem consentimento administrativo; ajuste a lista conforme as permissões realmente necessárias.
+  - Para operações server-to-server (ex.: sincronização com SharePoint sem usuário logado), migre a lógica para o backend.
 
 ---
 
