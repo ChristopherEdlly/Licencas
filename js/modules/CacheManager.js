@@ -20,11 +20,9 @@ class CacheManager {
      */
     async init() {
         if (this.db) {
-            console.log('✅ IndexedDB já inicializado - reutilizando conexão');
             return this.db;
         }
 
-        console.log('🔧 Abrindo IndexedDB:', this.dbName, 'versão:', this.dbVersion);
 
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.dbName, this.dbVersion);
@@ -36,8 +34,6 @@ class CacheManager {
 
             request.onsuccess = () => {
                 this.db = request.result;
-                console.log('✅ IndexedDB aberto com sucesso');
-                console.log('📊 Object stores disponíveis:', Array.from(this.db.objectStoreNames));
                 resolve(this.db);
             };
 
@@ -47,7 +43,6 @@ class CacheManager {
 
                 // Criar object store se não existir
                 if (!db.objectStoreNames.contains(this.storeName)) {
-                    console.log('📦 Criando object store:', this.storeName);
                     const objectStore = db.createObjectStore(this.storeName, {
                         keyPath: 'id',
                         autoIncrement: true
@@ -56,7 +51,6 @@ class CacheManager {
                     // Índices para queries eficientes
                     objectStore.createIndex('timestamp', 'timestamp', { unique: false });
                     objectStore.createIndex('fileName', 'fileName', { unique: false });
-                    console.log('✅ Object store criado com índices');
                 } else {
                     console.log('ℹ️ Object store já existe');
                 }
@@ -76,11 +70,8 @@ class CacheManager {
      * @returns {Promise<number>} - ID do arquivo salvo
      */
     async saveFile(fileName, csvData, servidores) {
-        console.log(`📦 CacheManager.saveFile chamado: ${fileName}, ${servidores.length} servidores`);
         try {
-            console.log('📦 Inicializando IndexedDB...');
             await this.init();
-            console.log('✅ IndexedDB inicializado - db:', this.db);
 
             if (!this.db) {
                 throw new Error('Banco de dados não inicializado');
@@ -98,7 +89,6 @@ class CacheManager {
                 }
             };
 
-            console.log('📦 Criando transação para salvar arquivo...');
 
             return new Promise((resolve, reject) => {
                 try {
@@ -108,11 +98,9 @@ class CacheManager {
 
                     request.onsuccess = async () => {
                         const fileId = request.result;
-                        console.log(`✅ Arquivo "${fileName}" salvo no cache (ID: ${fileId})`);
 
                         // Limpar cache antigo após salvar (não await para não bloquear)
                         this.cleanOldCache().then(() => {
-                            console.log('✅ Limpeza de cache concluída');
                         }).catch(err => {
                             console.warn('⚠️ Erro ao limpar cache:', err);
                         });
@@ -204,7 +192,6 @@ class CacheManager {
 
                 request.onsuccess = () => {
                     if (request.result) {
-                        console.log(`✅ Arquivo carregado do cache (ID: ${fileId})`);
                         resolve(request.result);
                     } else {
                         reject(new Error('Arquivo não encontrado'));

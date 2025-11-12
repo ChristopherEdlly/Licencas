@@ -102,7 +102,6 @@ class NotificationManager {
      * Inicializa o gerenciador de notificações
      */
     async init() {
-        console.log('🔔 Inicializando NotificationManager...');
         
         try {
             // Carrega notificações salvas
@@ -124,7 +123,6 @@ class NotificationManager {
                 Notification.requestPermission();
             }
             
-            console.log('✅ NotificationManager inicializado');
             
         } catch (error) {
             console.error('❌ Erro ao inicializar NotificationManager:', error);
@@ -231,7 +229,6 @@ class NotificationManager {
         // Detecta conflitos de datas
         this.detectDateConflicts(servidores);
         
-        console.log(`🔔 ${newNotifications} novas notificações geradas`);
         
         // Atualiza UI
         this.updateBellBadge();
@@ -437,7 +434,6 @@ class NotificationManager {
             this.toggleNotificationCenter();
         });
 
-        console.log('🔔 Sino de notificações conectado');
     }
     
     /**
@@ -777,8 +773,16 @@ class NotificationManager {
     /**
      * Limpa todas as notificações
      */
-    clearAllNotifications() {
-        if (confirm('Tem certeza que deseja limpar todas as notificações?')) {
+    async clearAllNotifications() {
+        const confirmed = await window.customModal?.confirm({
+            title: 'Limpar Notificações',
+            message: 'Tem certeza que deseja limpar todas as notificações?',
+            type: 'warning',
+            confirmText: 'Sim, limpar',
+            cancelText: 'Cancelar'
+        });
+        
+        if (confirmed) {
             this.notifications = [];
             this.unreadCount = 0;
             this.saveNotifications();
@@ -821,7 +825,6 @@ class NotificationManager {
             }
         });
         
-        console.log('👂 Listeners de notificações registrados');
     }
     
     /**
@@ -855,7 +858,6 @@ class NotificationManager {
                 // Recalcula unread count
                 this.unreadCount = this.notifications.filter(n => !n.read).length;
                 
-                console.log(`📥 ${this.notifications.length} notificações carregadas`);
             }
         } catch (error) {
             console.warn('⚠️ Erro ao carregar notificações:', error);

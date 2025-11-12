@@ -41,7 +41,6 @@ class FilterChipsUI {
         // Setup event listeners
         this.setupEventListeners();
 
-        console.log('✅ FilterChipsUI inicializado');
     }
 
     /**
@@ -264,26 +263,11 @@ class FilterChipsUI {
 
     /**
      * Mostra o container de chips
+     * NOTA: Chips não aparecem mais na home, apenas no modal de filtros avançados
      */
     show() {
-        if (!this.container) return;
-
-        if (!this.isVisible) {
-            this.container.style.display = 'block';
-
-            requestAnimationFrame(() => {
-                this.container.style.opacity = '0';
-                this.container.style.transform = 'translateY(-10px)';
-                this.container.style.transition = 'all 0.3s ease';
-
-                requestAnimationFrame(() => {
-                    this.container.style.opacity = '1';
-                    this.container.style.transform = 'translateY(0)';
-                });
-            });
-
-            this.isVisible = true;
-        }
+        // Desabilitado - chips não devem aparecer na home para não comprometer o layout
+        return;
     }
 
     /**

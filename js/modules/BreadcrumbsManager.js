@@ -90,7 +90,6 @@ class BreadcrumbsManager {
      * Inicializa o gerenciador de breadcrumbs
      */
     async init() {
-        console.log('🍞 Inicializando BreadcrumbsManager...');
         
         try {
             // Cria container
@@ -108,7 +107,6 @@ class BreadcrumbsManager {
             // Integra com navegação
             this.integrateWithNavigation();
             
-            console.log('✅ BreadcrumbsManager inicializado');
             
         } catch (error) {
             console.error('❌ Erro ao inicializar BreadcrumbsManager:', error);
@@ -144,7 +142,6 @@ class BreadcrumbsManager {
             mainContent.insertBefore(this.container, mainContent.firstChild);
         }
         
-        console.log('📦 Container de breadcrumbs criado');
     }
     
     /**
@@ -166,7 +163,6 @@ class BreadcrumbsManager {
         // Renderiza
         this.render();
         
-        console.log('🍞 Path atualizado:', path.join(' > '));
     }
     
     /**
@@ -410,7 +406,6 @@ class BreadcrumbsManager {
             const saved = localStorage.getItem('breadcrumbHistory');
             if (saved) {
                 this.navigationHistory = JSON.parse(saved);
-                console.log(`📚 ${this.navigationHistory.length} entradas de histórico carregadas`);
             }
         } catch (error) {
             console.warn('⚠️ Erro ao carregar histórico:', error);
@@ -464,7 +459,6 @@ class BreadcrumbsManager {
             }
         });
         
-        console.log('👂 Listeners de breadcrumb registrados');
     }
     
     /**
@@ -489,7 +483,6 @@ class BreadcrumbsManager {
             });
         });
         
-        console.log('🔗 Integração com navegação configurada');
     }
     
     /**
@@ -605,7 +598,6 @@ class BreadcrumbsManager {
             this.setPath(data.currentPath);
         }
         
-        console.log('📥 Histórico importado');
     }
     
     /**

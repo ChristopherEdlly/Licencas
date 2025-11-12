@@ -1,0 +1,660 @@
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * REPORTS PAGE COMPACT - Layout Otimizado
+ * Elimina rolagem vertical através de compactação inteligente
+ * Mantém funcionalidade e usabilidade
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+
+/* ========================================
+   🎯 CONTAINER PRINCIPAL - COMPACTO
+   ======================================== */
+
+#reportsPage .reports-container {
+    padding: 10px;
+    gap: 10px;
+    grid-template-columns: 270px 1fr;
+}
+
+/* ========================================
+   📑 PAINEL DE CONFIGURAÇÕES - COMPACTO
+   ======================================== */
+
+#reportsPage .reports-config-panel {
+    padding: 0;
+}
+
+#reportsPage .reports-config-panel::before {
+    height: 3px;
+}
+
+/* ========================================
+   📑 TABS - COMPACTO
+   ======================================== */
+
+#reportsPage .reports-tabs {
+    margin: 8px 8px 0 8px;
+    padding: 2px;
+    gap: 2px;
+}
+
+#reportsPage .reports-tab {
+    padding: 5px 4px;
+    font-size: 8px;
+    letter-spacing: 0.5px;
+}
+
+#reportsPage .reports-tab i {
+    font-size: 12px;
+    margin-bottom: 3px;
+}
+
+/* ========================================
+   📄 CONTEÚDO DAS TABS - COMPACTO
+   ======================================== */
+
+#reportsPage .reports-tab-content {
+    padding: 8px 8px 6px 8px;
+}
+
+/* ========================================
+   📝 FORMULÁRIO - COMPACTO
+   ======================================== */
+
+#reportsPage .form-group {
+    margin-bottom: 6px;
+}
+
+#reportsPage .form-group label {
+    font-size: 8.5px;
+    margin-bottom: 3px;
+    padding-left: 7px;
+}
+
+#reportsPage .form-group label::before {
+    width: 2px;
+    height: 7px;
+}
+
+#reportsPage .form-control {
+    padding: 6px 9px;
+    font-size: 11px;
+    border-radius: 6px;
+}
+
+#reportsPage select.form-control {
+    padding-right: 28px;
+}
+
+#reportsPage input.form-control[type="text"] {
+    padding-right: 32px;
+}
+
+#reportsPage .form-group:has(select.form-control)::after {
+    right: 9px;
+    margin-top: 11px;
+    font-size: 9px;
+}
+
+#reportsPage .form-group:has(input.form-control[type="text"])::before {
+    right: 12px;
+    top: calc(50% + 5px);
+    font-size: 14px;
+}
+
+/* ========================================
+   📊 GRID DE FORMULÁRIO - COMPACTO
+   ======================================== */
+
+#reportsPage .reports-form-grid {
+    display: grid;
+    gap: 6px;
+}
+
+/* ========================================
+   ☑️ CHECKBOXES - COMPACTO
+   ======================================== */
+
+#reportsPage .checkbox-group {
+    gap: 5px;
+}
+
+#reportsPage .checkbox-item {
+    min-height: 28px;
+    border-radius: 6px;
+}
+
+#reportsPage .checkbox-item::before {
+    width: 2.5px;
+}
+
+#reportsPage .checkbox-item input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    left: 9px;
+}
+
+#reportsPage .checkbox-item label {
+    font-size: 10px;
+    padding: 5px 9px 5px 34px;
+}
+
+/* ========================================
+   🎯 BOTÕES DE AÇÃO - COMPACTO
+   ======================================== */
+
+#reportsPage .reports-actions {
+    margin-top: 6px;
+    padding: 8px;
+    border-top: 1px solid var(--border-color);
+}
+
+#reportsPage .reports-actions-note {
+    display: none; /* Ocultar para economizar espaço vertical */
+}
+
+#reportsPage .reports-actions-buttons {
+    display: flex;
+    gap: 5px;
+    width: 100%;
+}
+
+#reportsPage .btn-preview,
+#reportsPage .btn-export-xlsx {
+    display: none; /* Ocultar botões secundários */
+}
+
+#reportsPage .btn-generate {
+    padding: 8px 12px;
+    font-size: 9px;
+    border-radius: 6px;
+    gap: 5px;
+    width: 100%;
+}
+
+/* ========================================
+   👁️ PAINEL DE PREVIEW - COMPACTO
+   ======================================== */
+
+#reportsPage .reports-preview-panel {
+    padding: 12px;
+    border-radius: 12px;
+}
+
+/* ========================================
+   🔤 HEADER DO PREVIEW - COMPACTO
+   ======================================== */
+
+#reportsPage .preview-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1.5px solid var(--border-color);
+    flex-shrink: 0;
+    gap: 10px;
+}
+
+#reportsPage .preview-top-left {
+    flex: 1;
+    min-width: 0;
+}
+
+#reportsPage .preview-top-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+#reportsPage .preview-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+#reportsPage .preview-label i {
+    font-size: 10px;
+    color: var(--primary-color);
+}
+
+#reportsPage #previewTitle {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 3px 0;
+    letter-spacing: -0.2px;
+    line-height: 1.2;
+}
+
+#reportsPage .preview-meta {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+#reportsPage .preview-meta i {
+    font-size: 11px;
+}
+
+#reportsPage .record-count {
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+    background: linear-gradient(135deg,
+        var(--primary-color) 0%,
+        var(--primary-hover) 100%
+    );
+    padding: 3px 10px;
+    border-radius: 14px;
+    box-shadow:
+        0 2px 8px rgba(59, 130, 246, 0.3),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.08);
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+#reportsPage .live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(59, 130, 246, 0.06);
+    border: 1px solid rgba(59, 130, 246, 0.18);
+    white-space: nowrap;
+}
+
+#reportsPage .pulse-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: scale(0.8);
+    }
+}
+
+#reportsPage .live-indicator.is-disabled {
+    opacity: 0.5;
+}
+
+#reportsPage .live-indicator.is-disabled .pulse-dot {
+    animation: none;
+    background: var(--text-secondary);
+}
+
+/* ========================================
+   📊 PREVIEW BODY - COMPACTO
+   ======================================== */
+
+#reportsPage .preview-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ========================================
+   📊 RESUMO - COMPACTO
+   ======================================== */
+
+#reportsPage .preview-summary {
+    flex-shrink: 0;
+}
+
+#reportsPage .preview-summary.is-visible {
+    display: block;
+}
+
+#reportsPage .preview-summary-card {
+    background: linear-gradient(135deg,
+        rgba(59, 130, 246, 0.05) 0%,
+        rgba(59, 130, 246, 0.02) 100%
+    );
+    border: 1px solid rgba(59, 130, 246, 0.18);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#reportsPage .summary-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: linear-gradient(135deg,
+        var(--primary-color) 0%,
+        var(--primary-hover) 100%
+    );
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#reportsPage .summary-header i {
+    font-size: 11px;
+}
+
+#reportsPage .summary-list {
+    list-style: none;
+    padding: 8px 10px;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+#reportsPage .summary-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 10px;
+    line-height: 1.4;
+}
+
+#reportsPage .summary-list li i {
+    color: var(--primary-color);
+    font-size: 11px;
+    margin-top: 1px;
+    flex-shrink: 0;
+}
+
+#reportsPage .summary-list li strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* ========================================
+   📊 TABELA CONTAINER - COMPACTO
+   ======================================== */
+
+#reportsPage .preview-table-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#reportsPage .preview-table-meta {
+    flex-shrink: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px;
+}
+
+#reportsPage .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+#reportsPage .meta-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 5px;
+    background: rgba(59, 130, 246, 0.04);
+    border-radius: 5px;
+    border: 1px solid rgba(59, 130, 246, 0.1);
+}
+
+#reportsPage .meta-item i {
+    color: var(--primary-color);
+    font-size: 11px;
+    margin-top: 1px;
+    flex-shrink: 0;
+}
+
+#reportsPage .meta-item > div {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+#reportsPage .meta-label {
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-secondary);
+}
+
+#reportsPage .meta-value {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+#reportsPage .meta-columns {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 6px;
+    background: rgba(59, 130, 246, 0.04);
+    border-radius: 5px;
+    border: 1px solid rgba(59, 130, 246, 0.1);
+}
+
+#reportsPage .meta-columns i {
+    color: var(--primary-color);
+    font-size: 11px;
+    margin-top: 1px;
+    flex-shrink: 0;
+}
+
+#reportsPage .meta-columns > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    min-width: 0;
+}
+
+#reportsPage .column-chip-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+
+#reportsPage .column-chip {
+    display: inline-block;
+    padding: 2px 6px;
+    background: white;
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--primary-color);
+    white-space: nowrap;
+}
+
+[data-theme="dark"] #reportsPage .column-chip {
+    background: rgba(59, 130, 246, 0.12);
+    border-color: rgba(59, 130, 246, 0.35);
+    color: #93c5fd;
+}
+
+#reportsPage .preview-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    min-height: 0;
+}
+
+#reportsPage .preview-content.has-data {
+    /* Dados presentes */
+}
+
+#reportsPage .preview-table-wrapper {
+    min-height: 100%;
+}
+
+#reportsPage .preview-footnote {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: rgba(59, 130, 246, 0.05);
+    border: 1px solid rgba(59, 130, 246, 0.18);
+    border-radius: 6px;
+    font-size: 9px;
+    color: var(--text-secondary);
+    line-height: 1.3;
+}
+
+#reportsPage .preview-footnote i {
+    color: var(--primary-color);
+    font-size: 10px;
+    flex-shrink: 0;
+}
+
+/* ========================================
+   📋 TABELA DE PREVIEW - COMPACTO
+   ======================================== */
+
+#reportsPage .preview-table {
+    font-size: 11px;
+}
+
+#reportsPage .preview-table th {
+    padding: 6px 8px;
+    font-size: 8.5px;
+    letter-spacing: 0.5px;
+}
+
+#reportsPage .preview-table td {
+    padding: 5px 8px;
+    font-size: 11px;
+}
+
+/* ========================================
+   💭 PLACEHOLDER - COMPACTO
+   ======================================== */
+
+#reportsPage .preview-placeholder {
+    padding: 40px 25px;
+}
+
+#reportsPage .preview-placeholder .icon {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 14px;
+}
+
+#reportsPage .preview-placeholder h3 {
+    font-size: 15px;
+    margin: 0 0 8px 0;
+}
+
+#reportsPage .preview-placeholder p {
+    font-size: 12px;
+}
+
+/* ========================================
+   🎨 BADGES DE URGÊNCIA - COMPACTO
+   ======================================== */
+
+#reportsPage .preview-table .badge {
+    padding: 3px 8px;
+    font-size: 8.5px;
+    border-radius: 5px;
+    letter-spacing: 0.5px;
+}
+
+/* ========================================
+   📱 RESPONSIVIDADE COMPACTA
+   ======================================== */
+
+@media (max-width: 1600px) {
+    #reportsPage .reports-container {
+        grid-template-columns: 250px 1fr;
+    }
+}
+
+@media (max-width: 1400px) {
+    #reportsPage .reports-container {
+        grid-template-columns: 230px 1fr;
+        gap: 8px;
+    }
+
+    #reportsPage .meta-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 1200px) {
+    #reportsPage .reports-container {
+        grid-template-columns: 210px 1fr;
+    }
+}
+
+/* ========================================
+   🎨 CÉLULAS ESPECIAIS
+   ======================================== */
+
+#reportsPage .cell-empty {
+    color: var(--text-secondary);
+    opacity: 0.6;
+    font-style: italic;
+}
+
+#reportsPage .cell-periodo {
+    white-space: pre-line;
+    line-height: 1.4;
+}
+
+#reportsPage .urgency-critica {
+    font-weight: 600;
+}
+
+#reportsPage .urgency-alta {
+    font-weight: 600;
+}
+
+#reportsPage .urgency-moderada {
+    font-weight: 500;
+}
+
+#reportsPage .urgency-baixa {
+    font-weight: 500;
+}
+
+/* ========================================
+   🔚 FIM DO ARQUIVO
+   ======================================== */

@@ -75,7 +75,6 @@ class HighContrastManager {
      * Inicializa o gerenciador de alto contraste
      */
     async init() {
-        console.log('🎨 Inicializando HighContrastManager...');
         
         try {
             // Detecta preferência do sistema
@@ -95,7 +94,6 @@ class HighContrastManager {
                 this.applyHighContrast();
             }
             
-            console.log('✅ HighContrastManager inicializado');
             
         } catch (error) {
             console.error('❌ Erro ao inicializar HighContrastManager:', error);
@@ -110,7 +108,6 @@ class HighContrastManager {
             const mediaQuery = window.matchMedia('(prefers-contrast: more)');
             this.systemPreference = mediaQuery.matches;
             
-            console.log(`🖥️ Preferência de contraste do sistema: ${this.systemPreference ? 'Alto' : 'Normal'}`);
             
             // Listen for changes
             mediaQuery.addEventListener('change', (e) => {
@@ -134,11 +131,9 @@ class HighContrastManager {
         
         if (savedPreference !== null) {
             this.isHighContrast = savedPreference === 'true';
-            console.log(`💾 Preferência carregada: ${this.isHighContrast ? 'Alto contraste' : 'Normal'}`);
         } else if (this.systemPreference !== null) {
             // Se não tem preferência salva, usa a do sistema
             this.isHighContrast = this.systemPreference;
-            console.log(`💾 Usando preferência do sistema: ${this.isHighContrast ? 'Alto contraste' : 'Normal'}`);
         }
     }
     
@@ -147,7 +142,6 @@ class HighContrastManager {
      */
     savePreference() {
         localStorage.setItem('highContrastMode', this.isHighContrast.toString());
-        console.log(`💾 Preferência salva: ${this.isHighContrast ? 'Alto contraste' : 'Normal'}`);
     }
     
     /**
@@ -155,7 +149,6 @@ class HighContrastManager {
      * DESABILITADO - Controle apenas em configurações
      */
     createToggleButton() {
-        console.log('🔘 Botão de alto contraste desabilitado (controle apenas em configurações)');
         // Não cria mais o botão na tela
         return;
     }
@@ -200,7 +193,6 @@ class HighContrastManager {
             }
         });
         
-        console.log('👂 Listeners registrados');
     }
     
     /**
@@ -220,7 +212,6 @@ class HighContrastManager {
         this.syncWithSettings();
         this.showNotification();
         
-        console.log(`🎨 Alto contraste: ${this.isHighContrast ? 'ATIVADO' : 'DESATIVADO'}`);
     }
     
     /**
@@ -234,7 +225,6 @@ class HighContrastManager {
             this.savePreference();
             this.syncWithSettings();
             this.showNotification();
-            console.log('🎨 Alto contraste ATIVADO');
         }
     }
     
@@ -249,7 +239,6 @@ class HighContrastManager {
             this.savePreference();
             this.syncWithSettings();
             this.showNotification();
-            console.log('🎨 Alto contraste DESATIVADO');
         }
     }
     
@@ -294,7 +283,6 @@ class HighContrastManager {
             detail: { enabled: true }
         }));
         
-        console.log('✅ Alto contraste aplicado');
     }
     
     /**
@@ -497,7 +485,6 @@ class HighContrastManager {
             this.animationsEnabled = settings.animationsEnabled;
         }
         
-        console.log('📥 Configurações importadas');
     }
     
     /**

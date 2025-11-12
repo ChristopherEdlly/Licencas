@@ -461,8 +461,12 @@ class SettingsManager {
                 icon: type === 'success' ? 'bi-check-circle' : type === 'error' ? 'bi-x-circle' : 'bi-exclamation-circle'
             });
         } else {
-            // fallback mínimo
-            alert(message);
+            // fallback usando customModal
+            window.customModal?.alert({
+                title: type === 'success' ? 'Sucesso' : type === 'error' ? 'Erro' : 'Aviso',
+                message: message,
+                type: type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'
+            });
         }
     }
 

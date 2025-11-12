@@ -1,0 +1,398 @@
+/**
+ * Compact Scale - Redução global de tamanhos para zoom 100%
+ * Este arquivo aplica uma escala compacta em todo o site
+ */
+
+/* ==================== ESCALA GLOBAL ==================== */
+:root {
+    /* Redução de 30% nos tamanhos base */
+    --scale-factor: 0.7;
+}
+
+/* ==================== CARDS E CONTAINERS ==================== */
+.stat-card,
+.card,
+.metric-card,
+.dashboard-card {
+    padding: 0.75rem !important;
+}
+
+.stat-card h3,
+.card h3 {
+    font-size: 0.6875rem !important;
+    margin-bottom: 0.4rem !important;
+}
+
+.stat-card .value,
+.metric-card .value {
+    font-size: 1.5rem !important;
+}
+
+.stat-card .label,
+.metric-card .label {
+    font-size: 0.6875rem !important;
+}
+
+/* ==================== PÁGINA PRINCIPAL ==================== */
+.main-content {
+    padding: 0.75rem !important;
+}
+
+.page-content {
+    padding: 0.75rem !important;
+}
+
+.content-wrapper {
+    padding: 0.75rem !important;
+}
+
+/* ==================== SEÇÕES E HEADERS ==================== */
+.dashboard-header h1,
+.page-header h1,
+h1.page-title {
+    font-size: 1.25rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.dashboard-header h2,
+.page-header h2,
+.section-title {
+    font-size: 1rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.dashboard-header h3,
+.section-subtitle {
+    font-size: 0.875rem !important;
+    margin-bottom: 0.4rem !important;
+}
+
+.dashboard-header p,
+.page-description {
+    font-size: 0.75rem !important;
+}
+
+/* ==================== STATS GRID ==================== */
+.stats-grid,
+.dashboard-stats {
+    gap: 0.75rem !important;
+    margin-bottom: 0.75rem !important;
+}
+
+/* ==================== TABELAS ==================== */
+.table-container {
+    padding: 0.75rem !important;
+}
+
+table th {
+    padding: 0.5rem 0.6rem !important;
+    font-size: 0.6875rem !important;
+}
+
+table td {
+    padding: 0.5rem 0.6rem !important;
+    font-size: 0.75rem !important;
+}
+
+.table-header {
+    padding: 0.75rem !important;
+}
+
+.table-title {
+    font-size: 0.875rem !important;
+}
+
+/* ==================== BOTÕES ==================== */
+.btn,
+button {
+    padding: 0.4rem 0.75rem !important;
+    font-size: 0.75rem !important;
+    border-radius: 4px !important;
+}
+
+.btn-lg,
+.btn-primary-lg {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.8125rem !important;
+}
+
+.btn-sm {
+    padding: 0.3rem 0.5rem !important;
+    font-size: 0.6875rem !important;
+}
+
+.btn i,
+button i {
+    font-size: 0.875rem !important;
+}
+
+/* ==================== FORMS ==================== */
+.form-group {
+    margin-bottom: 0.75rem !important;
+}
+
+.form-label,
+label {
+    font-size: 0.75rem !important;
+    margin-bottom: 0.3rem !important;
+}
+
+.form-control,
+input,
+select,
+textarea {
+    padding: 0.4rem 0.6rem !important;
+    font-size: 0.75rem !important;
+    border-radius: 4px !important;
+}
+
+/* ==================== MODAIS ==================== */
+.modal-header {
+    padding: 0.75rem 1rem !important;
+}
+
+.modal-title {
+    font-size: 1rem !important;
+}
+
+.modal-body {
+    padding: 0.75rem 1rem !important;
+}
+
+.modal-footer {
+    padding: 0.75rem 1rem !important;
+}
+
+/* ==================== SIDEBAR ==================== */
+.sidebar {
+    width: 200px !important;
+}
+
+.sidebar-nav .nav-link {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.75rem !important;
+}
+
+.sidebar-nav .nav-link i {
+    font-size: 1rem !important;
+    margin-right: 0.5rem !important;
+}
+
+.sidebar-nav .nav-link span {
+    font-size: 0.75rem !important;
+}
+
+/* ==================== HEADER ==================== */
+.dashboard-header {
+    padding: 0.75rem 1rem !important;
+    min-height: auto !important;
+}
+
+.logo-title {
+    font-size: 0.875rem !important;
+}
+
+.logo-subtitle {
+    font-size: 0.6875rem !important;
+}
+
+/* ==================== CHARTS E GRÁFICOS ==================== */
+.chart-container {
+    padding: 0.75rem !important;
+    min-height: 250px !important;
+}
+
+.chart-title {
+    font-size: 0.8125rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.chart-legend {
+    font-size: 0.6875rem !important;
+}
+
+/* ==================== FILTROS ==================== */
+.filters-container {
+    padding: 0.75rem !important;
+    gap: 0.5rem !important;
+}
+
+.filter-group {
+    margin-bottom: 0.5rem !important;
+}
+
+.filter-label {
+    font-size: 0.6875rem !important;
+}
+
+/* ==================== BADGES E TAGS ==================== */
+.badge {
+    padding: 0.2rem 0.4rem !important;
+    font-size: 0.625rem !important;
+}
+
+.tag {
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.6875rem !important;
+}
+
+/* ==================== TOOLTIPS ==================== */
+.tooltip {
+    font-size: 0.6875rem !important;
+    padding: 0.3rem 0.5rem !important;
+}
+
+/* ==================== CALENDÁRIO ==================== */
+.calendar-container {
+    padding: 0.75rem !important;
+}
+
+.calendar-day {
+    min-height: 50px !important;
+    font-size: 0.6875rem !important;
+}
+
+.calendar-header {
+    padding: 0.5rem !important;
+    font-size: 0.75rem !important;
+}
+
+/* ==================== TIMELINE ==================== */
+.timeline-container {
+    padding: 0.75rem !important;
+}
+
+.timeline-item {
+    padding: 0.5rem !important;
+    font-size: 0.75rem !important;
+}
+
+/* ==================== EMPTY STATES ==================== */
+.empty-state {
+    padding: 2rem 1rem !important;
+}
+
+.empty-state i {
+    font-size: 2.5rem !important;
+}
+
+.empty-state h3 {
+    font-size: 0.875rem !important;
+}
+
+.empty-state p {
+    font-size: 0.75rem !important;
+}
+
+/* ==================== LOADING STATES ==================== */
+.loading-overlay .spinner {
+    width: 32px !important;
+    height: 32px !important;
+}
+
+.loading-text {
+    font-size: 0.8125rem !important;
+}
+
+/* ==================== NOTIFICATIONS ==================== */
+.notification {
+    padding: 0.75rem !important;
+    font-size: 0.75rem !important;
+}
+
+.notification-title {
+    font-size: 0.8125rem !important;
+}
+
+/* ==================== SEARCH ==================== */
+.search-container {
+    padding: 0.75rem !important;
+}
+
+.search-input {
+    padding: 0.4rem 0.75rem !important;
+    font-size: 0.75rem !important;
+}
+
+.search-results {
+    max-height: 300px !important;
+}
+
+.search-result-item {
+    padding: 0.5rem !important;
+    font-size: 0.75rem !important;
+}
+
+/* ==================== BREADCRUMBS ==================== */
+.breadcrumbs {
+    padding: 0.5rem 0 !important;
+    font-size: 0.6875rem !important;
+}
+
+.breadcrumb-item {
+    font-size: 0.6875rem !important;
+}
+
+/* ==================== PAGINATION ==================== */
+.pagination {
+    gap: 0.25rem !important;
+}
+
+.pagination button {
+    padding: 0.3rem 0.5rem !important;
+    font-size: 0.6875rem !important;
+}
+
+/* ==================== DROPDOWN ==================== */
+.dropdown-menu {
+    padding: 0.5rem !important;
+    font-size: 0.75rem !important;
+}
+
+.dropdown-item {
+    padding: 0.4rem 0.75rem !important;
+    font-size: 0.75rem !important;
+}
+
+/* ==================== TABS ==================== */
+.tabs-container {
+    padding: 0.5rem 0 !important;
+}
+
+.tab-button {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.75rem !important;
+}
+
+/* ==================== ACCORDION ==================== */
+.accordion-header {
+    padding: 0.75rem !important;
+    font-size: 0.8125rem !important;
+}
+
+.accordion-body {
+    padding: 0.75rem !important;
+    font-size: 0.75rem !important;
+}
+
+/* ==================== ALERTS ==================== */
+.alert {
+    padding: 0.75rem !important;
+    font-size: 0.75rem !important;
+}
+
+.alert-title {
+    font-size: 0.8125rem !important;
+}
+
+/* ==================== RESPONSIVE ADJUSTMENTS ==================== */
+@media (max-width: 768px) {
+    .stat-card .value,
+    .metric-card .value {
+        font-size: 1.25rem !important;
+    }
+    
+    .sidebar {
+        width: 180px !important;
+    }
+}

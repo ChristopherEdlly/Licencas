@@ -175,13 +175,6 @@ class AdvancedFilterManager {
         for (const [super_, subs] of subsecretariasBySuper) {
             this.uniqueValues.subsecretariasBySuper.set(super_, Array.from(subs).sort());
         }
-
-        console.log('📊 Valores únicos extraídos:', {
-            cargos: this.uniqueValues.cargos.length,
-            lotacoes: this.uniqueValues.lotacoes.length,
-            superintendencias: this.uniqueValues.superintendencias.length,
-            subsecretarias: this.uniqueValues.subsecretarias.length
-        });
     }
 
     /**
@@ -271,7 +264,12 @@ class AdvancedFilterManager {
         // Salvar filtros
         this.saveFilters();
 
-        console.log(`✅ Filtro ${filterType} atualizado:`, value);
+        // Atualizar badge na sidebar
+        if (this.dashboard && this.dashboard.updateFiltersBadge) {
+            this.dashboard.updateFiltersBadge();
+        }
+
+        console.log(`✅ Filtro ${filterType} definido:`, value);
     }
 
     /**
@@ -298,6 +296,17 @@ class AdvancedFilterManager {
         }
 
         this.saveFilters();
+
+        // Renderizar lista de filtros ativos automaticamente
+        if (this.renderActiveFiltersList) {
+            this.renderActiveFiltersList();
+        }
+
+        // Atualizar badge na sidebar
+        if (this.dashboard && this.dashboard.updateFiltersBadge) {
+            this.dashboard.updateFiltersBadge();
+        }
+
         console.log(`🗑️ Filtro ${filterType} removido`);
     }
 
@@ -315,6 +324,17 @@ class AdvancedFilterManager {
         };
 
         this.saveFilters();
+
+        // Renderizar lista de filtros ativos automaticamente
+        if (this.renderActiveFiltersList) {
+            this.renderActiveFiltersList();
+        }
+
+        // Atualizar badge na sidebar
+        if (this.dashboard && this.dashboard.updateFiltersBadge) {
+            this.dashboard.updateFiltersBadge();
+        }
+
         console.log('🗑️ Todos os filtros limpos');
     }
 
@@ -392,10 +412,10 @@ class AdvancedFilterManager {
 
         if (this.activeFilters.urgencia !== 'all') {
             const urgenciaLabels = {
-                'critica': 'Crítica',
-                'alta': 'Alta',
-                'moderada': 'Moderada',
-                'baixa': 'Baixa'
+                'crítico': 'Crítico',
+                'alto': 'Alto',
+                'moderado': 'Moderado',
+                'baixo': 'Baixo'
             };
             list.push({
                 type: 'urgencia',
@@ -436,7 +456,6 @@ class AdvancedFilterManager {
             };
 
             localStorage.setItem('advancedFilters', JSON.stringify(data));
-            console.log('💾 Filtros salvos no localStorage');
         } catch (error) {
             console.warn('Erro ao salvar filtros:', error);
         }
@@ -473,7 +492,6 @@ class AdvancedFilterManager {
                     ...this.activeFilters,
                     ...data.filters
                 };
-                console.log('✅ Filtros carregados do localStorage:', this.countActiveFilters(), 'ativos');
             }
         } catch (error) {
             console.warn('Erro ao carregar filtros:', error);
@@ -513,6 +531,78 @@ class AdvancedFilterManager {
                 subsecretarias: this.uniqueValues.subsecretarias.length
             }
         };
+    }
+
+    /**
+     * Renderiza a lista de filtros ativos na UI do modal
+     */
+    renderActiveFiltersList() {
+        const container = document.getElementById('activeFiltersList');
+        const countBadge = document.getElementById('activeFiltersCount');
+
+        if (!container) {
+            return;
+        }
+
+        const filters = this.getActiveFiltersList();
+
+        // Atualizar contador
+        if (countBadge) {
+            countBadge.textContent = `(${filters.length})`;
+        }
+
+        // Limpar container
+        container.innerHTML = '';
+
+        // Se não há filtros, mostrar estado vazio
+        if (filters.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="bi bi-funnel"></i>
+                    <p>Nenhum filtro ativo</p>
+                    <small>Adicione filtros usando o formulário ao lado</small>
+                </div>
+            `;
+            return;
+        }
+
+        // Renderizar cada filtro
+        filters.forEach(filter => {
+            const filterCard = document.createElement('div');
+            filterCard.className = 'active-filter-item';
+            filterCard.innerHTML = `
+                <div class="filter-item-header">
+                    <span class="filter-item-label">${filter.label}</span>
+                    <button class="filter-item-remove" data-filter-type="${filter.type}" title="Remover filtro">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div class="filter-item-value">${this.escapeHtml(filter.value)}</div>
+            `;
+
+            // Event listener para remover
+            const removeBtn = filterCard.querySelector('.filter-item-remove');
+            removeBtn.addEventListener('click', () => {
+                this.removeFilter(filter.type);
+                this.renderActiveFiltersList();
+
+                // Reaplicar filtros
+                if (this.dashboard && this.dashboard.applyFiltersAndSearch) {
+                    this.dashboard.applyFiltersAndSearch();
+                }
+            });
+
+            container.appendChild(filterCard);
+        });
+    }
+
+    /**
+     * Escapa HTML para prevenir XSS
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 }
 

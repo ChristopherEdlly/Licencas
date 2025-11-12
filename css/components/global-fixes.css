@@ -1,0 +1,497 @@
+/* ===================================
+   GLOBAL UI/UX FIXES
+   Correções de espaçamento e layout geral
+   ================================== */
+
+/* ===================================
+   1. FIX: Redução de Padding Excessivo
+   ================================== */
+
+/* Container principal */
+.container {
+    padding: 1rem !important; /* Reduzido padding geral */
+}
+
+/* Sections e cards */
+.section {
+    margin-bottom: 1.25rem !important; /* Reduzido de 1.5rem+ */
+}
+
+.card {
+    padding: 1rem !important; /* Reduzido padding dos cards */
+    margin-bottom: 1rem !important;
+}
+
+.card-header {
+    padding: 0.875rem 1rem !important; /* Reduzido */
+    margin-bottom: 0.875rem !important;
+}
+
+.card-body {
+    padding: 1rem !important; /* Reduzido */
+}
+
+.card-footer {
+    padding: 0.75rem 1rem !important; /* Reduzido */
+    margin-top: 0.875rem !important;
+}
+
+/* ===================================
+   2. FIX: Topbar/Header Compacto
+   ================================== */
+
+.topbar,
+.header {
+    height: 56px !important; /* Reduzido de 60-64px */
+    padding: 0 1rem !important;
+}
+
+.topbar-left,
+.topbar-right,
+.header-left,
+.header-right {
+    gap: 0.75rem !important; /* Reduzido de 1rem+ */
+}
+
+.topbar-title,
+.header-title {
+    font-size: 1.125rem !important; /* Reduzido de 1.25rem+ */
+}
+
+/* ===================================
+   3. FIX: Sidebar Compacta
+   ================================== */
+
+.sidebar {
+    width: 260px !important; /* Reduzido de 280px+ */
+}
+
+.sidebar-header {
+    padding: 1rem !important; /* Reduzido */
+    height: 56px !important; /* Match topbar */
+}
+
+.sidebar-nav {
+    padding: 0.75rem !important; /* Reduzido de 1rem+ */
+}
+
+.sidebar-item {
+    padding: 0.625rem 0.875rem !important; /* Reduzido */
+    margin-bottom: 0.25rem !important;
+    gap: 0.75rem !important;
+}
+
+.sidebar-item i {
+    font-size: 1.125rem !important; /* Reduzido */
+}
+
+.sidebar-section-title {
+    padding: 0.75rem 0.875rem 0.375rem !important; /* Reduzido */
+    font-size: 0.6875rem !important; /* Reduzido */
+}
+
+/* ===================================
+   4. FIX: Tables Compactas
+   ================================== */
+
+.table {
+    font-size: 0.875rem !important; /* Reduzido */
+}
+
+.table th,
+.table td {
+    padding: 0.625rem 0.875rem !important; /* Reduzido de 0.75rem 1rem */
+}
+
+.table th {
+    font-size: 0.8125rem !important; /* Reduzido */
+}
+
+/* ===================================
+   5. FIX: Forms e Inputs Compactos
+   ================================== */
+
+.form-group {
+    margin-bottom: 1rem !important; /* Reduzido de 1.25rem+ */
+}
+
+.form-label {
+    margin-bottom: 0.375rem !important; /* Reduzido de 0.5rem */
+    font-size: 0.8125rem !important; /* Reduzido */
+}
+
+.form-control,
+.form-input,
+.form-select,
+input,
+select,
+textarea {
+    padding: 0.5rem 0.75rem !important; /* Reduzido de 0.625rem 1rem */
+    font-size: 0.875rem !important; /* Reduzido */
+}
+
+/* ===================================
+   6. FIX: Buttons Compactos
+   ================================== */
+
+.btn {
+    padding: 0.5rem 1rem !important; /* Reduzido de 0.625rem 1.25rem */
+    font-size: 0.875rem !important; /* Reduzido */
+}
+
+.btn-sm {
+    padding: 0.375rem 0.75rem !important;
+    font-size: 0.8125rem !important;
+}
+
+.btn-lg {
+    padding: 0.625rem 1.25rem !important;
+    font-size: 0.9375rem !important;
+}
+
+.btn-icon {
+    width: 36px !important; /* Reduzido de 40px+ */
+    height: 36px !important;
+}
+
+/* ===================================
+   7. FIX: Modals Compactos
+   ================================== */
+
+.modal-header {
+    padding: 1rem 1.25rem !important; /* Reduzido */
+}
+
+.modal-body {
+    padding: 1.25rem !important; /* Reduzido de 1.5rem+ */
+}
+
+.modal-footer {
+    padding: 0.875rem 1.25rem !important; /* Reduzido */
+    gap: 0.625rem !important;
+}
+
+.modal-title {
+    font-size: 1.125rem !important; /* Reduzido de 1.25rem+ */
+}
+
+/* ===================================
+   8. FIX: Charts/Graphics Area
+   ================================== */
+
+.chart-container {
+    padding: 1rem !important; /* Reduzido */
+    margin-bottom: 1.25rem !important;
+}
+
+.chart-header {
+    margin-bottom: 0.875rem !important; /* Reduzido */
+}
+
+.chart-title {
+    font-size: 1rem !important; /* Reduzido */
+}
+
+/* ===================================
+   9. FIX: Badges e Tags Compactos
+   ================================== */
+
+.badge {
+    padding: 0.25rem 0.625rem !important; /* Reduzido */
+    font-size: 0.75rem !important; /* Reduzido */
+}
+
+.tag {
+    padding: 0.375rem 0.75rem !important; /* Reduzido */
+    font-size: 0.8125rem !important;
+}
+
+/* ===================================
+   10. FIX: Notifications/Alerts Compactos
+   ================================== */
+
+.alert {
+    padding: 0.875rem 1rem !important; /* Reduzido */
+    margin-bottom: 1rem !important;
+}
+
+.alert-title {
+    font-size: 0.9375rem !important;
+    margin-bottom: 0.25rem !important;
+}
+
+.notification {
+    padding: 0.75rem 1rem !important;
+}
+
+.notification-title {
+    font-size: 0.875rem !important;
+}
+
+.notification-message {
+    font-size: 0.8125rem !important;
+}
+
+/* ===================================
+   11. FIX: Breadcrumbs Compacto
+   ================================== */
+
+.breadcrumbs {
+    padding: 0.625rem 0 !important; /* Reduzido */
+    margin-bottom: 1rem !important;
+}
+
+.breadcrumb-item {
+    font-size: 0.8125rem !important;
+}
+
+/* ===================================
+   12. FIX: Tabs Compactos
+   ================================== */
+
+.tabs {
+    margin-bottom: 1rem !important;
+}
+
+.tab {
+    padding: 0.625rem 1rem !important; /* Reduzido */
+    font-size: 0.875rem !important;
+}
+
+.tab-content {
+    padding: 1rem !important; /* Reduzido */
+}
+
+/* ===================================
+   13. FIX: Dropdowns Compactos
+   ================================== */
+
+.dropdown-menu {
+    padding: 0.5rem 0 !important; /* Reduzido */
+}
+
+.dropdown-item {
+    padding: 0.5rem 1rem !important; /* Reduzido */
+    font-size: 0.875rem !important;
+}
+
+/* ===================================
+   14. FIX: Tooltips Compactos
+   ================================== */
+
+.tooltip {
+    font-size: 0.8125rem !important;
+    padding: 0.375rem 0.625rem !important;
+}
+
+/* ===================================
+   15. FIX: Pagination Compacta
+   ================================== */
+
+.pagination {
+    gap: 0.375rem !important;
+}
+
+.pagination-item {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.875rem !important;
+}
+
+/* ===================================
+   16. FIX: Grid/Flex Gaps
+   ================================== */
+
+.grid,
+.flex-grid {
+    gap: 1rem !important; /* Reduzido de 1.5rem+ */
+}
+
+.grid-tight,
+.flex-tight {
+    gap: 0.75rem !important;
+}
+
+/* ===================================
+   17. FIX: Stat Cards Compactos
+   ================================== */
+
+.stat-card {
+    padding: 1rem !important; /* Reduzido */
+}
+
+.stat-value {
+    font-size: 1.75rem !important; /* Reduzido de 2rem+ */
+}
+
+.stat-label {
+    font-size: 0.8125rem !important;
+}
+
+.stat-icon {
+    width: 40px !important; /* Reduzido de 48px+ */
+    height: 40px !important;
+    font-size: 1.25rem !important;
+}
+
+/* ===================================
+   18. FIX: Lista de Items Compacta
+   ================================== */
+
+.list-item {
+    padding: 0.75rem 1rem !important; /* Reduzido */
+}
+
+.list-item-title {
+    font-size: 0.9375rem !important;
+}
+
+.list-item-subtitle {
+    font-size: 0.8125rem !important;
+}
+
+/* ===================================
+   19. FIX: Timeline Compacta
+   ================================== */
+
+.timeline-item {
+    padding: 0.875rem !important; /* Reduzido */
+    margin-bottom: 1rem !important;
+}
+
+.timeline-icon {
+    width: 36px !important; /* Reduzido de 40px+ */
+    height: 36px !important;
+}
+
+.timeline-title {
+    font-size: 0.9375rem !important;
+}
+
+.timeline-content {
+    font-size: 0.8125rem !important;
+}
+
+/* ===================================
+   20. FIX: Calendar Compacto
+   ================================== */
+
+.calendar-header {
+    padding: 0.875rem 1rem !important;
+}
+
+.calendar-day {
+    padding: 0.625rem !important;
+    font-size: 0.875rem !important;
+}
+
+.calendar-event {
+    padding: 0.375rem 0.5rem !important;
+    font-size: 0.75rem !important;
+}
+
+/* ===================================
+   21. FIX: Settings Page Compacta
+   ================================== */
+
+.settings-section {
+    margin-bottom: 1.5rem !important;
+}
+
+.settings-item {
+    padding: 0.875rem !important;
+}
+
+.settings-label {
+    font-size: 0.9375rem !important;
+}
+
+.settings-description {
+    font-size: 0.8125rem !important;
+}
+
+/* ===================================
+   22. FIX: Dashboard Widgets
+   ================================== */
+
+.widget {
+    padding: 1rem !important; /* Reduzido */
+}
+
+.widget-header {
+    margin-bottom: 0.875rem !important;
+    padding-bottom: 0.75rem !important;
+}
+
+.widget-title {
+    font-size: 1rem !important;
+}
+
+.widget-body {
+    font-size: 0.875rem !important;
+}
+
+/* ===================================
+   23. FIX: Reports Page Específico
+   ================================== */
+
+.reports-container {
+    padding: 1rem !important; /* Muito reduzido */
+}
+
+.reports-header {
+    padding: 0.75rem 1rem !important;
+    margin-bottom: 1rem !important;
+}
+
+.reports-filters {
+    gap: 0.75rem !important;
+    margin-bottom: 1rem !important;
+}
+
+.reports-table-container {
+    padding: 0 !important; /* Remove padding extra */
+}
+
+/* ===================================
+   24. FIX: Main Layout Adjustments
+   ================================== */
+
+.main-content {
+    padding: 1rem !important; /* Reduzido significativamente */
+}
+
+.page {
+    padding: 1rem !important; /* Reduzido */
+}
+
+.page-header {
+    margin-bottom: 1rem !important;
+    padding-bottom: 0.75rem !important;
+}
+
+.page-title {
+    font-size: 1.375rem !important; /* Reduzido de 1.5rem+ */
+}
+
+/* ===================================
+   25. FIX: Scrollbar Global
+   ================================== */
+
+* ::-webkit-scrollbar {
+    width: 8px !important;
+    height: 8px !important;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: var(--border, #e5e7eb) !important;
+    border-radius: 4px !important;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: var(--border-hover, #d1d5db) !important;
+}

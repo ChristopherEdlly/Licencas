@@ -6,14 +6,6 @@
 class FilterManager {
     constructor(dashboard) {
         this.dashboard = dashboard;
-        this.currentFilters = {
-            age: { min: 18, max: 70 },
-            period: { type: 'yearly', start: 2025, end: 2028 },
-            search: '',
-            urgency: '',
-            cargo: '',
-            selectedData: null
-        };
     }
 
     /**
@@ -23,7 +15,7 @@ class FilterManager {
         const minAge = parseInt(document.getElementById('minAge').value);
         const maxAge = parseInt(document.getElementById('maxAge').value);
         
-        this.currentFilters.age = { min: minAge, max: maxAge };
+        this.dashboard.currentFilters.age = { min: minAge, max: maxAge };
         this.applyAllFilters();
         this.updateActiveFilters();
     }
@@ -32,7 +24,7 @@ class FilterManager {
      * Gerenciar pesquisa
      */
     handleSearch(searchTerm) {
-        this.currentFilters.search = searchTerm.toLowerCase();
+        this.dashboard.currentFilters.search = searchTerm.toLowerCase();
         this.applyAllFilters();
         this.dashboard.uiManager.toggleClearSearchButton();
         this.updateActiveFilters();
@@ -43,7 +35,7 @@ class FilterManager {
      */
     clearSearch() {
         document.getElementById('searchInput').value = '';
-        this.currentFilters.search = '';
+        this.dashboard.currentFilters.search = '';
         this.applyAllFilters();
     }
 
@@ -57,9 +49,9 @@ class FilterManager {
         document.getElementById('urgencyFilter').value = '';
         document.getElementById('cargoFilter').value = '';
         
-        this.currentFilters = {
+        this.dashboard.currentFilters = {
             age: { min: 18, max: 70 },
-            period: this.currentFilters.period,
+            period: this.dashboard.currentFilters.period,
             search: '',
             urgency: '',
             cargo: '',
@@ -78,8 +70,8 @@ class FilterManager {
         const urgencyFilter = document.getElementById('urgencyFilter').value;
         const cargoFilter = document.getElementById('cargoFilter').value;
         
-        this.currentFilters.urgency = urgencyFilter;
-        this.currentFilters.cargo = cargoFilter;
+        this.dashboard.currentFilters.urgency = urgencyFilter;
+        this.dashboard.currentFilters.cargo = cargoFilter;
         
         this.applyAllFilters();
     }
@@ -91,8 +83,8 @@ class FilterManager {
         const monthFilter = document.getElementById('monthFilter').value;
         const periodFilter = document.getElementById('periodFilter').value;
         
-        this.currentFilters.month = monthFilter;
-        this.currentFilters.periodType = periodFilter;
+        this.dashboard.currentFilters.month = monthFilter;
+        this.dashboard.currentFilters.periodType = periodFilter;
         
         this.applyAllFilters();
     }
@@ -143,7 +135,7 @@ class FilterManager {
      * Aplicar todos os filtros
      */
     applyAllFilters() {
-        const { age, search, urgency, cargo, month, periodType } = this.currentFilters;
+        const { age, search, urgency, cargo, month, periodType } = this.dashboard.currentFilters;
         
         this.dashboard.filteredServidores = this.dashboard.allServidores.filter(servidor => {
             // Filtro de idade
@@ -156,8 +148,13 @@ class FilterManager {
                 return false;
             }
             
-            // Filtro de urgência
-            if (urgency && servidor.nivelUrgencia !== urgency) {
+            // Filtro de urgência (case-insensitive)
+            if (urgency && servidor.nivelUrgencia) {
+                if (servidor.nivelUrgencia.toLowerCase() !== urgency.toLowerCase()) {
+                    return false;
+                }
+            } else if (urgency && !servidor.nivelUrgencia) {
+                // Se filtro está ativo mas servidor não tem urgência, excluir
                 return false;
             }
             
@@ -193,31 +190,40 @@ class FilterManager {
             
             return true;
         });
-        
+
         this.dashboard.updateTable();
         this.dashboard.updateStats();
         this.dashboard.updateUrgencyChart();
         this.dashboard.updateChartHighlight();
+
+        // Sincronizar notice de filtros na página de relatórios
+        if (this.dashboard.reportsManager) {
+            this.dashboard.reportsManager.syncFilterNotice();
+        }
     }
 
     /**
      * Filtrar por urgência (click no gráfico)
      */
     filterTableByUrgency(urgencyLevel, chartIndex) {
-        if (this.currentFilters.urgency === urgencyLevel && this.dashboard.chartManager.selectedChartIndex === chartIndex) {
+        if (this.dashboard.currentFilters.urgency === urgencyLevel && this.dashboard.selectedChartIndex === chartIndex) {
             this.clearUrgencyFilter();
         } else {
-            this.currentFilters.urgency = urgencyLevel;
-            this.dashboard.chartManager.selectedChartIndex = chartIndex;
-            
+            this.dashboard.currentFilters.urgency = urgencyLevel;
+            this.dashboard.selectedChartIndex = chartIndex;
+
             const urgencyFilter = document.getElementById('urgencyFilter');
             if (urgencyFilter) {
                 urgencyFilter.value = urgencyLevel;
             }
-            
+
             this.applyAllFilters();
             this.updateActiveFilters();
-            this.dashboard.chartManager.highlightUrgency(urgencyLevel);
+
+            // Atualizar destaque do gráfico se chartManager existir
+            if (this.dashboard.chartManager && typeof this.dashboard.chartManager.highlightUrgency === 'function') {
+                this.dashboard.chartManager.highlightUrgency(urgencyLevel);
+            }
         }
     }
 
@@ -225,17 +231,18 @@ class FilterManager {
      * Limpar filtro de urgência
      */
     clearUrgencyFilter() {
-        this.currentFilters.urgency = '';
-        this.dashboard.chartManager.selectedChartIndex = -1;
-        
+        this.dashboard.currentFilters.urgency = '';
+        this.dashboard.selectedChartIndex = -1;
+
         const urgencyFilter = document.getElementById('urgencyFilter');
         if (urgencyFilter) {
             urgencyFilter.value = '';
         }
-        
+
         this.applyAllFilters();
-        
-        if (this.dashboard.chartManager.charts.urgency) {
+
+        // Limpar destaque do gráfico se chartManager existir
+        if (this.dashboard.chartManager && this.dashboard.chartManager.charts && this.dashboard.chartManager.charts.urgency) {
             this.dashboard.chartManager.charts.urgency.setActiveElements([]);
             this.dashboard.chartManager.charts.urgency.update();
         }
@@ -245,20 +252,24 @@ class FilterManager {
      * Filtrar por cargo (click no gráfico)
      */
     filterTableByCargo(cargo, chartIndex) {
-        if (this.currentFilters.cargo === cargo && this.dashboard.chartManager.selectedChartIndex === chartIndex) {
+        if (this.dashboard.currentFilters.cargo === cargo && this.dashboard.selectedChartIndex === chartIndex) {
             this.clearCargoFilter();
         } else {
-            this.currentFilters.cargo = cargo;
-            this.dashboard.chartManager.selectedChartIndex = chartIndex;
-            
+            this.dashboard.currentFilters.cargo = cargo;
+            this.dashboard.selectedChartIndex = chartIndex;
+
             const cargoFilter = document.getElementById('cargoFilter');
             if (cargoFilter) {
                 cargoFilter.value = cargo;
             }
-            
+
             this.applyAllFilters();
             this.updateActiveFilters();
-            this.dashboard.chartManager.highlightCargo(cargo);
+
+            // Atualizar destaque do gráfico se chartManager existir
+            if (this.dashboard.chartManager && typeof this.dashboard.chartManager.highlightCargo === 'function') {
+                this.dashboard.chartManager.highlightCargo(cargo);
+            }
         }
     }
 
@@ -266,17 +277,18 @@ class FilterManager {
      * Limpar filtro de cargo
      */
     clearCargoFilter() {
-        this.currentFilters.cargo = '';
-        this.dashboard.chartManager.selectedChartIndex = -1;
-        
+        this.dashboard.currentFilters.cargo = '';
+        this.dashboard.selectedChartIndex = -1;
+
         const cargoFilter = document.getElementById('cargoFilter');
         if (cargoFilter) {
             cargoFilter.value = '';
         }
-        
+
         this.applyAllFilters();
-        
-        if (this.dashboard.chartManager.charts.cargo) {
+
+        // Limpar destaque do gráfico se chartManager existir
+        if (this.dashboard.chartManager && this.dashboard.chartManager.charts && this.dashboard.chartManager.charts.cargo) {
             this.dashboard.chartManager.charts.cargo.setActiveElements([]);
             this.dashboard.chartManager.charts.cargo.update();
         }
@@ -286,7 +298,7 @@ class FilterManager {
      * Filtrar por período (click na timeline)
      */
     filterByPeriod(period, label) {
-        this.currentFilters.selectedData = { period, label };
+        this.dashboard.currentFilters.selectedData = { period, label };
         this.dashboard.showServidoresInPeriod(period, label);
     }
 

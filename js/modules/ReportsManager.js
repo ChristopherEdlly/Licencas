@@ -1,1248 +1,1308 @@
 /**
- * ReportsManager.js
- * 
- * Sistema de geração de relatórios profissionais
- * 
- * Funcionalidades:
- * - Página dedicada de relatórios
- * - Templates pré-configurados
- * - Pré-visualização antes de exportar
- * - Exportação para PDF, Excel e impressão
- * - Relatórios customizáveis
- * - Agendamento de relatórios periódicos
- * - Histórico de relatórios gerados
- * 
- * @author Dashboard Licenças Premium
- * @version 4.0.0
+ * ReportsManager - Gerenciamento de Relatórios em PDF
+ * Responsável por: Configuração, preview e geração de relatórios em PDF
  */
 
 class ReportsManager {
     constructor(dashboard) {
         this.dashboard = dashboard;
-        
-        // Templates de relatórios
-        this.templates = {
-            LICENCAS_MES: {
-                id: 'licencas_mes',
-                name: 'Licenças do Mês',
-                description: 'Lista de servidores com licenças agendadas para o mês atual',
-                icon: 'bi-calendar-month',
-                category: 'Cronograma'
-            },
-            APOSENTADORIAS_PROXIMAS: {
-                id: 'aposentadorias_proximas',
-                name: 'Aposentadorias Próximas',
-                description: 'Servidores próximos à aposentadoria compulsória (próximos 12 meses)',
-                icon: 'bi-hourglass-split',
-                category: 'Planejamento'
-            },
-            URGENCIAS_CRITICAS: {
-                id: 'urgencias_criticas',
-                name: 'Urgências Críticas',
-                description: 'Servidores com urgência crítica ou alta que requerem atenção imediata',
-                icon: 'bi-exclamation-triangle',
-                category: 'Alertas'
-            },
-            LICENCAS_VENCIDAS: {
-                id: 'licencas_vencidas',
-                name: 'Licenças Vencidas',
-                description: 'Relatório de licenças vencidas ou próximas ao vencimento',
-                icon: 'bi-clock-history',
-                category: 'Alertas'
-            },
-            CONSOLIDADO_GERAL: {
-                id: 'consolidado_geral',
-                name: 'Consolidado Geral',
-                description: 'Visão geral completa com estatísticas, gráficos e tabelas',
-                icon: 'bi-file-earmark-bar-graph',
-                category: 'Completo'
-            },
-            POR_CARGO: {
-                id: 'por_cargo',
-                name: 'Relatório por Cargo',
-                description: 'Análise agrupada por cargo com estatísticas detalhadas',
-                icon: 'bi-briefcase',
-                category: 'Análise'
-            },
-            POR_LOTACAO: {
-                id: 'por_lotacao',
-                name: 'Relatório por Lotação',
-                description: 'Análise agrupada por lotação/departamento',
-                icon: 'bi-building',
-                category: 'Análise'
-            },
-            TIMELINE_ANUAL: {
-                id: 'timeline_anual',
-                name: 'Timeline Anual',
-                description: 'Cronograma visual de licenças ao longo do ano',
-                icon: 'bi-calendar3',
-                category: 'Cronograma'
-            },
-            IMPACTO_OPERACIONAL: {
-                id: 'impacto_operacional',
-                name: 'Impacto Operacional',
-                description: 'Análise de impacto das ausências na operação',
-                icon: 'bi-graph-down',
-                category: 'Análise'
-            }
+        this.defaultColumns = ['nome', 'cargo', 'lotacao', 'periodoLicenca', 'urgencia'];
+        this.reportConfig = {
+            title: 'Relatório de Licenças',
+            type: 'complete',
+            orientation: 'landscape',
+            includeCharts: true,
+            includeStats: true,
+            includeLogo: true,
+            columns: [...this.defaultColumns],
+            dateStart: null,
+            dateEnd: null,
+            urgencyFilter: '',
+            cargoFilter: '',
+            limit: 'all'
         };
         
-        // Página de relatórios
-        this.reportsPage = null;
-        this.previewContainer = null;
-        this.currentReport = null;
+        this.columnLabels = {
+            nome: 'Nome',
+            cpf: 'CPF',
+            matricula: 'Matrícula',
+            cargo: 'Cargo',
+            lotacao: 'Lotação',
+            superintendencia: 'Superintendência',
+            subsecretaria: 'Subsecretaria',
+            idade: 'Idade',
+            urgencia: 'Urgência',
+            periodoLicenca: 'Período da Licença',
+            dataInicio: 'Início',
+            dataFim: 'Fim',
+            diasLicenca: 'Dias de Licença',
+            mesesLicenca: 'Meses de Licença'
+        };
         
-        // Histórico
-        this.reportHistory = [];
+        this.hasPreview = false;
+        this.lastCargoOptionsHash = '';
+        this.isExportingXlsx = false;
+        this.livePreviewEnabled = true;
+        this.previewDebounce = null;
+        this.lastPreviewAt = null;
+
+        this.reportTypeLabels = {
+            complete: 'Completo',
+            summary: 'Resumo',
+            urgency: 'Por Urgência',
+            cargo: 'Por Cargo'
+        };
         
         this.init();
     }
 
     /**
-     * Inicializa o gerenciador de relatórios
+     * Inicialização
      */
-    async init() {
-        console.log('📊 Inicializando ReportsManager...');
-        
-        try {
-            // Cria página de relatórios
-            this.createReportsPage();
-            
-            // Carrega histórico
-            this.loadHistory();
-            
-            // Registra listeners
-            this.registerListeners();
-            
-            console.log('✅ ReportsManager inicializado');
-            
-        } catch (error) {
-            console.error('❌ Erro ao inicializar ReportsManager:', error);
-        }
+    init() {
+        this.setupEventListeners();
+        this.syncFilterNotice();
+        this.updateConfig();
     }
-    
+
     /**
-     * Cria página de relatórios
-     * NOTA: A página de relatórios é gerenciada pelo Premium Builder
+     * Configurar event listeners
      */
-    createReportsPage() {
-        // Verifica se já existe no HTML (geralmente existe - criado pelo index.html)
-        const existing = document.getElementById('reportsPage');
-        if (existing) {
-            console.log('📄 Página de relatórios já existe no HTML, usando existente');
-            this.reportsPage = existing;
-            this.setupExistingPageListeners();
-            return;
+    setupEventListeners() {
+        // Botões de ação (novos IDs do redesign)
+        const generateBtn = document.getElementById('generatePdfRedesign');
+        const exportXlsxBtn = document.getElementById('exportXlsxRedesign');
+        const selectAllBtn = document.getElementById('selectAllColumns');
+        const editFiltersBtn = document.getElementById('editFiltersFromReports');
+
+        // Botões do footer (compactos)
+        const generateBtnFooter = document.getElementById('generatePdfRedesignFooter');
+        const exportXlsxBtnFooter = document.getElementById('exportXlsxRedesignFooter');
+
+        if (generateBtn) {
+            generateBtn.addEventListener('click', () => this.generatePDF());
         }
 
-        // Fallback: criar div vazio se não existir no HTML
-        // O Premium Builder irá popular esta página quando for aberto
-        this.reportsPage = document.createElement('div');
-        this.reportsPage.id = 'reportsPage';
-        this.reportsPage.className = 'reports-page page-content';
-        this.reportsPage.style.display = 'none';
+        if (exportXlsxBtn) {
+            exportXlsxBtn.addEventListener('click', () => this.exportToXLSX(exportXlsxBtn));
+        }
 
-        document.body.appendChild(this.reportsPage);
+        // Conectar botões do footer aos mesmos métodos
+        if (generateBtnFooter) {
+            generateBtnFooter.addEventListener('click', () => this.generatePDF());
+        }
 
-        console.log('📄 Página de relatórios criada (vazia - será populada pelo Premium Builder)');
-    }
-    
-    /**
-     * Configura listeners na página de relatórios existente do HTML
-     */
-    setupExistingPageListeners() {
-        console.log('📄 Configurando listeners na página de relatórios existente');
-        
-        // Atualiza estatísticas
-        this.updateReportStats();
-        
-        // Configura listeners dos botões de template
-        document.querySelectorAll('[data-template]').forEach(card => {
-            const selectBtn = card.querySelector('.btn-select-template');
-            if (selectBtn) {
-                selectBtn.addEventListener('click', () => {
-                    const templateId = card.getAttribute('data-template');
-                    this.generateReportFromHTML(templateId);
-                });
-            }
+        if (exportXlsxBtnFooter) {
+            exportXlsxBtnFooter.addEventListener('click', () => this.exportToXLSX(exportXlsxBtnFooter));
+        }
+
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', () => this.toggleSelectAllColumns());
+        }
+
+        if (editFiltersBtn) {
+            editFiltersBtn.addEventListener('click', () => this.openAdvancedFilters());
+        }
+
+        // Input de título
+        const titleInput = document.getElementById('reportTitleRedesign');
+        if (titleInput) {
+            titleInput.addEventListener('input', () => this.updateConfig());
+        }
+
+        // Listener para mudança de colunas (novo ID do grid)
+        const columnCheckboxes = document.querySelectorAll('#columnsGridRedesign input[type="checkbox"]');
+        columnCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => this.updateConfig());
         });
-        
-        // Listener para fechar modal (botão X)
-        const closeModalBtn = document.getElementById('closeReportModal');
-        if (closeModalBtn) {
-            closeModalBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.closePreview();
-            });
-        }
-        
-        // Listener para botão Cancelar no footer do modal
-        const cancelModalBtn = document.getElementById('cancelReportModalBtn');
-        if (cancelModalBtn) {
-            cancelModalBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.closePreview();
-            });
-        }
-        
-        // Fechar ao clicar no overlay (fora do modal)
-        const modalOverlay = document.getElementById('reportConfigModal');
-        if (modalOverlay) {
-            modalOverlay.addEventListener('click', (e) => {
-                if (e.target.id === 'reportConfigModal') {
-                    this.closePreview();
-                }
-            });
-        }
-        
-        console.log('✅ Listeners configurados na página existente');
     }
-    
+
     /**
-     * Gera relatório a partir dos templates HTML
+     * Sincronizar notice de filtros ativos com estado do dashboard
      */
-    generateReportFromHTML(templateId) {
-        console.log(`📊 Gerando relatório: ${templateId}`);
-        
-        // Mapeia template HTML para template interno (lowercase_underscore para o switch-case)
-        const templateMap = {
-            'executive': 'licencas_mes',
-            'complete': 'consolidado_geral',
-            'urgency': 'urgencias_criticas',
-            'department': 'por_lotacao'
-        };
-        
-        const mappedTemplate = templateMap[templateId] || templateId;
-        
-        // Verificar se template existe (usando UPPERCASE para this.templates)
-        const templateKey = mappedTemplate.toUpperCase();
-        if (this.templates[templateKey]) {
-            this.generateReport(mappedTemplate);
+    syncFilterNotice() {
+        const noticeText = document.getElementById('filterNoticeText');
+        if (!noticeText) return;
+
+        const filtered = this.dashboard.filteredServidores || [];
+        const all = this.dashboard.allServidores || [];
+        const activeFilters = this.dashboard.currentFilters || {};
+
+        // Contar quantos filtros estão ativos
+        let filterCount = 0;
+        if (activeFilters.urgencia && activeFilters.urgencia.length > 0) filterCount++;
+        if (activeFilters.cargo && activeFilters.cargo.length > 0) filterCount++;
+        if (activeFilters.periodo) filterCount++;
+        if (activeFilters.busca) filterCount++;
+
+        if (filterCount > 0 || filtered.length < all.length) {
+            noticeText.textContent = `${filterCount} filtro${filterCount !== 1 ? 's' : ''} ativo${filterCount !== 1 ? 's' : ''} • ${filtered.length} servidor${filtered.length !== 1 ? 'es' : ''}`;
         } else {
-            console.warn(`Template não encontrado: ${templateId}`);
-            if (this.dashboard.notificationManager && typeof this.dashboard.notificationManager.showToast === 'function') {
-                this.dashboard.notificationManager.showToast({
-                    title: 'Aviso',
-                    message: 'Template não disponível no momento',
-                    priority: 'high',
-                    icon: 'bi-exclamation-circle'
-                });
-            } else {
-                alert('Template não disponível no momento');
-            }
+            noticeText.textContent = `Todos os filtros desativados • ${all.length} servidor${all.length !== 1 ? 'es' : ''}`;
         }
     }
-    
+
     /**
-     * Atualiza estatísticas da página de relatórios
+     * Abrir modal de filtros avançados
      */
-    updateReportStats() {
-        const totalEl = document.getElementById('reportTotalServidores');
-        const filteredEl = document.getElementById('reportFilteredServidores');
-        
-        if (totalEl && this.dashboard.allServidores) {
-            totalEl.textContent = this.dashboard.allServidores.length;
-        }
-        
-        if (filteredEl && this.dashboard.filteredServidores) {
-            filteredEl.textContent = this.dashboard.filteredServidores.length;
-        }
-    }
-    
-    /**
-     * Renderiza cards de templates
-     */
-    renderTemplateCards() {
-        const categories = [...new Set(Object.values(this.templates).map(t => t.category))];
-        
-        let html = '';
-        
-        categories.forEach(category => {
-            const templates = Object.values(this.templates).filter(t => t.category === category);
-            
-            html += `
-                <div class="template-category">
-                    <h4 class="category-title">${category}</h4>
-                    <div class="template-cards">
-                        ${templates.map(template => `
-                            <div class="template-card" data-template-id="${template.id}">
-                                <div class="template-icon">
-                                    <i class="bi ${template.icon}"></i>
-                                </div>
-                                <div class="template-info">
-                                    <h5>${template.name}</h5>
-                                    <p>${template.description}</p>
-                                </div>
-                                <button class="btn btn-primary btn-generate" data-template-id="${template.id}">
-                                    <i class="bi bi-play-fill me-1"></i>Gerar
-                                </button>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        });
-        
-        return html;
-    }
-    
-    /**
-     * Setup listeners dos templates
-     */
-    setupTemplateListeners() {
-        document.querySelectorAll('.btn-generate').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const templateId = e.target.closest('.btn-generate').dataset.templateId;
-                this.generateReport(templateId);
-            });
-        });
-    }
-    
-    /**
-     * Gera relatório
-     */
-    async generateReport(templateId) {
-        console.log(`📊 Gerando relatório: ${templateId}`);
-        
-        if (!this.dashboard.allServidores || this.dashboard.allServidores.length === 0) {
-            alert('Nenhum dado carregado. Por favor, importe um arquivo primeiro.');
-            return;
-        }
-        
-        // Mostra loading
-        this.showLoading('Gerando relatório...');
-        
-        try {
-            // Aguarda processamento
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            let reportData;
-            
-            switch (templateId) {
-                case 'licencas_mes':
-                    reportData = this.generateLicencasMesReport();
-                    break;
-                case 'aposentadorias_proximas':
-                    reportData = this.generateAposentadoriasProximasReport();
-                    break;
-                case 'urgencias_criticas':
-                    reportData = this.generateUrgenciasCriticasReport();
-                    break;
-                case 'licencas_vencidas':
-                    reportData = this.generateLicencasVencidasReport();
-                    break;
-                case 'consolidado_geral':
-                    reportData = this.generateConsolidadoGeralReport();
-                    break;
-                case 'por_cargo':
-                    reportData = this.generatePorCargoReport();
-                    break;
-                case 'por_lotacao':
-                    reportData = this.generatePorLotacaoReport();
-                    break;
-                case 'timeline_anual':
-                    reportData = this.generateTimelineAnualReport();
-                    break;
-                case 'impacto_operacional':
-                    reportData = this.generateImpactoOperacionalReport();
-                    break;
-                default:
-                    throw new Error(`Template desconhecido: ${templateId}`);
-            }
-            
-            // Salva relatório atual
-            this.currentReport = {
-                id: this.generateId(),
-                templateId: templateId,
-                template: this.templates[templateId.toUpperCase()],
-                data: reportData,
-                generatedAt: Date.now()
-            };
-            
-            // Adiciona ao histórico
-            this.addToHistory(this.currentReport);
-            
-            // Mostra preview
-            this.showPreview(this.currentReport);
-            
-            this.hideLoading();
-            
-        } catch (error) {
-            console.error('❌ Erro ao gerar relatório:', error);
-            this.hideLoading();
-            alert('Erro ao gerar relatório. Veja o console para detalhes.');
-        }
-    }
-    
-    /**
-     * Gera relatório de licenças do mês
-     */
-    generateLicencasMesReport() {
-        const today = new Date();
-        const currentMonth = today.getMonth();
-        const currentYear = today.getFullYear();
-        
-        const servidoresComLicencaMes = this.dashboard.allServidores.filter(servidor => {
-            if (!servidor.licencas || servidor.licencas.length === 0) return false;
-            
-            return servidor.licencas.some(licenca => {
-                if (!licenca.dataInicio) return false;
-                const dataInicio = new Date(licenca.dataInicio);
-                return dataInicio.getMonth() === currentMonth && dataInicio.getFullYear() === currentYear;
-            });
-        });
-        
-        return {
-            title: 'Licenças do Mês',
-            subtitle: `${this.getMonthName(currentMonth)} de ${currentYear}`,
-            summary: {
-                total: servidoresComLicencaMes.length,
-                dias: servidoresComLicencaMes.reduce((sum, s) => sum + (s.licencas[0]?.dias || 0), 0)
-            },
-            servidores: servidoresComLicencaMes.map(s => ({
-                nome: s.nome,
-                cargo: s.cargo,
-                lotacao: s.lotacao,
-                dataInicio: s.licencas[0]?.dataInicio,
-                dias: s.licencas[0]?.dias,
-                periodo: s.licencas[0]?.periodo
-            }))
-        };
-    }
-    
-    /**
-     * Gera relatório de aposentadorias próximas
-     */
-    generateAposentadoriasProximasReport() {
-        const today = new Date();
-        const umAnoDepois = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
-        
-        const servidoresProximos = this.dashboard.allServidores
-            .filter(s => s.aposentadoriaCompulsoria)
-            .map(s => ({
-                ...s,
-                dataAposentadoria: new Date(s.aposentadoriaCompulsoria),
-                diasRestantes: Math.floor((new Date(s.aposentadoriaCompulsoria) - today) / (1000 * 60 * 60 * 24))
-            }))
-            .filter(s => s.diasRestantes > 0 && s.dataAposentadoria <= umAnoDepois)
-            .sort((a, b) => a.diasRestantes - b.diasRestantes);
-        
-        return {
-            title: 'Aposentadorias Próximas',
-            subtitle: 'Próximos 12 meses',
-            summary: {
-                total: servidoresProximos.length,
-                proximos3Meses: servidoresProximos.filter(s => s.diasRestantes <= 90).length,
-                proximos6Meses: servidoresProximos.filter(s => s.diasRestantes <= 180).length
-            },
-            servidores: servidoresProximos.map(s => ({
-                nome: s.nome,
-                cargo: s.cargo,
-                lotacao: s.lotacao,
-                idade: s.idade,
-                dataAposentadoria: s.aposentadoriaCompulsoria,
-                diasRestantes: s.diasRestantes
-            }))
-        };
-    }
-    
-    /**
-     * Gera relatório de urgências críticas
-     */
-    generateUrgenciasCriticasReport() {
-        const urgentes = this.dashboard.allServidores.filter(s => 
-            s.urgencia === 'Crítica' || s.urgencia === 'Alta'
-        );
-        
-        return {
-            title: 'Urgências Críticas e Altas',
-            subtitle: 'Servidores que requerem atenção imediata',
-            summary: {
-                total: urgentes.length,
-                criticas: urgentes.filter(s => s.urgencia === 'Crítica').length,
-                altas: urgentes.filter(s => s.urgencia === 'Alta').length
-            },
-            servidores: urgentes.map(s => ({
-                nome: s.nome,
-                cargo: s.cargo,
-                lotacao: s.lotacao,
-                urgencia: s.urgencia,
-                proximaLicenca: s.proximaLicencaData,
-                motivo: this.getUrgencyReason(s)
-            }))
-        };
-    }
-    
-    /**
-     * Gera relatório de licenças vencidas
-     */
-    generateLicencasVencidasReport() {
-        const today = new Date();
-        
-        const servidoresComVencidas = this.dashboard.allServidores
-            .filter(s => s.licencas && s.licencas.length > 0)
-            .map(s => {
-                const licencasVencidas = s.licencas.filter(l => {
-                    if (!l.dataLimite) return false;
-                    return new Date(l.dataLimite) < today;
-                });
-                
-                return {
-                    servidor: s,
-                    licencasVencidas: licencasVencidas
-                };
-            })
-            .filter(item => item.licencasVencidas.length > 0);
-        
-        return {
-            title: 'Licenças Vencidas',
-            subtitle: 'Licenças que ultrapassaram o prazo limite',
-            summary: {
-                servidores: servidoresComVencidas.length,
-                totalLicencas: servidoresComVencidas.reduce((sum, item) => sum + item.licencasVencidas.length, 0)
-            },
-            dados: servidoresComVencidas.map(item => ({
-                nome: item.servidor.nome,
-                cargo: item.servidor.cargo,
-                lotacao: item.servidor.lotacao,
-                licencas: item.licencasVencidas.map(l => ({
-                    periodo: l.periodo,
-                    dataLimite: l.dataLimite,
-                    diasVencido: Math.floor((today - new Date(l.dataLimite)) / (1000 * 60 * 60 * 24))
-                }))
-            }))
-        };
-    }
-    
-    /**
-     * Gera consolidado geral
-     */
-    generateConsolidadoGeralReport() {
-        const stats = {
-            totalServidores: this.dashboard.allServidores.length,
-            comLicenca: this.dashboard.allServidores.filter(s => s.licencas && s.licencas.length > 0).length,
-            semLicenca: this.dashboard.allServidores.filter(s => !s.licencas || s.licencas.length === 0).length,
-            urgenciasCriticas: this.dashboard.allServidores.filter(s => s.urgencia === 'Crítica').length,
-            proximasAposentadorias: this.dashboard.allServidores.filter(s => {
-                if (!s.aposentadoriaCompulsoria) return false;
-                const dias = Math.floor((new Date(s.aposentadoriaCompulsoria) - new Date()) / (1000 * 60 * 60 * 24));
-                return dias > 0 && dias <= 365;
-            }).length
-        };
-        
-        // Distribuição por cargo
-        const porCargo = {};
-        this.dashboard.allServidores.forEach(s => {
-            porCargo[s.cargo] = (porCargo[s.cargo] || 0) + 1;
-        });
-        
-        return {
-            title: 'Consolidado Geral',
-            subtitle: `Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
-            stats: stats,
-            distribuicao: {
-                porCargo: Object.entries(porCargo)
-                    .map(([cargo, count]) => ({ cargo, count }))
-                    .sort((a, b) => b.count - a.count)
-            }
-        };
-    }
-    
-    /**
-     * Gera relatório por cargo
-     */
-    generatePorCargoReport() {
-        const porCargo = {};
-        
-        this.dashboard.allServidores.forEach(servidor => {
-            if (!porCargo[servidor.cargo]) {
-                porCargo[servidor.cargo] = {
-                    cargo: servidor.cargo,
-                    total: 0,
-                    comLicenca: 0,
-                    semLicenca: 0,
-                    urgenciasCriticas: 0,
-                    servidores: []
-                };
-            }
-            
-            porCargo[servidor.cargo].total++;
-            porCargo[servidor.cargo].servidores.push(servidor);
-            
-            if (servidor.licencas && servidor.licencas.length > 0) {
-                porCargo[servidor.cargo].comLicenca++;
-            } else {
-                porCargo[servidor.cargo].semLicenca++;
-            }
-            
-            if (servidor.urgencia === 'Crítica') {
-                porCargo[servidor.cargo].urgenciasCriticas++;
-            }
-        });
-        
-        return {
-            title: 'Relatório por Cargo',
-            subtitle: 'Análise detalhada por cargo',
-            cargos: Object.values(porCargo).sort((a, b) => b.total - a.total)
-        };
-    }
-    
-    /**
-     * Gera relatório por lotação
-     */
-    generatePorLotacaoReport() {
-        const porLotacao = {};
-        
-        this.dashboard.allServidores.forEach(servidor => {
-            const lotacao = servidor.lotacao || 'Não Informada';
-            
-            if (!porLotacao[lotacao]) {
-                porLotacao[lotacao] = {
-                    lotacao: lotacao,
-                    total: 0,
-                    comLicenca: 0,
-                    semLicenca: 0,
-                    servidores: []
-                };
-            }
-            
-            porLotacao[lotacao].total++;
-            porLotacao[lotacao].servidores.push(servidor);
-            
-            if (servidor.licencas && servidor.licencas.length > 0) {
-                porLotacao[lotacao].comLicenca++;
-            } else {
-                porLotacao[lotacao].semLicenca++;
-            }
-        });
-        
-        return {
-            title: 'Relatório por Lotação',
-            subtitle: 'Análise detalhada por lotação/departamento',
-            lotacoes: Object.values(porLotacao).sort((a, b) => b.total - a.total)
-        };
-    }
-    
-    /**
-     * Gera timeline anual
-     */
-    generateTimelineAnualReport() {
-        const currentYear = new Date().getFullYear();
-        const meses = [];
-        
-        for (let mes = 0; mes < 12; mes++) {
-            const licencasNoMes = this.dashboard.allServidores
-                .filter(s => s.licencas && s.licencas.length > 0)
-                .filter(s => {
-                    return s.licencas.some(l => {
-                        if (!l.dataInicio) return false;
-                        const data = new Date(l.dataInicio);
-                        return data.getMonth() === mes && data.getFullYear() === currentYear;
-                    });
-                });
-            
-            meses.push({
-                mes: this.getMonthName(mes),
-                total: licencasNoMes.length,
-                servidores: licencasNoMes.map(s => s.nome)
+    openAdvancedFilters() {
+        if (this.dashboard.advancedFilterManager) {
+            this.dashboard.advancedFilterManager.openModal();
+        } else {
+            window.customModal?.alert({
+                title: 'Indisponível',
+                message: 'Sistema de filtros avançados não está disponível.',
+                type: 'warning'
             });
         }
-        
-        return {
-            title: 'Timeline Anual de Licenças',
-            subtitle: `Ano ${currentYear}`,
-            meses: meses
-        };
     }
-    
+
     /**
-     * Gera relatório de impacto operacional
+     * Marcar/desmarcar todas as colunas
      */
-    generateImpactoOperacionalReport() {
-        // Agrupa por mês e lotação
-        const impactoPorMes = new Map();
-        
-        this.dashboard.allServidores.forEach(servidor => {
-            if (!servidor.licencas || servidor.licencas.length === 0) return;
-            
+    toggleSelectAllColumns() {
+        const checkboxes = document.querySelectorAll('#columnsGridRedesign input[type="checkbox"]');
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+
+        checkboxes.forEach(cb => {
+            cb.checked = !allChecked;
+        });
+
+        const btn = document.getElementById('selectAllColumns');
+        if (btn) {
+            btn.textContent = allChecked ? '☑ Marcar Todas' : '☐ Desmarcar Todas';
+        }
+
+        this.updateConfig();
+    }
+
+    /**
+     * Atualizar configuração do relatório
+     */
+    updateConfig(options = {}) {
+        const { skipLivePreview = false } = options;
+
+        this.updateColumnsSelectionState();
+
+        // Coletar colunas selecionadas (novo ID do grid)
+        const selectedColumns = [];
+        document.querySelectorAll('#columnsGridRedesign input[type="checkbox"]:checked').forEach(checkbox => {
+            selectedColumns.push(checkbox.value);
+        });
+
+        // Orientação automática baseada em número de colunas
+        const orientation = selectedColumns.length <= 5 ? 'portrait' : 'landscape';
+
+        this.reportConfig = {
+            title: document.getElementById('reportTitleRedesign')?.value || 'Relatório de Licenças',
+            type: 'complete',
+            orientation: orientation,
+            includeCharts: true,  // Sempre incluído
+            includeStats: true,   // Sempre incluído
+            includeLogo: true,    // Sempre incluído
+            columns: selectedColumns.length > 0 ? selectedColumns : [...this.defaultColumns],
+            dateStart: null,      // Usar filtros avançados
+            dateEnd: null,        // Usar filtros avançados
+            urgencyFilter: '',    // Usar filtros avançados
+            cargoFilter: '',      // Usar filtros avançados
+            limit: 'all'          // Sempre exportar todos
+        };
+
+        if (!skipLivePreview && this.livePreviewEnabled) {
+            this.schedulePreview();
+        }
+    }
+
+    schedulePreview() {
+        if (this.previewDebounce) {
+            clearTimeout(this.previewDebounce);
+        }
+
+        this.previewDebounce = setTimeout(() => {
+            this.previewReport({ fromLive: true });
+        }, 220);
+    }
+
+    updateColumnsSelectionState() {
+        const columnsContainer = document.getElementById('columnsGridRedesign');
+        if (!columnsContainer) return;
+
+        // Atualizar botão "Marcar Todas"
+        const checkboxes = columnsContainer.querySelectorAll('input[type="checkbox"]');
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        const btn = document.getElementById('selectAllColumns');
+        if (btn) {
+            btn.textContent = allChecked ? '☐ Desmarcar Todas' : '☑ Marcar Todas';
+        }
+    }
+
+    getBaseDataset() {
+        const filtered = Array.isArray(this.dashboard.filteredServidores) ? this.dashboard.filteredServidores : [];
+        if (filtered.length > 0) {
+            return filtered;
+        }
+        const all = Array.isArray(this.dashboard.allServidores) ? this.dashboard.allServidores : [];
+        return all;
+    }
+
+    parseDate(value, endOfDay = false) {
+        if (!value) return null;
+        if (value instanceof Date) {
+            return isNaN(value.getTime()) ? null : value;
+        }
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return null;
+        if (endOfDay) {
+            date.setHours(23, 59, 59, 999);
+        } else {
+            date.setHours(0, 0, 0, 0);
+        }
+        return date;
+    }
+
+    getAllLicenses(servidor) {
+        const licenses = [];
+
+        if (Array.isArray(servidor.licencas)) {
             servidor.licencas.forEach(licenca => {
-                if (!licenca.dataInicio) return;
-                
-                const data = new Date(licenca.dataInicio);
-                const mesAno = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
-                const lotacao = servidor.lotacao || 'Não Informada';
-                
-                if (!impactoPorMes.has(mesAno)) {
-                    impactoPorMes.set(mesAno, new Map());
-                }
-                
-                const mesData = impactoPorMes.get(mesAno);
-                if (!mesData.has(lotacao)) {
-                    mesData.set(lotacao, {
-                        lotacao: lotacao,
-                        ausencias: 0,
-                        servidores: []
+                const inicio = this.parseDate(licenca?.inicio || licenca?.dataInicio);
+                const fim = this.parseDate(licenca?.fim || licenca?.dataFim, true) || inicio;
+                const durationDays = this.calculateDurationInDays(inicio, fim);
+                const monthsFromSource = typeof licenca?.meses === 'number' ? licenca.meses : (
+                    typeof licenca?.mesesLicenca === 'number' ? licenca.mesesLicenca : null
+                );
+                if (inicio) {
+                    licenses.push({
+                        inicio,
+                        fim,
+                        dias: durationDays,
+                        meses: monthsFromSource ?? (durationDays ? this.calculateDurationInMonths(durationDays) : null)
                     });
                 }
-                
-                const lotacaoData = mesData.get(lotacao);
-                lotacaoData.ausencias++;
-                lotacaoData.servidores.push(servidor.nome);
             });
-        });
-        
-        // Converte para array e ordena
-        const impactoArray = [];
-        impactoPorMes.forEach((lotacoes, mesAno) => {
-            lotacoes.forEach((data, lotacao) => {
-                impactoArray.push({
-                    mesAno: mesAno,
-                    ...data
+        }
+
+        if (servidor.inicioLicenca || servidor.fimLicenca) {
+            const inicio = this.parseDate(servidor.inicioLicenca);
+            const fim = this.parseDate(servidor.fimLicenca, true) || inicio;
+            const durationDays = this.calculateDurationInDays(inicio, fim);
+            if (inicio) {
+                licenses.push({
+                    inicio,
+                    fim,
+                    dias: durationDays,
+                    meses: servidor.mesesLicenca || (durationDays ? this.calculateDurationInMonths(durationDays) : null)
+                });
+            }
+        }
+
+        if (servidor.proximaLicencaInicio || servidor.proximaLicencaFim) {
+            const inicio = this.parseDate(servidor.proximaLicencaInicio);
+            const fim = this.parseDate(servidor.proximaLicencaFim, true) || inicio;
+            const durationDays = this.calculateDurationInDays(inicio, fim);
+            if (inicio) {
+                licenses.push({
+                    inicio,
+                    fim,
+                    dias: durationDays,
+                    meses: servidor.mesesLicenca || (durationDays ? this.calculateDurationInMonths(durationDays) : null)
+                });
+            }
+        }
+
+        return licenses;
+    }
+
+    getPrimaryLicense(servidor) {
+        const licenses = this.getAllLicenses(servidor);
+        if (licenses.length === 0) return null;
+        licenses.sort((a, b) => a.inicio - b.inicio);
+        const primary = { ...licenses[0] };
+        if (!primary.dias) {
+            const dias = this.calculateDurationInDays(primary.inicio, primary.fim);
+            if (dias) {
+                primary.dias = dias;
+            }
+        }
+        if (!primary.meses && primary.dias) {
+            primary.meses = this.calculateDurationInMonths(primary.dias);
+        }
+        return primary;
+    }
+
+    calculateDurationInDays(start, end) {
+        if (!start || !end) return null;
+        const diffMs = end.getTime() - start.getTime();
+        if (diffMs < 0) return null;
+        return Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1;
+    }
+
+    calculateDurationInMonths(days) {
+        if (!days || days <= 0) return null;
+        return Math.max(1, Math.round(days / 30));
+    }
+
+    normalizeUrgency(value) {
+        if (!value) return '';
+        const normalized = value
+            .toString()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[^a-z]/g, '');
+        const map = {
+            critica: 'critica',
+            critico: 'critica',
+            criticos: 'critica',
+            urgente: 'critica',
+            urgencia: 'critica',
+            alta: 'alta',
+            alto: 'alta',
+            moderada: 'moderada',
+            media: 'moderada',
+            medio: 'moderada',
+            moderado: 'moderada',
+            baixo: 'baixa',
+            baixa: 'baixa',
+            semlicenca: 'semLicenca',
+            nenhuma: 'semLicenca'
+        };
+        return map[normalized] || '';
+    }
+
+    formatUrgencyLabel(code) {
+        const labels = {
+            critica: 'Crítica',
+            alta: 'Alta',
+            moderada: 'Moderada',
+            baixa: 'Baixa',
+            semLicenca: 'Sem Licença'
+        };
+        return labels[code] || 'Indefinida';
+    }
+
+    formatUrgencyDisplay(value) {
+        const code = this.normalizeUrgency(value);
+        return code ? this.formatUrgencyLabel(code) : (value || '-');
+    }
+
+    /**
+     * Filtrar dados para o relatório
+     */
+    getFilteredData() {
+        let data = [...this.getBaseDataset()];
+
+        // Filtro de data
+        const startDate = this.parseDate(this.reportConfig.dateStart);
+        const endDate = this.parseDate(this.reportConfig.dateEnd, true);
+
+        if (startDate || endDate) {
+            data = data.filter(servidor => {
+                const licencas = this.getAllLicenses(servidor);
+                if (licencas.length === 0) return false;
+
+                return licencas.some(({ inicio, fim }) => {
+                    const fimAjustado = fim || inicio;
+                    if (startDate && fimAjustado < startDate) return false;
+                    if (endDate && inicio > endDate) return false;
+                    return true;
                 });
             });
-        });
-        
-        return {
-            title: 'Impacto Operacional',
-            subtitle: 'Análise de ausências por período e lotação',
-            dados: impactoArray.sort((a, b) => {
-                if (a.mesAno !== b.mesAno) return a.mesAno.localeCompare(b.mesAno);
-                return b.ausencias - a.ausencias;
-            })
-        };
+        }
+
+        // Filtro de urgência
+        if (this.reportConfig.urgencyFilter) {
+            const filterCode = this.normalizeUrgency(this.reportConfig.urgencyFilter);
+            data = data.filter(s => this.normalizeUrgency(s.urgencia) === filterCode);
+        }
+
+        // Filtro de cargo
+        if (this.reportConfig.cargoFilter) {
+            data = data.filter(s => s.cargo === this.reportConfig.cargoFilter);
+        }
+
+        // Limite de registros
+        if (this.reportConfig.limit !== 'all') {
+            const limit = parseInt(this.reportConfig.limit, 10);
+            if (!Number.isNaN(limit) && limit > 0) {
+                data = data.slice(0, limit);
+            }
+        }
+
+        return data;
     }
-    
+
     /**
-     * Mostra preview do relatório
+     * Pré-visualizar relatório
      */
-    showPreview(report) {
-        // Usar modal correto do HTML (reportConfigModal)
-        const modalOverlay = document.getElementById('reportConfigModal');
-        const modalTitle = document.getElementById('modalTemplateTitle');
-        const previewContent = document.getElementById('modalReportPreview');
-        
-        if (!modalOverlay || !previewContent) {
-            console.error('Elementos de modal não encontrados');
+    previewReport(options = {}) {
+        const { fromLive = false } = options;
+
+        this.updateConfig({ skipLivePreview: true });
+        const data = this.getFilteredData();
+
+        const previewContainer = document.getElementById('previewTableRedesign');
+        if (!previewContainer) {
             return;
         }
-        
-        // Atualiza título do modal
-        if (modalTitle) {
-            modalTitle.textContent = report.data.title;
+
+        const countElement = document.getElementById('previewCountRedesign');
+        const titleElement = document.getElementById('previewTitleRedesign');
+        const timestampElement = document.getElementById('previewTimestampRedesign');
+
+        if (countElement) {
+            const suffix = data.length === 1 ? '' : 's';
+            countElement.textContent = `${data.length} registro${suffix}`;
         }
-        
-        // Renderiza conteúdo baseado no template
-        const html = this.renderReportHTML(report);
-        previewContent.innerHTML = html;
-        
-        // Mostra modal com classe active
-        modalOverlay.classList.add('active');
-        
-        // Previne scroll do body
-        document.body.style.overflow = 'hidden';
-        
-        console.log('✅ Preview exibido com sucesso');
-    }
-    
-    /**
-     * Renderiza HTML do relatório
-     */
-    renderReportHTML(report) {
-        const { data } = report;
-        
-        let html = `
-            <div class="report-document">
-                <div class="report-header-doc">
-                    <div class="report-logo">
-                        <img src="img/logo.png" alt="SEFAZ" style="height: 60px;">
-                    </div>
-                    <div class="report-info-doc">
-                        <h1>${data.title}</h1>
-                        <h2>${data.subtitle || ''}</h2>
-                        <p class="report-date">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
-                    </div>
-                </div>
-        `;
-        
-        // Sumário se houver
-        if (data.summary) {
-            html += `
-                <div class="report-summary">
-                    <h3>Resumo</h3>
-                    <div class="summary-cards">
-                        ${Object.entries(data.summary).map(([key, value]) => `
-                            <div class="summary-card">
-                                <div class="summary-value">${value}</div>
-                                <div class="summary-label">${this.formatSummaryLabel(key)}</div>
-                            </div>
-                        `).join('')}
-                    </div>
+
+        if (titleElement) {
+            titleElement.textContent = this.reportConfig.title || 'Relatório de Licenças';
+        }
+
+        const now = new Date();
+        this.lastPreviewAt = now;
+
+        if (timestampElement) {
+            timestampElement.textContent = now.toLocaleString('pt-BR');
+        }
+
+        if (data.length === 0) {
+            previewContainer.innerHTML = `
+                <div class="preview-placeholder">
+                    <i class="bi bi-inbox"></i>
+                    <p>Nenhum registro encontrado</p>
+                    <small>Ajuste os filtros ou selecione colunas</small>
                 </div>
             `;
+            this.hasPreview = true;
+            this.previewDebounce = null;
+            return;
         }
-        
-        // Tabela de servidores se houver
-        if (data.servidores && data.servidores.length > 0) {
-            html += this.renderServidoresTable(data.servidores);
+
+        const tableRender = this.renderPreviewTable(data);
+        previewContainer.innerHTML = tableRender.tableHtml;
+        previewContainer.scrollTop = 0;
+
+        this.hasPreview = true;
+        this.previewDebounce = null;
+    }
+
+    /**
+     * Calcular estatísticas
+     */
+    calculateStats(data) {
+        const urgencyCounts = {
+            critica: 0,
+            alta: 0,
+            moderada: 0,
+            baixa: 0,
+            semLicenca: 0
+        };
+
+        let idadeTotal = 0;
+        let idadeContagem = 0;
+        const cargos = new Set();
+
+        data.forEach(servidor => {
+            const urgencyCode = this.normalizeUrgency(servidor.urgencia);
+            if (urgencyCounts.hasOwnProperty(urgencyCode)) {
+                urgencyCounts[urgencyCode]++;
+            }
+
+            if (Number.isFinite(servidor.idade)) {
+                idadeTotal += servidor.idade;
+                idadeContagem++;
+            }
+
+            if (servidor.cargo) {
+                cargos.add(servidor.cargo);
+            }
+        });
+
+        const avgAge = idadeContagem > 0 ? (idadeTotal / idadeContagem).toFixed(1) : null;
+
+        return {
+            total: data.length,
+            avgAge,
+            cargos: cargos.size,
+            urgencyCounts
+        };
+    }
+
+    renderPreviewSummary(stats) {
+        const lines = this.getStatsSummaryLines(stats);
+        const listItems = lines.map(line => `
+            <li>
+                <i class="bi ${line.icon}"></i>
+                <span><strong>${line.label}:</strong> ${this.escapeHTML(line.value)}</span>
+            </li>
+        `).join('');
+
+        return `
+            <div class="preview-summary-card">
+                <div class="summary-header">
+                    <i class="bi bi-bar-chart-line"></i>
+                    <span>Resumo Executivo</span>
+                </div>
+                <ul class="summary-list">
+                    ${listItems}
+                </ul>
+            </div>
+        `;
+    }
+
+    getStatsSummaryLines(stats) {
+        const urgencyParts = [
+            `Crítica: ${stats.urgencyCounts.critica || 0}`,
+            `Alta: ${stats.urgencyCounts.alta || 0}`,
+            `Moderada: ${stats.urgencyCounts.moderada || 0}`,
+            `Baixa: ${stats.urgencyCounts.baixa || 0}`
+        ];
+
+        if (stats.urgencyCounts.semLicenca) {
+            urgencyParts.push(`Sem Licença: ${stats.urgencyCounts.semLicenca}`);
         }
-        
-        // Dados específicos por template
-        if (data.dados) {
-            html += this.renderCustomData(data.dados, report.templateId);
-        }
-        
-        if (data.cargos) {
-            html += this.renderCargosSummary(data.cargos);
-        }
-        
-        if (data.lotacoes) {
-            html += this.renderLotacoesSummary(data.lotacoes);
-        }
-        
-        if (data.meses) {
-            html += this.renderTimelineChart(data.meses);
-        }
-        
-        if (data.stats) {
-            html += this.renderStatsSection(data.stats, data.distribuicao);
-        }
-        
-        html += `
-                <div class="report-footer">
-                    <p>Dashboard de Licenças Premium - SUTRI/SEFAZ</p>
-                    <p>Página 1 de 1</p>
+
+        return [
+            { icon: 'bi-people-fill', label: 'Total de Servidores', value: `${stats.total}` },
+            { icon: 'bi-person-lines-fill', label: 'Idade Média', value: stats.avgAge !== null ? `${stats.avgAge} anos` : '—' },
+            { icon: 'bi-briefcase-fill', label: 'Cargos Diferentes', value: `${stats.cargos}` },
+            { icon: 'bi-lightning-charge-fill', label: 'Distribuição de Urgência', value: urgencyParts.join(' | ') }
+        ];
+    }
+
+    renderPreviewMeta(range, columnLabels) {
+        const items = [
+            { icon: 'bi-collection', label: 'Tipo', value: this.getReportTypeLabel(this.reportConfig.type) },
+            { icon: 'bi-calendar-range', label: 'Período', value: this.getFormattedPeriodRange() },
+            { icon: 'bi-lightning-charge', label: 'Urgência', value: this.reportConfig.urgencyFilter || 'Todas' },
+            { icon: 'bi-briefcase', label: 'Cargo', value: this.reportConfig.cargoFilter || 'Todos' },
+            { icon: 'bi-database', label: 'Registros na Prévia', value: `${range.limit} de ${range.total}` }
+        ];
+
+        const itemsHtml = items.map(item => `
+            <div class="meta-item">
+                <i class="bi ${item.icon}"></i>
+                <div>
+                    <span class="meta-label">${item.label}</span>
+                    <span class="meta-value">${this.escapeHTML(String(item.value))}</span>
                 </div>
             </div>
-        `;
-        
-        return html;
-    }
-    
-    /**
-     * Renderiza tabela de servidores
-     */
-    renderServidoresTable(servidores) {
-        const headers = Object.keys(servidores[0]);
-        
+        `).join('');
+
+        const columnChips = columnLabels.length > 0
+            ? columnLabels.map(label => `<span class="column-chip">${this.escapeHTML(label)}</span>`).join('')
+            : '<span class="meta-value meta-value-empty">Nenhuma coluna selecionada</span>';
+
         return `
-            <div class="report-section">
-                <h3>Detalhamento</h3>
-                <table class="report-table">
-                    <thead>
-                        <tr>
-                            ${headers.map(h => `<th>${this.formatTableHeader(h)}</th>`).join('')}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${servidores.map(s => `
-                            <tr>
-                                ${headers.map(h => `<td>${this.formatTableCell(s[h], h)}</td>`).join('')}
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    }
-    
-    /**
-     * Renderiza sumário de cargos
-     */
-    renderCargosSummary(cargos) {
-        return `
-            <div class="report-section">
-                <h3>Análise por Cargo</h3>
-                ${cargos.map(cargo => `
-                    <div class="cargo-summary">
-                        <h4>${cargo.cargo}</h4>
-                        <div class="cargo-stats">
-                            <span><strong>Total:</strong> ${cargo.total}</span>
-                            <span><strong>Com Licença:</strong> ${cargo.comLicenca}</span>
-                            <span><strong>Sem Licença:</strong> ${cargo.semLicenca}</span>
-                            <span><strong>Urgências Críticas:</strong> ${cargo.urgenciasCriticas}</span>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-    }
-    
-    /**
-     * Renderiza sumário de lotações
-     */
-    renderLotacoesSummary(lotacoes) {
-        return `
-            <div class="report-section">
-                <h3>Análise por Lotação</h3>
-                <table class="report-table">
-                    <thead>
-                        <tr>
-                            <th>Lotação</th>
-                            <th>Total</th>
-                            <th>Com Licença</th>
-                            <th>Sem Licença</th>
-                            <th>% Com Licença</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${lotacoes.map(lot => `
-                            <tr>
-                                <td>${lot.lotacao}</td>
-                                <td>${lot.total}</td>
-                                <td>${lot.comLicenca}</td>
-                                <td>${lot.semLicenca}</td>
-                                <td>${Math.round((lot.comLicenca / lot.total) * 100)}%</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    }
-    
-    /**
-     * Renderiza gráfico de timeline
-     */
-    renderTimelineChart(meses) {
-        const maxValue = Math.max(...meses.map(m => m.total));
-        
-        return `
-            <div class="report-section">
-                <h3>Timeline Anual</h3>
-                <div class="timeline-chart">
-                    ${meses.map(mes => `
-                        <div class="timeline-bar">
-                            <div class="bar-container">
-                                <div class="bar-fill" style="height: ${(mes.total / maxValue) * 100}%">
-                                    <span class="bar-value">${mes.total}</span>
-                                </div>
-                            </div>
-                            <div class="bar-label">${mes.mes}</div>
-                        </div>
-                    `).join('')}
+            <div class="meta-grid">${itemsHtml}</div>
+            <div class="meta-columns">
+                <i class="bi bi-layout-text-window-reverse"></i>
+                <div>
+                    <span class="meta-label">Colunas Selecionadas</span>
+                    <div class="column-chip-group">${columnChips}</div>
                 </div>
             </div>
         `;
     }
-    
-    /**
-     * Renderiza seção de estatísticas
-     */
-    renderStatsSection(stats, distribuicao) {
-        let html = `
-            <div class="report-section">
-                <h3>Estatísticas Gerais</h3>
-                <div class="stats-grid">
-                    ${Object.entries(stats).map(([key, value]) => `
-                        <div class="stat-item">
-                            <div class="stat-value">${value}</div>
-                            <div class="stat-label">${this.formatSummaryLabel(key)}</div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-        
-        if (distribuicao && distribuicao.porCargo) {
-            html += `
-                <div class="report-section">
-                    <h3>Distribuição por Cargo</h3>
-                    <table class="report-table">
-                        <thead>
-                            <tr>
-                                <th>Cargo</th>
-                                <th>Quantidade</th>
-                                <th>Percentual</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${distribuicao.porCargo.map(item => `
-                                <tr>
-                                    <td>${item.cargo}</td>
-                                    <td>${item.count}</td>
-                                    <td>${Math.round((item.count / stats.totalServidores) * 100)}%</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
+
+    getReportTypeLabel(type) {
+        return this.reportTypeLabels[type] || 'Personalizado';
+    }
+
+    getFormattedPeriodRange() {
+        const { dateStart, dateEnd } = this.reportConfig;
+        const startDate = this.parseDate(dateStart);
+        const endDate = this.parseDate(dateEnd);
+
+        if (!startDate && !endDate) {
+            return 'Todos os períodos';
         }
-        
-        return html;
+
+        const startLabel = startDate ? this.formatDate(startDate) : 'Sem início definido';
+        const endLabel = endDate ? this.formatDate(endDate) : 'Sem término definido';
+        return `${startLabel} até ${endLabel}`;
     }
-    
-    /**
-     * Renderiza dados customizados
-     */
-    renderCustomData(dados, templateId) {
-        // Implementação específica por template
-        return `<div class="report-section"><!-- Dados customizados --></div>`;
+
+    escapeHTML(rawValue) {
+        if (rawValue === null || rawValue === undefined) return '';
+        return String(rawValue).replace(/[&<>'"]/g, char => {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            };
+            return map[char] || char;
+        });
     }
-    
+
+    formatPreviewValue(value) {
+        if (value === null || value === undefined || value === '') {
+            return '<span class="cell-empty">—</span>';
+        }
+
+        let normalized = value;
+
+        if (Array.isArray(normalized)) {
+            normalized = normalized.join('\n');
+        }
+
+        if (typeof normalized !== 'string') {
+            normalized = String(normalized);
+        }
+
+        return this.escapeHTML(normalized).replace(/\n/g, '<br>');
+    }
+
+    getReportMetadataLines(range, columnLabels) {
+        return [
+            `Tipo de Relatório: ${this.getReportTypeLabel(this.reportConfig.type)}`,
+            `Período Selecionado: ${this.getFormattedPeriodRange()}`,
+            `Filtro de Urgência: ${this.reportConfig.urgencyFilter || 'Todas'}`,
+            `Filtro de Cargo: ${this.reportConfig.cargoFilter || 'Todos'}`,
+            `Colunas Selecionadas: ${columnLabels.join(', ') || '-'}`,
+            `Registros na Pré-visualização: ${range.limit} de ${range.total}`
+        ];
+    }
+
     /**
-     * Fecha preview
+     * Renderizar tabela no preview
      */
-    closePreview() {
-        const modalOverlay = document.getElementById('reportConfigModal');
-        if (modalOverlay) {
-            modalOverlay.classList.remove('active');
+    renderPreviewTable(data) {
+        const columns = this.reportConfig.columns;
+        const columnLabels = columns.map(col => this.columnLabels[col] || col);
+        const limit = Math.min(data.length, 15);
+
+        const headers = columns.map(col => `<th>${this.escapeHTML(this.columnLabels[col] || col)}</th>`).join('');
+
+        const rows = data.slice(0, limit).map(servidor => {
+            const cells = columns.map(col => {
+                const value = this.getCellValue(servidor, col);
+                const displayValue = this.formatPreviewValue(value);
+                const classes = [];
+
+                if (col === 'urgencia') {
+                    const code = this.normalizeUrgency(servidor.urgencia);
+                    if (code) {
+                        classes.push(`urgency-${code}`);
+                    }
+                }
+
+                if (col === 'periodoLicenca') {
+                    classes.push('cell-periodo');
+                }
+
+                const classAttr = classes.length ? ` class="${classes.join(' ')}"` : '';
+                const dataLabel = this.escapeHTML(this.columnLabels[col] || col);
+
+                return `<td${classAttr} data-label="${dataLabel}">${displayValue}</td>`;
+            }).join('');
+
+            return `<tr>${cells}</tr>`;
+        }).join('');
+
+        const tableHtml = `
+            <table class="preview-table">
+                <thead>
+                    <tr>${headers}</tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                </tbody>
+            </table>
+        `;
+
+        const footnote = data.length > limit
+            ? `Exibindo ${limit} de ${data.length} registros filtrados. As exportações incluirão todos os registros.`
+            : '';
+
+        return {
+            tableHtml,
+            range: { limit, total: data.length },
+            columnLabels,
+            footnote
+        };
+    }
+
+    /**
+     * Obter valor da célula
+     */
+    getCellValue(servidor, column, options = {}) {
+        const { raw = false } = options;
+        const primaryLicense = this.getPrimaryLicense(servidor);
+        const parseNumeric = (value) => {
+            if (value === null || value === undefined || value === '') return null;
+            const num = Number(value);
+            return Number.isNaN(num) ? null : num;
+        };
+        const inicioFallback = primaryLicense?.inicio 
+            || this.parseDate(servidor.inicioLicenca)
+            || this.parseDate(servidor.proximaLicencaInicio);
+        const fimFallback = primaryLicense?.fim 
+            || this.parseDate(servidor.fimLicenca, true)
+            || this.parseDate(servidor.proximaLicencaFim, true);
+
+        const diasServidor = parseNumeric(servidor.diasLicenca);
+        const mesesServidor = parseNumeric(servidor.mesesLicenca);
+
+        const diasComputados = Number.isFinite(primaryLicense?.dias) ? primaryLicense.dias : (
+            Number.isFinite(diasServidor) ? diasServidor : (
+                inicioFallback && fimFallback ? this.calculateDurationInDays(inicioFallback, fimFallback) : null
+            )
+        );
+
+        const mesesComputados = Number.isFinite(primaryLicense?.meses) ? primaryLicense.meses : (
+            Number.isFinite(mesesServidor) ? mesesServidor : (
+                diasComputados ? this.calculateDurationInMonths(diasComputados) : null
+            )
+        );
+
+        const formatDateValue = (value) => this.formatDate(value, { raw });
+
+        switch(column) {
+            case 'nome':
+                return servidor.nome || '';
+            case 'cpf':
+                return servidor.cpf || '';
+            case 'matricula':
+                return servidor.matricula || '';
+            case 'cargo':
+                return servidor.cargo || '';
+            case 'lotacao':
+                return servidor.lotacao || '';
+            case 'superintendencia':
+                return servidor.superintendencia || '';
+            case 'subsecretaria':
+                return servidor.subsecretaria || '';
+            case 'idade': {
+                const idadeCalculada = parseNumeric(servidor.idade);
+                if (!Number.isFinite(idadeCalculada)) return '';
+                return raw ? idadeCalculada : `${idadeCalculada} anos`;
+            }
+            case 'urgencia': {
+                const code = this.normalizeUrgency(servidor.urgencia);
+                if (code) {
+                    return this.formatUrgencyLabel(code);
+                }
+                const original = servidor.urgencia ? servidor.urgencia.toString().trim() : '';
+                if (!original || /^0\s*anos?$/i.test(original)) {
+                    return 'Sem informação';
+                }
+                return original;
+            }
+            case 'periodoLicenca': {
+                let licenses = this.getAllLicenses(servidor);
+                if (licenses.length === 0 && primaryLicense?.inicio) {
+                    licenses = [primaryLicense];
+                }
+
+                if (licenses.length === 0) {
+                    return '';
+                }
+
+                licenses.sort((a, b) => (a.inicio?.getTime?.() || 0) - (b.inicio?.getTime?.() || 0));
+
+                const segments = licenses.map(licenca => {
+                    const inicio = licenca.inicio ? this.formatDate(licenca.inicio) : '-';
+                    const fim = licenca.fim ? this.formatDate(licenca.fim) : inicio;
+                    return `${inicio} até ${fim}`;
+                });
+
+                const joined = segments.join('\n');
+                return joined;
+            }
+            case 'dataInicio':
+                return inicioFallback ? formatDateValue(inicioFallback) : '';
+            case 'dataFim':
+                return fimFallback ? formatDateValue(fimFallback) : '';
+            case 'diasLicenca':
+                if (!Number.isFinite(diasComputados)) return '';
+                return raw ? diasComputados : `${diasComputados} dias`;
+            case 'mesesLicenca':
+                if (!Number.isFinite(mesesComputados)) return '';
+                return raw ? mesesComputados : `${mesesComputados} meses`;
+            default:
+                return '';
+        }
+    }
+
+    /**
+     * Formatar data
+     */
+    formatDate(dateInput, options = {}) {
+        if (!dateInput) return options.raw ? '' : '-';
+        const { raw = false } = options;
+        let date;
+        if (dateInput instanceof Date) {
+            date = new Date(dateInput.getTime());
+        } else if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+            const [year, month, day] = dateInput.split('-').map(Number);
+            date = new Date(year, month - 1, day);
+        } else {
+            date = new Date(dateInput);
+        }
+        if (Number.isNaN(date.getTime())) {
+            return raw ? '' : '-';
+        }
+        if (raw) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        return date.toLocaleDateString('pt-BR');
+    }
+
+    /**
+     * Gerar PDF
+     */
+    async generatePDF() {
+        this.updateConfig({ skipLivePreview: true });
+        const data = this.getFilteredData();
+
+        if (data.length === 0) {
+            alert('Nenhum registro encontrado com os filtros aplicados.');
+            return;
+        }
+
+        if (this.reportConfig.columns.length === 0) {
+            alert('Selecione pelo menos uma coluna para incluir no relatório.');
+            return;
+        }
+
+        try {
+            // Mostrar loading
+            const btn = document.getElementById('generatePdfRedesign');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Gerando...';
+            btn.disabled = true;
+
+            // Criar documento PDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: this.reportConfig.orientation,
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 14;
+            let yPosition = margin + 6;
+
+            // Cabeçalho
+            if (this.reportConfig.includeLogo) {
+                doc.setFontSize(18);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(40, 40, 40);
+                doc.text(this.reportConfig.title, pageWidth / 2, yPosition, { align: 'center' });
+                yPosition += 8;
+
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(120, 120, 120);
+                const dateText = `Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`;
+                doc.text(dateText, pageWidth / 2, yPosition, { align: 'center' });
+                yPosition += 10;
+            }
+
+            // Estatísticas
+            if (this.reportConfig.includeStats) {
+                const stats = this.calculateStats(data);
+                
+                doc.setFontSize(11);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(40, 40, 40);
+                doc.text('Resumo Executivo', margin, yPosition);
+                yPosition += 6;
+
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(60, 60, 60);
+                
+                const urgencySummaryParts = [
+                    `Crítica: ${stats.urgencyCounts.critica || 0}`,
+                    `Alta: ${stats.urgencyCounts.alta || 0}`,
+                    `Moderada: ${stats.urgencyCounts.moderada || 0}`,
+                    `Baixa: ${stats.urgencyCounts.baixa || 0}`
+                ];
+
+                if (stats.urgencyCounts.semLicenca) {
+                    urgencySummaryParts.push(`Sem Licença: ${stats.urgencyCounts.semLicenca}`);
+                }
+
+                const statsText = [
+                    `Total de Servidores: ${stats.total}`,
+                    `Idade Média: ${stats.avgAge !== null ? `${stats.avgAge} anos` : '—'}`,
+                    `Cargos Diferentes: ${stats.cargos}`,
+                    `Urgências - ${urgencySummaryParts.join(' | ')}`
+                ];
+                
+                statsText.forEach(line => {
+                    if (yPosition > pageHeight - margin) {
+                        doc.addPage();
+                        yPosition = margin + 6;
+                    }
+                    doc.text(line, margin, yPosition);
+                    yPosition += 5;
+                });
+                
+                yPosition += 5;
+            }
+
+            const columnLabels = this.reportConfig.columns.map(col => this.columnLabels[col] || col);
+            const previewRange = {
+                limit: Math.min(data.length, 15),
+                total: data.length
+            };
+            const metadataLines = this.getReportMetadataLines(previewRange, columnLabels);
+
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(70, 70, 70);
+
+            metadataLines.forEach(line => {
+                if (yPosition > pageHeight - margin) {
+                    doc.addPage();
+                    yPosition = margin + 6;
+                }
+                doc.text(line, margin, yPosition);
+                yPosition += 5;
+            });
+
+            yPosition += 4;
+
+            // Gráficos
+            if (this.reportConfig.includeCharts && data.length > 0) {
+                try {
+                    const chartImage = await this.generateChartImage(data);
+                    if (chartImage) {
+                        const imgWidth = pageWidth - (margin * 2);
+                        const imgHeight = 50;
+                        
+                        // Verificar se há espaço na página
+                        if (yPosition + imgHeight > pageHeight - margin) {
+                            doc.addPage();
+                            yPosition = margin + 6;
+                        }
+                        
+                        doc.addImage(chartImage, 'PNG', margin, yPosition, imgWidth, imgHeight);
+                        yPosition += imgHeight + 8;
+                    }
+                } catch (e) {
+                    console.warn('Erro ao gerar gráfico:', e);
+                }
+            }
+
+            // Tabela de dados
+            doc.setFontSize(11);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(40, 40, 40);
+            doc.text('Dados Detalhados', margin, yPosition);
+            yPosition += 6;
+
+            // Preparar dados da tabela
+            const columns = this.reportConfig.columns;
+            const headers = columns.map(col => this.columnLabels[col] || col);
             
-            // Restaura scroll do body
-            document.body.style.overflow = '';
-        }
-        
-        console.log('✅ Preview fechado');
-    }
-    
-    /**
-     * Exporta para PDF
-     */
-    exportToPDF() {
-        window.print();
-    }
-    
-    /**
-     * Exporta para Excel
-     */
-    exportToExcel() {
-        if (!this.currentReport) return;
-        
-        // Usa ExportManager se disponível
-        if (this.dashboard.exportManager) {
-            this.dashboard.exportManager.exportServidoresToExcel();
-        }
-    }
-    
-    /**
-     * Imprime relatório
-     */
-    printReport() {
-        window.print();
-    }
-    
-    /**
-     * Edita relatório
-     */
-    editReport() {
-        alert('Funcionalidade de edição em desenvolvimento');
-    }
-    
-    /**
-     * Abre wizard de relatório personalizado
-     * NOTA: Agora delegado ao Premium Builder
-     */
-    openCustomReportWizard() {
-        console.log('📊 Abrindo Premium Builder...');
-        // O Premium Builder será inicializado pela integração no dashboard.js
-        if (this.dashboard && this.dashboard.navigateTo) {
-            this.dashboard.navigateTo('reports');
-        }
-    }
+            const tableData = data.map(servidor => {
+                return columns.map(col => this.getCellValue(servidor, col));
+            });
 
-    /**
-     * Mostra modal de histórico
-     */
-    showHistoryModal() {
-        alert(`Histórico: ${this.reportHistory.length} relatórios gerados`);
-    }
-    
-    /**
-     * Adiciona ao histórico
-     */
-    addToHistory(report) {
-        this.reportHistory.unshift({
-            id: report.id,
-            template: report.template.name,
-            generatedAt: report.generatedAt
-        });
-        
-        // Limita histórico
-        if (this.reportHistory.length > 50) {
-            this.reportHistory = this.reportHistory.slice(0, 50);
-        }
-        
-        this.saveHistory();
-    }
-    
-    /**
-     * Salva histórico
-     */
-    saveHistory() {
-        try {
-            localStorage.setItem('reportHistory', JSON.stringify(this.reportHistory));
-        } catch (error) {
-            console.warn('⚠️ Erro ao salvar histórico:', error);
-        }
-    }
-    
-    /**
-     * Carrega histórico
-     */
-    loadHistory() {
-        try {
-            const saved = localStorage.getItem('reportHistory');
-            if (saved) {
-                this.reportHistory = JSON.parse(saved);
-                console.log(`📥 ${this.reportHistory.length} relatórios no histórico`);
+            doc.autoTable({
+                startY: yPosition,
+                head: [headers],
+                body: tableData,
+                styles: {
+                    fontSize: 7,
+                    cellPadding: 2,
+                    overflow: 'linebreak',
+                    cellWidth: 'wrap'
+                },
+                headStyles: {
+                    fillColor: [59, 130, 246],
+                    textColor: 255,
+                    fontStyle: 'bold',
+                    halign: 'left'
+                },
+                alternateRowStyles: {
+                    fillColor: [245, 247, 250]
+                },
+                margin: { left: margin, right: margin },
+                theme: 'grid'
+            });
+
+            // Rodapé com número de páginas
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.text(
+                    `Página ${i} de ${pageCount}`,
+                    pageWidth / 2,
+                    pageHeight - 10,
+                    { align: 'center' }
+                );
             }
+
+            // Salvar PDF
+            const fileName = `${this.reportConfig.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+            doc.save(fileName);
+
+            // Restaurar botão
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+
+            // Feedback de sucesso
+            this.showSuccessMessage(`Relatório "${fileName}" gerado com sucesso!`);
+
         } catch (error) {
-            console.warn('⚠️ Erro ao carregar histórico:', error);
+            console.error('Erro ao gerar PDF:', error);
+            alert('Erro ao gerar relatório PDF. Verifique o console para mais detalhes.');
+
+            const btn = document.getElementById('generatePdfRedesign');
+            btn.innerHTML = '<i class="bi bi-file-pdf"></i> Gerar PDF';
+            btn.disabled = false;
         }
     }
-    
+
     /**
-     * Registra listeners
+     * Gerar imagem do gráfico para incluir no PDF
      */
-    registerListeners() {
-        // Integração com navegação do dashboard
-        document.addEventListener('pageChanged', (e) => {
-            if (e.detail && e.detail.page === 'reports') {
-                this.showReportsPage();
-            } else {
-                this.hideReportsPage();
+    async generateChartImage(data) {
+        return new Promise((resolve) => {
+            try {
+                const stats = this.calculateStats(data);
+                
+                // Criar canvas temporário
+                const canvas = document.createElement('canvas');
+                canvas.width = 800;
+                canvas.height = 300;
+                const ctx = canvas.getContext('2d');
+
+                // Criar gráfico de urgência
+                const chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Crítica', 'Alta', 'Média', 'Baixa'],
+                        datasets: [{
+                            label: 'Servidores por Urgência',
+                            data: [
+                                stats.urgencyCounts['Crítica'],
+                                stats.urgencyCounts['Alta'],
+                                stats.urgencyCounts['Média'],
+                                stats.urgencyCounts['Baixa']
+                            ],
+                            backgroundColor: [
+                                'rgba(239, 68, 68, 0.8)',
+                                'rgba(249, 115, 22, 0.8)',
+                                'rgba(59, 130, 246, 0.8)',
+                                'rgba(34, 197, 94, 0.8)'
+                            ],
+                            borderColor: [
+                                'rgb(239, 68, 68)',
+                                'rgb(249, 115, 22)',
+                                'rgb(59, 130, 246)',
+                                'rgb(34, 197, 94)'
+                            ],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Distribuição por Nível de Urgência',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Aguardar renderização e converter para imagem
+                setTimeout(() => {
+                    const imageData = canvas.toDataURL('image/png');
+                    chart.destroy();
+                    resolve(imageData);
+                }, 500);
+                
+            } catch (e) {
+                console.error('Erro ao gerar gráfico:', e);
+                resolve(null);
             }
         });
     }
-    
+
     /**
-     * Mostra página de relatórios
-     * NOTA: Agora delega ao Premium Builder
+     * Exportar dados filtrados para XLSX respeitando as colunas selecionadas
      */
-    showReportsPage() {
-        // Delegar ao Premium Builder se disponível
-        if (this.dashboard && this.dashboard.reportBuilderPremium) {
-            this.dashboard.reportBuilderPremium.open();
-        } else if (this.reportsPage) {
-            // Fallback: mostrar página vazia
-            this.reportsPage.style.display = 'block';
+    async exportToXLSX(button) {
+        if (this.isExportingXlsx) return;
+
+        this.updateConfig({ skipLivePreview: true });
+        const data = this.getFilteredData();
+
+        if (data.length === 0) {
+            alert('Nenhum registro encontrado com os filtros aplicados.');
+            return;
         }
 
-        // Atualiza breadcrumb se disponível
-        if (this.dashboard && this.dashboard.breadcrumbsManager) {
-            this.dashboard.breadcrumbsManager.setPath(['dashboard', 'relatorios']);
+        if (this.reportConfig.columns.length === 0) {
+            alert('Selecione ao menos uma coluna antes de exportar.');
+            return;
         }
-    }
-    
-    /**
-     * Esconde página de relatórios
-     * NOTA: Agora delega ao Premium Builder
-     */
-    hideReportsPage() {
-        // Delegar ao Premium Builder se disponível
-        if (this.dashboard && this.dashboard.reportBuilderPremium) {
-            this.dashboard.reportBuilderPremium.close();
-        } else if (this.reportsPage) {
-            // Fallback
-            this.reportsPage.style.display = 'none';
-        }
-    }
-    
-    /**
-     * Utilitários de formatação
-     */
-    
-    getMonthName(monthIndex) {
-        const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                       'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-        return months[monthIndex];
-    }
-    
-    formatSummaryLabel(key) {
-        const labels = {
-            total: 'Total',
-            dias: 'Total de Dias',
-            proximos3Meses: 'Próximos 3 Meses',
-            proximos6Meses: 'Próximos 6 Meses',
-            criticas: 'Críticas',
-            altas: 'Altas',
-            servidores: 'Servidores',
-            totalLicencas: 'Total de Licenças',
-            totalServidores: 'Total de Servidores',
-            comLicenca: 'Com Licença',
-            semLicenca: 'Sem Licença',
-            urgenciasCriticas: 'Urgências Críticas',
-            proximasAposentadorias: 'Próximas Aposentadorias'
-        };
-        return labels[key] || key;
-    }
-    
-    formatTableHeader(header) {
-        const headers = {
-            nome: 'Nome',
-            cargo: 'Cargo',
-            lotacao: 'Lotação',
-            dataInicio: 'Data Início',
-            dias: 'Dias',
-            periodo: 'Período',
-            idade: 'Idade',
-            dataAposentadoria: 'Aposentadoria',
-            diasRestantes: 'Dias Restantes',
-            urgencia: 'Urgência',
-            proximaLicenca: 'Próxima Licença',
-            motivo: 'Motivo'
-        };
-        return headers[header] || header;
-    }
-    
-    formatTableCell(value, header) {
-        if (!value) return '-';
-        
-        if (header.includes('data') || header.includes('Data')) {
-            return new Date(value).toLocaleDateString('pt-BR');
-        }
-        
-        if (header === 'diasRestantes' || header === 'diasVencido') {
-            return `${value} dias`;
-        }
-        
-        return value;
-    }
-    
-    getUrgencyReason(servidor) {
-        if (!servidor.aposentadoriaCompulsoria) return '-';
-        
-        const dias = Math.floor((new Date(servidor.aposentadoriaCompulsoria) - new Date()) / (1000 * 60 * 60 * 24));
-        
-        if (dias <= 90) return 'Aposentadoria em menos de 3 meses';
-        if (dias <= 180) return 'Aposentadoria em menos de 6 meses';
-        return 'Proximidade de aposentadoria';
-    }
-    
-    showLoading(message = 'Carregando...') {
-        const loading = document.getElementById('loadingOverlay');
-        if (loading) {
-            loading.querySelector('.loading-text').textContent = message;
-            loading.style.display = 'flex';
-        }
-    }
-    
-    hideLoading() {
-        const loading = document.getElementById('loadingOverlay');
-        if (loading) {
-            loading.style.display = 'none';
-        }
-    }
-    
-    generateId() {
-        return `report_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    }
-    
-    /**
-     * Limpa recursos
-     */
-    destroy() {
-        if (this.reportsPage) {
-            this.reportsPage.remove();
-        }
-        
-        console.log('🗑️ ReportsManager destruído');
-    }
-}
 
-// Exporta para uso global
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = ReportsManager;
+        if (typeof XLSX === 'undefined') {
+            alert('Biblioteca XLSX não carregada. Verifique as dependências do projeto.');
+            return;
+        }
+
+        this.isExportingXlsx = true;
+        let originalContent = null;
+
+        if (button) {
+            originalContent = button.innerHTML;
+            button.innerHTML = '<i class="bi bi-arrow-repeat"></i> Exportando...';
+            button.disabled = true;
+            button.classList.add('loading');
+        }
+
+        try {
+            const columns = this.reportConfig.columns;
+            const header = columns.map(col => this.columnLabels[col] || col);
+            const rows = data.map(servidor => {
+                return columns.map(col => this.getCellValue(servidor, col, { raw: true }));
+            });
+
+            const workbook = XLSX.utils.book_new();
+            const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Dados');
+
+            const stats = this.calculateStats(data);
+            const summarySheet = this.buildSummarySheet(stats);
+            if (summarySheet) {
+                XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumo');
+            }
+
+            const configSheet = this.buildConfigurationSheet();
+            if (configSheet) {
+                XLSX.utils.book_append_sheet(workbook, configSheet, 'Configuração');
+            }
+
+            const fileName = `${this.slugify(this.reportConfig.title || 'relatorio')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+            this.showSuccessMessage(`Arquivo exportado: ${fileName}`);
+        } catch (error) {
+            console.error('Erro ao exportar XLSX:', error);
+            alert('Não foi possível exportar o arquivo XLSX. Consulte o console para mais detalhes.');
+        } finally {
+            this.isExportingXlsx = false;
+            if (button) {
+                button.classList.remove('loading');
+                button.innerHTML = originalContent || '<i class="bi bi-file-earmark-spreadsheet"></i> Baixar XLSX';
+                button.disabled = false;
+            }
+        }
+    }
+
+    buildSummarySheet(stats) {
+        if (!stats) return null;
+
+        const rows = [
+            ['📊 RESUMO DO RELATÓRIO'],
+            [],
+            ['Total de Servidores', stats.total],
+            ['Idade Média', stats.avgAge !== null ? stats.avgAge : '—'],
+            ['Cargos Diferentes', stats.cargos],
+            [],
+            ['Distribuição por Urgência'],
+            ['Crítica', stats.urgencyCounts.critica || 0],
+            ['Alta', stats.urgencyCounts.alta || 0],
+            ['Moderada', stats.urgencyCounts.moderada || 0],
+            ['Baixa', stats.urgencyCounts.baixa || 0]
+        ];
+
+        if (stats.urgencyCounts.semLicenca) {
+            rows.push(['Sem Licença', stats.urgencyCounts.semLicenca]);
+        }
+
+        rows.push([]);
+        rows.push(['Gerado em', new Date().toLocaleString('pt-BR')]);
+
+        return XLSX.utils.aoa_to_sheet(rows);
+    }
+
+    buildConfigurationSheet() {
+        const typeLabels = {
+            complete: 'Completo',
+            summary: 'Resumo',
+            urgency: 'Por Urgência',
+            cargo: 'Por Cargo'
+        };
+        const orientationLabel = this.reportConfig.orientation === 'landscape' ? 'Paisagem' : 'Retrato';
+        const typeLabel = typeLabels[this.reportConfig.type] || this.reportConfig.type;
+        const limitLabel = this.reportConfig.limit === 'all' ? 'Todos' : this.reportConfig.limit;
+        const rows = [
+            ['⚙️ CONFIGURAÇÃO APLICADA'],
+            [],
+            ['Título', this.reportConfig.title || 'Relatório de Licenças'],
+            ['Tipo', typeLabel],
+            ['Orientação', orientationLabel],
+            ['Colunas Selecionadas', this.reportConfig.columns.map(col => this.columnLabels[col] || col).join(', ') || '-'],
+            ['Período Inicial', this.reportConfig.dateStart ? this.formatDate(this.reportConfig.dateStart) : '-'],
+            ['Período Final', this.reportConfig.dateEnd ? this.formatDate(this.reportConfig.dateEnd, { raw: false }) : '-'],
+            ['Filtro de Urgência', this.reportConfig.urgencyFilter || 'Todas'],
+            ['Filtro de Cargo', this.reportConfig.cargoFilter || 'Todos'],
+            ['Limite de Registros', limitLabel || 'Todos'],
+            ['Incluir Estatísticas', this.reportConfig.includeStats ? 'Sim' : 'Não'],
+            ['Incluir Gráficos', this.reportConfig.includeCharts ? 'Sim' : 'Não'],
+            ['Incluir Cabeçalho', this.reportConfig.includeLogo ? 'Sim' : 'Não']
+        ];
+
+        return XLSX.utils.aoa_to_sheet(rows);
+    }
+
+    slugify(text) {
+        return text
+            .toString()
+            .normalize('NFD')
+            .replace(/[^\w\s-]/g, '')
+            .trim()
+            .replace(/\s+/g, '_')
+            .toLowerCase();
+    }
+
+    /**
+     * Mostrar mensagem de sucesso
+     */
+    showSuccessMessage(message) {
+        // Usar o sistema de notificações se disponível
+        if (this.dashboard.notificationManager) {
+            this.dashboard.notificationManager.show({
+                type: 'success',
+                title: 'Relatório Gerado',
+                message: message,
+                duration: 5000
+            });
+        } else {
+            alert(message);
+        }
+    }
 }

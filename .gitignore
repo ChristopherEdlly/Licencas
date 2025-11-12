@@ -1,0 +1,46 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Build outputs
+dist/
+build/
+out/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+.claude/
+
+# Exemplos (dados sensíveis)
+Exemplos/*.csv
+Exemplos/*.xlsx
+Exemplos/*.xls
+Exemplos/
+
+# Arquivos de teste
+teste*
+*.log
+/react-builder
+/react-builder/*
+react-builder/
+react-builder/*
+react-builder
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

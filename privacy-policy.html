@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidade - Dashboard Licenças Prêmio</title>
+    <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 3rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header .subtitle {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .last-update {
+            background: #f0f4ff;
+            padding: 1rem;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .section {
+            margin-bottom: 2.5rem;
+        }
+
+        .section h2 {
+            color: #667eea;
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section h3 {
+            color: #764ba2;
+            font-size: 1.3rem;
+            margin: 1.5rem 0 0.8rem;
+        }
+
+        .section p {
+            margin-bottom: 1rem;
+            color: #555;
+        }
+
+        .section ul {
+            margin-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .section li {
+            margin-bottom: 0.5rem;
+            color: #555;
+        }
+
+        .highlight-box {
+            background: #f8f9ff;
+            border-left: 4px solid #667eea;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 8px;
+        }
+
+        .contact-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            margin-top: 3rem;
+        }
+
+        .contact-box h3 {
+            color: white;
+            margin-bottom: 1rem;
+        }
+
+        .contact-box a {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .contact-box a:hover {
+            text-decoration: underline;
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #667eea;
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-top: 2rem;
+        }
+
+        .back-button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .container {
+                padding: 1.5rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="bi bi-shield-check"></i> Política de Privacidade</h1>
+            <p class="subtitle">Dashboard de Licenças Prêmio - SEFAZ-SE</p>
+        </div>
+
+        <div class="last-update">
+            <i class="bi bi-calendar-check"></i> Última atualização: 12 de novembro de 2025
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-info-circle"></i> Introdução</h2>
+            <p>Esta Política de Privacidade descreve como o Dashboard de Licenças Prêmio da Secretaria de Estado da Fazenda de Sergipe (SEFAZ-SE) coleta, usa, armazena e protege suas informações pessoais.</p>
+            <p>Ao utilizar este sistema, você concorda com as práticas descritas nesta política.</p>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-database"></i> Dados Coletados</h2>
+            
+            <h3>Dados de Autenticação</h3>
+            <ul>
+                <li><strong>Email corporativo</strong>: Seu endereço @fazenda.se.gov.br para autenticação via Microsoft Identity Platform</li>
+                <li><strong>Nome de usuário</strong>: Nome associado à sua conta Microsoft corporativa</li>
+                <li><strong>ID de usuário</strong>: Identificador único fornecido pela Microsoft</li>
+            </ul>
+
+            <h3>Dados da Planilha</h3>
+            <ul>
+                <li><strong>Informações de licenças</strong>: Dados sobre cronogramas de licenças-prêmio dos servidores</li>
+                <li><strong>Dados de servidores</strong>: Matrícula, nome, cargo, lotação, datas de licença</li>
+            </ul>
+
+            <h3>Dados Técnicos</h3>
+            <ul>
+                <li><strong>Cache local</strong>: Arquivos carregados são armazenados temporariamente no seu navegador para melhorar a experiência</li>
+                <li><strong>Preferências</strong>: Configurações de tema, filtros e visualização salvos localmente</li>
+            </ul>
+
+            <div class="highlight-box">
+                <strong><i class="bi bi-shield-check"></i> Importante:</strong> Todos os dados permanecem no seu navegador (localStorage). Não enviamos dados para servidores externos, exceto a conexão com SharePoint da Microsoft.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-gear"></i> Como Usamos Seus Dados</h2>
+            <p>Os dados coletados são utilizados exclusivamente para:</p>
+            <ul>
+                <li><strong>Autenticação</strong>: Verificar sua identidade e garantir acesso apenas a funcionários da SEFAZ-SE</li>
+                <li><strong>Visualização</strong>: Exibir cronogramas e estatísticas de licenças-prêmio</li>
+                <li><strong>Análise</strong>: Gerar relatórios e análises sobre o planejamento de licenças</li>
+                <li><strong>Funcionalidade</strong>: Salvar preferências de filtros, tema e configurações</li>
+            </ul>
+
+            <div class="highlight-box">
+                <strong><i class="bi bi-x-circle"></i> NÃO usamos seus dados para:</strong>
+                <ul style="margin: 0.5rem 0 0 1rem;">
+                    <li>Marketing ou publicidade</li>
+                    <li>Compartilhamento com terceiros</li>
+                    <li>Venda de informações</li>
+                    <li>Análise de comportamento para fins comerciais</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-lock"></i> Segurança e Proteção</h2>
+            
+            <h3>Medidas de Segurança</h3>
+            <ul>
+                <li><strong>Acesso restrito</strong>: Apenas emails @fazenda.se.gov.br podem acessar o sistema</li>
+                <li><strong>Autenticação Microsoft</strong>: Utiliza a plataforma segura Microsoft Identity (Azure AD)</li>
+                <li><strong>HTTPS</strong>: Todas as conexões são criptografadas via SSL/TLS</li>
+                <li><strong>Armazenamento local</strong>: Dados ficam apenas no seu navegador, não em servidores</li>
+                <li><strong>Tokens temporários</strong>: Tokens de autenticação expiram automaticamente</li>
+            </ul>
+
+            <h3>SharePoint Integration</h3>
+            <p>A conexão com SharePoint da Microsoft segue as melhores práticas:</p>
+            <ul>
+                <li>Permissões mínimas necessárias (apenas leitura de arquivos)</li>
+                <li>OAuth 2.0 para autenticação segura</li>
+                <li>Tokens de acesso de curta duração</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-share"></i> Compartilhamento de Dados</h2>
+            
+            <div class="highlight-box">
+                <strong><i class="bi bi-shield-check"></i> Transparência Total:</strong>
+                <p style="margin: 0.5rem 0 0 0;"><strong>Não armazenamos dados em nossos servidores</strong>, portanto, <strong>não temos dados para compartilhar</strong>. Todo processamento acontece no seu navegador (client-side).</p>
+            </div>
+            
+            <h3>Serviços de Terceiros Utilizados</h3>
+            <p>Os únicos serviços externos que podem ter acesso a dados são:</p>
+            <ul>
+                <li><strong>Microsoft (Azure AD)</strong>: Apenas para autenticação (email e nome)</li>
+                <li><strong>Microsoft SharePoint</strong>: Onde a planilha corporativa está armazenada (pela SEFAZ-SE)</li>
+                <li><strong>GitHub Pages</strong>: Hospeda os arquivos estáticos do site (HTML, CSS, JS) - não tem acesso a dados</li>
+            </ul>
+
+            <h3>Fluxo de Dados</h3>
+            <p>Para sua compreensão completa:</p>
+            <ol style="margin-left: 1.5rem;">
+                <li>Você faz login via Microsoft (Azure AD da SEFAZ-SE)</li>
+                <li>O navegador recebe um token temporário de acesso</li>
+                <li>Com esse token, o navegador busca a planilha do SharePoint</li>
+                <li>Os dados são processados <strong>localmente no seu navegador</strong></li>
+                <li>Nenhum dado passa por servidores da SEFAZ-SE</li>
+            </ol>
+
+            <h3>Políticas de Privacidade de Terceiros</h3>
+            <ul>
+                <li><strong>Microsoft</strong>: <a href="https://privacy.microsoft.com/pt-br/privacystatement" target="_blank">Declaração de Privacidade da Microsoft</a></li>
+                <li><strong>GitHub</strong>: <a href="https://docs.github.com/pt/site-policy/privacy-policies/github-privacy-statement" target="_blank">Política de Privacidade do GitHub</a></li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-person-check"></i> Seus Direitos e Controle de Dados</h2>
+            
+            <div class="highlight-box">
+                <strong><i class="bi bi-info-circle"></i> Importante:</strong> Como todos os dados ficam armazenados apenas no seu navegador (client-side), <strong>você tem controle total sobre eles</strong>. Não armazenamos nenhuma informação em servidores.
+            </div>
+
+            <h3>Como Gerenciar Seus Dados</h3>
+            <ul>
+                <li><strong>Limpar cache local</strong>: Vá em Configurações do navegador → Limpar dados de navegação → Dados em cache</li>
+                <li><strong>Remover preferências</strong>: Use as configurações do sistema ou limpe o localStorage do navegador</li>
+                <li><strong>Revogar autenticação</strong>: Faça logout da sua conta Microsoft corporativa</li>
+                <li><strong>Excluir tudo</strong>: Basta limpar os dados do site nas configurações do navegador</li>
+            </ul>
+
+            <h3>Direitos LGPD</h3>
+            <p>Como não armazenamos dados em servidores, os seguintes direitos podem ser exercidos diretamente por você:</p>
+            <ul>
+                <li><strong>Acesso</strong>: Inspecione o localStorage do navegador (F12 → Application → Local Storage)</li>
+                <li><strong>Exclusão</strong>: Limpe os dados do site nas configurações do navegador</li>
+                <li><strong>Portabilidade</strong>: Exporte seus relatórios através das funcionalidades do sistema</li>
+                <li><strong>Revogação</strong>: Logout e limpeza de cache removem sua autenticação</li>
+            </ul>
+
+            <h3>Dados na Microsoft</h3>
+            <p>Os únicos dados que não controlamos diretamente são os gerenciados pela Microsoft:</p>
+            <ul>
+                <li><strong>Autenticação</strong>: Gerenciada pelo Azure AD da SEFAZ-SE</li>
+                <li><strong>SharePoint</strong>: Planilha armazenada no SharePoint corporativo</li>
+            </ul>
+            <p>Para questões sobre esses dados, entre em contato com o TI da SEFAZ-SE ou acesse: <a href="https://account.microsoft.com/privacy" target="_blank">Privacidade Microsoft</a></p>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-clock-history"></i> Retenção de Dados</h2>
+            <ul>
+                <li><strong>Cache local</strong>: Mantido até que você limpe o cache ou desinstale o navegador</li>
+                <li><strong>Preferências</strong>: Armazenadas indefinidamente no localStorage do navegador</li>
+                <li><strong>Tokens de autenticação</strong>: Expiram automaticamente após período de inatividade</li>
+            </ul>
+            <p>Você pode limpar todos os dados locais a qualquer momento através das configurações do navegador.</p>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-cookie"></i> Cookies e Armazenamento Local</h2>
+            <p>Utilizamos armazenamento local (localStorage) do navegador para:</p>
+            <ul>
+                <li>Salvar preferências de tema (claro/escuro)</li>
+                <li>Manter filtros e configurações ativas</li>
+                <li>Armazenar cache de arquivos carregados</li>
+                <li>Guardar tokens de autenticação Microsoft</li>
+            </ul>
+            <p><strong>Não utilizamos cookies de rastreamento ou publicidade.</strong></p>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-pencil-square"></i> Alterações nesta Política</h2>
+            <p>Podemos atualizar esta Política de Privacidade periodicamente. Quando fizermos alterações significativas:</p>
+            <ul>
+                <li>Atualizaremos a data "Última atualização" no topo desta página</li>
+                <li>Notificaremos usuários através de aviso no sistema</li>
+                <li>O uso continuado após alterações implica aceitação dos novos termos</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-shield-check"></i> Microsoft Platform Agreement</h2>
+            <p>Este sistema utiliza a <strong>Microsoft Identity Platform</strong> para autenticação e acesso ao SharePoint. Ao usar este sistema, você também está sujeito aos termos da Microsoft.</p>
+            
+            <h3>Nossa Conformidade com os Termos Microsoft</h3>
+            <p>Declaramos e garantimos que:</p>
+            <ul>
+                <li>✅ Não prejudicamos a plataforma Microsoft ou outros usuários</li>
+                <li>✅ Não usamos APIs para construir bases de dados extensas sem justificativa</li>
+                <li>✅ Não usamos dados para marketing sem consentimento</li>
+                <li>✅ Respeitamos todas as leis aplicáveis e não exploramos vulnerabilidades</li>
+                <li>✅ Mantemos credenciais de acesso seguras e confidenciais</li>
+                <li>✅ Usamos apenas permissões mínimas necessárias (Files.Read, Sites.Read.All)</li>
+                <li>✅ Testamos regularmente a aplicação</li>
+                <li>✅ Não contém código malicioso ou enganoso</li>
+            </ul>
+
+            <h3>Seus Direitos na Plataforma Microsoft</h3>
+            <p>Você pode gerenciar permissões concedidas a esta aplicação através de:</p>
+            <ul>
+                <li><strong>Contas Microsoft</strong>: <a href="https://account.microsoft.com/privacy/app-access" target="_blank">Gerenciar Aplicativos</a></li>
+                <li><strong>Azure AD</strong>: Solicitar revogação de acesso ao administrador do TI</li>
+            </ul>
+
+            <div class="highlight-box">
+                <strong>Limitações Microsoft:</strong>
+                <p style="margin: 0.5rem 0 0 0;">A Microsoft fornece a plataforma "como está", sem garantias. A responsabilidade da Microsoft por danos é limitada conforme seus termos. Consulte: <a href="https://learn.microsoft.com/en-us/legal/microsoft-apis/terms-of-use" target="_blank">Microsoft Platform Agreement</a></p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-building"></i> Conformidade Legal</h2>
+            <p>Este sistema está em conformidade com:</p>
+            <ul>
+                <li><strong>LGPD</strong> (Lei Geral de Proteção de Dados - Lei nº 13.709/2018)</li>
+                <li><strong>Microsoft Platform Agreement</strong> (Termos de uso da plataforma Microsoft Identity)</li>
+                <li><strong>Regulamentos SEFAZ-SE</strong> sobre proteção de dados e segurança da informação</li>
+            </ul>
+        </div>
+
+        <div class="contact-box">
+            <h3><i class="bi bi-envelope"></i> Contato</h3>
+            <p>Para dúvidas, solicitações ou exercício de direitos relacionados à privacidade:</p>
+            <p><a href="mailto:christopher.caldas@fazenda.se.gov.br">christopher.caldas@fazenda.se.gov.br</a></p>
+            <p style="margin-top: 1rem; font-size: 0.9rem;">Secretaria de Estado da Fazenda de Sergipe<br>Desenvolvedor: Christopher Caldas</p>
+        </div>
+
+        <div style="text-align: center;">
+            <a href="index.html" class="back-button">
+                <i class="bi bi-arrow-left"></i>
+                Voltar ao Dashboard
+            </a>
+        </div>
+    </div>
+</body>
+</html>

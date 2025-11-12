@@ -68,6 +68,7 @@ class DashboardMultiPage {
         this.uiManager = new UIManager(this);
         this.modalManager = new ModalManager(this);
         this.calendarManager = new CalendarManager(this);
+        this.reportsManager = new ReportsManager(this);
         
         this.sortColumn = null;
         this.sortDirection = 'asc';
@@ -131,7 +132,11 @@ class DashboardMultiPage {
 
         } catch (error) {
             console.error('❌ Erro ao processar dados:', error);
-            alert(`Erro ao processar arquivo: ${error.message}`);
+            window.customModal?.alert({
+                title: 'Erro no Processamento',
+                message: `Erro ao processar arquivo: ${error.message}`,
+                type: 'danger'
+            });
         }
     }
 
@@ -1035,47 +1040,29 @@ class DashboardMultiPage {
      * Filtrar tabela por urgência
      */
     filterTableByUrgency(urgencyLevel, chartIndex) {
-        this.currentFilters.urgency = urgencyLevel.toLowerCase();
-        this.selectedChartIndex = chartIndex;
-        this.applyAllFilters();
-        this.updateChartHighlight();
+        this.filterManager.filterTableByUrgency(urgencyLevel, chartIndex);
     }
 
     /**
      * Filtrar tabela por cargo
      */
+    /**
+     * Filtrar tabela por cargo
+     */
     filterTableByCargo(cargo, chartIndex) {
-        this.currentFilters.cargo = cargo;
-        this.selectedChartIndex = chartIndex;
-        
-        const isLicencaPremio = this.allServidores.length > 0 && 
-                               this.allServidores[0].tipoTabela === 'licenca-premio';
-        
-        if (isLicencaPremio) {
-            this.applyLicencaFilters();
-        } else {
-            this.applyAllFilters();
-        }
-        
-        this.updateChartHighlight();
+        this.filterManager.filterTableByCargo(cargo, chartIndex);
     }
 
+    /**
+     * Limpar filtro de cargo (método mantido para compatibilidade)
+     */
     clearCargoFilter() {
-        this.currentFilters.cargo = '';
-        this.selectedChartIndex = -1;
-        
-        const isLicencaPremio = this.allServidores.length > 0 && 
-                               this.allServidores[0].tipoTabela === 'licenca-premio';
-        
-        if (isLicencaPremio) {
-            this.applyLicencaFilters();
-        } else {
-            this.applyAllFilters();
-        }
-        
-        this.updateChartHighlight();
+        this.filterManager.clearCargoFilter();
     }
 
+    /**
+     * Atualizar destaque do gráfico
+     */
     updateChartHighlight() {
         if (!this.chartManager.charts.urgency) return;
 

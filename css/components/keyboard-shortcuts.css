@@ -157,10 +157,6 @@
     border-bottom: none;
 }
 
-#keyboardShortcutsModal .modal-header .btn-close {
-    filter: invert(1);
-}
-
 #keyboardShortcutsModal .modal-title i {
     margin-right: 8px;
     font-size: 20px;

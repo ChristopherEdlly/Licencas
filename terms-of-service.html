@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Termos de Uso - Dashboard Licenças Prêmio</title>
+    <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 3rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header .subtitle {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .last-update {
+            background: #f0f4ff;
+            padding: 1rem;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .section {
+            margin-bottom: 2.5rem;
+        }
+
+        .section h2 {
+            color: #667eea;
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section h3 {
+            color: #764ba2;
+            font-size: 1.3rem;
+            margin: 1.5rem 0 0.8rem;
+        }
+
+        .section p {
+            margin-bottom: 1rem;
+            color: #555;
+        }
+
+        .section ul {
+            margin-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .section li {
+            margin-bottom: 0.5rem;
+            color: #555;
+        }
+
+        .highlight-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 8px;
+        }
+
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 8px;
+        }
+
+        .danger-box {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 8px;
+        }
+
+        .contact-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            margin-top: 3rem;
+        }
+
+        .contact-box h3 {
+            color: white;
+            margin-bottom: 1rem;
+        }
+
+        .contact-box a {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .contact-box a:hover {
+            text-decoration: underline;
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #667eea;
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-top: 2rem;
+        }
+
+        .back-button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .container {
+                padding: 1.5rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="bi bi-file-text"></i> Termos de Uso</h1>
+            <p class="subtitle">Dashboard de Licenças Prêmio - SEFAZ-SE</p>
+        </div>
+
+        <div class="last-update">
+            <i class="bi bi-calendar-check"></i> Última atualização: 12 de novembro de 2025
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-info-circle"></i> Aceitação dos Termos</h2>
+            <p>Ao acessar e utilizar o Dashboard de Licenças Prêmio da Secretaria de Estado da Fazenda de Sergipe (SEFAZ-SE), você concorda em cumprir e estar vinculado aos seguintes termos e condições de uso.</p>
+            <p><strong>Se você não concorda com qualquer parte destes termos, não utilize este sistema.</strong></p>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-person-badge"></i> Elegibilidade e Acesso</h2>
+            
+            <div class="success-box">
+                <strong><i class="bi bi-check-circle"></i> Usuários Autorizados:</strong>
+                <ul style="margin: 0.5rem 0 0 1rem;">
+                    <li>Servidores ativos da SEFAZ-SE</li>
+                    <li>Com email corporativo @fazenda.se.gov.br válido</li>
+                    <li>Autenticados via Microsoft Identity Platform</li>
+                </ul>
+            </div>
+
+            <h3>Responsabilidades do Usuário</h3>
+            <ul>
+                <li><strong>Uso legítimo</strong>: Utilizar o sistema apenas para fins profissionais relacionados às suas atividades na SEFAZ-SE</li>
+                <li><strong>Confidencialidade</strong>: Não compartilhar suas credenciais de acesso com terceiros</li>
+                <li><strong>Segurança</strong>: Manter suas credenciais seguras e reportar imediatamente qualquer acesso não autorizado</li>
+                <li><strong>Responsabilidade</strong>: Você é responsável por todas as atividades realizadas sob sua conta</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-laptop"></i> Uso Apropriado do Sistema</h2>
+            
+            <h3>Você PODE:</h3>
+            <div class="success-box">
+                <ul style="margin: 0;">
+                    <li>Visualizar cronogramas de licenças-prêmio</li>
+                    <li>Gerar relatórios e análises</li>
+                    <li>Exportar dados para fins profissionais</li>
+                    <li>Usar filtros e ferramentas de análise</li>
+                    <li>Salvar preferências e configurações locais</li>
+                </ul>
+            </div>
+
+            <h3>Você NÃO PODE:</h3>
+            <div class="danger-box">
+                <ul style="margin: 0;">
+                    <li>Compartilhar dados confidenciais fora da organização</li>
+                    <li>Usar o sistema para fins pessoais ou comerciais</li>
+                    <li>Tentar acessar áreas restritas ou dados não autorizados</li>
+                    <li>Fazer engenharia reversa, modificar ou descompilar o código</li>
+                    <li>Usar scripts automatizados para scraping de dados</li>
+                    <li>Sobrecarregar ou prejudicar o funcionamento do sistema</li>
+                    <li>Violar quaisquer leis ou regulamentos aplicáveis</li>
+                    <li>Compartilhar credenciais de acesso</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-shield-lock"></i> Propriedade Intelectual</h2>
+            <p>Todo o conteúdo, código-fonte, design, gráficos, interface e funcionalidades deste sistema são de propriedade da SEFAZ-SE ou licenciados para uso.</p>
+            
+            <h3>Licenças de Software</h3>
+            <ul>
+                <li><strong>Código próprio</strong>: Desenvolvido pela SEFAZ-SE para uso interno</li>
+                <li><strong>Bibliotecas de terceiros</strong>: Sujeitas às suas respectivas licenças (MIT, Apache, etc.)</li>
+                <li><strong>Microsoft Platform</strong>: Uso sob Microsoft Platform Agreement</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-database"></i> Proteção de Dados</h2>
+            <p>O tratamento de dados pessoais através deste sistema segue:</p>
+            <ul>
+                <li><strong>LGPD</strong> (Lei Geral de Proteção de Dados - Lei nº 13.709/2018)</li>
+                <li><strong>Política de Privacidade</strong> disponível em: <a href="privacy-policy.html">Política de Privacidade</a></li>
+                <li><strong>Regulamentos internos</strong> da SEFAZ-SE sobre proteção de dados</li>
+            </ul>
+
+            <h3>Seus Compromissos</h3>
+            <ul>
+                <li>Tratar dados de outros servidores com confidencialidade</li>
+                <li>Não divulgar informações pessoais de terceiros</li>
+                <li>Usar dados apenas para finalidades autorizadas</li>
+                <li>Reportar qualquer vazamento ou incidente de segurança</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-exclamation-triangle"></i> Limitações e Isenções</h2>
+            
+            <h3>Disponibilidade do Sistema</h3>
+            <p>O sistema é fornecido "como está". Não garantimos:</p>
+            <ul>
+                <li>Disponibilidade ininterrupta ou livre de erros</li>
+                <li>Correção de todos os bugs ou falhas</li>
+                <li>Compatibilidade com todos os navegadores e dispositivos</li>
+                <li>Manutenção indefinida do sistema</li>
+            </ul>
+
+            <div class="highlight-box">
+                <strong><i class="bi bi-info-circle"></i> Manutenções:</strong>
+                <p style="margin: 0.5rem 0 0 0;">O sistema pode passar por manutenções programadas ou emergenciais que resultarão em indisponibilidade temporária. Sempre que possível, avisaremos com antecedência.</p>
+            </div>
+
+            <h3>Limitação de Responsabilidade</h3>
+            <p>A SEFAZ-SE não será responsável por:</p>
+            <ul>
+                <li>Danos diretos ou indiretos decorrentes do uso ou impossibilidade de uso</li>
+                <li>Perda de dados por falha do navegador ou hardware do usuário</li>
+                <li>Decisões tomadas baseadas nas informações do sistema</li>
+                <li>Erros ou imprecisões nos dados importados de fontes externas</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-ban"></i> Suspensão e Término</h2>
+            
+            <h3>Podemos Suspender ou Terminar seu Acesso se:</h3>
+            <ul>
+                <li>Você violar qualquer termo deste acordo</li>
+                <li>Detectarmos uso inadequado ou suspeito</li>
+                <li>Houver ordem administrativa ou legal</li>
+                <li>Você deixar de ser funcionário da SEFAZ-SE</li>
+                <li>Por razões de segurança ou manutenção</li>
+            </ul>
+
+            <h3>Você Pode Cessar o Uso a Qualquer Momento</h3>
+            <p>Simplesmente pare de acessar o sistema. Recomendamos limpar o cache do navegador para remover dados locais.</p>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-gear"></i> Conformidade com Microsoft Platform</h2>
+            <p>Este sistema utiliza a Microsoft Identity Platform e está em conformidade com o <strong>Microsoft Platform Agreement</strong>.</p>
+            
+            <h3>Nossos Compromissos</h3>
+            <ul>
+                <li>Não usar APIs da Microsoft para fins proibidos</li>
+                <li>Não construir bases de dados extensas sem justificativa</li>
+                <li>Não usar dados para marketing sem consentimento</li>
+                <li>Manter segurança adequada de credenciais e tokens</li>
+                <li>Respeitar limites de uso e chamadas de API</li>
+                <li>Atualizar informações de registro quando necessário</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-pencil-square"></i> Modificações nos Termos</h2>
+            <p>Reservamo-nos o direito de modificar estes termos a qualquer momento. Quando fizermos alterações significativas:</p>
+            <ul>
+                <li>Atualizaremos a data "Última atualização" no topo desta página</li>
+                <li>Notificaremos usuários através de aviso no sistema</li>
+                <li>Publicaremos versão atualizada neste endereço</li>
+            </ul>
+            <p><strong>O uso continuado após alterações implica aceitação dos novos termos.</strong></p>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-gavel"></i> Lei Aplicável e Jurisdição</h2>
+            <p>Estes termos são regidos pelas leis brasileiras. Quaisquer disputas serão resolvidas no foro da comarca de Aracaju/SE.</p>
+        </div>
+
+        <div class="section">
+            <h2><i class="bi bi-check-circle"></i> Aceitação</h2>
+            <div class="success-box">
+                <p style="margin: 0;"><strong>Ao fazer login e utilizar este sistema, você declara que:</strong></p>
+                <ul style="margin: 0.5rem 0 0 1rem;">
+                    <li>Leu e entendeu estes Termos de Uso</li>
+                    <li>Concorda em cumprir todas as condições estabelecidas</li>
+                    <li>É funcionário autorizado da SEFAZ-SE</li>
+                    <li>Utilizará o sistema de forma responsável e ética</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="contact-box">
+            <h3><i class="bi bi-envelope"></i> Dúvidas ou Suporte</h3>
+            <p>Para questões sobre estes termos ou suporte técnico:</p>
+            <p><a href="mailto:christopher.caldas@fazenda.se.gov.br">christopher.caldas@fazenda.se.gov.br</a></p>
+            <p style="margin-top: 1rem; font-size: 0.9rem;">Secretaria de Estado da Fazenda de Sergipe<br>Desenvolvedor: Christopher Caldas</p>
+        </div>
+
+        <div style="text-align: center;">
+            <a href="index.html" class="back-button">
+                <i class="bi bi-arrow-left"></i>
+                Voltar ao Dashboard
+            </a>
+        </div>
+    </div>
+</body>
+</html>

@@ -8,6 +8,7 @@ This is a client-side web dashboard for visualizing and tracking Brazilian publi
 
 **Key characteristics:**
 - Pure client-side processing (no backend) - all data processing happens in the browser
+- **Hybrid architecture**: Vanilla JS dashboard + React Report Builder
 - Hosted on GitHub Pages
 - Brazilian Portuguese interface and date formats
 - No data persistence (by design for security/privacy)
@@ -15,100 +16,143 @@ This is a client-side web dashboard for visualizing and tracking Brazilian publi
 
 ## Running Locally
 
-**Development server:**
+**Dashboard (Vanilla JS - no build required):**
 ```bash
 python -m http.server 3000
 # OR
 npx serve .
 ```
-
 Then open `http://localhost:3000` in your browser.
 
-**No build step required** - this is a vanilla HTML/CSS/JavaScript application. Simply open `index.html` in a browser or serve the directory.
+**React Builder (requires build):**
+```bash
+npm install           # First time only
+npm run dev          # Development server on port 5173
+                     # Must be run from project root, NOT react-builder/
+```
+
+**Full production build:**
+```bash
+npm run build:gh-pages   # Builds React builder + copies static files to dist/
+# OR use the shell script (recommended - handles proper order):
+./build-local.sh         # Copies static files FIRST, then builds React
+                        # This prevents Vite from clearing the dist/ folder
+```
 
 ## Core Architecture
 
+### Hybrid Architecture
+This project uses a **two-part architecture**:
+
+1. **Dashboard (Vanilla JS)** - Main application, no build step required
+   - Pure ES6+ JavaScript, no frameworks
+   - Works standalone, served directly as static files
+
+2. **Report Builder (React)** - Advanced report builder, requires build step
+   - React 18 + Vite build tool
+   - Zustand for state management
+   - react-grid-layout for drag & drop
+   - Lives in `react-builder/` directory, builds to `dist/builder/`
+   - Integrated via `builderBridge.js` (cross-window communication)
+
 ### Technology Stack
-- **No build tools** - Pure vanilla JavaScript (ES6+), no transpilation or bundling
-- **External libraries:**
-  - SheetJS (xlsx.full.min.js) - Excel/CSV parsing
-  - Chart.js - Data visualization
-  - jsPDF + html2canvas - PDF export
-  - Bootstrap Icons - Icon font
-- **Storage:** localStorage for settings, IndexedDB for file caching (optional)
-- **Deployment:** Static files served via GitHub Pages
+
+**Dashboard:**
+- SheetJS (xlsx.full.min.js) - Excel/CSV parsing
+- Chart.js - Data visualization
+- jsPDF + html2canvas - PDF export
+- Bootstrap Icons - Icon font
+- localStorage for settings, IndexedDB for file caching
+
+**React Builder:**
+- React 18 + React DOM
+- Vite (build tool)
+- Zustand (state management)
+- react-grid-layout (drag & drop)
+- Chart.js (gráficos dinâmicos)
+
+**Deployment:** Static files served via GitHub Pages with GitHub Actions workflow
 
 ### File Structure
 
 ```
-js/
-├── cronogramaParser.js       # Main parser - interprets leave schedules from various date formats
-├── dashboard.js              # Main orchestrator (DashboardMultiPage class) - coordinates all managers
-├── themeManager.js           # Dark/light theme management (global singleton)
-├── settingsManager.js        # User settings persistence (localStorage)
-├── customDatePicker.js       # Custom date picker component
-├── customTooltip.js          # Tooltip system
-├── utils/
-│   ├── DateUtils.js         # Date parsing/formatting utilities
-│   ├── ValidationUtils.js   # Input validation
-│   ├── FormatUtils.js       # Display formatting
-│   └── FuzzySearch.js       # Fuzzy search algorithm
-├── modules/                  # Feature modules (instantiated by dashboard.js)
-│   ├── FileManager.js       # File upload, Excel→CSV conversion via SheetJS
-│   ├── FilterManager.js     # Basic search and filtering
-│   ├── AdvancedFilterManager.js  # Complex multi-field filtering
-│   ├── FilterChipsUI.js     # Visual filter chips display
-│   ├── SmartSearchManager.js     # Smart search with autocomplete
-│   ├── ChartManager.js      # Chart.js wrapper for urgency pie chart
-│   ├── CalendarManager.js   # Calendar heatmap view
-│   ├── ModalManager.js      # Modal dialogs
-│   ├── UIManager.js         # UI state and animations
-│   ├── TableSortManager.js  # Table sorting logic
-│   ├── CacheManager.js      # IndexedDB file caching
-│   ├── ValidationManager.js # Data validation rules
-│   ├── ErrorReporter.js     # Error collection and reporting
-│   ├── ExportManager.js     # CSV/Excel/PDF export
-│   ├── ReportsManager.js    # Reports page orchestration
-│   ├── ReportBuilderPremium.js  # Advanced report builder
-│   ├── builder-integration.js   # ES6 module integration for report builder
-│   ├── KeyboardShortcutsManager.js  # Global keyboard shortcuts
-│   ├── LoadingSkeletons.js  # Loading state UI
-│   ├── HighContrastManager.js    # Accessibility high contrast mode
-│   ├── BreadcrumbsManager.js     # Navigation breadcrumbs
-│   ├── NotificationManager.js    # Notification center
-│   ├── OperationalImpactAnalyzer.js  # Impact analysis
-│   └── ImprovedTooltipManager.js     # Enhanced tooltip system
-└── core/                     # Business logic (pure functions, no DOM)
-    ├── DataParser.js        # Data extraction from CSV rows
-    ├── LicencaCalculator.js # Leave period calculations (30-day months)
-    ├── UrgencyAnalyzer.js   # Urgency level calculation based on retirement proximity
-    └── AposentadoriaAnalyzer.js  # Retirement eligibility calculations
-
-css/
-├── new-styles.css           # Main stylesheet
-├── report-builder-premium.css  # Report builder styles
-├── reports-builder.css      # Reports page styles
-├── components/              # Component-specific styles
-│   ├── smart-search.css
-│   ├── advanced-filters.css
-│   ├── filter-chips.css
-│   ├── keyboard-shortcuts.css
-│   ├── loading-skeletons.css
-│   ├── high-contrast.css
-│   ├── breadcrumbs.css
-│   ├── notification-center.css
-│   ├── reports-page.css
-│   └── tips-page.css
-└── utilities/               # Utility classes (if needed)
+/
+├── index.html                    # Main dashboard entry point
+├── package.json                  # NPM dependencies for React builder
+├── vite.config.js               # Vite build configuration
+├── build-local.sh               # Local build script
+│
+├── js/                          # Dashboard JavaScript (vanilla)
+│   ├── dashboard.js             # Main orchestrator (DashboardMultiPage class)
+│   ├── cronogramaParser.js      # Leave schedule parser (handles Brazilian date formats)
+│   ├── builderBridge.js         # ⭐ Bridge between vanilla JS and React builder
+│   ├── builderIntegration.js    # Builder initialization
+│   ├── themeManager.js          # Dark/light theme (global singleton)
+│   ├── settingsManager.js       # User settings (localStorage)
+│   ├── utils/                   # Utility functions
+│   ├── modules/                 # Feature modules (~20 managers)
+│   └── core/                    # Business logic (pure functions, no DOM)
+│
+├── css/                         # Stylesheets
+│   ├── new-styles.css           # Main stylesheet
+│   ├── builder.css              # Builder integration styles
+│   └── components/              # Component-specific styles
+│
+├── react-builder/               # ⭐ React Report Builder (separate app)
+│   ├── index.html
+│   ├── src/
+│   │   ├── main.jsx
+│   │   ├── App.jsx
+│   │   ├── store/
+│   │   │   └── builderStore.js  # Zustand state management
+│   │   └── components/
+│   │       ├── BuilderCanvas.jsx
+│   │       ├── WidgetLibrary.jsx
+│   │       ├── PropertiesPanel.jsx
+│   │       ├── Toolbar.jsx
+│   │       ├── Widget.jsx
+│   │       └── widgets/         # ⭐ Widgets funcionais com dados reais
+│   │           ├── ChartWidget.jsx    # Chart.js com 4 visualizações
+│   │           ├── TableWidget.jsx    # Tabela com paginação/ordenação
+│   │           ├── StatWidget.jsx     # Cards de estatísticas
+│   │           └── TextWidget.jsx     # Blocos de texto editáveis
+│
+├── dist/                        # Build output (generated, not in git)
+│   ├── index.html               # Dashboard (copied)
+│   ├── css/                     # Styles (copied)
+│   ├── js/                      # Scripts (copied)
+│   └── builder/                 # React builder (built by Vite)
+│       ├── index.html
+│       └── assets/
+│
+└── .github/workflows/
+    └── deploy.yml               # GitHub Actions deployment
 ```
+
+**Key modules in js/modules/:**
+- FileManager, FilterManager, AdvancedFilterManager, FilterChipsUI
+- SmartSearchManager, ChartManager, CalendarManager
+- ExportManager, ValidationManager, ErrorReporter
+- KeyboardShortcutsManager, HighContrastManager
+- NotificationManager, OperationalImpactAnalyzer
+- TableSortManager, CacheManager, LoadingSkeletons
 
 ### Data Flow
 
+**Dashboard (Main App):**
 1. **File Upload** → FileManager converts Excel/CSV to CSV string
 2. **Parsing** → CronogramaParser extracts employee records with leave periods
 3. **Calculation** → Analyzers compute retirement dates and urgency levels
 4. **Rendering** → Dashboard updates UI (tables, charts, calendars)
 5. **Filtering** → FilterManager applies user filters to displayed data
+
+**Builder Integration:**
+1. User clicks "Report Builder" button → `builderBridge.openBuilder()` called
+2. Bridge opens builder in iframe modal or new tab
+3. Dashboard sends data to builder via `postMessage` API
+4. Builder manipulates data, creates custom reports
+5. Builder sends report back to dashboard via `postMessage`
+6. Dashboard receives and displays/saves the report
 
 ### Key Classes
 
@@ -134,6 +178,17 @@ css/
 
 **Manager Initialization Pattern:**
 All managers are initialized in `dashboard.init()` and stored as properties. Each manager receives `this` (dashboard reference) to enable cross-communication. Managers are conditionally initialized only if their classes are loaded (graceful degradation).
+
+**BuilderBridge** (`js/builderBridge.js`)
+- Singleton class that manages communication between vanilla JS dashboard and React builder
+- Handles opening builder in iframe modal (default) or new tab
+- Uses `postMessage` API for cross-window communication
+- Key methods:
+  - `openBuilder(options)` - Opens builder with optional data
+  - `sendDataToBuilder(data)` - Sends dashboard data to builder
+  - `onReportReceived(callback)` - Registers callback for when builder sends report back
+  - `prepareDataForBuilder()` - Extracts current dashboard data for sending
+- Global instance: `window.builderBridge`
 
 ## Date Format Handling
 
@@ -179,34 +234,15 @@ The parser uses flexible header matching - column names are case-insensitive and
 
 ## Common Development Tasks
 
-### Testing the Parser
+### Working with the Dashboard (Vanilla JS)
 
-Open browser console and enable debug mode:
+**Testing the Parser:**
 ```javascript
 dashboard.parser.setDebug(true);
 // Upload file and check console for detailed parsing logs
 ```
 
-### Modifying Urgency Thresholds
-
-Defaults are in `js/settingsManager.js`. Users can adjust via Settings page (persisted to localStorage).
-
-### Adding New Date Formats
-
-Add parsing logic to `CronogramaParser.parseCronograma()` handlers in `js/cronogramaParser.js`. The parser uses a chain-of-responsibility pattern - first handler that successfully parses wins.
-
-### Debugging Chart Issues
-
-Charts are managed by Chart.js. Access instances:
-```javascript
-window.dashboardChart  // Main urgency pie chart
-dashboard.charts.timeline  // Timeline bar chart
-```
-
-Theme changes auto-update charts via ThemeManager.
-
-### Adding a New Manager/Module
-
+**Adding a New Manager/Module:**
 1. Create the new manager class in `js/modules/YourManager.js`
 2. Add `<script>` tag in `index.html` (order matters - add before `dashboard.js`)
 3. Initialize in `dashboard.init()`:
@@ -217,25 +253,62 @@ Theme changes auto-update charts via ThemeManager.
    }
    ```
 4. Add corresponding CSS if needed in `css/components/your-component.css`
-5. Link CSS in `index.html` `<head>`
 
-### Working with Filters
+**Debugging Charts:**
+```javascript
+window.dashboardChart       // Main urgency pie chart
+dashboard.charts.timeline   // Timeline bar chart
+```
 
-The system has three filter layers:
-1. **Basic search** (`FilterManager`) - Text search in header
-2. **Advanced filters** (`AdvancedFilterManager`) - Multi-field sidebar filters (cargo, lotação, superintendência, urgency, status)
-3. **Filter chips** (`FilterChipsUI`) - Visual representation of active filters
+### Working with the React Builder
 
-All filter changes flow through `dashboard.applyAllFilters()` which updates `filteredServidores` and triggers UI refresh.
+**Development:**
+```bash
+npm run dev  # Run from PROJECT ROOT, not react-builder/
+             # Vite dev server on http://localhost:5173
+             # vite.config.js sets root: 'react-builder'
+```
 
-### Export System
+**Adding a New Component:**
+1. Create component in `react-builder/src/components/YourComponent.jsx`
+2. Import and use in `App.jsx` or other components
+3. For global state, use Zustand store in `react-builder/src/store/builderStore.js`
 
-`ExportManager` handles three export formats:
-- **Excel (.xlsx)** - Uses SheetJS to generate binary workbook
-- **CSV** - Simple comma-separated format
-- **PDF** - Uses jsPDF + html2canvas to capture DOM elements
+**Testing Integration:**
+```javascript
+// In dashboard console (with dashboard loaded)
+window.builderBridge.openBuilder({
+    mode: 'iframe',
+    data: window.dashboard.allServidores
+});
+```
 
-Reports page has an advanced export configuration modal with preview.
+### Building for Production
+
+**Local build:**
+```bash
+./build-local.sh  # Builds everything to dist/
+```
+
+**Manual build steps:**
+```bash
+npm run build              # Builds React builder to dist/builder/
+npm run copy-static        # Copies dashboard files to dist/
+# OR
+npm run build:gh-pages     # Does both in correct order
+
+# IMPORTANT: Order matters!
+# 1. copy-static creates dist/ and copies dashboard files
+# 2. build compiles React to dist/builder/ (emptyOutDir: false prevents clearing)
+```
+
+**Deployment:**
+- Push to `main` branch
+- GitHub Actions workflow (`.github/workflows/deploy.yml`) automatically:
+  1. Runs `npm ci` to install dependencies
+  2. Runs `npm run build` (builds React to dist/builder/)
+  3. Copies static files (dashboard) to dist/
+  4. Deploys dist/ folder to GitHub Pages
 
 ## Page Structure
 
@@ -275,11 +348,15 @@ The dashboard includes multiple accessibility enhancements:
 ## Important Constraints
 
 1. **No server-side storage** - Processing is 100% client-side for data privacy
-2. **No frameworks** - Vanilla JS only (GitHub Pages compatibility requirement)
+2. **Hybrid architecture** - Dashboard is vanilla JS (no frameworks), Builder is React (requires build)
 3. **Brazilian Portuguese** - All UI text, date formats, error messages
 4. **30-day months** - Leave calculations use 30-day periods, not calendar months
 5. **Flexible input** - Must handle messy real-world Excel data with missing fields
-6. **Script load order matters** - Utilities → Core → Modules → Dashboard (see `index.html` script tags)
+6. **Script load order matters** - In dashboard: Utilities → Core → Modules → Dashboard (see `index.html` script tags)
+7. **Builder is optional** - Dashboard works fully without React builder; builder provides advanced report creation only
+8. **Cross-window communication** - Dashboard and builder communicate via `postMessage` API through `builderBridge.js`
+9. **Build order is critical** - When building for production, static files must be copied to dist/ BEFORE running Vite build, otherwise Vite will clear dist/ even with `emptyOutDir: false` (see `build-local.sh` for correct order)
+10. **Vite root configuration** - Vite's `root: 'react-builder'` means all npm scripts run from project root, not the react-builder subdirectory
 
 ## Browser Console Utilities
 
@@ -314,6 +391,11 @@ window.dashboardChart        // Main urgency pie chart (global)
 window.settingsManager       // Global settings manager
 window.themeManager          // Global theme manager
 
+// Builder Bridge
+window.builderBridge         // Bridge to React builder
+window.builderBridge.openBuilder({ data: dashboard.allServidores })  // Open builder
+window.builderBridge.onReportReceived(data => console.log(data))     // Listen for reports
+
 // Debug mode
 dashboard.parser.setDebug(true)  // Enable verbose parsing logs
 ```
@@ -324,6 +406,7 @@ dashboard.parser.setDebug(true)  // Enable verbose parsing logs
 - `highContrastMode` - High contrast accessibility mode
 - `tooltipsEnabled` - Tooltip display preference
 - `animationsEnabled` - Animation preference
+- `builderReports` - Saved reports from React builder (last 10)
 
 **IndexedDB:**
 - Database: `DashboardCache`
@@ -423,3 +506,9 @@ dashboard.parser.setDebug(true)  // Enable verbose parsing logs
 - **IndexedDB unavailable** - Cache gracefully degrades; files not cached
 - **localStorage full** - Settings may fail to save; no warning shown
 - **Chart.js version** - Currently expects Chart.js v3+; v4 may have breaking changes
+
+**Build System:**
+- **Vite emptyOutDir: false** - Configured to NOT clear dist/ during build, but files should still be copied first as safeguard
+- **Path resolution** - `builderBridge.js` detects correct builder path based on environment (development vs production/GitHub Pages)
+- **Base path** - Vite uses `base: './'` for relative paths to work on GitHub Pages
+- **GitHub Actions order** - Workflow builds React first, then copies static files (opposite of local script)

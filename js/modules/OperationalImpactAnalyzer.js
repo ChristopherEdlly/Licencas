@@ -30,8 +30,6 @@ class OperationalImpactAnalyzer {
     }
     
     async init() {
-        console.log('📊 Inicializando OperationalImpactAnalyzer v5.0...');
-        console.log('✅ OperationalImpactAnalyzer inicializado');
     }
     
     /**
@@ -44,7 +42,6 @@ class OperationalImpactAnalyzer {
             return this.getEmptyAnalysis();
         }
         
-        console.log(`📊 Analisando impacto operacional de ${servidores.length} servidores...`);
         
         // Agrupar servidores por departamento
         const byDepartment = this.groupByDepartment(servidores);
@@ -74,7 +71,6 @@ class OperationalImpactAnalyzer {
             summary: this.generateSummary(departmentAnalyses, criticalPeriods)
         };
         
-        console.log('✅ Análise de impacto concluída:', result.summary);
         
         return result;
     }

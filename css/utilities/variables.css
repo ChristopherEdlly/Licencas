@@ -1,6 +1,68 @@
 /* ==================== VARIÁVEIS CSS ==================== */
 
+/**
+ * Design System - Spacing Scale
+ *
+ * Convenção:
+ * - Use --spacing-* para margens e padding de componentes
+ * - Use --gap-* para espaçamento entre elementos (flex/grid)
+ * - 1 unidade base = 4px (sistema de 4-point grid)
+ */
+
 :root {
+    /* ==================== SPACING SCALE ==================== */
+    /* Baseado em sistema de 4-point grid para consistência visual */
+
+    --spacing-0: 0;           /* 0px - sem espaçamento */
+    --spacing-1: 0.25rem;     /* 4px - espaçamento micro */
+    --spacing-2: 0.5rem;      /* 8px - espaçamento extra pequeno */
+    --spacing-3: 0.75rem;     /* 12px - espaçamento pequeno */
+    --spacing-4: 1rem;        /* 16px - espaçamento padrão */
+    --spacing-5: 1.25rem;     /* 20px - espaçamento médio */
+    --spacing-6: 1.5rem;      /* 24px - espaçamento médio-grande */
+    --spacing-8: 2rem;        /* 32px - espaçamento grande */
+    --spacing-10: 2.5rem;     /* 40px - espaçamento extra grande */
+    --spacing-12: 3rem;       /* 48px - espaçamento jumbo */
+    --spacing-16: 4rem;       /* 64px - espaçamento máximo */
+
+    /* ==================== GAP SCALE (Grid/Flex) ==================== */
+    /* Usados especificamente para gap em layouts flex/grid */
+
+    --gap-xs: var(--spacing-2);   /* 8px */
+    --gap-sm: var(--spacing-3);   /* 12px */
+    --gap-md: var(--spacing-4);   /* 16px */
+    --gap-lg: var(--spacing-6);   /* 24px */
+    --gap-xl: var(--spacing-8);   /* 32px */
+
+    /* ==================== COMPONENT SIZING ==================== */
+    /* Tamanhos consistentes para componentes interativos */
+
+    --size-input-sm: 2rem;        /* 32px - input compacto */
+    --size-input-md: 2.5rem;      /* 40px - input padrão */
+    --size-input-lg: 2.75rem;     /* 44px - input grande */
+    --size-input-xl: 3rem;        /* 48px - input extra grande */
+
+    --size-button-sm: 2rem;       /* 32px - botão compacto */
+    --size-button-md: 2.5rem;     /* 40px - botão padrão */
+    --size-button-lg: 2.75rem;    /* 44px - botão grande */
+    --size-button-xl: 3rem;       /* 48px - botão extra grande */
+
+    --size-icon-sm: 1rem;         /* 16px - ícone pequeno */
+    --size-icon-md: 1.25rem;      /* 20px - ícone médio */
+    --size-icon-lg: 1.5rem;       /* 24px - ícone grande */
+    --size-icon-xl: 2rem;         /* 32px - ícone extra grande */
+
+    /* ==================== BORDER RADIUS ==================== */
+    /* Consistência em arredondamento de bordas */
+
+    --radius-none: 0;
+    --radius-sm: 0.25rem;         /* 4px - arredondamento sutil */
+    --radius-md: 0.5rem;          /* 8px - arredondamento padrão */
+    --radius-lg: 0.75rem;         /* 12px - arredondamento grande */
+    --radius-xl: 1rem;            /* 16px - arredondamento extra grande */
+    --radius-2xl: 1.5rem;         /* 24px - arredondamento jumbo */
+    --radius-full: 9999px;        /* círculo/pílula perfeito */
+
     /* Cores base (mantidas entre temas) */
     --success: #10b981;
     --warning: #f97316;
@@ -14,13 +76,27 @@
     --chart-moderate: #eab308;
     --chart-low: #059669;
 
-    /* Tipografia e espaçamento */
-    --font-size-xs: 0.75rem;
-    --font-size-sm: 0.825rem;
-    --font-size-base: 0.875rem;
-    --font-size-lg: 1rem;
-    --font-size-xl: 1.125rem;
-    --font-size-2xl: 1.125rem;
+    /* ==================== TYPOGRAPHY SCALE ==================== */
+    /* Sistema modular de tipografia (escala menor para dashboard) */
+
+    --font-size-xs: 0.6875rem;    /* 11px - texto mínimo legível */
+    --font-size-sm: 0.75rem;      /* 12px - texto pequeno */
+    --font-size-base: 0.8125rem;  /* 13px - texto padrão */
+    --font-size-md: 0.875rem;     /* 14px - texto médio */
+    --font-size-lg: 1rem;         /* 16px - texto grande */
+    --font-size-xl: 1.125rem;     /* 18px - título pequeno */
+    --font-size-2xl: 1.25rem;     /* 20px - título médio */
+    --font-size-3xl: 1.5rem;      /* 24px - título grande */
+
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --font-weight-extrabold: 800;
+
+    --line-height-tight: 1.2;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.75;
 
     /* Layout */
     --sidebar-width: 260px;
@@ -40,6 +116,33 @@
     --gray-700: #334155;
     --gray-800: #1e293b;
     --gray-900: #0f172a;
+
+    /* ==================== Z-INDEX SCALE ==================== */
+    /* Controle de empilhamento vertical */
+
+    --z-base: 0;
+    --z-dropdown: 1000;
+    --z-sticky: 1020;
+    --z-fixed: 1030;
+    --z-modal-backdrop: 1040;
+    --z-modal: 1050;
+    --z-popover: 1060;
+    --z-tooltip: 1070;
+    --z-notification: 1080;
+
+    /* ==================== TRANSITION DURATIONS ==================== */
+    /* Animações consistentes */
+
+    --duration-instant: 0ms;
+    --duration-fast: 150ms;
+    --duration-normal: 250ms;
+    --duration-slow: 350ms;
+    --duration-slower: 500ms;
+
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --ease-out: cubic-bezier(0, 0, 0.2, 1);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* Light Theme (default) */

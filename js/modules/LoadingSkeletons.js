@@ -19,7 +19,6 @@ class LoadingSkeletons {
             shimmerEffect: true
         };
         
-        console.log('✅ LoadingSkeletons inicializado');
     }
 
     /**

@@ -45,12 +45,12 @@ class SmartSearchManager {
         this.addToHistory(query);
         this.lastQuery = query;
 
-        // Verificar cache
-        const cacheKey = this.getCacheKey(query, servidores.length);
-        if (this.searchCache.has(cacheKey)) {
-            console.log('🎯 Busca do cache:', query);
-            return this.searchCache.get(cacheKey);
-        }
+        // NÃO USAR CACHE - o cache estava retornando resultados vazios errados
+        // const cacheKey = this.getCacheKey(query, servidores.length);
+        // if (this.searchCache.has(cacheKey)) {
+        //     console.log('🎯 Busca do cache:', query);
+        //     return this.searchCache.get(cacheKey);
+        // }
 
         let results;
 
@@ -59,17 +59,44 @@ class SmartSearchManager {
             // Busca multi-campo (separado por vírgula)
             console.log('🔍 Busca multi-campo:', query);
             results = this.multiFieldSearch(query, servidores);
-        } else if (query.length < this.config.minQueryLength) {
-            // Query muito curta - busca exata
-            results = this.exactSearch(query, servidores);
         } else {
-            // Busca fuzzy padrão
-            console.log('🔍 Busca fuzzy:', query);
-            results = this.fuzzySearch(query, servidores);
+            // Usar busca exata E fuzzy combinadas
+            console.log('🔍 Busca substring:', query);
+            const exactResults = this.exactSearch(query, servidores);
+            
+            // Se query >= 3 chars, também fazer busca fuzzy e combinar resultados
+            if (query.length >= 3) {
+                console.log('🔍 Também fazendo busca fuzzy...');
+                const fuzzyResults = this.fuzzySearch(query, servidores);
+                
+                // Combinar resultados (removendo duplicatas)
+                const combinedMap = new Map();
+                
+                // Adicionar resultados exatos primeiro (prioridade)
+                exactResults.forEach(s => {
+                    const key = s.nome || s.servidor || s.cpf;
+                    if (key) combinedMap.set(key, s);
+                });
+                
+                // Adicionar resultados fuzzy
+                fuzzyResults.forEach(s => {
+                    const key = s.nome || s.servidor || s.cpf;
+                    if (key && !combinedMap.has(key)) {
+                        combinedMap.set(key, s);
+                    }
+                });
+                
+                results = Array.from(combinedMap.values());
+                console.log(`  → Combinados: ${exactResults.length} exatos + ${fuzzyResults.length} fuzzy = ${results.length} total`);
+            } else {
+                results = exactResults;
+            }
         }
 
-        // Salvar no cache
-        this.searchCache.set(cacheKey, results);
+        console.log(`✅ Busca "${query}": ${results.length} resultados`);
+
+        // NÃO salvar no cache por enquanto
+        // this.searchCache.set(cacheKey, results);
 
         return results;
     }
@@ -83,17 +110,32 @@ class SmartSearchManager {
      * @returns {Array}
      */
     exactSearch(query, servidores) {
-        const normalizedQuery = FuzzySearch.normalize(query);
+        const normalizedQuery = FuzzySearch.normalize(query).toLowerCase();
+        
+        // Dividir a query em palavras
+        const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 0);
 
-        return servidores.filter(servidor => {
-            const nome = FuzzySearch.normalize(servidor.servidor || '');
-            const cargo = FuzzySearch.normalize(servidor.cargo || '');
-            const lotacao = FuzzySearch.normalize(servidor.lotacao || '');
+        const results = servidores.filter(servidor => {
+            const nome = FuzzySearch.normalize(servidor.nome || servidor.servidor || '').toLowerCase();
+            const cargo = FuzzySearch.normalize(servidor.cargo || '').toLowerCase();
+            const lotacao = FuzzySearch.normalize(servidor.lotacao || '').toLowerCase();
+            
+            // Dividir o nome em palavras
+            const nomeWords = nome.split(/\s+/);
 
-            return nome.includes(normalizedQuery) ||
-                   cargo.includes(normalizedQuery) ||
-                   lotacao.includes(normalizedQuery);
+            // Verificar se TODAS as palavras da query estão presentes no nome (ou cargo ou lotação)
+            const matchesName = queryWords.every(qWord => 
+                nomeWords.some(nWord => nWord.startsWith(qWord) || nWord.includes(qWord))
+            );
+            
+            const matchesCargo = queryWords.every(qWord => cargo.includes(qWord));
+            const matchesLotacao = queryWords.every(qWord => lotacao.includes(qWord));
+
+            return matchesName || matchesCargo || matchesLotacao;
         });
+
+        console.log(`  → Busca exata encontrou ${results.length} resultados`);
+        return results;
     }
 
     /**
@@ -104,17 +146,46 @@ class SmartSearchManager {
      * @returns {Array}
      */
     fuzzySearch(query, servidores) {
-        const fields = ['servidor', 'cargo', 'lotacao', 'superintendencia', 'subsecretaria'];
+        const normalizedQuery = FuzzySearch.normalize(query).toLowerCase();
+        const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 0);
+        
+        const results = servidores.filter(servidor => {
+            const nome = FuzzySearch.normalize(servidor.nome || servidor.servidor || '').toLowerCase();
+            const cargo = FuzzySearch.normalize(servidor.cargo || '').toLowerCase();
+            const lotacao = FuzzySearch.normalize(servidor.lotacao || '').toLowerCase();
+            
+            // Dividir em palavras
+            const nomeWords = nome.split(/\s+/);
+            const cargoWords = cargo.split(/\s+/);
+            const lotacaoWords = lotacao.split(/\s+/);
+            
+            // Para cada palavra da query, verificar se há similaridade com alguma palavra do nome/cargo/lotação
+            const matchesNome = queryWords.every(qWord => 
+                nomeWords.some(nWord => {
+                    const similarity = FuzzySearch.similarity(qWord, nWord);
+                    return similarity >= 0.7; // 70% de similaridade (mais permissivo)
+                })
+            );
+            
+            const matchesCargo = queryWords.every(qWord => 
+                cargoWords.some(cWord => {
+                    const similarity = FuzzySearch.similarity(qWord, cWord);
+                    return similarity >= 0.7;
+                })
+            );
+            
+            const matchesLotacao = queryWords.every(qWord => 
+                lotacaoWords.some(lWord => {
+                    const similarity = FuzzySearch.similarity(qWord, lWord);
+                    return similarity >= 0.7;
+                })
+            );
+            
+            return matchesNome || matchesCargo || matchesLotacao;
+        });
 
-        const results = FuzzySearch.searchObjects(
-            query,
-            servidores,
-            fields,
-            this.config.fuzzyThreshold
-        );
-
-        // Retornar apenas os objetos (sem score)
-        return results.map(r => r.object);
+        console.log(`  → Busca fuzzy encontrou ${results.length} resultados (threshold: 0.7)`);
+        return results;
     }
 
     /**
@@ -153,7 +224,7 @@ class SmartSearchManager {
 
         // Campos para buscar
         const fields = [
-            servidor.servidor || '',
+            servidor.nome || servidor.servidor || '',
             servidor.cargo || '',
             servidor.lotacao || '',
             servidor.superintendencia || '',
@@ -211,7 +282,7 @@ class SmartSearchManager {
         const lotacoes = new Set();
 
         for (const servidor of servidores) {
-            if (servidor.servidor) names.add(servidor.servidor);
+            if (servidor.nome || servidor.servidor) names.add(servidor.nome || servidor.servidor);
             if (servidor.cargo) cargos.add(servidor.cargo);
             if (servidor.lotacao) lotacoes.add(servidor.lotacao);
         }

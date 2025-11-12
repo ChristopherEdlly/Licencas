@@ -86,6 +86,9 @@ class DashboardMultiPage {
         // Inicializar ExportManager
         this.exportManager = null;
 
+        // Inicializar AdvancedFiltersBuilder
+        this.advancedFiltersBuilder = null;
+
         this.init();
     }
 
@@ -133,17 +136,32 @@ class DashboardMultiPage {
             console.log('✅ SmartSearchManager inicializado');
         }
 
-        // Inicializar AdvancedFilterManager
-        if (typeof AdvancedFilterManager !== 'undefined') {
-            this.advancedFilterManager = new AdvancedFilterManager(this);
-            console.log('✅ AdvancedFilterManager inicializado');
+        // AdvancedFilterManager foi substituído pelo AdvancedFiltersBuilder
+        // Mantendo variável para compatibilidade, mas apontando para null
+        this.advancedFilterManager = null;
+
+        // Inicializar AdvancedFiltersBuilder (novo builder visual de filtros)
+        if (typeof AdvancedFiltersBuilder !== 'undefined') {
+            try {
+                this.advancedFiltersBuilder = new AdvancedFiltersBuilder(this);
+                // manter referência global legada, caso outros módulos utilizem
+                if (typeof advancedFiltersBuilder !== 'undefined') {
+                    advancedFiltersBuilder = this.advancedFiltersBuilder;
+                }
+                if (typeof window !== 'undefined') {
+                    window.advancedFiltersBuilder = this.advancedFiltersBuilder;
+                }
+                console.log('✅ AdvancedFiltersBuilder inicializado');
+            } catch (error) {
+                console.error('Erro ao inicializar AdvancedFiltersBuilder:', error);
+            }
+        } else {
+            console.warn('⚠️ AdvancedFiltersBuilder não disponível');
         }
 
-        // Inicializar FilterChipsUI
-        if (typeof FilterChipsUI !== 'undefined' && this.advancedFilterManager) {
-            this.filterChipsUI = new FilterChipsUI(this.advancedFilterManager, this);
-            console.log('✅ FilterChipsUI inicializado');
-        }
+        // FilterChipsUI foi desabilitado (compromete layout da home)
+        // Filtros agora são gerenciados exclusivamente pelo AdvancedFiltersBuilder
+        this.filterChipsUI = null;
 
         // Inicializar KeyboardShortcutsManager
         if (typeof KeyboardShortcutsManager !== 'undefined') {
@@ -270,7 +288,15 @@ class DashboardMultiPage {
         if (clearCacheBtn) {
             clearCacheBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                if (confirm('Deseja realmente limpar todo o cache de arquivos?')) {
+                const confirmed = await window.customModal?.confirm({
+                    title: 'Limpar Cache',
+                    message: 'Deseja realmente limpar todo o cache de arquivos?',
+                    type: 'warning',
+                    confirmText: 'Sim, limpar',
+                    cancelText: 'Cancelar'
+                });
+                
+                if (confirmed) {
                     await this.cacheManager.clearAll();
                     await this.updateRecentFilesUI();
                     recentFilesDropdown.style.display = 'none';
@@ -475,7 +501,11 @@ class DashboardMultiPage {
             }
         } catch (error) {
             console.error('Erro ao deletar arquivo do cache:', error);
-            alert('Erro ao remover arquivo do cache');
+            window.customModal?.alert({
+                title: 'Erro',
+                message: 'Erro ao remover arquivo do cache',
+                type: 'danger'
+            });
         }
     }
 
@@ -1015,9 +1045,19 @@ class DashboardMultiPage {
         }
         
         if (btnClearAllFilters) {
-            btnClearAllFilters.addEventListener('click', () => {
-                // Limpar todos os filtros
-                this.clearAllFilters();
+            btnClearAllFilters.addEventListener('click', async () => {
+                // Confirmar antes de limpar
+                const confirmed = await window.customModal.confirm({
+                    title: 'Limpar Todos os Filtros',
+                    message: 'Tem certeza que deseja remover todos os filtros aplicados? Esta ação não pode ser desfeita.',
+                    type: 'warning',
+                    confirmText: 'Limpar Tudo',
+                    cancelText: 'Cancelar'
+                });
+
+                if (confirmed) {
+                    this.clearAllFilters();
+                }
             });
         }
         
@@ -1045,8 +1085,12 @@ class DashboardMultiPage {
                 icon: type === 'success' ? 'bi-check-circle' : type === 'error' ? 'bi-x-circle' : 'bi-exclamation-circle'
             });
         } else {
-            // fallback mínimo
-            alert(message);
+            // fallback usando customModal
+            window.customModal?.alert({
+                title: type === 'success' ? 'Sucesso' : type === 'error' ? 'Erro' : 'Aviso',
+                message: message,
+                type: type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'
+            });
         }
     }
 
@@ -1065,15 +1109,9 @@ class DashboardMultiPage {
         if (this.currentFilters.cargo) activeCount++;
         if (this.currentFilters.urgency && this.currentFilters.urgency !== 'all') activeCount++;
 
-        // Contar filtros avançados se existirem
-        if (window.advancedFilterManager && window.advancedFilterManager.activeFilters) {
-            const advFilters = window.advancedFilterManager.activeFilters;
-            if (advFilters.cargo) activeCount++;
-            if (advFilters.lotacao) activeCount++;
-            if (advFilters.superintendencia) activeCount++;
-            if (advFilters.subsecretaria) activeCount++;
-            if (advFilters.urgencia && advFilters.urgencia !== 'all') activeCount++;
-            if (advFilters.status && advFilters.status.length > 0) activeCount += advFilters.status.length;
+        // Contar filtros avançados do AdvancedFiltersBuilder
+        if (this.advancedFiltersBuilder && this.advancedFiltersBuilder.filters) {
+            activeCount += this.advancedFiltersBuilder.filters.length;
         }
 
         // Atualizar badge
@@ -1137,62 +1175,103 @@ class DashboardMultiPage {
     }
 
     switchPage(pageId) {
-        // Salvar página atual no localStorage
-        localStorage.setItem('sutri_lastPage', pageId);
-        
-    // Atualizar botões de navegação
-        document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('active'));
-        document.querySelector(`.nav-link[data-page="${pageId}"]`)?.classList.add('active');
+        const allowedPages = new Set(['home', 'calendar', 'timeline', 'reports', 'notifications', 'tips', 'settings']);
 
-    // Mostrar/ocultar páginas
-        document.querySelectorAll('.page-content').forEach(page => page.classList.remove('active'));
-        const targetPage = document.getElementById(`${pageId}Page`);
-        targetPage?.classList.add('active');
-
-    // Atualizar título do documento (aba do navegador)
-        const titles = {
-            'home': 'Visão Geral',
-            'calendar': 'Calendário',
-            'timeline': 'Timeline',
-            'reports': 'Relatórios',
-            'notifications': 'Notificações',
-            'tips': 'Dicas e Atalhos',
-            'settings': 'Configurações'
-        };
-        document.title = `${titles[pageId] || pageId} - Dashboard Licenças`;
+        if (!allowedPages.has(pageId)) {
+            console.warn('[Dashboard] Página desconhecida informada a switchPage:', pageId);
+            pageId = 'home';
+        }
 
         this.currentPage = pageId;
 
-    // Inicializar conteúdo específico da página
+        try {
+            localStorage.setItem('sutri_lastPage', pageId);
+        } catch (error) {
+            console.warn('[Dashboard] Não foi possível persistir a página atual no localStorage:', error);
+        }
+
+        document.querySelectorAll('.nav-link.active').forEach(btn => btn.classList.remove('active'));
+        const activeLink = document.querySelector(`.nav-link[data-page="${pageId}"]`);
+        if (activeLink) {
+            activeLink.classList.add('active');
+        }
+
+        let targetPage = null;
+        const targetId = `${pageId}Page`;
+        document.querySelectorAll('.page-content').forEach(page => {
+            const isActive = page.id === targetId;
+            page.classList.toggle('active', isActive);
+            if (isActive) {
+                targetPage = page;
+            }
+        });
+
+        if (!targetPage) {
+            console.warn('[Dashboard] Conteúdo da página não encontrado para:', pageId);
+        }
+
+        const titles = {
+            home: 'Visão Geral',
+            calendar: 'Calendário',
+            timeline: 'Timeline',
+            reports: 'Relatórios',
+            notifications: 'Notificações',
+            tips: 'Dicas e Atalhos',
+            settings: 'Configurações'
+        };
+        const pageTitle = titles[pageId] || pageId;
+        document.title = `${pageTitle} - Dashboard Licenças`;
+
+        const pageTitleElement = document.querySelector('[data-role="current-page-title"], .current-page-title');
+        if (pageTitleElement) {
+            pageTitleElement.textContent = pageTitle;
+        }
+
+        const safeInvoke = (label, fn) => {
+            try {
+                if (typeof fn === 'function') {
+                    fn();
+                }
+            } catch (error) {
+                console.error(`[Dashboard] Falha ao preparar a página "${label}":`, error);
+            }
+        };
+
         if (pageId === 'calendar') {
-            this.updateYearlyHeatmap();
+            safeInvoke('calendar', () => this.updateYearlyHeatmap());
         } else if (pageId === 'timeline') {
-            this.createTimelineChart();
+            safeInvoke('timeline', () => this.createTimelineChart());
         } else if (pageId === 'reports') {
-            // Abrir Premium Builder
-            console.log('📊 Navegando para reports, abrindo Premium Builder...');
-            if (this.reportBuilderPremium) {
-                this.reportBuilderPremium.open();
-            } else if (this.reportsManager) {
-                this.reportsManager.showReportsPage();
-            }
-            // Atualizar estatísticas da página de relatórios
-            this.updateReportsStats();
+            safeInvoke('reports', () => {
+                console.log('📊 Navegando para reports...');
+                if (this.reportBuilderPremium && typeof this.reportBuilderPremium.open === 'function') {
+                    this.reportBuilderPremium.open();
+                } else if (this.reportsManager && typeof this.reportsManager.showReportsPage === 'function') {
+                    this.reportsManager.showReportsPage();
+                }
+
+                if (typeof this.updateReportsStats === 'function') {
+                    this.updateReportsStats();
+                }
+
+                if (this.reportsManager && typeof this.reportsManager.schedulePreview === 'function') {
+                    this.reportsManager.schedulePreview();
+                }
+            });
         } else if (pageId === 'home') {
-            this.createUrgencyChart();
-            this.updateTable();
+            safeInvoke('home-chart', () => this.createUrgencyChart());
+            safeInvoke('home-table', () => this.updateTable());
         } else if (pageId === 'notifications') {
-            // Atualizar estatísticas e tabela de notificações
-            this.updateNotificationsStats();
-            this.renderNotificationsTable();
+            safeInvoke('notifications-stats', () => this.updateNotificationsStats());
+            safeInvoke('notifications-table', () => this.renderNotificationsTable());
         } else if (pageId === 'tips') {
-            // Popular atalhos de teclado na página de dicas
-            this.populateTipsKeyboardShortcuts();
+            safeInvoke('tips-shortcuts', () => this.populateTipsKeyboardShortcuts());
         } else if (pageId === 'settings') {
-            // Inicializar UI de configurações
-            if (window.settingsManager) {
-                window.settingsManager.updateUI();
-            }
+            safeInvoke('settings-ui', () => {
+                if (window.settingsManager && typeof window.settingsManager.updateUI === 'function') {
+                    window.settingsManager.updateUI();
+                }
+            });
         }
     }
 
@@ -1258,7 +1337,11 @@ class DashboardMultiPage {
                 statusElement.className = 'file-status error';
                 statusElement.textContent = 'Tipo de arquivo não suportado. Use arquivos CSV ou Excel';
             } else {
-                alert('Tipo de arquivo não suportado. Use arquivos CSV ou Excel (.csv, .xlsx, .xls)');
+                window.customModal?.alert({
+                    title: 'Arquivo Inválido',
+                    message: 'Tipo de arquivo não suportado. Use arquivos CSV ou Excel (.csv, .xlsx, .xls)',
+                    type: 'warning'
+                });
             }
             event.target.value = '';
             return;
@@ -1467,7 +1550,11 @@ class DashboardMultiPage {
                     <span class="file-info">✗ ${error.message}</span>
                 `;
             } else {
-                alert('Erro ao processar arquivo: ' + error.message);
+                window.customModal?.alert({
+                    title: 'Erro ao Processar',
+                    message: `Erro ao processar arquivo: ${error.message}`,
+                    type: 'danger'
+                });
             }
 
             // Reset file input on error
@@ -2656,99 +2743,8 @@ class DashboardMultiPage {
     }
 
     applyAllFilters() {
-        // Early return if no data
-        if (!this.allServidores || this.allServidores.length === 0) {
-            this.filteredServidores = [];
-            this.updateStats();
-            this.updateHeaderStatus();
-            return;
-        }
-
-    // Medição rápida de performance para diagnóstico (opcional)
-        const startTime = performance.now();
-
-        const filters = this.currentFilters;
-
-        this.filteredServidores = this.allServidores.filter(servidor => {
-            // Verificação rápida de idade primeiro (filtro mais comum)
-            if (servidor.idade < filters.age.min || servidor.idade > filters.age.max) {
-                return false;
-            }
-
-            // Filtro de busca (retorno antecipado para melhorar performance)
-            if (filters.search) {
-                const searchTerm = filters.search.toLowerCase();
-                const serverName = servidor.nome.toLowerCase();
-                const serverLotacao = servidor.lotacao?.toLowerCase() || '';
-                const serverCargo = servidor.cargo?.toLowerCase() || '';
-
-                if (!serverName.includes(searchTerm) &&
-                    !serverLotacao.includes(searchTerm) &&
-                    !serverCargo.includes(searchTerm)) {
-                    return false;
-                }
-            }
-
-            // Urgency filter - apenas aplicar se o servidor tem urgência (cronogramas regulares)
-            if (filters.urgency && servidor.nivelUrgencia && servidor.nivelUrgencia.toLowerCase() !== filters.urgency) {
-                return false;
-            }
-
-            // Cargo filter - aplicar se houver filtro de cargo ativo
-            if (filters.cargo && servidor.cargo !== filters.cargo) {
-                return false;
-            }
-
-            // Otimização do filtro por período - verificar apenas se o servidor possui licenças
-            if (servidor.licencas && servidor.licencas.length > 0) {
-                if (filters.period.type === 'yearly' && (filters.period.start || filters.period.end)) {
-                    const hasLicenseInPeriod = servidor.licencas.some(licenca => {
-                        if (!licenca.inicio) return false;
-                        const year = licenca.inicio.getFullYear();
-                        return year >= filters.period.start && year <= filters.period.end;
-                    });
-                    if (!hasLicenseInPeriod) return false;
-
-                } else if (filters.period.type === 'monthly' && filters.period.year) {
-                    const hasLicenseInPeriod = servidor.licencas.some(licenca => {
-                        if (!licenca.inicio) return false;
-                        const year = licenca.inicio.getFullYear();
-                        const month = licenca.inicio.getMonth();
-                        return year === filters.period.year &&
-                            month >= filters.period.monthStart &&
-                            month <= filters.period.monthEnd;
-                    });
-                    if (!hasLicenseInPeriod) return false;
-
-                } else if (filters.period.type === 'daily' && filters.period.year !== undefined && filters.period.month !== undefined) {
-                    const hasLicenseInPeriod = servidor.licencas.some(licenca => {
-                        if (!licenca.inicio) return false;
-                        const year = licenca.inicio.getFullYear();
-                        const month = licenca.inicio.getMonth();
-                        return year === filters.period.year && month === filters.period.month;
-                    });
-                    if (!hasLicenseInPeriod) return false;
-                }
-            }
-
-            return true;
-        });
-
-        const endTime = performance.now();
-
-        this.updateStats();
-        this.updateHeaderStatus();
-        this.updateFiltersBadge();
-
-    // Atualizar página atual
-        if (this.currentPage === 'home') {
-            this.updateUrgencyChart();
-            this.updateTable();
-        } else if (this.currentPage === 'calendar') {
-            this.updateYearlyHeatmap();
-        } else if (this.currentPage === 'timeline') {
-            this.updateTimelineChart();
-        }
+        // Redirecionar para o sistema unificado de filtros
+        this.applyFiltersAndSearch();
     }
 
     // Charts
@@ -4285,27 +4281,46 @@ class DashboardMultiPage {
 
         const mappedUrgency = urgencyMap[urgencyLevel];
 
-        // Toggle filter instead of just highlighting
-        if (this.currentFilters.urgency === mappedUrgency) {
-            // Remove filter
-            this.currentFilters.urgency = '';
-            document.querySelectorAll('.legend-item').forEach(item => {
-                item.classList.remove('selected');
-            });
-        } else {
-            // Add filter
-            document.querySelectorAll('.legend-item').forEach(item => {
-                item.classList.remove('selected');
-            });
-            this.currentFilters.urgency = mappedUrgency;
-            const urgencyElement = document.querySelector(`[data-urgency="${urgencyLevel}"]`);
-            if (urgencyElement) {
-                urgencyElement.classList.add('selected');
+        // Integração completa com o sistema de filtros avançados
+        if (this.advancedFiltersBuilder) {
+            // Verificar se já existe filtro de urgência com este valor (toggle)
+            const existingFilter = this.advancedFiltersBuilder.filters.find(
+                f => f.type === 'urgencia' && f.value.includes(urgencyMap[urgencyLevel])
+            );
+            
+            if (existingFilter) {
+                // TOGGLE: Remover filtro se já existe
+                this.advancedFiltersBuilder.filters = this.advancedFiltersBuilder.filters.filter(f => f.type !== 'urgencia');
+                
+                // Remover destaque do card
+                document.querySelectorAll('.legend-card').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                // Atualizar interface e aplicar
+                this.advancedFiltersBuilder.renderActiveFilters();
+                this.advancedFiltersBuilder.updateResultsPreview();
+                this.advancedFiltersBuilder.applyFilters();
+            } else {
+                // ADICIONAR: Novo filtro
+                // Remover destaque de todos os cards
+                document.querySelectorAll('.legend-card').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                // Destacar o card clicado
+                const urgencyElement = document.querySelector(`[data-urgency="${urgencyLevel}"]`);
+                if (urgencyElement) {
+                    urgencyElement.classList.add('active');
+                }
+                
+                // Remover todos os filtros de urgência existentes
+                this.advancedFiltersBuilder.filters = this.advancedFiltersBuilder.filters.filter(f => f.type !== 'urgencia');
+                
+                // Adicionar o novo filtro de urgência ao builder
+                this.advancedFiltersBuilder.addFilterProgrammatically('urgencia', mappedUrgency);
             }
         }
-
-    // Aplicar filtros
-        this.applyAllFilters();
     }
 
     // Função para filtrar por cargo nas tabelas de licenças prêmio
@@ -4318,20 +4333,88 @@ class DashboardMultiPage {
         const cargoName = cargoElement.querySelector('.legend-label')?.textContent?.trim();
         if (!cargoName) return;
 
-        // Toggle filter usando currentFilters ao invés do dropdown
-        if (this.currentFilters.cargo === cargoName) {
-            // Remove filter
-            this.currentFilters.cargo = '';
-            document.querySelectorAll('.legend-card').forEach(card => card.classList.remove('active'));
-        } else {
-            // Add filter
-            this.currentFilters.cargo = cargoName;
-            document.querySelectorAll('.legend-card').forEach(card => card.classList.remove('active'));
-            cargoElement.classList.add('active');
+        // Integração completa com o sistema de filtros avançados
+        if (this.advancedFiltersBuilder) {
+            // Verificar se já existe filtro de cargo com este valor (toggle)
+            const existingFilter = this.advancedFiltersBuilder.filters.find(
+                f => f.type === 'cargo' && f.value.includes(cargoName)
+            );
+            
+            if (existingFilter) {
+                // TOGGLE: Remover filtro se já existe
+                this.advancedFiltersBuilder.filters = this.advancedFiltersBuilder.filters.filter(f => f.type !== 'cargo');
+                
+                // Remover destaque do card
+                document.querySelectorAll('.legend-card').forEach(card => card.classList.remove('active'));
+                
+                // Atualizar interface e aplicar
+                this.advancedFiltersBuilder.renderActiveFilters();
+                this.advancedFiltersBuilder.updateResultsPreview();
+                this.advancedFiltersBuilder.applyFilters();
+            } else {
+                // ADICIONAR: Novo filtro
+                // Remover destaque de todos os cards
+                document.querySelectorAll('.legend-card').forEach(card => card.classList.remove('active'));
+                
+                // Destacar o card clicado
+                cargoElement.classList.add('active');
+                
+                // Remover todos os filtros de cargo existentes
+                this.advancedFiltersBuilder.filters = this.advancedFiltersBuilder.filters.filter(f => f.type !== 'cargo');
+                
+                // Adicionar o novo filtro de cargo ao builder
+                this.advancedFiltersBuilder.addFilterProgrammatically('cargo', cargoName);
+            }
+        }
+    }
+
+    /**
+     * Mostra uma notificação sutil quando um filtro é aplicado/removido
+     * @param {string} message - Mensagem a ser exibida
+     * @param {string} type - Tipo da notificação ('success', 'info', 'warning', 'error')
+     */
+    showFilterNotification(message, type = 'info') {
+        // Verificar se já existe uma notificação
+        let notification = document.getElementById('filterNotification');
+        
+        if (!notification) {
+            // Criar elemento de notificação
+            notification = document.createElement('div');
+            notification.id = 'filterNotification';
+            notification.className = 'filter-notification';
+            document.body.appendChild(notification);
         }
 
-    // Aplicar filtros
-        this.applyAllFilters();
+        // Definir ícone baseado no tipo
+        const icons = {
+            success: '<i class="bi bi-check-circle-fill"></i>',
+            info: '<i class="bi bi-info-circle-fill"></i>',
+            warning: '<i class="bi bi-exclamation-triangle-fill"></i>',
+            error: '<i class="bi bi-x-circle-fill"></i>'
+        };
+
+        // Definir conteúdo
+        notification.innerHTML = `
+            ${icons[type] || icons.info}
+            <span>${message}</span>
+            <button class="filter-notification-close" onclick="this.parentElement.classList.remove('show')">
+                <i class="bi bi-x"></i>
+            </button>
+        `;
+
+        // Remover classes anteriores e adicionar nova
+        notification.className = `filter-notification ${type}`;
+        
+        // Forçar reflow para reiniciar animação
+        notification.offsetHeight;
+        
+        // Mostrar notificação
+        notification.classList.add('show');
+
+        // Auto-ocultar após 3 segundos
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 3000);
     }
 
     filterTableByUrgency(urgencyLevel, chartIndex, shouldHighlightChart = true) {
@@ -4398,42 +4481,24 @@ class DashboardMultiPage {
         document.querySelectorAll('.legend-item').forEach(item => item.classList.remove('selected'));
     }
 
+    // MÉTODOS DESCONTINUADOS - Agora usa highlightCargo() com AdvancedFiltersBuilder
     filterTableByCargo(cargo, chartIndex) {
-        // Toggle filter
-        if (this.currentFilters.cargo === cargo && this.selectedChartIndex === chartIndex) {
-            // Remove filter
-            this.clearCargoFilter();
-        } else {
-            // Add filter
-            this.selectedChartIndex = chartIndex;
-            this.currentFilters.cargo = cargo;
-            this.updateChartHighlight();
-
-            // Usar filtro apropriado baseado no tipo de tabela
-            const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-
-            if (isLicencaPremio) {
-                this.applyAllFilters();
-            } else {
-                this.applyTableFilter();
-            }
+        console.warn('⚠️ filterTableByCargo está descontinuado. Use highlightCargo() ao invés.');
+        // Redirecionar para o novo sistema
+        if (cargo) {
+            this.highlightCargo(cargo);
         }
     }
 
     clearCargoFilter() {
-        this.selectedChartIndex = -1;
-        this.currentFilters.cargo = '';
-        this.updateChartHighlight();
-
-        // Usar filtro adaptativo baseado no tipo de tabela
-        const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
-
-        if (isLicencaPremio) {
-            this.applyAllFilters();
-        } else {
-            this.applyTableFilter();
+        console.warn('⚠️ clearCargoFilter está descontinuado.');
+        // Limpar filtros usando o novo sistema
+        if (this.advancedFiltersBuilder) {
+            this.advancedFiltersBuilder.filters = this.advancedFiltersBuilder.filters.filter(f => f.type !== 'cargo');
+            this.advancedFiltersBuilder.renderActiveFilters();
+            this.advancedFiltersBuilder.applyFilters();
         }
-
+        
         // Clear legend active states
         document.querySelectorAll('.legend-card').forEach(card => card.classList.remove('active'));
     }
@@ -4482,51 +4547,8 @@ class DashboardMultiPage {
     }
 
     applyTableFilter() {
-        // Aplica apenas os filtros existentes sem recriar gráficos
-        let filtered = [...this.allServidores];
-
-    // Aplicar filtro de mês (ADICIONADO PARA COMPATIBILIDADE)
-        const rawMes = document.getElementById('mesFilter')?.value?.trim() || '';
-        const mesFilter = (rawMes && rawMes.toLowerCase() === 'all') ? '' : rawMes;
-        
-        if (mesFilter) {
-            filtered = filtered.filter(servidor => this.matchesMonth(servidor, mesFilter));
-        }
-
-    // Aplicar filtro de idade
-        if (this.currentFilters.age) {
-            filtered = filtered.filter(servidor =>
-                servidor.idade >= this.currentFilters.age.min &&
-                servidor.idade <= this.currentFilters.age.max
-            );
-        }
-
-    // Aplicar filtro de busca
-        if (this.currentFilters.search) {
-            const search = this.currentFilters.search.toLowerCase();
-            filtered = filtered.filter(servidor =>
-                servidor.nome.toLowerCase().includes(search) ||
-                (servidor.cargo && servidor.cargo.toLowerCase().includes(search)) ||
-                (servidor.lotacao && servidor.lotacao.toLowerCase().includes(search))
-            );
-        }
-
-    // Aplicar filtro de urgência
-        if (this.currentFilters.urgency) {
-            filtered = filtered.filter(servidor =>
-                servidor.nivelUrgencia && servidor.nivelUrgencia.toLowerCase() === this.currentFilters.urgency.toLowerCase()
-            );
-        }
-
-    // Aplicar filtro de cargo (para licenças prêmio)
-        if (this.currentFilters.cargo) {
-            filtered = filtered.filter(servidor =>
-                servidor.cargo && servidor.cargo === this.currentFilters.cargo
-            );
-        }
-
-        this.filteredServidores = filtered;
-        this.updateTable(); // Apenas atualiza a tabela
+        // Redirecionar para o sistema unificado de filtros
+        this.applyFiltersAndSearch();
     }
 
     /**
@@ -6509,8 +6531,12 @@ class DashboardMultiPage {
     updateStats() {
         // Verificar se há dados carregados
         if (!this.allServidores || this.allServidores.length === 0) {
+            const totalServidoresElement = document.getElementById('totalServidores');
+            if (totalServidoresElement) {
+                totalServidoresElement.textContent = '0';
+            }
+
             // Mostrar estado vazio
-            document.getElementById('totalServidores').textContent = '0';
             const totalLicencasFuturasElement = document.getElementById('totalLicencasFuturas');
             if (totalLicencasFuturasElement) {
                 totalLicencasFuturasElement.textContent = '0';
@@ -6533,8 +6559,11 @@ class DashboardMultiPage {
         // Detectar tipo de tabela
         const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
 
-    // Atualizar estatísticas do cabeçalho
-        document.getElementById('totalServidores').textContent = this.allServidores.length;
+        // Atualizar estatísticas do cabeçalho
+        const totalServidoresElement = document.getElementById('totalServidores');
+        if (totalServidoresElement) {
+            totalServidoresElement.textContent = this.allServidores.length;
+        }
 
     // Calcular licenças futuras (licenças com início a partir de hoje)
         const hoje = new Date();
@@ -6557,7 +6586,7 @@ class DashboardMultiPage {
         }
 
     // Atualizar rótulo com base no tipo de tabela
-        const statLabel = totalLicencasFuturasElement?.parentElement.querySelector('.stat-label');
+        const statLabel = totalLicencasFuturasElement?.parentElement?.querySelector?.('.stat-label');
         if (statLabel) {
             statLabel.textContent = isLicencaPremio ? 'Licenças Prêmio' : 'Licenças Futuras';
         }
@@ -6614,9 +6643,20 @@ class DashboardMultiPage {
         });
 
         // Atualizar contagens nos cards
-        document.getElementById('criticalCount').textContent = urgencyCounts['Crítico'];
-        document.getElementById('highCount').textContent = urgencyCounts['Alto'];
-        document.getElementById('moderateCount').textContent = urgencyCounts['Moderado'];
+        const criticalCountEl = document.getElementById('criticalCount');
+        if (criticalCountEl) {
+            criticalCountEl.textContent = urgencyCounts['Crítico'];
+        }
+
+        const highCountEl = document.getElementById('highCount');
+        if (highCountEl) {
+            highCountEl.textContent = urgencyCounts['Alto'];
+        }
+
+        const moderateCountEl = document.getElementById('moderateCount');
+        if (moderateCountEl) {
+            moderateCountEl.textContent = urgencyCounts['Moderado'];
+        }
         // Baixo não tem card próprio, mas podemos calcular se necessário
     }
 
@@ -7300,56 +7340,20 @@ class DashboardMultiPage {
     }
 
     clearAllFilters() {
-        // Resetar filtros para valores padrão
-        this.currentFilters = {
-            age: { min: 18, max: 70 },
-            period: { type: 'yearly', start: 2025, end: 2028 },
-            search: '',
-            urgency: '',
-            cargo: '',
-            selectedData: null
-        };
-
-        // Resetar campos de entrada (com verificação)
+        // Limpar campos de busca
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
             searchInput.value = '';
         }
-        
+
         const headerSearchInput = document.getElementById('headerSearchInput');
         if (headerSearchInput) {
             headerSearchInput.value = '';
         }
-        
-        const minAge = document.getElementById('minAge');
-        if (minAge) {
-            minAge.value = 18;
-        }
-        
-        const maxAge = document.getElementById('maxAge');
-        if (maxAge) {
-            maxAge.value = 70;
-        }
-        
-        const headerAgeFilter = document.getElementById('headerAgeFilter');
-        if (headerAgeFilter) {
-            headerAgeFilter.value = 'all';
-        }
 
-        // resetar filtro de mês se existir
-        try {
-            const mesFilter = document.getElementById('mesFilter');
-            if (mesFilter) {
-                mesFilter.value = 'all';
-                // Disparar evento de mudança para atualizar a tabela
-                mesFilter.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        } catch (e) {
-        }
-
-        // Limpar filtros avançados
-        if (this.advancedFilterManager && typeof this.advancedFilterManager.clearAll === 'function') {
-            this.advancedFilterManager.clearAll();
+        // Limpar filtros avançados usando AdvancedFiltersBuilder
+        if (this.advancedFiltersBuilder) {
+            this.advancedFiltersBuilder.clearAllFilters();
         }
 
         // Limpar destaques visuais
@@ -7361,18 +7365,12 @@ class DashboardMultiPage {
             btn.classList.remove('active');
         });
 
-        // Usar filtro apropriado baseado no tipo de tabela
-        const isLicencaPremio = this.allServidores.length > 0 && this.allServidores[0].tipoTabela === 'licenca-premio';
+        // Aplicar filtros limpos e atualizar UI
+        this.applyFiltersAndSearch();
 
-        if (isLicencaPremio) {
-            this.applyAllFilters();
-        } else {
-            this.applyTableFilter();
-        }
-
-        this.updateActiveFilters();
+        // Atualizar badge
         this.updateFiltersBadge();
-        
+
         // Feedback visual
         this.showToast('Todos os filtros foram removidos', 'success');
     }
@@ -7609,11 +7607,8 @@ class DashboardMultiPage {
         const notif = this.notificacoes.find(n => n.interessado === interessado);
         if (!notif) return;
         
-        // Você pode criar um modal similar ao de detalhes do servidor
-        // Por enquanto, vou usar alert (pode ser melhorado depois)
+        // Mostrar modal customizado com detalhes
         const detalhes = `
-NOTIFICAÇÃO - ${notif.interessado}
-
 Processo: ${notif.processo}
 1ª Notificação: ${notif.dataNotificacao1}
 2ª Notificação: ${notif.dataNotificacao2}
@@ -7623,7 +7618,11 @@ Status: ${notif.status}
 ${notif.obs ? `\nObservações: ${notif.obs}` : ''}
         `.trim();
         
-        alert(detalhes);
+        window.customModal?.alert({
+            title: `Notificação - ${notif.interessado}`,
+            message: detalhes,
+            type: 'info'
+        });
     }
 
     /**
@@ -7631,7 +7630,11 @@ ${notif.obs ? `\nObservações: ${notif.obs}` : ''}
      */
     exportNotifications() {
         if (this.filteredNotificacoes.length === 0) {
-            alert('Nenhuma notificação para exportar');
+            window.customModal?.alert({
+                title: 'Sem Dados',
+                message: 'Nenhuma notificação para exportar',
+                type: 'warning'
+            });
             return;
         }
         
@@ -7920,7 +7923,11 @@ ${notif.obs ? `\nObservações: ${notif.obs}` : ''}
      */
     generateReport() {
         if (!this.exportManager) {
-            alert('Sistema de exportação não disponível');
+            window.customModal?.alert({
+                title: 'Indisponível',
+                message: 'Sistema de exportação não disponível',
+                type: 'warning'
+            });
             return;
         }
 
@@ -7928,7 +7935,11 @@ ${notif.obs ? `\nObservações: ${notif.obs}` : ''}
         const template = this.currentReportTemplate;
 
         if (!template) {
-            alert('Selecione um template de relatório');
+            window.customModal?.alert({
+                title: 'Template Necessário',
+                message: 'Selecione um template de relatório',
+                type: 'warning'
+            });
             return;
         }
 
@@ -7947,7 +7958,11 @@ ${notif.obs ? `\nObservações: ${notif.obs}` : ''}
             this.exportManager.exportServidoresToCSV(this.filteredServidores);
         } else if (format === 'pdf') {
             // PDF será implementado posteriormente
-            alert('Exportação para PDF será implementada em breve!');
+            window.customModal?.alert({
+                title: 'Em Desenvolvimento',
+                message: 'Exportação para PDF será implementada em breve!',
+                type: 'info'
+            });
         }
     }
 
@@ -8153,7 +8168,11 @@ ${notif.obs ? `\nObservações: ${notif.obs}` : ''}
         } else if (format === 'csv') {
             this.exportManager.exportServidoresToCSV(this.filteredServidores);
         } else if (format === 'pdf') {
-            alert('Exportação para PDF será implementada em breve!');
+            window.customModal?.alert({
+                title: 'Em Desenvolvimento',
+                message: 'Exportação para PDF será implementada em breve!',
+                type: 'info'
+            });
         }
     }
 
@@ -8229,56 +8248,35 @@ ${notif.obs ? `\nObservações: ${notif.obs}` : ''}
      * Abre modal de filtros avançados
      */
     openFiltersModal(focusType = null) {
-        const modal = document.getElementById('filtersModal');
-        if (!modal) return;
-
-        // Extrair valores únicos se ainda não foi feito
-        if (this.advancedFilterManager && this.allServidores.length > 0) {
-            this.advancedFilterManager.extractUniqueValues(this.allServidores);
+        // Usa exclusivamente o AdvancedFiltersBuilder
+        if (this.advancedFiltersBuilder) {
+            this.advancedFiltersBuilder.openModal(focusType);
+            return;
         }
-
-        // Preencher dropdowns
-        this.populateFilterDropdowns();
-
-        // Restaurar valores dos filtros ativos
-        this.restoreFilterValues();
-
-        // Setup listeners do modal
-        this.setupFiltersModalListeners();
-
-        // Mostrar modal (usar helper para foco e aria)
-        modal.style.display = 'flex';
-        // permitir que o browser pinte antes de abrir
-        setTimeout(() => this._openModalElement(modal), 10);
-
-        // Focar em filtro específico se solicitado
-        if (focusType) {
-            const focusElement = document.getElementById(`${focusType}Filter`);
-            if (focusElement) {
-                setTimeout(() => focusElement.focus(), 300);
-            }
-        }
+        
+        console.warn('⚠️ AdvancedFiltersBuilder não inicializado');
     }
 
     /**
      * Fecha modal de filtros avançados
      */
     closeFiltersModal() {
-        const modal = document.getElementById('filtersModal');
-        if (!modal) return;
-
-        this._closeModalElement(modal);
-        // Manter animação de saída e depois esconder o elemento
-        setTimeout(() => {
-            modal.style.display = 'none';
-        }, 300);
+        // Usa exclusivamente o AdvancedFiltersBuilder
+        if (this.advancedFiltersBuilder) {
+            this.advancedFiltersBuilder.closeModal();
+            return;
+        }
+        
+        console.warn('⚠️ AdvancedFiltersBuilder não inicializado');
     }
 
     /**
-     * Preenche dropdowns do modal de filtros
+     * MÉTODO DESCONTINUADO - Modal antigo não é mais usado
+     * AdvancedFiltersBuilder gerencia seus próprios dropdowns
      */
     populateFilterDropdowns() {
-        if (!this.advancedFilterManager) return;
+        console.warn('⚠️ populateFilterDropdowns está descontinuado');
+        return;
 
         // Cargo
         const cargoFilter = document.getElementById('cargoFilter');
@@ -8321,10 +8319,12 @@ ${notif.obs ? `\nObservações: ${notif.obs}` : ''}
     }
 
     /**
-     * Restaura valores dos filtros ativos
+     * MÉTODO DESCONTINUADO - Modal antigo não é mais usado
+     * AdvancedFiltersBuilder gerencia seus próprios valores
      */
     restoreFilterValues() {
-        if (!this.advancedFilterManager) return;
+        console.warn('⚠️ restoreFilterValues está descontinuado');
+        return;
 
         const filters = this.advancedFilterManager.activeFilters;
 
@@ -8372,9 +8372,12 @@ ${notif.obs ? `\nObservações: ${notif.obs}` : ''}
     }
 
     /**
-     * Setup listeners do modal de filtros
+     * MÉTODO DESCONTINUADO - Modal antigo não é mais usado
+     * AdvancedFiltersBuilder gerencia seus próprios listeners
      */
     setupFiltersModalListeners() {
+        console.warn('⚠️ setupFiltersModalListeners está descontinuado');
+        return;
         // Fechar modal
         const closeBtn = document.getElementById('closeFiltersModal');
         const cancelBtn = document.getElementById('cancelFiltersBtn');
@@ -8553,6 +8556,16 @@ ${notif.obs ? `\nObservações: ${notif.obs}` : ''}
             this.filterChipsUI.updateCounter(filtered.length, this.allServidores.length);
         }
 
+        // Renderizar lista de filtros ativos no modal (sempre, não só se estiver aberto)
+        if (this.advancedFilterManager && this.advancedFilterManager.renderActiveFiltersList) {
+            this.advancedFilterManager.renderActiveFiltersList();
+        }
+
+        // Sincronizar notice de filtros na página de relatórios
+        if (this.reportsManager) {
+            this.reportsManager.syncFilterNotice();
+        }
+
         console.log(`Filtros aplicados: ${filtered.length} de ${this.allServidores.length} servidores`);
     }
 
@@ -8600,6 +8613,7 @@ ${notif.obs ? `\nObservações: ${notif.obs}` : ''}
         // Busca no header
         const headerSearchInput = document.getElementById('headerSearchInput');
         const clearHeaderSearchBtn = document.getElementById('clearHeaderSearchBtn');
+        const usingAdvancedBuilder = typeof AdvancedFiltersBuilder !== 'undefined' && document.querySelector('.filters-builder');
 
         if (headerSearchInput) {
             headerSearchInput.addEventListener('input', (e) => {
@@ -8642,24 +8656,26 @@ ${notif.obs ? `\nObservações: ${notif.obs}` : ''}
         const closeFiltersBtn = document.getElementById('closeFiltersModal');
         const cancelFiltersBtn = document.getElementById('cancelFiltersBtn');
 
-        if (closeFiltersBtn) {
-            closeFiltersBtn.addEventListener('click', () => {
-                const modal = document.getElementById('filtersModal');
-                if (modal) {
-                    this._closeModalElement(modal);
-                    setTimeout(() => { modal.style.display = 'none'; }, 300);
-                }
-            });
-        }
+        if (!usingAdvancedBuilder) {
+            if (closeFiltersBtn) {
+                closeFiltersBtn.addEventListener('click', () => {
+                    const modal = document.getElementById('filtersModal');
+                    if (modal) {
+                        this._closeModalElement(modal);
+                        setTimeout(() => { modal.style.display = 'none'; }, 300);
+                    }
+                });
+            }
 
-        if (cancelFiltersBtn) {
-            cancelFiltersBtn.addEventListener('click', () => {
-                const modal = document.getElementById('filtersModal');
-                if (modal) {
-                    this._closeModalElement(modal);
-                    setTimeout(() => { modal.style.display = 'none'; }, 300);
-                }
-            });
+            if (cancelFiltersBtn) {
+                cancelFiltersBtn.addEventListener('click', () => {
+                    const modal = document.getElementById('filtersModal');
+                    if (modal) {
+                        this._closeModalElement(modal);
+                        setTimeout(() => { modal.style.display = 'none'; }, 300);
+                    }
+                });
+            }
         }
 
         // Clicar fora do modal para fechar
@@ -8667,15 +8683,14 @@ ${notif.obs ? `\nObservações: ${notif.obs}` : ''}
         if (filtersModal) {
             filtersModal.addEventListener('click', (e) => {
                 if (e.target === filtersModal) {
-                    this._closeModalElement(filtersModal);
-                    setTimeout(() => { filtersModal.style.display = 'none'; }, 300);
+                    this.closeFiltersModal();
                 }
             });
         }
 
         // Botão de aplicar filtros
         const applyFiltersBtn = document.getElementById('applyFiltersBtn');
-        if (applyFiltersBtn && this.advancedFilterManager) {
+        if (!usingAdvancedBuilder && applyFiltersBtn && this.advancedFilterManager) {
             applyFiltersBtn.addEventListener('click', () => {
                 // Aplicar filtros avançados
                 this.advancedFilterManager.applyFilters();

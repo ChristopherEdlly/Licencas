@@ -59,8 +59,6 @@ class KeyboardShortcutsManager {
         // Carregar preferências
         this.loadPreferences();
         
-        console.log('✅ KeyboardShortcutsManager inicializado');
-        console.log('💡 Pressione Ctrl+K ou ? para ver atalhos disponíveis');
     }
 
     /**
@@ -187,7 +185,6 @@ class KeyboardShortcutsManager {
             condition
         });
         
-        console.log(`⌨️ Atalho registrado: ${this.getShortcutLabel(key, ctrl, shift, alt)}`);
     }
 
     /**
@@ -583,7 +580,6 @@ class KeyboardShortcutsManager {
     setEnabled(enabled) {
         this.config.enabled = enabled;
         this.savePreferences();
-        console.log(`⌨️ Atalhos de teclado ${enabled ? 'habilitados' : 'desabilitados'}`);
     }
 
     /**
