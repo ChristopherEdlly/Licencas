@@ -6,8 +6,8 @@
 class SharePointDataLoader {
     constructor(dashboard) {
         this.dashboard = dashboard;
-        this.authManager = dashboard.authManager;
-        this.settingsManager = dashboard.settingsManager;
+        this.authManager = dashboard.authenticationManager || dashboard.authManager || window.authenticationManager;
+        this.settingsManager = dashboard.settingsManager || window.settingsManager;
         
         // Graph API endpoints
         this.graphBaseUrl = 'https://graph.microsoft.com/v1.0';
