@@ -1,0 +1,930 @@
+/* ============================================================================
+   REPORTS PAGE REDESIGN - CSS Completo e Funcional
+   Data: 12 de novembro de 2025
+
+   IMPORTANTE: Este CSS usa classes simples e diretas, sem BEM, para
+   compatibilidade total com o HTML existente.
+   ============================================================================ */
+
+/* ============================================================================
+   1. CONTAINER PRINCIPAL - Grid 2 Colunas
+   ============================================================================ */
+
+.reports-container-redesign {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  gap: 20px;
+  padding: 20px;
+  height: calc(100vh - 80px);
+  overflow: hidden;
+}
+
+/* ============================================================================
+   2. PAINEL DE CONFIGURAÇÃO (Coluna Esquerda)
+   ============================================================================ */
+
+.reports-config-redesign {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  padding: 20px;
+  overflow-y: auto;
+  height: 100%;
+}
+
+/* Custom scrollbar para o painel de config */
+.reports-config-redesign::-webkit-scrollbar {
+  width: 6px;
+}
+
+.reports-config-redesign::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.reports-config-redesign::-webkit-scrollbar-thumb {
+  background: var(--border-color, #d1d5db);
+  border-radius: 3px;
+}
+
+.reports-config-redesign::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary, #9ca3af);
+}
+
+/* ============================================================================
+   3. FILTER NOTICE (Aviso de Filtros Ativos) - ESCOPO: REPORTS ONLY
+   ============================================================================ */
+
+/* Escopo limitado apenas à página de relatórios para evitar conflitos */
+#reportsPage .filter-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  background: linear-gradient(135deg,
+    rgba(59, 130, 246, 0.08) 0%,
+    rgba(37, 99, 235, 0.04) 100%
+  );
+  border: 1.5px solid rgba(59, 130, 246, 0.3);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+#reportsPage .filter-notice:hover {
+  background: linear-gradient(135deg,
+    rgba(59, 130, 246, 0.12) 0%,
+    rgba(37, 99, 235, 0.06) 100%
+  );
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+#reportsPage .filter-notice-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(59, 130, 246, 1);
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+#reportsPage .filter-notice-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#reportsPage .filter-notice-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+  line-height: 1.4;
+}
+
+#reportsPage .btn-inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: rgba(59, 130, 246, 1);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#reportsPage .btn-inline-link:hover {
+  color: rgba(37, 99, 235, 1);
+  text-decoration: underline;
+  transform: translateX(2px);
+}
+
+#reportsPage .btn-inline-link i {
+  font-size: 11px;
+}
+
+/* ============================================================================
+   4. CONFIG SECTION (Seções de Configuração) - ESCOPO: REPORTS ONLY
+   ============================================================================ */
+
+#reportsPage .config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--border-color, #e5e7eb);
+}
+
+#reportsPage .config-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* ============================================================================
+   5. SECTION TITLE (Títulos das Seções) - ESCOPO: REPORTS ONLY
+   ============================================================================ */
+
+#reportsPage .section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #1f2937);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+}
+
+#reportsPage .section-title i {
+  font-size: 16px;
+  color: rgba(59, 130, 246, 1);
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   6. FORM FIELD (Campos de Formulário) - ESCOPO: REPORTS ONLY
+   ============================================================================ */
+
+#reportsPage .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#reportsPage .form-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ============================================================================
+   7. INPUT REDESIGN (Campos de Entrada)
+   ============================================================================ */
+
+.input-redesign {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary, #1f2937);
+  background: var(--bg-secondary, #f9fafb);
+  border: 1.5px solid var(--border-color, #d1d5db);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.input-redesign::placeholder {
+  color: var(--text-tertiary, #9ca3af);
+  opacity: 0.7;
+}
+
+.input-redesign:hover {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: var(--bg-primary, #ffffff);
+}
+
+.input-redesign:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 1);
+  background: var(--bg-primary, #ffffff);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* ============================================================================
+   8. BUTTON SELECT ALL (Botão Selecionar Todas)
+   ============================================================================ */
+
+.btn-select-all {
+  margin-left: auto;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(59, 130, 246, 1);
+  background: transparent;
+  border: 1.5px solid rgba(59, 130, 246, 1);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.btn-select-all:hover {
+  background: rgba(59, 130, 246, 1);
+  color: white;
+  transform: scale(1.05);
+}
+
+.btn-select-all:active {
+  transform: scale(0.98);
+}
+
+/* ============================================================================
+   9. COLUMNS GRID (Grid de Seleção de Colunas)
+   ============================================================================ */
+
+.columns-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* ============================================================================
+   10. COLUMN CHECKBOX (Checkboxes de Colunas)
+   ============================================================================ */
+
+.column-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-secondary, #f9fafb);
+  border: 1.5px solid var(--border-color, #d1d5db);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.column-checkbox:hover {
+  background: var(--bg-primary, #ffffff);
+  border-color: rgba(59, 130, 246, 0.5);
+  transform: translateX(2px);
+}
+
+.column-checkbox input[type="checkbox"] {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg-primary, #ffffff);
+  border: 2px solid var(--border-color, #d1d5db);
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.column-checkbox input[type="checkbox"]:hover {
+  border-color: rgba(59, 130, 246, 0.7);
+}
+
+.column-checkbox input[type="checkbox"]:checked {
+  background: rgba(59, 130, 246, 1);
+  border-color: rgba(59, 130, 246, 1);
+}
+
+.column-checkbox input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.column-checkbox span {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary, #1f2937);
+  line-height: 1.3;
+}
+
+/* ============================================================================
+   11. EXPORT ACTIONS (Botões de Exportação)
+   ============================================================================ */
+
+.export-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.btn-export-xlsx,
+.btn-export-pdf {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 18px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: inherit;
+}
+
+.btn-export-xlsx {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-export-xlsx:hover {
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+  transform: translateY(-2px);
+}
+
+.btn-export-xlsx:active {
+  transform: translateY(0);
+}
+
+.btn-export-pdf {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-export-pdf:hover {
+  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.4);
+  transform: translateY(-2px);
+}
+
+.btn-export-pdf:active {
+  transform: translateY(0);
+}
+
+.btn-export-xlsx i,
+.btn-export-pdf i {
+  font-size: 16px;
+}
+
+/* ============================================================================
+   12. PAINEL DE PRÉ-VISUALIZAÇÃO (Coluna Direita)
+   ============================================================================ */
+
+.reports-preview-redesign {
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  overflow: hidden;
+  height: 100%;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* ============================================================================
+   13. PREVIEW HEADER (Cabeçalho do Preview) - COMPACTO 1 LINHA
+   ============================================================================ */
+
+.preview-header-redesign {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg,
+    rgba(59, 130, 246, 0.04) 0%,
+    rgba(37, 99, 235, 0.02) 100%
+  );
+  border-bottom: 2px solid var(--border-color, #e5e7eb);
+  flex-shrink: 0;
+  min-height: 52px;
+}
+
+.preview-header-redesign h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary, #1f2937);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.preview-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.preview-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-secondary, #6b7280);
+  white-space: nowrap;
+}
+
+.preview-meta i {
+  font-size: 12px;
+}
+
+.preview-stats-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1.5px solid rgba(59, 130, 246, 0.3);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(37, 99, 235, 1);
+  white-space: nowrap;
+}
+
+.preview-stats-badge i {
+  font-size: 12px;
+}
+
+/* ============================================================================
+   14. PREVIEW BODY (Corpo do Preview)
+   ============================================================================ */
+
+.preview-body-redesign {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--bg-primary, #ffffff);
+}
+
+.preview-body-redesign::-webkit-scrollbar {
+  width: 8px;
+}
+
+.preview-body-redesign::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.preview-body-redesign::-webkit-scrollbar-thumb {
+  background: var(--border-color, #d1d5db);
+  border-radius: 4px;
+}
+
+.preview-body-redesign::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary, #9ca3af);
+}
+
+/* ============================================================================
+   15. PREVIEW TABLE (Tabela de Preview)
+   ============================================================================ */
+
+.preview-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.preview-table-redesign {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.preview-table-redesign thead {
+  background: linear-gradient(135deg,
+    rgba(59, 130, 246, 0.08) 0%,
+    rgba(37, 99, 235, 0.04) 100%
+  );
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.preview-table-redesign th {
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary, #1f2937);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid var(--border-color, #e5e7eb);
+  white-space: nowrap;
+}
+
+.preview-table-redesign td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  color: var(--text-primary, #374151);
+  line-height: 1.4;
+}
+
+.preview-table-redesign tbody tr {
+  transition: background 0.15s ease;
+}
+
+.preview-table-redesign tbody tr:hover {
+  background: rgba(59, 130, 246, 0.03);
+}
+
+.preview-table-redesign tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.preview-table-redesign .cell-empty {
+  color: var(--text-secondary, #6b7280);
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.preview-table-redesign .cell-periodo {
+  white-space: pre-line;
+}
+
+.preview-table-redesign .urgency-critica,
+.preview-table-redesign .urgency-alta {
+  font-weight: 600;
+}
+
+.preview-table-redesign .urgency-moderada,
+.preview-table-redesign .urgency-baixa {
+  font-weight: 500;
+}
+
+/* ============================================================================
+   16. URGENCY BADGES (Badges de Urgência)
+   ============================================================================ */
+
+.urgency-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid;
+}
+
+.urgency-badge.critica {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border-color: #dc2626;
+}
+
+.urgency-badge.alta {
+  background: rgba(249, 115, 22, 0.1);
+  color: #ea580c;
+  border-color: #ea580c;
+}
+
+.urgency-badge.moderada {
+  background: rgba(250, 204, 21, 0.1);
+  color: #ca8a04;
+  border-color: #ca8a04;
+}
+
+.urgency-badge.baixa {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  border-color: #16a34a;
+}
+
+/* ============================================================================
+   17. PREVIEW PLACEHOLDER (Placeholder quando vazio)
+   ============================================================================ */
+
+.preview-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-secondary, #6b7280);
+}
+
+.preview-placeholder i {
+  font-size: 48px;
+  opacity: 0.3;
+}
+
+.preview-placeholder h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+}
+
+.preview-placeholder p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 400px;
+}
+
+/* ============================================================================
+   18. PREVIEW FOOTER (Rodapé do Preview) - COM BOTÕES DE EXPORT
+   ============================================================================ */
+
+.preview-footer-redesign {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 20px;
+  background: var(--bg-secondary, #f9fafb);
+  border-top: 1px solid var(--border-color, #e5e7eb);
+  flex-shrink: 0;
+  min-height: 48px;
+}
+
+.preview-footnote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary, #6b7280);
+  line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+}
+
+.preview-footnote i {
+  font-size: 13px;
+  color: rgba(59, 130, 246, 0.7);
+  flex-shrink: 0;
+}
+
+.preview-footnote span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Botões de Ação de Relatório (Principais) */
+.reports-action-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.btn-report-action {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  color: white;
+  font-family: inherit;
+}
+
+.btn-export-xlsx {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.btn-export-xlsx:hover {
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  transform: translateY(-2px);
+}
+
+.btn-generate-pdf {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.btn-generate-pdf:hover {
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  transform: translateY(-2px);
+}
+
+.btn-report-action:active {
+  transform: translateY(0);
+}
+
+.btn-report-action i {
+  font-size: 18px;
+}
+
+/* Botões de Export no Footer - COMPACTOS */
+.preview-footer-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-footer-export {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.btn-footer-xlsx {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+}
+
+.btn-footer-xlsx:hover {
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-footer-xlsx:active {
+  transform: translateY(0);
+}
+
+.btn-footer-pdf {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+}
+
+.btn-footer-pdf:hover {
+  box-shadow: 0 3px 10px rgba(239, 68, 68, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-footer-pdf:active {
+  transform: translateY(0);
+}
+
+.btn-footer-export i {
+  font-size: 13px;
+}
+
+/* ============================================================================
+   19. RESPONSIVIDADE - TABLET
+   ============================================================================ */
+
+@media (max-width: 1024px) {
+  .reports-container-redesign {
+    grid-template-columns: 350px 1fr;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .columns-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================================
+   20. RESPONSIVIDADE - MOBILE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .reports-container-redesign {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 0;
+    height: auto;
+  }
+
+  .reports-config-redesign,
+  .reports-preview-redesign {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    height: auto;
+  }
+
+  .reports-config-redesign {
+    border-top: none;
+  }
+
+  .reports-preview-redesign {
+    border-bottom: none;
+  }
+
+  .export-actions {
+    flex-direction: column;
+  }
+
+  .btn-export-xlsx,
+  .btn-export-pdf {
+    width: 100%;
+  }
+
+  .preview-header-redesign {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .preview-header-meta {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .preview-footer-redesign {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .preview-footnote {
+    white-space: normal;
+  }
+
+  .preview-footnote span {
+    white-space: normal;
+  }
+
+  .preview-footer-actions {
+    width: 100%;
+  }
+
+  .btn-footer-export {
+    flex: 1;
+  }
+}
+
+/* ============================================================================
+   21. DARK MODE
+   ============================================================================ */
+
+[data-theme="dark"] .reports-container-redesign {
+  --card-bg: #1f2937;
+  --bg-primary: #111827;
+  --bg-secondary: #374151;
+  --border-color: #4b5563;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-tertiary: #9ca3af;
+}
+
+[data-theme="dark"] .filter-notice {
+  background: linear-gradient(135deg,
+    rgba(59, 130, 246, 0.15) 0%,
+    rgba(37, 99, 235, 0.08) 100%
+  );
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+[data-theme="dark"] .filter-notice:hover {
+  background: linear-gradient(135deg,
+    rgba(59, 130, 246, 0.2) 0%,
+    rgba(37, 99, 235, 0.12) 100%
+  );
+}
+
+[data-theme="dark"] .preview-table-redesign tbody tr:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
