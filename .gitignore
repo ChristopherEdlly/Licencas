@@ -19,6 +19,7 @@ env.config.js
 
 # Editors
 .vscode/
+.github/
 .idea/
 *.sublime-project
 *.sublime-workspace
