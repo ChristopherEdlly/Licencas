@@ -1728,6 +1728,46 @@ body.sidebar-collapsed .sidebar .nav-link.active {
     font-size: 1rem;
 }
 
+/* Botão SharePoint */
+.btn-sharepoint {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #0078d4, #106ebe);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 120, 212, 0.2);
+}
+
+.btn-sharepoint:hover {
+    background: linear-gradient(135deg, #106ebe, #005a9e);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 120, 212, 0.3);
+}
+
+.btn-sharepoint:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 120, 212, 0.2);
+}
+
+.btn-sharepoint:disabled {
+    background: var(--surface);
+    color: var(--text-disabled);
+    cursor: not-allowed;
+    box-shadow: none;
+    border: 1px solid var(--border);
+}
+
+.btn-sharepoint i {
+    font-size: 1.1rem;
+}
+
 /* Botão de Arquivos Recentes */
 .btn-recent-files {
     display: flex;

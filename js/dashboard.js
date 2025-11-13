@@ -191,6 +191,16 @@ class DashboardMultiPage {
             }
         }
 
+        // Inicializar SharePointDataLoader
+        if (typeof SharePointDataLoader !== 'undefined' && this.authenticationManager) {
+            try {
+                this.sharepointDataLoader = new SharePointDataLoader(this);
+                console.log('✅ SharePointDataLoader inicializado');
+            } catch (error) {
+                console.error('Erro ao inicializar SharePointDataLoader:', error);
+            }
+        }
+
         // Inicializar OperationalImpactAnalyzer (Sprint 5)
         if (typeof OperationalImpactAnalyzer !== 'undefined') {
             this.operationalImpactAnalyzer = new OperationalImpactAnalyzer(this);
@@ -215,6 +225,12 @@ class DashboardMultiPage {
             // Se não conseguir auto-carregar, mostrar estado inicial vazio
             if (!await this.tryAutoLoad()) {
                 this.showEmptyState();
+            }
+
+            // Atualizar visibilidade do botão SharePoint
+            if (this.authenticationManager) {
+                const isAuthenticated = Boolean(this.authenticationManager.activeAccount);
+                this.updateSharePointButtonVisibility(isAuthenticated);
             }
         }, 250);
     }
@@ -677,6 +693,19 @@ class DashboardMultiPage {
                 }
             });
         }
+
+        // Botão Carregar do SharePoint
+        const loadFromSharePointButton = document.getElementById('loadFromSharePointButton');
+        if (loadFromSharePointButton) {
+            loadFromSharePointButton.addEventListener('click', () => {
+                this.loadDataFromSharePoint();
+            });
+        }
+
+        // Escutar mudanças na autenticação para mostrar/ocultar botão SharePoint
+        document.addEventListener('azure-auth-changed', (e) => {
+            this.updateSharePointButtonVisibility(e.detail.isAuthenticated);
+        });
 
     // Observação: o botão de limpar foi removido do header intencionalmente - usuários substituem arquivos abrindo novos
 
@@ -1961,6 +1990,155 @@ class DashboardMultiPage {
             this.hideLoading();
         }
     }
+
+    // ==================== MÉTODOS SHAREPOINT ====================
+
+    /**
+     * Atualiza visibilidade do botão SharePoint baseado no estado de autenticação
+     */
+    updateSharePointButtonVisibility(isAuthenticated) {
+        const button = document.getElementById('loadFromSharePointButton');
+        if (!button) return;
+
+        const sharepointUrl = this.settingsManager?.get('sharepointWorkbookUrl');
+        const hasUrl = sharepointUrl && sharepointUrl.trim().length > 0;
+
+        // Mostrar botão se: usuário autenticado E tem URL configurada
+        if (isAuthenticated && hasUrl) {
+            button.style.display = 'inline-flex';
+        } else {
+            button.style.display = 'none';
+        }
+    }
+
+    /**
+     * Carrega dados da planilha do SharePoint
+     */
+    async loadDataFromSharePoint() {
+        if (!this.sharepointDataLoader) {
+            window.customModal?.alert({
+                title: 'SharePoint Indisponível',
+                message: 'O módulo de integração com SharePoint não está disponível.',
+                type: 'warning'
+            });
+            return;
+        }
+
+        if (!this.authenticationManager?.activeAccount) {
+            window.customModal?.alert({
+                title: 'Autenticação Necessária',
+                message: 'Faça login com sua conta Microsoft antes de carregar dados do SharePoint.',
+                type: 'warning'
+            });
+            return;
+        }
+
+        const sharepointUrl = this.settingsManager?.get('sharepointWorkbookUrl');
+        if (!sharepointUrl || sharepointUrl.trim().length === 0) {
+            window.customModal?.alert({
+                title: 'URL não Configurada',
+                message: 'Configure a URL da planilha do SharePoint nas Configurações antes de continuar.',
+                type: 'warning'
+            });
+            return;
+        }
+
+        try {
+            this.showGlobalLoading('Carregando dados do SharePoint...');
+
+            // Carregar dados
+            const data = await this.sharepointDataLoader.loadData();
+
+            if (!data || data.length === 0) {
+                throw new Error('Nenhum dado encontrado na planilha do SharePoint');
+            }
+
+            // Converter para CSV (formato esperado pelo parser)
+            const csvData = this.convertArrayToCSV(data);
+
+            // Processar como se fosse um arquivo carregado
+            this.processData(csvData);
+            this.updateLastUpdate();
+
+            // Mostrar sucesso
+            window.customModal?.alert({
+                title: 'Dados Carregados',
+                message: `${data.length} registros carregados com sucesso do SharePoint!`,
+                type: 'success'
+            });
+
+            const statusElement = document.getElementById('uploadStatus');
+            if (statusElement) {
+                statusElement.className = 'upload-status success';
+                statusElement.innerHTML = `
+                    <i class="bi bi-cloud-check"></i>
+                    <span class="file-info">✓ SharePoint (${data.length} registros)</span>
+                `;
+            }
+
+        } catch (error) {
+            console.error('Erro ao carregar dados do SharePoint:', error);
+            
+            window.customModal?.alert({
+                title: 'Erro ao Carregar',
+                message: error.message || 'Não foi possível carregar os dados do SharePoint. Verifique a URL e suas permissões.',
+                type: 'danger'
+            });
+
+            const statusElement = document.getElementById('uploadStatus');
+            if (statusElement) {
+                statusElement.className = 'upload-status error';
+                statusElement.innerHTML = `
+                    <i class="bi bi-exclamation-circle"></i>
+                    <span class="file-info">✗ Erro ao carregar do SharePoint</span>
+                `;
+            }
+        } finally {
+            this.hideGlobalLoading();
+        }
+    }
+
+    /**
+     * Converte array de objetos para formato CSV
+     */
+    convertArrayToCSV(data) {
+        if (!data || data.length === 0) {
+            return '';
+        }
+
+        // Obter headers (chaves do primeiro objeto)
+        const headers = Object.keys(data[0]);
+        
+        // Criar linha de header
+        const headerLine = headers.join(',');
+        
+        // Criar linhas de dados
+        const dataLines = data.map(obj => {
+            return headers.map(header => {
+                let value = obj[header];
+                
+                // Tratar valores especiais
+                if (value === null || value === undefined) {
+                    return '';
+                }
+                
+                // Converter para string
+                value = String(value);
+                
+                // Escapar aspas e adicionar aspas se necessário
+                if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+                    value = '"' + value.replace(/"/g, '""') + '"';
+                }
+                
+                return value;
+            }).join(',');
+        });
+        
+        // Juntar tudo
+        return [headerLine, ...dataLines].join('\n');
+    }
+
+    // ==================== FIM MÉTODOS SHAREPOINT ====================
 
     saveFileToLocalStorage(fileName, fileData, fileType) {
         try {
