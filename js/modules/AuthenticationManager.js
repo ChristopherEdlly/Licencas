@@ -10,6 +10,7 @@ class AuthenticationManager {
         this.msalAvailable = typeof window.msal !== 'undefined';
         this.activeAccount = null;
         this.disabledMessage = '';
+        this.loginInProgress = false;
         this.scopes = Array.isArray(this.env.AZURE_SCOPES) && this.env.AZURE_SCOPES.length > 0
             ? this.env.AZURE_SCOPES
             : ['User.Read'];
@@ -29,6 +30,7 @@ class AuthenticationManager {
         this.authOverlay = document.getElementById('authRequiredOverlay');
         this.authOverlayMessage = document.getElementById('authOverlayMessage');
         this.authOverlayLoginButton = document.getElementById('authOverlayLoginButton');
+    this.authOverlayButtonDefaultMarkup = this.authOverlayLoginButton?.innerHTML || '';
 
         this.isEnabled = this.validateConfiguration();
         if (!this.isEnabled) {
@@ -113,6 +115,11 @@ class AuthenticationManager {
     }
 
     async login() {
+        if (this.loginInProgress) {
+            return;
+        }
+
+        this.setAuthenticatingState(true);
         try {
             const response = await this.msalInstance.loginPopup({
                 scopes: this.scopes,
@@ -127,13 +134,18 @@ class AuthenticationManager {
                 });
             }
         } catch (error) {
-            console.error('Erro ao realizar login Microsoft:', error);
-            this.dashboard?.notificationManager?.show({
-                type: 'error',
-                title: 'Falha no login Microsoft',
-                message: error.message || 'Não foi possível autenticar a conta Microsoft.'
-            });
+            if (error?.errorCode === 'interaction_in_progress') {
+                console.warn('Tentativa de login ignorada: uma interação já estava em andamento.');
+            } else {
+                console.error('Erro ao realizar login Microsoft:', error);
+                this.dashboard?.notificationManager?.show({
+                    type: 'error',
+                    title: 'Falha no login Microsoft',
+                    message: error.message || 'Não foi possível autenticar a conta Microsoft.'
+                });
+            }
         } finally {
+            this.setAuthenticatingState(false);
             this.updateUI();
         }
     }
@@ -275,11 +287,32 @@ class AuthenticationManager {
         }
 
         if (this.authOverlayLoginButton) {
-            this.authOverlayLoginButton.disabled = Boolean(disableLogin);
-            if (disableLogin) {
+            const shouldDisable = Boolean(disableLogin || this.loginInProgress);
+            this.authOverlayLoginButton.disabled = shouldDisable;
+            if (shouldDisable) {
                 this.authOverlayLoginButton.setAttribute('aria-disabled', 'true');
             } else {
                 this.authOverlayLoginButton.removeAttribute('aria-disabled');
+            }
+        }
+    }
+
+    setAuthenticatingState(isAuthenticating) {
+        this.loginInProgress = Boolean(isAuthenticating);
+        this.loginButtons.forEach((button) => {
+            button.disabled = this.loginInProgress;
+        });
+
+        if (this.authOverlayLoginButton) {
+            this.authOverlayLoginButton.disabled = this.loginInProgress;
+            if (this.loginInProgress) {
+                this.authOverlayLoginButton.textContent = 'Abrindo popup...';
+                this.authOverlayLoginButton.setAttribute('aria-busy', 'true');
+            } else {
+                if (this.authOverlayButtonDefaultMarkup) {
+                    this.authOverlayLoginButton.innerHTML = this.authOverlayButtonDefaultMarkup;
+                }
+                this.authOverlayLoginButton.removeAttribute('aria-busy');
             }
         }
     }
