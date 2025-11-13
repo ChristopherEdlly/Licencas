@@ -206,6 +206,12 @@ class DashboardMultiPage {
             this.operationalImpactAnalyzer = new OperationalImpactAnalyzer(this);
             console.log('✅ OperationalImpactAnalyzer inicializado');
         }
+        
+        // Inicializar ReportsManager
+        if (typeof ReportsManager !== 'undefined') {
+            this.reportsManager = new ReportsManager(this);
+            console.log('✅ ReportsManager inicializado');
+        }
     }
 
     setupThemeIntegration() {
@@ -2040,12 +2046,12 @@ class DashboardMultiPage {
         }
 
         try {
+            // Sempre mostrar skeleton loading (mesmo em modo silencioso)
+            this.showHomeSkeletons();
+            
             if (!silent) {
                 this.showGlobalLoading('Carregando dados do SharePoint...');
             }
-            
-            // Mostrar skeleton loading nos widgets da home
-            this.showHomeSkeletons();
 
             // Carregar dados
             const data = await this.sharepointDataLoader.loadData();
