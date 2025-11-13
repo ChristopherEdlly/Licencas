@@ -1068,28 +1068,21 @@
                                     <i class="bi bi-cloud-arrow-up"></i>
                                     <h2>Integração Microsoft</h2>
                                 </div>
-                                <div class="block-content integration-content">
-                                    <div class="integration-summary">
-                                        <p>Cole o link da planilha do SharePoint para sincronização automática</p>
+                                <div class="block-content integration-content integration-compact">
+                                    <div class="integration-row">
                                         <div class="integration-status-badge" id="azureIntegrationStatus">Microsoft não conectado</div>
-                                        <div class="integration-actions">
-                                            <button type="button" class="btn-microsoft" id="microsoftLoginButtonSettings">
-                                                <i class="bi bi-microsoft"></i>
-                                                <span>Conectar Conta Microsoft</span>
-                                            </button>
-                                            <button type="button" class="btn-disconnect" id="microsoftLogoutButtonSettings" style="display: none;">
-                                                <i class="bi bi-box-arrow-left"></i>
-                                                <span>Desconectar</span>
-                                            </button>
-                                        </div>
+                                        <button type="button" class="btn-microsoft btn-compact" id="microsoftLoginButtonSettings">
+                                            <i class="bi bi-microsoft"></i>
+                                            <span>Conectar</span>
+                                        </button>
+                                        <button type="button" class="btn-disconnect btn-compact" id="microsoftLogoutButtonSettings" style="display: none;">
+                                            <i class="bi bi-box-arrow-left"></i>
+                                            <span>Desconectar</span>
+                                        </button>
                                     </div>
 
-                                    <div class="integration-form">
-                                        <label for="sharepointLinkInput" class="integration-label">
-                                            <span>📎 Link da planilha do SharePoint</span>
-                                        </label>
-                                        <input type="url" id="sharepointLinkInput" placeholder="Cole aqui o link da planilha do SharePoint">
-                                        <p class="integration-hint">💡 Os dados serão carregados automaticamente ao abrir o sistema</p>
+                                    <div class="integration-form-compact">
+                                        <input type="url" id="sharepointLinkInput" placeholder="Cole o link da planilha do SharePoint">
                                     </div>
                                 </div>
                             </div>

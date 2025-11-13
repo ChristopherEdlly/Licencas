@@ -79,10 +79,14 @@ class SharePointDataLoader {
      * Busca o arquivo no OneDrive do usuário autenticado
      */
     async findFileInDrive(fileName) {
+        console.log('🔍 Procurando arquivo:', fileName);
+        
         const token = await this.authManager.acquireToken(['Files.Read', 'Sites.Read.All']);
+        console.log('🔑 Token obtido:', token ? 'Sim' : 'Não');
         
         // Busca no drive pessoal do usuário
         const searchUrl = `${this.graphBaseUrl}/me/drive/root/search(q='${encodeURIComponent(fileName)}')`;
+        console.log('🌐 URL de busca:', searchUrl);
         
         const response = await fetch(searchUrl, {
             headers: {
@@ -91,11 +95,18 @@ class SharePointDataLoader {
             }
         });
 
+        console.log('📡 Resposta da busca:', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok
+        });
+
         if (!response.ok) {
             throw new Error(`Erro ao buscar arquivo: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
+        console.log('📦 Resultados encontrados:', data.value?.length || 0);
         
         if (!data.value || data.value.length === 0) {
             throw new Error(`Arquivo "${fileName}" não encontrado no OneDrive`);
@@ -103,6 +114,11 @@ class SharePointDataLoader {
 
         // Retorna o primeiro resultado (mais relevante)
         const file = data.value[0];
+        console.log('✅ Arquivo selecionado:', {
+            name: file.name,
+            id: file.id,
+            driveId: file.parentReference.driveId
+        });
         
         return {
             driveId: file.parentReference.driveId,
@@ -116,10 +132,14 @@ class SharePointDataLoader {
      * Busca dados da planilha usando Microsoft Graph API
      */
     async fetchWorkbookData(driveId, itemId) {
+        console.log('📊 Buscando dados do workbook:', { driveId, itemId });
+        
         const token = await this.authManager.acquireToken(['Files.Read', 'Sites.Read.All']);
+        console.log('🔑 Token para workbook obtido');
         
         // Endpoint para sessão de workbook
         const sessionUrl = `${this.graphBaseUrl}/drives/${driveId}/items/${itemId}/workbook/createSession`;
+        console.log('🌐 Criando sessão:', sessionUrl);
         
         // Criar sessão persistente
         const sessionResponse = await fetch(sessionUrl, {
@@ -133,12 +153,18 @@ class SharePointDataLoader {
             })
         });
 
+        console.log('📡 Resposta da sessão:', {
+            status: sessionResponse.status,
+            ok: sessionResponse.ok
+        });
+
         if (!sessionResponse.ok) {
             throw new Error(`Erro ao criar sessão do workbook: ${sessionResponse.status}`);
         }
 
         const sessionData = await sessionResponse.json();
         const sessionId = sessionData.id;
+        console.log('✅ Sessão criada:', sessionId);
 
         try {
             // Busca todas as planilhas (sheets) do workbook
@@ -242,6 +268,8 @@ class SharePointDataLoader {
      * Carrega dados da planilha do SharePoint
      */
     async loadData(forceRefresh = false) {
+        console.log('🚀 SharePointDataLoader.loadData() iniciado', { forceRefresh });
+        
         // Verifica cache
         if (!forceRefresh && this.cachedData && this.lastFetchTime) {
             const elapsed = Date.now() - this.lastFetchTime;
@@ -252,19 +280,25 @@ class SharePointDataLoader {
         }
 
         // Verifica autenticação
+        console.log('🔍 Verificando autenticação:', {
+            hasAuthManager: !!this.authManager,
+            hasActiveAccount: !!this.authManager?.activeAccount
+        });
+        
         if (!this.authManager.activeAccount) {
             throw new Error('Usuário não autenticado. Faça login com sua conta Microsoft.');
         }
 
         // Pega URL da configuração
         const sharepointUrl = this.settingsManager.get('sharepointWorkbookUrl');
+        console.log('📎 URL do SharePoint:', sharepointUrl);
         
         if (!sharepointUrl) {
             throw new Error('URL do SharePoint não configurada. Configure em Configurações.');
         }
 
         try {
-            console.log('📥 Carregando dados do SharePoint...');
+            console.log('📥 Carregando dados do SharePoint...', { url: sharepointUrl });
             
             // Parse da URL
             const urlInfo = this.parseSharePointUrl(sharepointUrl);

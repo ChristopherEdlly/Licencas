@@ -2277,19 +2277,36 @@ class DashboardMultiPage {
     }
 
     async tryAutoLoad() {
+        console.log('📍 tryAutoLoad() iniciado');
+        
         // 1️⃣ PRIORIDADE: Tentar carregar do SharePoint automaticamente (silencioso)
+        console.log('🔍 Verificando autenticação:', {
+            hasAuthManager: !!this.authenticationManager,
+            hasActiveAccount: !!this.authenticationManager?.activeAccount,
+            accountName: this.authenticationManager?.activeAccount?.name
+        });
+        
         if (this.authenticationManager?.activeAccount) {
             const sharepointUrl = this.settingsManager?.get('sharepointWorkbookUrl');
+            console.log('🔍 URL do SharePoint:', sharepointUrl);
+            
             if (sharepointUrl && sharepointUrl.trim().length > 0) {
                 try {
-                    console.log('🔄 Carregamento automático do SharePoint...');
+                    console.log('🔄 Iniciando carregamento automático do SharePoint...');
                     await this.loadDataFromSharePoint(true); // silent = true
+                    console.log('✅ SharePoint carregado com sucesso!');
                     return true; // Sucesso - não precisa carregar arquivo local
                 } catch (error) {
+                    console.error('❌ Erro ao carregar do SharePoint:', error);
                     console.warn('⚠️ Falha no carregamento automático do SharePoint:', error.message);
                     // Continua para tentar arquivo local
                 }
+            } else {
+                console.log('ℹ️ Nenhuma URL do SharePoint configurada');
             }
+        } else {
+            console.log('ℹ️ Usuário não autenticado - pulando SharePoint');
+        }
         }
 
         // 2️⃣ FALLBACK: Tentar carregar último arquivo local
