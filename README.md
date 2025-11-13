@@ -69,27 +69,7 @@ Onde olhar primeiro
 Executando localmente (rápido)
 
 1. Sirva o diretório com um servidor estático (ex.: `python -m http.server 8000`) ou abra `index.html` localmente.
-2. Abra o console do navegador para ver logs e erros.
-
-## Autenticação Microsoft (SPA segura)
-
-- O projeto usa [MSAL Browser](https://learn.microsoft.com/azure/active-directory/develop/msal-overview#msaljs) com o fluxo **Authorization Code + PKCE**, que é o método recomendado pela Microsoft para aplicações 100% client-side.
-- No portal Azure, registre o aplicativo como **Single-page application (SPA)** e configure o `Redirect URI` apontando para o domínio que servirá o dashboard (ex.: `https://christopheredlly.github.io/Licencas`).
-- Não use Client Secret: apps SPA são clientes públicos, então qualquer segredo embutido no bundle seria exposto para o usuário final.
-- O painel só libera o restante da interface depois que o usuário realiza o login Microsoft; um overlay bloqueia a interação até a autenticação.
-- Preencha `.env` com:
-	- `AZURE_CLIENT_ID`
-	- `AZURE_TENANT_ID`
-	- `AZURE_REDIRECT_URI`
-	- `AZURE_AUTHORITY` (opcional; usa `https://login.microsoftonline.com/<TENANT>` caso omita)
-	- `AZURE_SCOPES` (lista separada por vírgula, ex.: `User.Read,Files.Read.All`)
-- Gere `env.config.js` rodando `node scripts/generate-env-config.mjs`. O arquivo é ignorado pelo git e só carrega os campos seguros.
-- Se precisar chamar APIs que exijam credenciais de aplicativo (Client Secret / Client Certificate), crie um backend protegido e use MSAL Node nele. Não exponha esse fluxo diretamente no navegador.
-
-## Estrutura do repositório
-
-- `index.html`, `css/`, `js/`, `img/`, `docs/`.
-
+2. Em casos de problemas abra o console do navegador para ver logs e erros.
 
 ## Contato
 
