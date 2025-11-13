@@ -2307,7 +2307,6 @@ class DashboardMultiPage {
         } else {
             console.log('ℹ️ Usuário não autenticado - pulando SharePoint');
         }
-        }
 
         // 2️⃣ FALLBACK: Tentar carregar último arquivo local
         const lastFile = await this.getLastFileFromLocalStorage();
