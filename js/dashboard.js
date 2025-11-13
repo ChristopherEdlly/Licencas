@@ -2043,6 +2043,9 @@ class DashboardMultiPage {
             if (!silent) {
                 this.showGlobalLoading('Carregando dados do SharePoint...');
             }
+            
+            // Mostrar skeleton loading nos widgets da home
+            this.showHomeSkeletons();
 
             // Carregar dados
             const data = await this.sharepointDataLoader.loadData();
@@ -2105,6 +2108,37 @@ class DashboardMultiPage {
         }
     }
 
+    /**
+     * Mostra skeleton loading nos widgets da home
+     */
+    showHomeSkeletons() {
+        if (!this.loadingSkeletons) return;
+        
+        // Skeleton no calendário
+        const calendarContainer = document.querySelector('#calendarSection .chart-container');
+        if (calendarContainer) {
+            this.loadingSkeletons.showChartSkeleton(calendarContainer);
+        }
+        
+        // Skeleton nos próximos vencimentos
+        const timelineContainer = document.querySelector('#dashboardSection .info-cards');
+        if (timelineContainer) {
+            timelineContainer.innerHTML = `
+                <div class="skeleton-card">
+                    <div class="skeleton-line skeleton-line-title"></div>
+                    <div class="skeleton-line skeleton-line-subtitle"></div>
+                    <div class="skeleton-line skeleton-line-text"></div>
+                </div>
+            `.repeat(3);
+        }
+        
+        // Skeleton na tabela
+        const tableContainer = document.querySelector('#dashboardSection .servers-table-container');
+        if (tableContainer) {
+            this.loadingSkeletons.showTableSkeleton(tableContainer, 8);
+        }
+    }
+    
     /**
      * Converte array de objetos para formato CSV
      */
