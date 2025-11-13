@@ -209,17 +209,48 @@ class DashboardMultiPage {
     }
 
     setupThemeIntegration() {
+        console.log('🎨 setupThemeIntegration() iniciado');
+        
         // Registrar o chart globalmente para o ThemeManager
         window.dashboardChart = this.charts.urgency;
 
+        // Inicializar AuthenticationManager
+        if (typeof AuthenticationManager !== 'undefined') {
+            try {
+                this.authenticationManager = new AuthenticationManager(this);
+                if (typeof window !== 'undefined') {
+                    window.authenticationManager = this.authenticationManager;
+                }
+                console.log('✅ AuthenticationManager inicializado');
+            } catch (error) {
+                console.error('Erro ao inicializar AuthenticationManager:', error);
+            }
+        }
+
+        // Atualizar ano atual
         const currentYear = new Date().getFullYear();
         const currentYearElement = document.getElementById('currentCalendarYear');
         if (currentYearElement) {
             currentYearElement.textContent = currentYear;
         }
 
+        // Escutar mudanças de tema
+        window.addEventListener('themeChanged', (e) => {
+            // Atualizar chart se existir
+            if (window.dashboardChart && window.themeManager) {
+                window.themeManager.updateChartColors();
+            }
+        });
+
+        if (this.charts.urgency) {
+            // Registrar novamente para o ThemeManager
+            window.dashboardChart = this.charts.urgency;
+        }
+
         // Tentar auto-carregamento após inicialização completa
+        console.log('⏱️ Agendando tryAutoLoad em 250ms...');
         setTimeout(async () => {
+            console.log('🚀 Executando auto-load agendado...');
             await this.updateStoredFileIndicators();
 
             // Se não conseguir auto-carregar, mostrar estado inicial vazio
@@ -233,40 +264,6 @@ class DashboardMultiPage {
                 this.updateSharePointButtonVisibility(isAuthenticated);
             }
         }, 250);
-    }
-
-    setupThemeIntegration() {
-        // Registrar o chart globalmente para o ThemeManager
-        window.dashboardChart = this.charts.urgency;
-
-        if (typeof AuthenticationManager !== 'undefined') {
-            try {
-                this.authenticationManager = new AuthenticationManager(this);
-                if (typeof window !== 'undefined') {
-                    window.authenticationManager = this.authenticationManager;
-                }
-                console.log('✅ AuthenticationManager inicializado');
-            } catch (error) {
-                console.error('Erro ao inicializar AuthenticationManager:', error);
-            }
-        }
-        // Escutar mudanças de tema
-        window.addEventListener('themeChanged', (e) => {
-            // Atualizar chart se existir
-            if (window.dashboardChart && window.themeManager) {
-                window.themeManager.updateChartColors();
-            }
-        });
-
-        // Atualizar cores se necessário (mantemos as mesmas cores para consistência)
-        // Mas podemos ajustar outros aspectos visuais se necessário
-
-        if (this.charts.urgency) {
-            // Registrar novamente para o ThemeManager
-            window.dashboardChart = this.charts.urgency;
-        }
-
-    // Outras atualizações de tema podem ser adicionadas aqui
     }
 
     // ==================== MÉTODOS DE CACHE ====================
