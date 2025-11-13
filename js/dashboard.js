@@ -2282,10 +2282,15 @@ class DashboardMultiPage {
             hasActiveAccount: !!this.authenticationManager?.activeAccount,
             accountName: this.authenticationManager?.activeAccount?.name
         });
+        console.log('🔍 settingsManager:', {
+            exists: !!this.settingsManager,
+            type: typeof this.settingsManager
+        });
         
         if (this.authenticationManager?.activeAccount) {
             const sharepointUrl = this.settingsManager?.get('sharepointWorkbookUrl');
             console.log('🔍 URL do SharePoint:', sharepointUrl);
+            console.log('🔍 Todas as settings:', this.settingsManager?.settings);
             
             if (sharepointUrl && sharepointUrl.trim().length > 0) {
                 try {
