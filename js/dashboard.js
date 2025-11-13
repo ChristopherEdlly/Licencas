@@ -2026,7 +2026,8 @@ class DashboardMultiPage {
             throw new Error('Authentication required');
         }
 
-        const sharepointUrl = this.settingsManager?.get('sharepointWorkbookUrl');
+        const settingsManager = this.settingsManager || window.settingsManager;
+        const sharepointUrl = settingsManager?.get('sharepointWorkbookUrl');
         if (!sharepointUrl || sharepointUrl.trim().length === 0) {
             if (!silent) {
                 window.customModal?.alert({
@@ -2283,14 +2284,18 @@ class DashboardMultiPage {
             accountName: this.authenticationManager?.activeAccount?.name
         });
         console.log('🔍 settingsManager:', {
-            exists: !!this.settingsManager,
-            type: typeof this.settingsManager
+            thisExists: !!this.settingsManager,
+            windowExists: !!window.settingsManager,
+            type: typeof window.settingsManager
         });
         
+        // Usar window.settingsManager se this.settingsManager não existir
+        const settingsManager = this.settingsManager || window.settingsManager;
+        
         if (this.authenticationManager?.activeAccount) {
-            const sharepointUrl = this.settingsManager?.get('sharepointWorkbookUrl');
+            const sharepointUrl = settingsManager?.get('sharepointWorkbookUrl');
             console.log('🔍 URL do SharePoint:', sharepointUrl);
-            console.log('🔍 Todas as settings:', this.settingsManager?.settings);
+            console.log('🔍 Todas as settings:', settingsManager?.settings);
             
             if (sharepointUrl && sharepointUrl.trim().length > 0) {
                 try {
