@@ -81,7 +81,7 @@ class SharePointDataLoader {
     async findFileInDrive(fileName) {
         console.log('🔍 Procurando arquivo:', fileName);
         
-        const token = await this.authManager.acquireToken(['Files.Read', 'Sites.Read.All']);
+        const token = await this.authManager.acquireToken(['Files.Read.All']);
         console.log('🔑 Token obtido:', token ? 'Sim' : 'Não');
         
         // Busca no drive pessoal do usuário
@@ -134,7 +134,7 @@ class SharePointDataLoader {
     async fetchWorkbookData(driveId, itemId) {
         console.log('📊 Buscando dados do workbook:', { driveId, itemId });
         
-        const token = await this.authManager.acquireToken(['Files.Read', 'Sites.Read.All']);
+        const token = await this.authManager.acquireToken(['Files.Read.All']);
         console.log('🔑 Token para workbook obtido');
         
         // Endpoint para sessão de workbook
