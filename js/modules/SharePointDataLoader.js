@@ -81,7 +81,8 @@ class SharePointDataLoader {
     async findFileInDrive(fileName) {
         console.log('🔍 Procurando arquivo:', fileName);
         
-        const token = await this.authManager.acquireToken(['Files.Read']);
+        const authManager = this.authManager || this.dashboard?.authenticationManager || window.authenticationManager;
+        const token = await authManager.acquireToken(['Files.Read']);
         console.log('🔑 Token obtido:', token ? 'Sim' : 'Não');
         
         // Busca no drive pessoal do usuário
@@ -134,7 +135,8 @@ class SharePointDataLoader {
     async fetchWorkbookData(driveId, itemId) {
         console.log('📊 Buscando dados do workbook:', { driveId, itemId });
         
-        const token = await this.authManager.acquireToken(['Files.Read']);
+        const authManager = this.authManager || this.dashboard?.authenticationManager || window.authenticationManager;
+        const token = await authManager.acquireToken(['Files.Read']);
         console.log('🔑 Token para workbook obtido');
         
         // Endpoint para sessão de workbook
@@ -280,17 +282,20 @@ class SharePointDataLoader {
         }
 
         // Verifica autenticação
+        const authManager = this.authManager || this.dashboard?.authenticationManager || window.authenticationManager;
+        const settingsManager = this.settingsManager || this.dashboard?.settingsManager || window.settingsManager;
+        
         console.log('🔍 Verificando autenticação:', {
-            hasAuthManager: !!this.authManager,
-            hasActiveAccount: !!this.authManager?.activeAccount
+            hasAuthManager: !!authManager,
+            hasActiveAccount: !!authManager?.activeAccount
         });
         
-        if (!this.authManager.activeAccount) {
+        if (!authManager?.activeAccount) {
             throw new Error('Usuário não autenticado. Faça login com sua conta Microsoft.');
         }
 
         // Pega URL da configuração
-        const sharepointUrl = this.settingsManager.get('sharepointWorkbookUrl');
+        const sharepointUrl = settingsManager?.get('sharepointWorkbookUrl');
         console.log('📎 URL do SharePoint:', sharepointUrl);
         
         if (!sharepointUrl) {
