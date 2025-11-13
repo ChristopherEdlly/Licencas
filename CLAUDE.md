@@ -136,6 +136,9 @@ This project uses a **two-part architecture**:
 - KeyboardShortcutsManager, HighContrastManager
 - NotificationManager, OperationalImpactAnalyzer
 - TableSortManager, CacheManager, LoadingSkeletons
+- **AuthenticationManager** - Microsoft Entra (Azure AD) authentication via MSAL.js
+- **SharePointDataLoader** - Loads Excel files from SharePoint via Microsoft Graph API
+- **SharePointLoadingUI** - Modern visual feedback for SharePoint operations (loading states, progress bars, toasts)
 
 ### Data Flow
 
@@ -189,6 +192,37 @@ All managers are initialized in `dashboard.init()` and stored as properties. Eac
   - `onReportReceived(callback)` - Registers callback for when builder sends report back
   - `prepareDataForBuilder()` - Extracts current dashboard data for sending
 - Global instance: `window.builderBridge`
+
+**AuthenticationManager** (`js/modules/AuthenticationManager.js`)
+- Handles Microsoft Entra (Azure AD) authentication using MSAL.js
+- Manages user sessions, token acquisition, and UI state updates
+- Requires configuration via `env.config.js` (AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_REDIRECT_URI)
+- Key methods:
+  - `login()` - Initiates OAuth2 login flow with popup
+  - `logout()` - Signs out user and clears tokens
+  - `acquireToken(scopes)` - Gets access token for Microsoft Graph API
+  - `isAuthenticated()` - Checks if user has active session
+- Global instance accessible via `window.authenticationManager` or `dashboard.authenticationManager`
+
+**SharePointDataLoader** (`js/modules/SharePointDataLoader.js`)
+- Loads Excel files from SharePoint/OneDrive via Microsoft Graph API
+- Parses SharePoint URLs and searches for files in user's drive
+- Downloads file content and passes to existing parser (CronogramaParser)
+- Key methods:
+  - `parseSharePointUrl(url)` - Extracts file info from SharePoint link
+  - `findFileInDrive(fileName)` - Searches for file in user's OneDrive
+  - `downloadFile(fileId)` - Downloads Excel file content
+  - `loadFromSharePoint(url)` - Complete workflow: find → download → parse
+
+**SharePointLoadingUI** (`js/modules/SharePointLoadingUI.js`)
+- Provides modern visual feedback for SharePoint operations
+- Shows loading overlays, progress bars, skeleton loaders, and toast notifications
+- Key methods:
+  - `showGlobalLoading(message)` / `hideGlobalLoading()` - Full-screen loading overlay
+  - `showProgressBar(options)` / `updateProgress(percent)` - File upload/download progress
+  - `showSuccess(message)` / `showError(message)` - Toast notifications
+  - `authenticateWorkflow(callback)` / `loadFileWorkflow(callback)` - Complete UX workflows
+- Global instance: `window.sharePointLoadingUI`
 
 ## Date Format Handling
 
@@ -358,6 +392,47 @@ The dashboard includes multiple accessibility enhancements:
 9. **Build order is critical** - When building for production, static files must be copied to dist/ BEFORE running Vite build, otherwise Vite will clear dist/ even with `emptyOutDir: false` (see `build-local.sh` for correct order)
 10. **Vite root configuration** - Vite's `root: 'react-builder'` means all npm scripts run from project root, not the react-builder subdirectory
 
+## UI Improvements (November 2025)
+
+A comprehensive visual redesign was implemented focusing on:
+
+**1. SharePoint Integration UI:**
+- Modern gradient buttons for Microsoft authentication
+- Glassmorphism effects on account chips
+- Animated loading states with progress bars
+- Toast notifications for success/error feedback
+- Skeleton loaders for async data loading
+
+**2. Header & Navigation:**
+- Backdrop blur effects for modern glassmorphism
+- Redesigned search bar with smooth focus transitions
+- Improved server count badge with gradient background
+- Enhanced notification bell with bounce animations
+
+**3. Sidebar:**
+- Larger icons with hover scale animations
+- Smooth color transitions on navigation
+- Active state indicators with gradient accents
+- Improved filter buttons with shadow effects
+
+**4. Stats Cards:**
+- Gradient backgrounds for card icons
+- Hover animations with elevation changes
+- Modern border radius and shadows
+- Color-coded visual hierarchy
+
+**5. Loading States:**
+- Global loading overlay with blur backdrop
+- Progress bars with gradient fills
+- Skeleton loaders with shimmer effects
+- Animated toast notifications
+
+**CSS Files:**
+- `css/components/ui-improvements.css` - Main UI enhancement styles
+
+**JavaScript Modules:**
+- `js/modules/SharePointLoadingUI.js` - Modern loading UX utilities
+
 ## Browser Console Utilities
 
 When dashboard is loaded, these globals are available for debugging:
@@ -395,6 +470,18 @@ window.themeManager          // Global theme manager
 window.builderBridge         // Bridge to React builder
 window.builderBridge.openBuilder({ data: dashboard.allServidores })  // Open builder
 window.builderBridge.onReportReceived(data => console.log(data))     // Listen for reports
+
+// SharePoint Integration
+window.authenticationManager          // Microsoft authentication manager
+window.sharePointLoadingUI            // Modern loading UI utilities
+dashboard.sharePointDataLoader        // SharePoint file loader
+
+// SharePoint UI Examples
+sharePointLoadingUI.showGlobalLoading('Carregando...')
+sharePointLoadingUI.showProgressBar({ title: 'Baixando arquivo...' })
+sharePointLoadingUI.updateProgress(50)
+sharePointLoadingUI.showSuccess('Operação concluída!')
+sharePointLoadingUI.showError('Erro na operação')
 
 // Debug mode
 dashboard.parser.setDebug(true)  // Enable verbose parsing logs
