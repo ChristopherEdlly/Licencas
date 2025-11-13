@@ -12,5 +12,5 @@ Object.assign(window.__ENV__, {
     ? window.location.origin 
     : "https://christopheredlly.github.io/Licencas",
   AZURE_AUTHORITY: "https://login.microsoftonline.com/85795021-1de9-44cf-9dd4-21c3cfce52c5",
-  AZURE_SCOPES: ["User.Read", "Files.Read", "Sites.Read.All"]
+  AZURE_SCOPES: ["User.Read", "Files.Read.All"]
 });
