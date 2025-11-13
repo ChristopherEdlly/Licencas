@@ -70,6 +70,7 @@ class ReportsManager {
      */
     setupEventListeners() {
         // Botões de ação (novos IDs do redesign)
+        // Botões principais
         const generateBtn = document.getElementById('generatePdfRedesign');
         const exportXlsxBtn = document.getElementById('exportXlsxRedesign');
         const selectAllBtn = document.getElementById('selectAllColumns');
@@ -79,21 +80,30 @@ class ReportsManager {
         const generateBtnFooter = document.getElementById('generatePdfRedesignFooter');
         const exportXlsxBtnFooter = document.getElementById('exportXlsxRedesignFooter');
 
+        // Conectar botões principais
         if (generateBtn) {
             generateBtn.addEventListener('click', () => this.generatePDF());
+            console.log('✅ ReportsManager: Botão Gerar PDF conectado');
+        } else {
+            console.warn('⚠️ ReportsManager: Botão generatePdfRedesign não encontrado');
         }
 
         if (exportXlsxBtn) {
             exportXlsxBtn.addEventListener('click', () => this.exportToXLSX(exportXlsxBtn));
+            console.log('✅ ReportsManager: Botão Exportar Excel conectado');
+        } else {
+            console.warn('⚠️ ReportsManager: Botão exportXlsxRedesign não encontrado');
         }
 
-        // Conectar botões do footer aos mesmos métodos
+        // Conectar botões do footer
         if (generateBtnFooter) {
             generateBtnFooter.addEventListener('click', () => this.generatePDF());
+            console.log('✅ ReportsManager: Botão footer PDF conectado');
         }
 
         if (exportXlsxBtnFooter) {
             exportXlsxBtnFooter.addEventListener('click', () => this.exportToXLSX(exportXlsxBtnFooter));
+            console.log('✅ ReportsManager: Botão footer Excel conectado');
         }
 
         if (selectAllBtn) {

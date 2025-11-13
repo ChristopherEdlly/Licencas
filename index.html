@@ -145,11 +145,7 @@
                 <div class="upload-wrapper">
                     <button class="btn-import" id="uploadButton">
                         <i class="bi bi-upload" aria-hidden="true"></i>
-                        <span>Importar</span>
-                    </button>
-                    <button class="btn-sharepoint" id="loadFromSharePointButton" title="Carregar do SharePoint">
-                        <i class="bi bi-cloud-download" aria-hidden="true"></i>
-                        <span>SharePoint</span>
+                        <span>Importar Arquivo Local</span>
                     </button>
                     <button class="btn-recent-files" id="recentFilesButton" title="Arquivos recentes"
                         style="display: none;">
@@ -1074,7 +1070,7 @@
                                 </div>
                                 <div class="block-content integration-content">
                                     <div class="integration-summary">
-                                        <p>Conecte sua conta corporativa para habilitar importações contínuas via OneDrive ou SharePoint.</p>
+                                        <p>Cole o link da planilha do SharePoint para sincronização automática</p>
                                         <div class="integration-status-badge" id="azureIntegrationStatus">Microsoft não conectado</div>
                                         <div class="integration-actions">
                                             <button type="button" class="btn-microsoft" id="microsoftLoginButtonSettings">
@@ -1088,21 +1084,12 @@
                                         </div>
                                     </div>
 
-                                    <div class="integration-flow">
-                                        <h3>Fluxos Suportados</h3>
-                                        <ol>
-                                            <li><strong>Upload Manual</strong>: continue utilizando o botão de importação na barra superior. Recomende o uso da File System Access API para agilizar reimportações.</li>
-                                            <li><strong>Planilha no SharePoint/OneDrive</strong>: informe abaixo o link compartilhado da planilha corporativa para sincronizações futuras.</li>
-                                        </ol>
-                                    </div>
-
                                     <div class="integration-form">
                                         <label for="sharepointLinkInput" class="integration-label">
-                                            <span>Link da planilha (SharePoint ou OneDrive)</span>
-                                            <small>O link deve ter permissões limitadas aos usuários autorizados.</small>
+                                            <span>📎 Link da planilha do SharePoint</span>
                                         </label>
-                                        <input type="url" id="sharepointLinkInput" placeholder="https://contoso.sharepoint.com/sites/.../Licencas.xlsx">
-                                        <p class="integration-hint">Se preferir manter o link fora do navegador, armazene-o como variável de ambiente e gere o arquivo <code>env.config.js</code> antes do deploy.</p>
+                                        <input type="url" id="sharepointLinkInput" placeholder="Cole aqui o link da planilha do SharePoint">
+                                        <p class="integration-hint">💡 Os dados serão carregados automaticamente ao abrir o sistema</p>
                                     </div>
                                 </div>
                             </div>

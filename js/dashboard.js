@@ -2004,38 +2004,47 @@ class DashboardMultiPage {
 
     /**
      * Carrega dados da planilha do SharePoint
+     * @param {boolean} silent - Se true, não mostra alertas de erro (para auto-load)
      */
-    async loadDataFromSharePoint() {
+    async loadDataFromSharePoint(silent = false) {
         if (!this.sharepointDataLoader) {
-            window.customModal?.alert({
-                title: 'SharePoint Indisponível',
-                message: 'O módulo de integração com SharePoint não está disponível.',
-                type: 'warning'
-            });
-            return;
+            if (!silent) {
+                window.customModal?.alert({
+                    title: 'SharePoint Indisponível',
+                    message: 'O módulo de integração com SharePoint não está disponível.',
+                    type: 'warning'
+                });
+            }
+            throw new Error('SharePoint module not available');
         }
 
         if (!this.authenticationManager?.activeAccount) {
-            window.customModal?.alert({
-                title: 'Autenticação Necessária',
-                message: 'Faça login com sua conta Microsoft antes de carregar dados do SharePoint.',
-                type: 'warning'
-            });
-            return;
+            if (!silent) {
+                window.customModal?.alert({
+                    title: 'Autenticação Necessária',
+                    message: 'Faça login com sua conta Microsoft antes de carregar dados do SharePoint.',
+                    type: 'warning'
+                });
+            }
+            throw new Error('Authentication required');
         }
 
         const sharepointUrl = this.settingsManager?.get('sharepointWorkbookUrl');
         if (!sharepointUrl || sharepointUrl.trim().length === 0) {
-            window.customModal?.alert({
-                title: 'URL não Configurada',
-                message: 'Configure a URL da planilha do SharePoint nas Configurações antes de continuar.',
-                type: 'warning'
-            });
-            return;
+            if (!silent) {
+                window.customModal?.alert({
+                    title: 'URL não Configurada',
+                    message: 'Configure a URL da planilha do SharePoint nas Configurações antes de continuar.',
+                    type: 'warning'
+                });
+            }
+            throw new Error('SharePoint URL not configured');
         }
 
         try {
-            this.showGlobalLoading('Carregando dados do SharePoint...');
+            if (!silent) {
+                this.showGlobalLoading('Carregando dados do SharePoint...');
+            }
 
             // Carregar dados
             const data = await this.sharepointDataLoader.loadData();
@@ -2051,13 +2060,7 @@ class DashboardMultiPage {
             this.processData(csvData);
             this.updateLastUpdate();
 
-            // Mostrar sucesso
-            window.customModal?.alert({
-                title: 'Dados Carregados',
-                message: `${data.length} registros carregados com sucesso do SharePoint!`,
-                type: 'success'
-            });
-
+            // Atualizar UI
             const statusElement = document.getElementById('uploadStatus');
             if (statusElement) {
                 statusElement.className = 'upload-status success';
@@ -2067,14 +2070,25 @@ class DashboardMultiPage {
                 `;
             }
 
+            // Sucesso silencioso ou com mensagem
+            if (!silent) {
+                this.showToast('success', `${data.length} registros carregados do SharePoint`);
+            } else {
+                console.log(`✅ SharePoint: ${data.length} registros carregados automaticamente`);
+            }
+
+            return true;
+
         } catch (error) {
-            console.error('Erro ao carregar dados do SharePoint:', error);
+            console.error('❌ Erro ao carregar dados do SharePoint:', error);
             
-            window.customModal?.alert({
-                title: 'Erro ao Carregar',
-                message: error.message || 'Não foi possível carregar os dados do SharePoint. Verifique a URL e suas permissões.',
-                type: 'danger'
-            });
+            if (!silent) {
+                window.customModal?.alert({
+                    title: 'Erro ao Carregar',
+                    message: error.message || 'Não foi possível carregar os dados do SharePoint. Verifique a URL e suas permissões.',
+                    type: 'danger'
+                });
+            }
 
             const statusElement = document.getElementById('uploadStatus');
             if (statusElement) {
@@ -2084,8 +2098,12 @@ class DashboardMultiPage {
                     <span class="file-info">✗ Erro ao carregar do SharePoint</span>
                 `;
             }
+
+            throw error; // Re-throw para que tryAutoLoad possa tratar
         } finally {
-            this.hideGlobalLoading();
+            if (!silent) {
+                this.hideGlobalLoading();
+            }
         }
     }
 
@@ -2259,6 +2277,22 @@ class DashboardMultiPage {
     }
 
     async tryAutoLoad() {
+        // 1️⃣ PRIORIDADE: Tentar carregar do SharePoint automaticamente (silencioso)
+        if (this.authenticationManager?.activeAccount) {
+            const sharepointUrl = this.settingsManager?.get('sharepointWorkbookUrl');
+            if (sharepointUrl && sharepointUrl.trim().length > 0) {
+                try {
+                    console.log('🔄 Carregamento automático do SharePoint...');
+                    await this.loadDataFromSharePoint(true); // silent = true
+                    return true; // Sucesso - não precisa carregar arquivo local
+                } catch (error) {
+                    console.warn('⚠️ Falha no carregamento automático do SharePoint:', error.message);
+                    // Continua para tentar arquivo local
+                }
+            }
+        }
+
+        // 2️⃣ FALLBACK: Tentar carregar último arquivo local
         const lastFile = await this.getLastFileFromLocalStorage();
         if (!lastFile) {
             return false;
@@ -4468,10 +4502,10 @@ class DashboardMultiPage {
                     item.classList.remove('active');
                 });
                 
-                // Atualizar interface e aplicar
+                // Atualizar interface e aplicar (SILENCIOSO)
                 this.advancedFiltersBuilder.renderActiveFilters();
                 this.advancedFiltersBuilder.updateResultsPreview();
-                this.advancedFiltersBuilder.applyFilters();
+                this.advancedFiltersBuilder.applyFilters(true); // silent = true
             } else {
                 // ADICIONAR: Novo filtro
                 // Remover destaque de todos os cards
@@ -4518,10 +4552,10 @@ class DashboardMultiPage {
                 // Remover destaque do card
                 document.querySelectorAll('.legend-card').forEach(card => card.classList.remove('active'));
                 
-                // Atualizar interface e aplicar
+                // Atualizar interface e aplicar (SILENCIOSO)
                 this.advancedFiltersBuilder.renderActiveFilters();
                 this.advancedFiltersBuilder.updateResultsPreview();
-                this.advancedFiltersBuilder.applyFilters();
+                this.advancedFiltersBuilder.applyFilters(true); // silent = true
             } else {
                 // ADICIONAR: Novo filtro
                 // Remover destaque de todos os cards
