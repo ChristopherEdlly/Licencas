@@ -1995,20 +1995,11 @@ class DashboardMultiPage {
 
     /**
      * Atualiza visibilidade do botão SharePoint baseado no estado de autenticação
+     * Nota: Botão sempre visível, validação acontece ao clicar
      */
     updateSharePointButtonVisibility(isAuthenticated) {
-        const button = document.getElementById('loadFromSharePointButton');
-        if (!button) return;
-
-        const sharepointUrl = this.settingsManager?.get('sharepointWorkbookUrl');
-        const hasUrl = sharepointUrl && sharepointUrl.trim().length > 0;
-
-        // Mostrar botão se: usuário autenticado E tem URL configurada
-        if (isAuthenticated && hasUrl) {
-            button.style.display = 'inline-flex';
-        } else {
-            button.style.display = 'none';
-        }
+        // Botão sempre visível - validações acontecem em loadDataFromSharePoint()
+        return;
     }
 
     /**
