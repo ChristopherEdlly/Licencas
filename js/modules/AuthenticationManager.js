@@ -13,7 +13,7 @@ class AuthenticationManager {
         this.loginInProgress = false;
         this.scopes = Array.isArray(this.env.AZURE_SCOPES) && this.env.AZURE_SCOPES.length > 0
             ? this.env.AZURE_SCOPES
-            : ['User.Read', 'Files.Read.All'];
+            : ['User.Read', 'Files.Read'];
 
         this.loginButtons = [
             document.getElementById('microsoftLoginButton'),
