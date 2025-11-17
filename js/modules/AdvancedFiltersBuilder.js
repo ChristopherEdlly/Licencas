@@ -281,11 +281,8 @@ class AdvancedFiltersBuilder {
         const filterData = this.extractFilterData(this.currentFilterType);
         
         if (!filterData) {
-            window.customModal?.alert({
-                title: 'Atenção',
-                message: 'Por favor, selecione pelo menos um item para o filtro.',
-                type: 'warning'
-            });
+            // Silenciosamente fecha o popup se nada foi selecionado
+            this.closeFilterConfigPopup();
             return;
         }
 
@@ -1547,7 +1544,7 @@ class AdvancedFiltersBuilder {
     /**
      * Aplicar filtros ao dashboard
      */
-    applyFilters() {
+    applyFilters(silent = false) {
         const filtered = this.applyFiltersToData(this.dashboard.allServidores);
         this.dashboard.filteredServidores = filtered;
         
@@ -1559,8 +1556,8 @@ class AdvancedFiltersBuilder {
         // Fechar modal
         this.closeModal();
         
-        // Feedback
-        if (this.dashboard.showToast) {
+        // Feedback (apenas se não for silencioso)
+        if (!silent && this.dashboard.showToast) {
             this.dashboard.showToast(
                 `Filtros aplicados: ${filtered.length} de ${this.dashboard.allServidores.length} servidores`,
                 'success'
@@ -1960,8 +1957,8 @@ class AdvancedFiltersBuilder {
         // Atualizar preview de resultados
         this.updateResultsPreview();
         
-        // Aplicar filtros automaticamente
-        this.applyFilters();
+        // Aplicar filtros automaticamente (SILENCIOSO - sem toast chato)
+        this.applyFilters(true);
         
         console.log('✅ Filtro adicionado programaticamente:', filterData);
     }

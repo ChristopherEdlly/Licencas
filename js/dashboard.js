@@ -206,20 +206,57 @@ class DashboardMultiPage {
             this.operationalImpactAnalyzer = new OperationalImpactAnalyzer(this);
             console.log('✅ OperationalImpactAnalyzer inicializado');
         }
+        
+        // Inicializar ReportsManager
+        if (typeof ReportsManager !== 'undefined') {
+            this.reportsManager = new ReportsManager(this);
+            console.log('✅ ReportsManager inicializado');
+        }
     }
 
     setupThemeIntegration() {
+        console.log('🎨 setupThemeIntegration() iniciado');
+        
         // Registrar o chart globalmente para o ThemeManager
         window.dashboardChart = this.charts.urgency;
 
+        // Inicializar AuthenticationManager
+        if (typeof AuthenticationManager !== 'undefined') {
+            try {
+                this.authenticationManager = new AuthenticationManager(this);
+                if (typeof window !== 'undefined') {
+                    window.authenticationManager = this.authenticationManager;
+                }
+                console.log('✅ AuthenticationManager inicializado');
+            } catch (error) {
+                console.error('Erro ao inicializar AuthenticationManager:', error);
+            }
+        }
+
+        // Atualizar ano atual
         const currentYear = new Date().getFullYear();
         const currentYearElement = document.getElementById('currentCalendarYear');
         if (currentYearElement) {
             currentYearElement.textContent = currentYear;
         }
 
+        // Escutar mudanças de tema
+        window.addEventListener('themeChanged', (e) => {
+            // Atualizar chart se existir
+            if (window.dashboardChart && window.themeManager) {
+                window.themeManager.updateChartColors();
+            }
+        });
+
+        if (this.charts.urgency) {
+            // Registrar novamente para o ThemeManager
+            window.dashboardChart = this.charts.urgency;
+        }
+
         // Tentar auto-carregamento após inicialização completa
+        console.log('⏱️ Agendando tryAutoLoad em 250ms...');
         setTimeout(async () => {
+            console.log('🚀 Executando auto-load agendado...');
             await this.updateStoredFileIndicators();
 
             // Se não conseguir auto-carregar, mostrar estado inicial vazio
@@ -233,40 +270,6 @@ class DashboardMultiPage {
                 this.updateSharePointButtonVisibility(isAuthenticated);
             }
         }, 250);
-    }
-
-    setupThemeIntegration() {
-        // Registrar o chart globalmente para o ThemeManager
-        window.dashboardChart = this.charts.urgency;
-
-        if (typeof AuthenticationManager !== 'undefined') {
-            try {
-                this.authenticationManager = new AuthenticationManager(this);
-                if (typeof window !== 'undefined') {
-                    window.authenticationManager = this.authenticationManager;
-                }
-                console.log('✅ AuthenticationManager inicializado');
-            } catch (error) {
-                console.error('Erro ao inicializar AuthenticationManager:', error);
-            }
-        }
-        // Escutar mudanças de tema
-        window.addEventListener('themeChanged', (e) => {
-            // Atualizar chart se existir
-            if (window.dashboardChart && window.themeManager) {
-                window.themeManager.updateChartColors();
-            }
-        });
-
-        // Atualizar cores se necessário (mantemos as mesmas cores para consistência)
-        // Mas podemos ajustar outros aspectos visuais se necessário
-
-        if (this.charts.urgency) {
-            // Registrar novamente para o ThemeManager
-            window.dashboardChart = this.charts.urgency;
-        }
-
-    // Outras atualizações de tema podem ser adicionadas aqui
     }
 
     // ==================== MÉTODOS DE CACHE ====================
@@ -1995,56 +1998,93 @@ class DashboardMultiPage {
 
     /**
      * Atualiza visibilidade do botão SharePoint baseado no estado de autenticação
+     * Nota: Botão sempre visível, validação acontece ao clicar
      */
     updateSharePointButtonVisibility(isAuthenticated) {
-        const button = document.getElementById('loadFromSharePointButton');
-        if (!button) return;
-
-        const sharepointUrl = this.settingsManager?.get('sharepointWorkbookUrl');
-        const hasUrl = sharepointUrl && sharepointUrl.trim().length > 0;
-
-        // Mostrar botão se: usuário autenticado E tem URL configurada
-        if (isAuthenticated && hasUrl) {
-            button.style.display = 'inline-flex';
-        } else {
-            button.style.display = 'none';
-        }
+        // Botão sempre visível - validações acontecem em loadDataFromSharePoint()
+        return;
     }
 
     /**
      * Carrega dados da planilha do SharePoint
+     * @param {boolean} silent - Se true, não mostra alertas de erro (para auto-load)
      */
-    async loadDataFromSharePoint() {
+    async loadDataFromSharePoint(silent = false) {
+        // Verificar se SharePointDataLoader está disponível e inicializado
+        if (typeof SharePointDataLoader === 'undefined') {
+            console.warn('⚠️ SharePointDataLoader class não está carregada');
+            if (!silent) {
+                window.customModal?.alert({
+                    title: 'SharePoint Indisponível',
+                    message: 'O módulo de integração com SharePoint não está carregado.',
+                    type: 'warning'
+                });
+            }
+            throw new Error('SharePoint class not loaded');
+        }
+
+        // Inicializar SharePointDataLoader se ainda não foi
+        if (!this.sharepointDataLoader && this.authenticationManager) {
+            try {
+                console.log('🔄 Inicializando SharePointDataLoader tardiamente...');
+                this.sharepointDataLoader = new SharePointDataLoader(this);
+                console.log('✅ SharePointDataLoader inicializado com sucesso');
+            } catch (error) {
+                console.error('❌ Erro ao inicializar SharePointDataLoader:', error);
+                if (!silent) {
+                    window.customModal?.alert({
+                        title: 'Erro de Inicialização',
+                        message: 'Não foi possível inicializar o módulo SharePoint.',
+                        type: 'error'
+                    });
+                }
+                throw new Error('Failed to initialize SharePoint module');
+            }
+        }
+
         if (!this.sharepointDataLoader) {
-            window.customModal?.alert({
-                title: 'SharePoint Indisponível',
-                message: 'O módulo de integração com SharePoint não está disponível.',
-                type: 'warning'
-            });
-            return;
+            console.warn('⚠️ SharePointDataLoader não pôde ser inicializado');
+            if (!silent) {
+                window.customModal?.alert({
+                    title: 'SharePoint Indisponível',
+                    message: 'O módulo de integração com SharePoint não está disponível.',
+                    type: 'warning'
+                });
+            }
+            throw new Error('SharePoint module not available');
         }
 
         if (!this.authenticationManager?.activeAccount) {
-            window.customModal?.alert({
-                title: 'Autenticação Necessária',
-                message: 'Faça login com sua conta Microsoft antes de carregar dados do SharePoint.',
-                type: 'warning'
-            });
-            return;
+            if (!silent) {
+                window.customModal?.alert({
+                    title: 'Autenticação Necessária',
+                    message: 'Faça login com sua conta Microsoft antes de carregar dados do SharePoint.',
+                    type: 'warning'
+                });
+            }
+            throw new Error('Authentication required');
         }
 
-        const sharepointUrl = this.settingsManager?.get('sharepointWorkbookUrl');
+        const settingsManager = this.settingsManager || window.settingsManager;
+        const sharepointUrl = settingsManager?.get('sharepointWorkbookUrl');
         if (!sharepointUrl || sharepointUrl.trim().length === 0) {
-            window.customModal?.alert({
-                title: 'URL não Configurada',
-                message: 'Configure a URL da planilha do SharePoint nas Configurações antes de continuar.',
-                type: 'warning'
-            });
-            return;
+            if (!silent) {
+                window.customModal?.alert({
+                    title: 'URL não Configurada',
+                    message: 'Configure a URL da planilha do SharePoint nas Configurações antes de continuar.',
+                    type: 'warning'
+                });
+            }
+            throw new Error('SharePoint URL not configured');
         }
 
         try {
-            this.showGlobalLoading('Carregando dados do SharePoint...');
+            // Sempre mostrar skeleton loading (mesmo em modo silencioso)
+            this.showHomeSkeletons();
+            
+            if (!silent) {
+                this.showGlobalLoading('Carregando dados do SharePoint...');
+            }
 
             // Carregar dados
             const data = await this.sharepointDataLoader.loadData();
@@ -2060,13 +2100,7 @@ class DashboardMultiPage {
             this.processData(csvData);
             this.updateLastUpdate();
 
-            // Mostrar sucesso
-            window.customModal?.alert({
-                title: 'Dados Carregados',
-                message: `${data.length} registros carregados com sucesso do SharePoint!`,
-                type: 'success'
-            });
-
+            // Atualizar UI
             const statusElement = document.getElementById('uploadStatus');
             if (statusElement) {
                 statusElement.className = 'upload-status success';
@@ -2076,14 +2110,25 @@ class DashboardMultiPage {
                 `;
             }
 
+            // Sucesso silencioso ou com mensagem
+            if (!silent) {
+                this.showToast('success', `${data.length} registros carregados do SharePoint`);
+            } else {
+                console.log(`✅ SharePoint: ${data.length} registros carregados automaticamente`);
+            }
+
+            return true;
+
         } catch (error) {
-            console.error('Erro ao carregar dados do SharePoint:', error);
+            console.error('❌ Erro ao carregar dados do SharePoint:', error);
             
-            window.customModal?.alert({
-                title: 'Erro ao Carregar',
-                message: error.message || 'Não foi possível carregar os dados do SharePoint. Verifique a URL e suas permissões.',
-                type: 'danger'
-            });
+            if (!silent) {
+                window.customModal?.alert({
+                    title: 'Erro ao Carregar',
+                    message: error.message || 'Não foi possível carregar os dados do SharePoint. Verifique a URL e suas permissões.',
+                    type: 'danger'
+                });
+            }
 
             const statusElement = document.getElementById('uploadStatus');
             if (statusElement) {
@@ -2093,11 +2138,46 @@ class DashboardMultiPage {
                     <span class="file-info">✗ Erro ao carregar do SharePoint</span>
                 `;
             }
+
+            throw error; // Re-throw para que tryAutoLoad possa tratar
         } finally {
-            this.hideGlobalLoading();
+            if (!silent) {
+                this.hideGlobalLoading();
+            }
         }
     }
 
+    /**
+     * Mostra skeleton loading nos widgets da home
+     */
+    showHomeSkeletons() {
+        if (!this.loadingSkeletons) return;
+        
+        // Skeleton no calendário
+        const calendarContainer = document.querySelector('#calendarSection .chart-container');
+        if (calendarContainer) {
+            this.loadingSkeletons.showChartSkeleton(calendarContainer);
+        }
+        
+        // Skeleton nos próximos vencimentos
+        const timelineContainer = document.querySelector('#dashboardSection .info-cards');
+        if (timelineContainer) {
+            timelineContainer.innerHTML = `
+                <div class="skeleton-card">
+                    <div class="skeleton-line skeleton-line-title"></div>
+                    <div class="skeleton-line skeleton-line-subtitle"></div>
+                    <div class="skeleton-line skeleton-line-text"></div>
+                </div>
+            `.repeat(3);
+        }
+        
+        // Skeleton na tabela
+        const tableContainer = document.querySelector('#dashboardSection .servers-table-container');
+        if (tableContainer) {
+            this.loadingSkeletons.showTableSkeleton(tableContainer, 8);
+        }
+    }
+    
     /**
      * Converte array de objetos para formato CSV
      */
@@ -2268,6 +2348,47 @@ class DashboardMultiPage {
     }
 
     async tryAutoLoad() {
+        console.log('📍 tryAutoLoad() iniciado');
+        
+        // 1️⃣ PRIORIDADE: Tentar carregar do SharePoint automaticamente (silencioso)
+        console.log('🔍 Verificando autenticação:', {
+            hasAuthManager: !!this.authenticationManager,
+            hasActiveAccount: !!this.authenticationManager?.activeAccount,
+            accountName: this.authenticationManager?.activeAccount?.name
+        });
+        console.log('🔍 settingsManager:', {
+            thisExists: !!this.settingsManager,
+            windowExists: !!window.settingsManager,
+            type: typeof window.settingsManager
+        });
+        
+        // Usar window.settingsManager se this.settingsManager não existir
+        const settingsManager = this.settingsManager || window.settingsManager;
+        
+        if (this.authenticationManager?.activeAccount) {
+            const sharepointUrl = settingsManager?.get('sharepointWorkbookUrl');
+            console.log('🔍 URL do SharePoint:', sharepointUrl);
+            console.log('🔍 Todas as settings:', settingsManager?.settings);
+            
+            if (sharepointUrl && sharepointUrl.trim().length > 0) {
+                try {
+                    console.log('🔄 Iniciando carregamento automático do SharePoint...');
+                    await this.loadDataFromSharePoint(true); // silent = true
+                    console.log('✅ SharePoint carregado com sucesso!');
+                    return true; // Sucesso - não precisa carregar arquivo local
+                } catch (error) {
+                    console.error('❌ Erro ao carregar do SharePoint:', error);
+                    console.warn('⚠️ Falha no carregamento automático do SharePoint:', error.message);
+                    // Continua para tentar arquivo local
+                }
+            } else {
+                console.log('ℹ️ Nenhuma URL do SharePoint configurada');
+            }
+        } else {
+            console.log('ℹ️ Usuário não autenticado - pulando SharePoint');
+        }
+
+        // 2️⃣ FALLBACK: Tentar carregar último arquivo local
         const lastFile = await this.getLastFileFromLocalStorage();
         if (!lastFile) {
             return false;
@@ -4477,10 +4598,10 @@ class DashboardMultiPage {
                     item.classList.remove('active');
                 });
                 
-                // Atualizar interface e aplicar
+                // Atualizar interface e aplicar (SILENCIOSO)
                 this.advancedFiltersBuilder.renderActiveFilters();
                 this.advancedFiltersBuilder.updateResultsPreview();
-                this.advancedFiltersBuilder.applyFilters();
+                this.advancedFiltersBuilder.applyFilters(true); // silent = true
             } else {
                 // ADICIONAR: Novo filtro
                 // Remover destaque de todos os cards
@@ -4527,10 +4648,10 @@ class DashboardMultiPage {
                 // Remover destaque do card
                 document.querySelectorAll('.legend-card').forEach(card => card.classList.remove('active'));
                 
-                // Atualizar interface e aplicar
+                // Atualizar interface e aplicar (SILENCIOSO)
                 this.advancedFiltersBuilder.renderActiveFilters();
                 this.advancedFiltersBuilder.updateResultsPreview();
-                this.advancedFiltersBuilder.applyFilters();
+                this.advancedFiltersBuilder.applyFilters(true); // silent = true
             } else {
                 // ADICIONAR: Novo filtro
                 // Remover destaque de todos os cards

@@ -16,9 +16,11 @@ out/
 .env.production
 .env.exemple
 env.config.js
+.playwright-mcp/
 
 # Editors
 .vscode/
+.github/
 .idea/
 *.sublime-project
 *.sublime-workspace

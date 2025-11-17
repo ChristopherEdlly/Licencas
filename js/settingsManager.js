@@ -466,8 +466,28 @@ class SettingsManager {
 
         const sharepointLinkInput = document.getElementById('sharepointLinkInput');
         if (sharepointLinkInput) {
+            // Auto-save quando colar ou digitar URL
             sharepointLinkInput.addEventListener('input', () => {
                 this.updateSettingsStatus('unsaved');
+                // Salvar automaticamente após 1 segundo de inatividade
+                clearTimeout(this.sharepointUrlTimeout);
+                this.sharepointUrlTimeout = setTimeout(() => {
+                    const url = sharepointLinkInput.value?.trim();
+                    if (url) {
+                        this.set('sharepointWorkbookUrl', url);
+                        console.log('✅ URL do SharePoint salva automaticamente:', url);
+                        this.showNotification('URL do SharePoint salva', 'success');
+                    }
+                }, 1000);
+            });
+            
+            // Também salvar ao sair do campo (blur)
+            sharepointLinkInput.addEventListener('blur', () => {
+                const url = sharepointLinkInput.value?.trim();
+                if (url) {
+                    this.set('sharepointWorkbookUrl', url);
+                    console.log('✅ URL do SharePoint salva (blur):', url);
+                }
             });
         }
     }

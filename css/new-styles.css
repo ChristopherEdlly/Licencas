@@ -495,13 +495,14 @@ body.sidebar-collapsed .sidebar .nav-link.active {
 
 .sidebar.collapsed .nav-link {
     justify-content: center;
-    padding: 0.5rem 0.25rem;
+    padding: 0.625rem;
+    margin: 0.25rem 0.5rem;
     position: relative;
     border-radius: 8px;
 }
 
 .sidebar.collapsed .nav-link:hover {
-    background: var(--bg-tertiary);
+    background: var(--bg-hover);
     transform: none;
 }
 
@@ -6640,6 +6641,44 @@ input[type="number"] {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+/* Layout Compacto */
+.integration-compact {
+    gap: 0.75rem;
+}
+
+.integration-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.integration-form-compact {
+    display: flex;
+    flex-direction: column;
+}
+
+.integration-form-compact input {
+    width: 100%;
+    padding: 0.65rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.integration-form-compact input:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 0;
+    border-color: transparent;
+}
+
+.btn-compact {
+    padding: 0.5rem 0.85rem !important;
+    font-size: 0.85rem !important;
 }
 
 .integration-summary {
