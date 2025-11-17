@@ -2010,7 +2010,40 @@ class DashboardMultiPage {
      * @param {boolean} silent - Se true, não mostra alertas de erro (para auto-load)
      */
     async loadDataFromSharePoint(silent = false) {
+        // Verificar se SharePointDataLoader está disponível e inicializado
+        if (typeof SharePointDataLoader === 'undefined') {
+            console.warn('⚠️ SharePointDataLoader class não está carregada');
+            if (!silent) {
+                window.customModal?.alert({
+                    title: 'SharePoint Indisponível',
+                    message: 'O módulo de integração com SharePoint não está carregado.',
+                    type: 'warning'
+                });
+            }
+            throw new Error('SharePoint class not loaded');
+        }
+
+        // Inicializar SharePointDataLoader se ainda não foi
+        if (!this.sharepointDataLoader && this.authenticationManager) {
+            try {
+                console.log('🔄 Inicializando SharePointDataLoader tardiamente...');
+                this.sharepointDataLoader = new SharePointDataLoader(this);
+                console.log('✅ SharePointDataLoader inicializado com sucesso');
+            } catch (error) {
+                console.error('❌ Erro ao inicializar SharePointDataLoader:', error);
+                if (!silent) {
+                    window.customModal?.alert({
+                        title: 'Erro de Inicialização',
+                        message: 'Não foi possível inicializar o módulo SharePoint.',
+                        type: 'error'
+                    });
+                }
+                throw new Error('Failed to initialize SharePoint module');
+            }
+        }
+
         if (!this.sharepointDataLoader) {
+            console.warn('⚠️ SharePointDataLoader não pôde ser inicializado');
             if (!silent) {
                 window.customModal?.alert({
                     title: 'SharePoint Indisponível',

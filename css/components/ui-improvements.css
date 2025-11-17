@@ -138,19 +138,27 @@
 }
 
 .account-action {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     color: var(--text-tertiary);
-    background: none;
-    border: none;
-    padding: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    padding: 0.5rem 0.75rem;
     cursor: pointer;
-    text-align: left;
-    transition: color 0.2s;
+    text-align: center;
+    transition: all 0.2s ease;
+    border-radius: 6px;
+    font-weight: 600;
+    min-width: 60px;
 }
 
 .account-action:hover {
     color: var(--danger);
-    text-decoration: underline;
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.account-action:active {
+    transform: scale(0.97);
 }
 
 /* Integration Status Badge */
@@ -292,19 +300,28 @@
 .server-count {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
+    gap: 0.75rem;
+    padding: 0.625rem 1.125rem;
     background: var(--gradient-primary);
     color: white;
     border-radius: var(--radius-md);
-    font-weight: 600;
-    font-size: 0.875rem;
+    font-weight: 700;
+    font-size: 0.9375rem;
     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
-    min-width: 80px;
+    min-width: 90px;
+    letter-spacing: 0.02em;
 }
 
 .server-count i {
-    font-size: 1.125rem;
+    font-size: 1.25rem;
+    opacity: 0.9;
+}
+
+.server-count strong,
+.server-count span {
+    font-weight: 700;
+    font-size: 1rem;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 /* Header Search Melhorado */
@@ -312,17 +329,21 @@
     position: relative;
     flex: 1;
     max-width: 400px;
+    display: flex;
+    align-items: center;
 }
 
 .header-search input {
     width: 100%;
-    padding: 0.625rem 1rem 0.625rem 2.5rem;
+    padding: 0.625rem 1rem 0.625rem 2.75rem;
     border: 2px solid var(--border);
     border-radius: var(--radius-lg);
     background: var(--bg-primary);
     color: var(--text-primary);
     font-size: 0.875rem;
     transition: all 0.3s;
+    line-height: 1.5;
+    height: 42px;
 }
 
 .header-search input:focus {
@@ -333,11 +354,12 @@
 
 .header-search i {
     position: absolute;
-    left: 0.875rem;
+    left: 1rem;
     top: 50%;
     transform: translateY(-50%);
     color: var(--text-tertiary);
-    font-size: 1rem;
+    font-size: 1.125rem;
+    pointer-events: none;
 }
 
 /* Upload Wrapper Melhorado */
@@ -461,7 +483,7 @@
     background: var(--primary);
     border-color: var(--primary);
     color: white;
-    transform: rotate(90deg);
+    /* Removido transform: rotate(90deg) que estava movendo o botão para baixo */
 }
 
 /* Nav Links Melhorados */
@@ -507,6 +529,11 @@
 
 .nav-link.active::before {
     transform: scaleY(1);
+}
+
+/* Esconder ::before quando sidebar colapsada */
+.sidebar.collapsed .nav-link::before {
+    display: none;
 }
 
 .nav-link i {
