@@ -16,7 +16,6 @@
 .sidebar {
     width: 16rem; /* 256px - w-64 do modelo */
     background-color: #1a1a1a;
-    border-right: 1px solid rgb(39, 39, 42); /* border-gray-800 */
     display: flex;
     flex-direction: column;
     min-height: 100vh;
@@ -436,7 +435,6 @@
 
 [data-theme="light"] .sidebar {
     background-color: #ffffff;
-    border-right-color: #e5e7eb;
 }
 
 [data-theme="light"] .sidebar-header {

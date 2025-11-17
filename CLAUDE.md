@@ -4,194 +4,167 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a client-side web dashboard for visualizing and tracking Brazilian public servants' leave schedules ("licenças prêmio"). The system processes Excel/CSV files containing employee data and calculates retirement proximity and leave urgency levels.
+Client-side web dashboard for tracking Brazilian public servants' leave schedules ("licenças prêmio"). Processes Excel/CSV files to calculate retirement proximity and leave urgency levels.
 
 **Key characteristics:**
-- Pure client-side processing (no backend) - all data processing happens in the browser
-- **Hybrid architecture**: Vanilla JS dashboard + React Report Builder
+- Pure vanilla JavaScript (no frameworks, no build step)
+- 100% client-side processing (no backend)
 - Hosted on GitHub Pages
 - Brazilian Portuguese interface and date formats
-- No data persistence (by design for security/privacy)
 - Target: 300-2000 employee records
+- No data persistence by design (privacy/security)
 
 ## Running Locally
 
-**Dashboard (Vanilla JS - no build required):**
+This is a static website with no build step required:
+
 ```bash
+# Option 1: Python simple server
 python -m http.server 3000
-# OR
+
+# Option 2: npx serve
 npx serve .
+
+# Option 3: Open index.html directly in browser
+# (Some features like SharePoint auth may require a server)
 ```
+
 Then open `http://localhost:3000` in your browser.
-
-**React Builder (requires build):**
-```bash
-npm install           # First time only
-npm run dev          # Development server on port 5173
-                     # Must be run from project root, NOT react-builder/
-```
-
-**Full production build:**
-```bash
-npm run build:gh-pages   # Builds React builder + copies static files to dist/
-# OR use the shell script (recommended - handles proper order):
-./build-local.sh         # Copies static files FIRST, then builds React
-                        # This prevents Vite from clearing the dist/ folder
-```
 
 ## Core Architecture
 
-### Hybrid Architecture
-This project uses a **two-part architecture**:
-
-1. **Dashboard (Vanilla JS)** - Main application, no build step required
-   - Pure ES6+ JavaScript, no frameworks
-   - Works standalone, served directly as static files
-
-2. **Report Builder (React)** - Advanced report builder, requires build step
-   - React 18 + Vite build tool
-   - Zustand for state management
-   - react-grid-layout for drag & drop
-   - Lives in `react-builder/` directory, builds to `dist/builder/`
-   - Integrated via `builderBridge.js` (cross-window communication)
-
 ### Technology Stack
 
-**Dashboard:**
+**Client-side only:**
 - SheetJS (xlsx.full.min.js) - Excel/CSV parsing
 - Chart.js - Data visualization
 - jsPDF + html2canvas - PDF export
 - Bootstrap Icons - Icon font
+- MSAL.js - Microsoft Entra (Azure AD) authentication
 - localStorage for settings, IndexedDB for file caching
 
-**React Builder:**
-- React 18 + React DOM
-- Vite (build tool)
-- Zustand (state management)
-- react-grid-layout (drag & drop)
-- Chart.js (gráficos dinâmicos)
-
-**Deployment:** Static files served via GitHub Pages with GitHub Actions workflow
+**Deployment:** Static files served via GitHub Pages
 
 ### File Structure
 
 ```
 /
-├── index.html                    # Main dashboard entry point
-├── package.json                  # NPM dependencies for React builder
-├── vite.config.js               # Vite build configuration
-├── build-local.sh               # Local build script
+├── index.html                # Main entry point
+├── env.config.js             # Azure AD config (auto-generated, not in git)
 │
-├── js/                          # Dashboard JavaScript (vanilla)
-│   ├── dashboard.js             # Main orchestrator (DashboardMultiPage class)
-│   ├── cronogramaParser.js      # Leave schedule parser (handles Brazilian date formats)
-│   ├── builderBridge.js         # ⭐ Bridge between vanilla JS and React builder
-│   ├── builderIntegration.js    # Builder initialization
-│   ├── themeManager.js          # Dark/light theme (global singleton)
-│   ├── settingsManager.js       # User settings (localStorage)
-│   ├── utils/                   # Utility functions
-│   ├── modules/                 # Feature modules (~20 managers)
-│   └── core/                    # Business logic (pure functions, no DOM)
+├── js/                       # All JavaScript (vanilla ES6+)
+│   ├── dashboard.js          # Main orchestrator (DashboardMultiPage class)
+│   ├── cronogramaParser.js   # Leave schedule parser (Brazilian date formats)
+│   ├── settingsManager.js    # User settings (localStorage)
+│   ├── themeManager.js       # Dark/light theme (global singleton)
+│   │
+│   ├── core/                 # Business logic (pure functions)
+│   │   ├── AposentadoriaAnalyzer.js
+│   │   ├── DataParser.js
+│   │   ├── LicencaCalculator.js
+│   │   └── UrgencyAnalyzer.js
+│   │
+│   ├── utils/                # Utility functions
+│   │   ├── DateUtils.js
+│   │   ├── FormatUtils.js
+│   │   ├── FuzzySearch.js
+│   │   ├── ValidationUtils.js
+│   │   └── customModal.js
+│   │
+│   └── modules/              # Feature modules (~27 managers)
+│       ├── FileManager.js
+│       ├── FilterManager.js
+│       ├── AdvancedFiltersBuilder.js
+│       ├── FilterChipsUI.js
+│       ├── SmartSearchManager.js
+│       ├── ChartManager.js
+│       ├── CalendarManager.js
+│       ├── ExportManager.js
+│       ├── ValidationManager.js
+│       ├── ErrorReporter.js
+│       ├── CacheManager.js
+│       ├── KeyboardShortcutsManager.js
+│       ├── HighContrastManager.js
+│       ├── LoadingSkeletons.js
+│       ├── NotificationManager.js
+│       ├── OperationalImpactAnalyzer.js
+│       ├── ReportsManager.js
+│       ├── TableSortManager.js
+│       ├── UIManager.js
+│       ├── BreadcrumbsManager.js
+│       ├── ModalManager.js
+│       ├── ImprovedTooltipManager.js
+│       ├── SidebarManager.js
+│       ├── AuthenticationManager.js      # Microsoft Entra auth via MSAL.js
+│       ├── SharePointDataLoader.js       # Load Excel from SharePoint/OneDrive
+│       └── SharePointLoadingUI.js        # Modern loading UX for SharePoint
 │
-├── css/                         # Stylesheets
-│   ├── new-styles.css           # Main stylesheet
-│   ├── builder.css              # Builder integration styles
-│   └── components/              # Component-specific styles
+├── css/
+│   ├── new-styles.css        # Main stylesheet
+│   ├── themes.css
+│   ├── components/           # Component-specific styles (~15 files)
+│   │   ├── ui-improvements.css
+│   │   ├── smart-search.css
+│   │   ├── advanced-filters-modal.css
+│   │   ├── filter-chips.css
+│   │   ├── keyboard-shortcuts.css
+│   │   ├── loading-skeletons.css
+│   │   ├── high-contrast.css
+│   │   ├── custom-modal.css
+│   │   ├── breadcrumbs.css
+│   │   ├── tips-page.css
+│   │   ├── reports-page.css
+│   │   ├── widget-library.css
+│   │   ├── sidebar-modelo.css
+│   │   └── modelo-layout.css
+│   └── utilities/
 │
-├── react-builder/               # ⭐ React Report Builder (separate app)
-│   ├── index.html
-│   ├── src/
-│   │   ├── main.jsx
-│   │   ├── App.jsx
-│   │   ├── store/
-│   │   │   └── builderStore.js  # Zustand state management
-│   │   └── components/
-│   │       ├── BuilderCanvas.jsx
-│   │       ├── WidgetLibrary.jsx
-│   │       ├── PropertiesPanel.jsx
-│   │       ├── Toolbar.jsx
-│   │       ├── Widget.jsx
-│   │       └── widgets/         # ⭐ Widgets funcionais com dados reais
-│   │           ├── ChartWidget.jsx    # Chart.js com 4 visualizações
-│   │           ├── TableWidget.jsx    # Tabela com paginação/ordenação
-│   │           ├── StatWidget.jsx     # Cards de estatísticas
-│   │           └── TextWidget.jsx     # Blocos de texto editáveis
+├── docs/
+│   ├── GUIA-DO-USUARIO.md    # End-user instructions (Portuguese)
+│   └── GUIA-DO-DESENVOLVEDOR.md  # Developer reference (Portuguese)
 │
-├── dist/                        # Build output (generated, not in git)
-│   ├── index.html               # Dashboard (copied)
-│   ├── css/                     # Styles (copied)
-│   ├── js/                      # Scripts (copied)
-│   └── builder/                 # React builder (built by Vite)
-│       ├── index.html
-│       └── assets/
-│
-└── .github/workflows/
-    └── deploy.yml               # GitHub Actions deployment
+└── img/                      # Images and icons
 ```
-
-**Key modules in js/modules/:**
-- FileManager, FilterManager, AdvancedFilterManager, FilterChipsUI
-- SmartSearchManager, ChartManager, CalendarManager
-- ExportManager, ValidationManager, ErrorReporter
-- KeyboardShortcutsManager, HighContrastManager
-- NotificationManager, OperationalImpactAnalyzer
-- TableSortManager, CacheManager, LoadingSkeletons
-- **AuthenticationManager** - Microsoft Entra (Azure AD) authentication via MSAL.js
-- **SharePointDataLoader** - Loads Excel files from SharePoint via Microsoft Graph API
-- **SharePointLoadingUI** - Modern visual feedback for SharePoint operations (loading states, progress bars, toasts)
 
 ### Data Flow
 
-**Dashboard (Main App):**
 1. **File Upload** → FileManager converts Excel/CSV to CSV string
 2. **Parsing** → CronogramaParser extracts employee records with leave periods
-3. **Calculation** → Analyzers compute retirement dates and urgency levels
+3. **Calculation** → Core analyzers (AposentadoriaAnalyzer, UrgencyAnalyzer) compute retirement dates and urgency levels
 4. **Rendering** → Dashboard updates UI (tables, charts, calendars)
 5. **Filtering** → FilterManager applies user filters to displayed data
 
-**Builder Integration:**
-1. User clicks "Report Builder" button → `builderBridge.openBuilder()` called
-2. Bridge opens builder in iframe modal or new tab
-3. Dashboard sends data to builder via `postMessage` API
-4. Builder manipulates data, creates custom reports
-5. Builder sends report back to dashboard via `postMessage`
-6. Dashboard receives and displays/saves the report
+**SharePoint Integration Flow:**
+1. User authenticates via AuthenticationManager (MSAL.js popup)
+2. User provides SharePoint/OneDrive link
+3. SharePointDataLoader parses URL, searches user's drive, downloads Excel file
+4. File passed to CronogramaParser (same flow as local upload)
+5. SharePointLoadingUI provides visual feedback throughout
 
 ### Key Classes
-
-**CronogramaParser** (`js/cronogramaParser.js`)
-- Interprets various Brazilian date formats (`jan/2025`, `Jan-25`, `06/2025`, `15/01/2025`, etc.)
-- Handles both column-based formats (INICIO/FINAL) and text-based formats (CRONOGRAMA field)
-- Returns array of `servidor` objects with parsed `licencas` array
-- Flexible header matching (case-insensitive, accent-insensitive)
 
 **DashboardMultiPage** (`js/dashboard.js`)
 - Main application controller and singleton instance
 - Manages page navigation (Home, Calendar, Timeline, Reports, Settings, Tips)
-- Orchestrates all managers and modules via lazy initialization pattern
-- Handles file uploads and data updates
+- Orchestrates all managers via lazy initialization pattern in `init()`
 - Key properties:
   - `allServidores` - Full dataset after parsing
   - `filteredServidores` - Currently filtered/displayed employees
   - `currentFilters` - Active filter state object
-  - `charts` - Chart.js instances (urgency pie, timeline bar)
+  - `charts` - Chart.js instances
   - `notificacoes` / `filteredNotificacoes` - Notification tracking
   - `loadingProblems` - Parsing errors/warnings
-  - Managers: `cacheManager`, `exportManager`, `validationManager`, `errorReporter`, `smartSearchManager`, `advancedFilterManager`, `filterChipsUI`, `keyboardShortcutsManager`, etc.
+  - All managers as properties (e.g., `this.cacheManager`, `this.exportManager`)
 
 **Manager Initialization Pattern:**
-All managers are initialized in `dashboard.init()` and stored as properties. Each manager receives `this` (dashboard reference) to enable cross-communication. Managers are conditionally initialized only if their classes are loaded (graceful degradation).
+All managers are initialized in `dashboard.init()` and stored as instance properties. Each manager receives `this` (dashboard reference) to enable cross-communication. Managers are conditionally initialized only if their classes are loaded (graceful degradation).
 
-**BuilderBridge** (`js/builderBridge.js`)
-- Singleton class that manages communication between vanilla JS dashboard and React builder
-- Handles opening builder in iframe modal (default) or new tab
-- Uses `postMessage` API for cross-window communication
-- Key methods:
-  - `openBuilder(options)` - Opens builder with optional data
-  - `sendDataToBuilder(data)` - Sends dashboard data to builder
-  - `onReportReceived(callback)` - Registers callback for when builder sends report back
-  - `prepareDataForBuilder()` - Extracts current dashboard data for sending
-- Global instance: `window.builderBridge`
+**CronogramaParser** (`js/cronogramaParser.js`)
+- Interprets various Brazilian date formats (`jan/2025`, `Jan-25`, `06/2025`, `15/01/2025`, etc.)
+- Handles both column-based formats (INICIO/FINAL) and text-based formats (CRONOGRAMA field)
+- Extracts years from column headers for better date inference
+- Returns array of `servidor` objects with parsed `licencas` array
+- Flexible header matching (case-insensitive, accent-insensitive)
 
 **AuthenticationManager** (`js/modules/AuthenticationManager.js`)
 - Handles Microsoft Entra (Azure AD) authentication using MSAL.js
@@ -202,12 +175,12 @@ All managers are initialized in `dashboard.init()` and stored as properties. Eac
   - `logout()` - Signs out user and clears tokens
   - `acquireToken(scopes)` - Gets access token for Microsoft Graph API
   - `isAuthenticated()` - Checks if user has active session
-- Global instance accessible via `window.authenticationManager` or `dashboard.authenticationManager`
+- Global instance: `window.authenticationManager` or `dashboard.authenticationManager`
 
 **SharePointDataLoader** (`js/modules/SharePointDataLoader.js`)
 - Loads Excel files from SharePoint/OneDrive via Microsoft Graph API
 - Parses SharePoint URLs and searches for files in user's drive
-- Downloads file content and passes to existing parser (CronogramaParser)
+- Downloads file content and passes to CronogramaParser
 - Key methods:
   - `parseSharePointUrl(url)` - Extracts file info from SharePoint link
   - `findFileInDrive(fileName)` - Searches for file in user's OneDrive
@@ -215,14 +188,13 @@ All managers are initialized in `dashboard.init()` and stored as properties. Eac
   - `loadFromSharePoint(url)` - Complete workflow: find → download → parse
 
 **SharePointLoadingUI** (`js/modules/SharePointLoadingUI.js`)
-- Provides modern visual feedback for SharePoint operations
-- Shows loading overlays, progress bars, skeleton loaders, and toast notifications
+- Modern visual feedback for SharePoint operations
+- Loading overlays, progress bars, skeleton loaders, toast notifications
 - Key methods:
-  - `showGlobalLoading(message)` / `hideGlobalLoading()` - Full-screen loading overlay
-  - `showProgressBar(options)` / `updateProgress(percent)` - File upload/download progress
-  - `showSuccess(message)` / `showError(message)` - Toast notifications
-  - `authenticateWorkflow(callback)` / `loadFileWorkflow(callback)` - Complete UX workflows
-- Global instance: `window.sharePointLoadingUI`
+  - `showGlobalLoading(message)` / `hideGlobalLoading()`
+  - `showProgressBar(options)` / `updateProgress(percent)`
+  - `showSuccess(message)` / `showError(message)`
+  - `authenticateWorkflow(callback)` / `loadFileWorkflow(callback)`
 
 ## Date Format Handling
 
@@ -230,7 +202,7 @@ The parser must handle diverse Brazilian date formats:
 - `jan/2025`, `fev/2026` (month/year - assumes day 1)
 - `Jan-25`, `Feb-25` (month-year abbreviation)
 - `06/2025` (numeric month/year)
-- `15/01/2025` (full date)
+- `15/01/2025` (full date DD/MM/YYYY)
 - `15/01/2025 - 14/02/2025` (explicit period range)
 - Empty cells (no leave scheduled)
 
@@ -266,19 +238,20 @@ Thresholds are configurable in Settings page.
 
 The parser uses flexible header matching - column names are case-insensitive and accent-insensitive.
 
-## Common Development Tasks
+## Script Load Order
 
-### Working with the Dashboard (Vanilla JS)
+**CRITICAL:** Script load order in `index.html` matters. The order is:
 
-**Testing the Parser:**
-```javascript
-dashboard.parser.setDebug(true);
-// Upload file and check console for detailed parsing logs
-```
+1. **External libraries** (XLSX.js, Chart.js, MSAL.js, jsPDF, html2canvas)
+2. **Theme manager** (`js/themeManager.js`) - Must load first for global theme
+3. **Core logic** (`js/core/*.js`) - Pure business logic functions
+4. **Utilities** (`js/utils/*.js`) - Helper functions
+5. **Modules** (`js/modules/*.js`) - Feature managers
+6. **Main dashboard** (`js/dashboard.js`) - Orchestrator (must load last)
 
-**Adding a New Manager/Module:**
-1. Create the new manager class in `js/modules/YourManager.js`
-2. Add `<script>` tag in `index.html` (order matters - add before `dashboard.js`)
+When adding a new manager:
+1. Create file in `js/modules/YourManager.js`
+2. Add `<script>` tag in `index.html` BEFORE `dashboard.js`
 3. Initialize in `dashboard.init()`:
    ```javascript
    if (typeof YourManager !== 'undefined') {
@@ -286,156 +259,49 @@ dashboard.parser.setDebug(true);
        console.log('✅ YourManager inicializado');
    }
    ```
-4. Add corresponding CSS if needed in `css/components/your-component.css`
-
-**Debugging Charts:**
-```javascript
-window.dashboardChart       // Main urgency pie chart
-dashboard.charts.timeline   // Timeline bar chart
-```
-
-### Working with the React Builder
-
-**Development:**
-```bash
-npm run dev  # Run from PROJECT ROOT, not react-builder/
-             # Vite dev server on http://localhost:5173
-             # vite.config.js sets root: 'react-builder'
-```
-
-**Adding a New Component:**
-1. Create component in `react-builder/src/components/YourComponent.jsx`
-2. Import and use in `App.jsx` or other components
-3. For global state, use Zustand store in `react-builder/src/store/builderStore.js`
-
-**Testing Integration:**
-```javascript
-// In dashboard console (with dashboard loaded)
-window.builderBridge.openBuilder({
-    mode: 'iframe',
-    data: window.dashboard.allServidores
-});
-```
-
-### Building for Production
-
-**Local build:**
-```bash
-./build-local.sh  # Builds everything to dist/
-```
-
-**Manual build steps:**
-```bash
-npm run build              # Builds React builder to dist/builder/
-npm run copy-static        # Copies dashboard files to dist/
-# OR
-npm run build:gh-pages     # Does both in correct order
-
-# IMPORTANT: Order matters!
-# 1. copy-static creates dist/ and copies dashboard files
-# 2. build compiles React to dist/builder/ (emptyOutDir: false prevents clearing)
-```
-
-**Deployment:**
-- Push to `main` branch
-- GitHub Actions workflow (`.github/workflows/deploy.yml`) automatically:
-  1. Runs `npm ci` to install dependencies
-  2. Runs `npm run build` (builds React to dist/builder/)
-  3. Copies static files (dashboard) to dist/
-  4. Deploys dist/ folder to GitHub Pages
+4. Add corresponding CSS in `css/components/your-component.css` if needed
 
 ## Page Structure
 
-The application is a single-page app (SPA) with client-side routing via CSS classes:
+Single-page app with client-side routing via CSS classes.
 
 **Pages (`.page-content` divs):**
-1. **Home** (`#homePage`) - Overview with stats cards, urgency pie chart, server table
-   - Has two views: `#cronogramaView` (default) and `#notificacoesView`
-2. **Calendar** (`#calendarPage`) - Year-based heatmap showing leave intensity by day
+1. **Home** (`#homePage`) - Stats cards, urgency pie chart, server table
+   - Two views: `#cronogramaView` (default) and `#notificacoesView`
+2. **Calendar** (`#calendarPage`) - Year-based heatmap showing leave intensity
 3. **Timeline** (`#timelinePage`) - Bar chart with daily/monthly/yearly views
 4. **Reports** (`#reportsPage`) - Report templates and custom report builder
 5. **Settings** (`#settingsPage`) - Retirement rules, urgency thresholds, UI preferences
 6. **Tips** (`#tipsPage`) - Keyboard shortcuts and usage tips
 
-**Navigation:** Sidebar `.nav-link` elements toggle `.active` class on pages. Only one page visible at a time.
+**Navigation:** Sidebar `.nav-link` elements toggle `.active` class on pages.
 
 ## Accessibility Features
 
-The dashboard includes multiple accessibility enhancements:
-
-1. **High Contrast Mode** - Increased color contrast ratios (WCAG AAA compliant)
-   - Toggle via Settings or `Ctrl+Alt+H`
-   - Persisted to localStorage
-
-2. **Keyboard Shortcuts** - Full keyboard navigation via `KeyboardShortcutsManager`
+1. **High Contrast Mode** - WCAG AAA compliant (toggle via Settings or `Ctrl+Alt+H`)
+2. **Keyboard Shortcuts** - Full keyboard navigation
    - `Ctrl+K` - Focus search
    - `Ctrl+D` - Toggle dark mode
    - `Ctrl+F` - Open filters
    - `Ctrl+1-5` - Navigate pages
    - `Escape` - Close modals
-
-3. **ARIA attributes** - Proper roles, labels, and live regions
+3. **ARIA attributes** - Proper roles, labels, live regions
 4. **Skip links** - "Pular para o conteúdo" at top
-5. **Focus management** - Trapped focus in modals, restored focus on close
-6. **Tooltips** - Can be disabled in Settings for screen reader users
+5. **Focus management** - Trapped in modals, restored on close
+6. **Tooltips** - Can be disabled in Settings for screen readers
 
 ## Important Constraints
 
-1. **No server-side storage** - Processing is 100% client-side for data privacy
-2. **Hybrid architecture** - Dashboard is vanilla JS (no frameworks), Builder is React (requires build)
+1. **No build step** - Pure vanilla JavaScript, no frameworks or bundlers
+2. **No server-side storage** - 100% client-side processing
 3. **Brazilian Portuguese** - All UI text, date formats, error messages
 4. **30-day months** - Leave calculations use 30-day periods, not calendar months
 5. **Flexible input** - Must handle messy real-world Excel data with missing fields
-6. **Script load order matters** - In dashboard: Utilities → Core → Modules → Dashboard (see `index.html` script tags)
-7. **Builder is optional** - Dashboard works fully without React builder; builder provides advanced report creation only
-8. **Cross-window communication** - Dashboard and builder communicate via `postMessage` API through `builderBridge.js`
-9. **Build order is critical** - When building for production, static files must be copied to dist/ BEFORE running Vite build, otherwise Vite will clear dist/ even with `emptyOutDir: false` (see `build-local.sh` for correct order)
-10. **Vite root configuration** - Vite's `root: 'react-builder'` means all npm scripts run from project root, not the react-builder subdirectory
-
-## UI Improvements (November 2025)
-
-A comprehensive visual redesign was implemented focusing on:
-
-**1. SharePoint Integration UI:**
-- Modern gradient buttons for Microsoft authentication
-- Glassmorphism effects on account chips
-- Animated loading states with progress bars
-- Toast notifications for success/error feedback
-- Skeleton loaders for async data loading
-
-**2. Header & Navigation:**
-- Backdrop blur effects for modern glassmorphism
-- Redesigned search bar with smooth focus transitions
-- Improved server count badge with gradient background
-- Enhanced notification bell with bounce animations
-
-**3. Sidebar:**
-- Larger icons with hover scale animations
-- Smooth color transitions on navigation
-- Active state indicators with gradient accents
-- Improved filter buttons with shadow effects
-
-**4. Stats Cards:**
-- Gradient backgrounds for card icons
-- Hover animations with elevation changes
-- Modern border radius and shadows
-- Color-coded visual hierarchy
-
-**5. Loading States:**
-- Global loading overlay with blur backdrop
-- Progress bars with gradient fills
-- Skeleton loaders with shimmer effects
-- Animated toast notifications
-
-**CSS Files:**
-- `css/components/ui-improvements.css` - Main UI enhancement styles
-
-**JavaScript Modules:**
-- `js/modules/SharePointLoadingUI.js` - Modern loading UX utilities
+6. **Script load order matters** - See "Script Load Order" section above
 
 ## Browser Console Utilities
 
-When dashboard is loaded, these globals are available for debugging:
+When dashboard is loaded, these globals are available:
 
 ```javascript
 // Main instance
@@ -454,34 +320,23 @@ dashboard.exportManager      // Export functionality
 dashboard.validationManager  // Data validation
 dashboard.errorReporter      // Error tracking
 dashboard.smartSearchManager // Smart search
-dashboard.advancedFilterManager  // Advanced filters
+dashboard.advancedFiltersBuilder  // Visual filter builder
 dashboard.keyboardShortcutsManager  // Keyboard shortcuts
+dashboard.authenticationManager     // Microsoft auth
+dashboard.sharePointDataLoader      // SharePoint file loader
 
 // Charts
 dashboard.charts             // Object containing Chart.js instances
 dashboard.charts.timeline    // Timeline bar chart
 window.dashboardChart        // Main urgency pie chart (global)
 
-// Settings
+// Settings and theme
 window.settingsManager       // Global settings manager
 window.themeManager          // Global theme manager
 
-// Builder Bridge
-window.builderBridge         // Bridge to React builder
-window.builderBridge.openBuilder({ data: dashboard.allServidores })  // Open builder
-window.builderBridge.onReportReceived(data => console.log(data))     // Listen for reports
-
-// SharePoint Integration
-window.authenticationManager          // Microsoft authentication manager
-window.sharePointLoadingUI            // Modern loading UI utilities
-dashboard.sharePointDataLoader        // SharePoint file loader
-
-// SharePoint UI Examples
-sharePointLoadingUI.showGlobalLoading('Carregando...')
-sharePointLoadingUI.showProgressBar({ title: 'Baixando arquivo...' })
-sharePointLoadingUI.updateProgress(50)
-sharePointLoadingUI.showSuccess('Operação concluída!')
-sharePointLoadingUI.showError('Erro na operação')
+// SharePoint
+window.authenticationManager // Microsoft authentication
+window.sharePointLoadingUI   // Modern loading UI utilities
 
 // Debug mode
 dashboard.parser.setDebug(true)  // Enable verbose parsing logs
@@ -493,7 +348,6 @@ dashboard.parser.setDebug(true)  // Enable verbose parsing logs
 - `highContrastMode` - High contrast accessibility mode
 - `tooltipsEnabled` - Tooltip display preference
 - `animationsEnabled` - Animation preference
-- `builderReports` - Saved reports from React builder (last 10)
 
 **IndexedDB:**
 - Database: `DashboardCache`
@@ -548,31 +402,11 @@ dashboard.parser.setDebug(true)  // Enable verbose parsing logs
 }
 ```
 
-**Notification Object:**
-```javascript
-{
-  servidor: "João Santos",
-  processo: "SEI 12345/2024",
-  primeiraNotificacao: "15/01/2025",
-  segundaNotificacao: "20/02/2025",
-  periodoEscolhido: "Mar/2025 - Mai/2025",
-  lotacao: "SUTRI",
-  status: "respondeu" | "pendente" | "nao-concorda"
-}
-```
-
-## Documentation References
-
-- **User Guide:** `docs/GUIA-DO-USUARIO.md` - End-user instructions
-- **Developer Guide:** `docs/GUIA-DO-DESENVOLVEDOR.md` - Detailed function signatures and implementation notes
-- **README:** `README.md` - Quick start and project overview
-- Additional docs in `/docs/` - Sprint reports, roadmaps, bug tracking
-
 ## Known Edge Cases & Gotchas
 
 **Parsing:**
-- **Multiline CSV cells** - Simple CSV parser may fail; SheetJS library handles this during Excel import
-- **Missing year in dates** - Parser uses conservative heuristics; may return empty array if ambiguous (e.g., "jan - fev" without year)
+- **Multiline CSV cells** - SheetJS library handles this during Excel import
+- **Missing year in dates** - Parser uses conservative heuristics; may return empty array if ambiguous
 - **Cross-year periods** (Nov 2025 → Feb 2026) - Parser infers year rollover
 - **Multiple date formats in same file** - Parser tries all patterns, first match wins
 - **Empty/whitespace-only cells** - Treated as no leave scheduled
@@ -580,11 +414,11 @@ dashboard.parser.setDebug(true)  // Enable verbose parsing logs
 
 **Performance:**
 - **Large files (>5MB or >2000 rows)** - Performance may degrade; browser may freeze during parsing
-- **Chart rendering** - Chart.js can be slow with 1000+ data points; consider aggregation
-- **Memory usage** - IndexedDB cache stores full files; old entries auto-expire after 30 days of no use
+- **Chart rendering** - Chart.js can be slow with 1000+ data points
+- **Memory usage** - IndexedDB cache stores full files; old entries auto-expire after 30 days
 
 **Data Quality:**
-- **Multiple rows per employee** - System treats as separate leave periods for same person (not merged)
+- **Multiple rows per employee** - Treated as separate leave periods for same person (not merged)
 - **Duplicate employee names** - No deduplication; CPF not required so can't uniquely identify
 - **Missing mandatory fields** - Rows without SERVIDOR field are skipped
 - **Invalid dates** - Parser returns null/empty; row may be flagged in loadingProblems
@@ -593,9 +427,3 @@ dashboard.parser.setDebug(true)  // Enable verbose parsing logs
 - **IndexedDB unavailable** - Cache gracefully degrades; files not cached
 - **localStorage full** - Settings may fail to save; no warning shown
 - **Chart.js version** - Currently expects Chart.js v3+; v4 may have breaking changes
-
-**Build System:**
-- **Vite emptyOutDir: false** - Configured to NOT clear dist/ during build, but files should still be copied first as safeguard
-- **Path resolution** - `builderBridge.js` detects correct builder path based on environment (development vs production/GitHub Pages)
-- **Base path** - Vite uses `base: './'` for relative paths to work on GitHub Pages
-- **GitHub Actions order** - Workflow builds React first, then copies static files (opposite of local script)

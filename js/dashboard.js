@@ -3053,14 +3053,160 @@ class DashboardMultiPage {
         const ctx = document.getElementById('urgencyChart');
         if (!ctx) return;
 
-    // Destruir gráfico existente
+        // Destruir gráfico existente
         if (this.charts.urgency) {
             this.charts.urgency.destroy();
         }
 
-        // SEMPRE mostrar gráfico de CARGO/LOTAÇÃO (lógica adaptativa)
-        // Independente do tipo de tabela
+        // Criar gráfico de URGÊNCIA (barras horizontais)
+        this.createUrgencyBarChart();
+
+        // Criar gráfico de CARGO separadamente
         this.createCargoChart();
+    }
+
+    // Novo método para criar gráfico de urgência com barras horizontais
+    createUrgencyBarChart() {
+        const ctx = document.getElementById('urgencyChart');
+        if (!ctx) return;
+
+        // Verificar se há dados de idade/urgência disponíveis
+        const hasUrgencyData = this.filteredServidores.some(s => s.urgencia);
+        const hasAgeData = this.filteredServidores.some(s => s.idade || s.dataNascimento);
+
+        // Se não há dados de idade, mostrar mensagem
+        if (!hasAgeData && this.filteredServidores.length > 0) {
+            const panel = ctx.closest('.chart-panel');
+            if (panel) {
+                const body = panel.querySelector('.chart-panel-body');
+                if (body) {
+                    body.innerHTML = `
+                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; gap: 0.5rem; color: rgb(156, 163, 175); text-align: center; padding: 1rem;">
+                            <i class="bi bi-exclamation-circle" style="font-size: 2rem; color: rgb(251, 191, 36);"></i>
+                            <div style="font-size: 0.875rem; font-weight: 500;">Dados insuficientes</div>
+                            <div style="font-size: 0.75rem; max-width: 300px;">A tabela não possui dados de idade ou data de nascimento para calcular urgências de aposentadoria.</div>
+                        </div>
+                    `;
+                }
+            }
+
+            const totalEl = document.getElementById('urgencyTotal');
+            if (totalEl) totalEl.textContent = '0';
+            return;
+        }
+
+        // Contar urgências
+        const urgencyCounts = {
+            'Crítico': 0,
+            'Alta': 0,
+            'Moderada': 0,
+            'Baixa': 0
+        };
+
+        this.filteredServidores.forEach(servidor => {
+            const urgencia = servidor.urgencia;
+            if (urgencia === 'critica') urgencyCounts['Crítico']++;
+            else if (urgencia === 'alta') urgencyCounts['Alta']++;
+            else if (urgencia === 'moderada') urgencyCounts['Moderada']++;
+            else if (urgencia === 'baixa') urgencyCounts['Baixa']++;
+        });
+
+        const data = [
+            { name: 'Baixa', value: urgencyCounts['Baixa'], color: '#10b981' },
+            { name: 'Moderada', value: urgencyCounts['Moderada'], color: '#f59e0b' },
+            { name: 'Alta', value: urgencyCounts['Alta'], color: '#f97316' },
+            { name: 'Crítico', value: urgencyCounts['Crítico'], color: '#ef4444' }
+        ];
+
+        const total = data.reduce((sum, item) => sum + item.value, 0);
+
+        // Se não há urgências calculadas mesmo com dados de idade
+        if (total === 0 && this.filteredServidores.length > 0) {
+            const panel = ctx.closest('.chart-panel');
+            if (panel) {
+                const body = panel.querySelector('.chart-panel-body');
+                if (body) {
+                    body.innerHTML = `
+                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; gap: 0.5rem; color: rgb(156, 163, 175); text-align: center; padding: 1rem;">
+                            <i class="bi bi-info-circle" style="font-size: 2rem; color: rgb(59, 130, 246);"></i>
+                            <div style="font-size: 0.875rem; font-weight: 500;">Sem urgências calculadas</div>
+                            <div style="font-size: 0.75rem; max-width: 300px;">Não foi possível calcular urgências para os servidores filtrados.</div>
+                        </div>
+                    `;
+                }
+            }
+
+            const totalEl = document.getElementById('urgencyTotal');
+            if (totalEl) totalEl.textContent = '0';
+            return;
+        }
+
+        // Atualizar total no subtitle
+        const totalEl = document.getElementById('urgencyTotal');
+        if (totalEl) totalEl.textContent = total;
+
+        this.charts.urgency = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.name),
+                datasets: [{
+                    data: data.map(d => d.value),
+                    backgroundColor: data.map(d => d.color),
+                    borderWidth: 0,
+                    barThickness: 24,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                indexAxis: 'y', // Barras horizontais
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: (context) => {
+                                const value = context.parsed.x;
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${value} pessoas (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#6a6a6a',
+                            font: {
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            color: '#1a1a1a',
+                            drawBorder: false
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            color: '#6a6a6a',
+                            font: {
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
     }
 
     getAdaptiveChartData() {
@@ -3137,7 +3283,14 @@ class DashboardMultiPage {
     }
 
     createCargoChart() {
-        const ctx = document.getElementById('urgencyChart');
+        const ctx = document.getElementById('cargoChart');
+        if (!ctx) return;
+
+        // Destruir gráfico existente
+        if (this.charts.cargo) {
+            this.charts.cargo.destroy();
+        }
+
         const cargoData = this.getAdaptiveChartData();
 
         // Atualizar título do gráfico baseado no campo usado
@@ -3152,10 +3305,17 @@ class DashboardMultiPage {
             chartTitle.textContent = titleMap[cargoData.fieldUsed] || 'Distribuição';
         }
 
+        // Atualizar total no subtitle
+        const totalEl = document.getElementById('cargoTotal');
+        if (totalEl) {
+            const total = cargoData.values.reduce((a, b) => a + b, 0);
+            totalEl.textContent = total;
+        }
+
         // 🔒 SALVAR CORES ORIGINAIS para referência futura (imutável)
         this.originalChartColors = (cargoData.colors || CARGO_COLORS.slice(0, cargoData.labels.length)).map(c => c);
 
-        this.charts.urgency = new Chart(ctx, {
+        this.charts.cargo = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: cargoData.labels,
@@ -3207,11 +3367,11 @@ class DashboardMultiPage {
             }
         });
 
-        // Registrar chart globalmente
-        window.dashboardChart = this.charts.urgency;
+        // Registrar chart globalmente para compatibilidade
+        window.dashboardChart = this.charts.cargo;
 
-    // Atualizar contagens da legenda com dados adaptativos
-    this.updateCargoLegend(cargoData);
+        // Atualizar contagens da legenda com dados adaptativos
+        this.updateCargoLegend(cargoData);
     }
 
     createTimelineChart() {

@@ -285,10 +285,6 @@
     justify-content: space-between;
     gap: 1rem;
     padding: 0.75rem 1.5rem;
-    background: var(--glass-bg);
-    backdrop-filter: blur(20px);
-    border-bottom: 1px solid var(--glass-border);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     height: var(--header-height);
     position: sticky;
     top: 0;
@@ -439,7 +435,6 @@
 .sidebar {
     width: var(--sidebar-width);
     background: var(--bg-primary);
-    border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     height: 100vh;
