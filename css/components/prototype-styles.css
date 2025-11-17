@@ -1,0 +1,508 @@
+/**
+ * Prototype Styles - Baseado no modelo de interface
+ * Aplica melhorias visuais da sidebar e containers de visão geral
+ */
+
+/* ==================== SIDEBAR - Estilo Protótipo ==================== */
+
+/* Nav links com estilo moderno */
+[data-theme="dark"] .sidebar .nav-link {
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    color: #9ca3af;
+    margin: 0.125rem 0.5rem;
+    padding: 0.625rem 0.75rem;
+}
+
+[data-theme="dark"] .sidebar .nav-link:hover {
+    background-color: #27272a;
+    color: #ffffff;
+}
+
+[data-theme="dark"] .sidebar .nav-link.active {
+    background-color: #27272a;
+    color: #ffffff;
+}
+
+[data-theme="dark"] .sidebar .nav-link i {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: inherit;
+}
+
+/* ==================== STATS CARDS - Estilo Protótipo ==================== */
+
+/* Container de estatísticas com tema escuro */
+[data-theme="dark"] .stats-cards {
+    gap: 1rem;
+}
+
+[data-theme="dark"] .stats-grid {
+    gap: 1.5rem;
+}
+
+[data-theme="dark"] .stat-card {
+    background-color: #0f0f0f;
+    border: 1px solid #27272a;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    padding: 1.25rem;
+}
+
+[data-theme="dark"] .stat-card:hover {
+    border-color: #3f3f46;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Card content */
+[data-theme="dark"] .stat-card .card-content h3 {
+    color: #ffffff;
+    font-size: 1.875rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+[data-theme="dark"] .stat-card .card-content p {
+    color: #9ca3af;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Ícones dos stats cards com gradientes específicos */
+[data-theme="dark"] .stat-card .card-icon {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    border-radius: 10px;
+    padding: 0.875rem;
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+[data-theme="dark"] .stat-card .card-icon i {
+    color: #ffffff;
+    font-size: 1.25rem;
+}
+
+/* Gradientes específicos por tipo de card */
+[data-theme="dark"] .stat-card.critical .card-icon {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+[data-theme="dark"] .stat-card.high .card-icon {
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+}
+
+[data-theme="dark"] .stat-card.moderate .card-icon {
+    background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+}
+
+[data-theme="dark"] .stat-card.success .card-icon {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+[data-theme="dark"] .stat-card.info .card-icon {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+[data-theme="dark"] .stat-card.warning .card-icon {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+[data-theme="dark"] .stat-card.error .card-icon {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+}
+
+/* ==================== CHARTS - Estilo Protótipo ==================== */
+
+/* Container de gráficos com tema escuro */
+[data-theme="dark"] .chart-container,
+[data-theme="dark"] .dashboard-chart {
+    background-color: #0f0f0f;
+    border: 1px solid #27272a;
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+[data-theme="dark"] .chart-title {
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+[data-theme="dark"] .chart-subtitle {
+    color: #9ca3af;
+    font-size: 0.875rem;
+}
+
+/* ==================== ACCOUNT CHIP - Estilo Protótipo ==================== */
+
+/* Account chip com avatar circular e gradiente */
+[data-theme="dark"] .account-chip {
+    background-color: transparent;
+    border: none;
+    padding: 0.75rem 1rem;
+}
+
+[data-theme="dark"] .account-chip i {
+    width: 2.5rem;
+    height: 2.5rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 1rem;
+}
+
+[data-theme="dark"] .account-name {
+    color: #ffffff;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+[data-theme="dark"] .account-action {
+    color: #9ca3af;
+}
+
+[data-theme="dark"] .account-action:hover {
+    color: #ffffff;
+    background-color: #27272a;
+}
+
+/* ==================== HOME PAGE LAYOUT ==================== */
+
+/* Container principal da home com espaçamento */
+[data-theme="dark"] #cronogramaView {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1.5rem;
+}
+
+[data-theme="dark"] .page-content {
+    background-color: #0a0a0a;
+    border-radius: 1rem;
+    overflow: hidden;
+}
+
+/* View switcher (abas cronograma/notificações) */
+[data-theme="dark"] .view-switcher {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+[data-theme="dark"] .view-switcher button {
+    padding: 0.625rem 1.25rem;
+    background-color: #0f0f0f;
+    border: 1px solid #27272a;
+    border-radius: 8px;
+    color: #9ca3af;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .view-switcher button:hover {
+    background-color: #1a1a1a;
+    border-color: #3f3f46;
+    color: #ffffff;
+}
+
+[data-theme="dark"] .view-switcher button.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border-color: rgba(59, 130, 246, 0.3);
+    color: #ffffff;
+}
+
+/* ==================== PROTOTYPE TABLE - Estilo Limpo ==================== */
+
+[data-theme="dark"] .prototype-table-wrapper {
+    background-color: #0f0f0f;
+    border: 1px solid #27272a;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+[data-theme="dark"] .prototype-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+[data-theme="dark"] .prototype-table thead {
+    border-bottom: 1px solid #27272a;
+}
+
+[data-theme="dark"] .prototype-table thead th {
+    text-align: left;
+    padding: 1rem 1.5rem;
+    color: #9ca3af;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+[data-theme="dark"] .prototype-table tbody tr {
+    border-bottom: 1px solid #27272a;
+    transition: background-color 0.2s ease;
+}
+
+[data-theme="dark"] .prototype-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+[data-theme="dark"] .prototype-table tbody tr:hover {
+    background-color: #1a1a1a;
+}
+
+[data-theme="dark"] .prototype-table tbody td {
+    padding: 1rem 1.5rem;
+    font-size: 0.875rem;
+}
+
+[data-theme="dark"] .prototype-table tbody td:first-child {
+    color: #ffffff;
+}
+
+[data-theme="dark"] .prototype-table tbody td:nth-child(2) {
+    color: #9ca3af;
+}
+
+[data-theme="dark"] .prototype-table tbody td:nth-child(3) {
+    color: #9ca3af;
+}
+
+/* Avatar circular com gradiente na primeira coluna */
+[data-theme="dark"] .prototype-table .servidor-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-weight: 600;
+    margin-right: 0.75rem;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+/* Container do nome com avatar */
+[data-theme="dark"] .prototype-table .servidor-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Variações de cor de avatar */
+[data-theme="dark"] .prototype-table .servidor-avatar.variant-1 {
+    background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+}
+
+[data-theme="dark"] .prototype-table .servidor-avatar.variant-2 {
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+}
+
+[data-theme="dark"] .prototype-table .servidor-avatar.variant-3 {
+    background: linear-gradient(135deg, #f97316 0%, #eab308 100%);
+}
+
+[data-theme="dark"] .prototype-table .servidor-avatar.variant-4 {
+    background: linear-gradient(135deg, #eab308 0%, #10b981 100%);
+}
+
+[data-theme="dark"] .prototype-table .servidor-avatar.variant-5 {
+    background: linear-gradient(135deg, #ec4899 0%, #ef4444 100%);
+}
+
+/* ==================== CHARTS GRID - Layout Lado a Lado ==================== */
+
+[data-theme="dark"] .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+[data-theme="dark"] .chart-panel {
+    background-color: #0f0f0f;
+    border: 1px solid #27272a;
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+[data-theme="dark"] .chart-panel-header {
+    margin-bottom: 1.5rem;
+}
+
+[data-theme="dark"] .chart-panel-title {
+    color: #ffffff;
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+}
+
+[data-theme="dark"] .chart-panel-subtitle {
+    color: #9ca3af;
+    font-size: 0.875rem;
+}
+
+[data-theme="dark"] .chart-panel-body {
+    height: 16rem;
+}
+
+/* ==================== INFO ACTIONS BAR ==================== */
+
+[data-theme="dark"] .info-actions-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+}
+
+[data-theme="dark"] .info-actions-bar .result-count {
+    color: #9ca3af;
+    font-size: 0.875rem;
+}
+
+[data-theme="dark"] .btn-export-modern {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background-color: #0f0f0f;
+    border: 1px solid #27272a;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .btn-export-modern:hover {
+    background-color: #1a1a1a;
+    border-color: #3f3f46;
+}
+
+[data-theme="dark"] .btn-export-modern i {
+    font-size: 1rem;
+}
+
+/* ==================== URGENCY BADGES ==================== */
+
+[data-theme="dark"] .urgency-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+[data-theme="dark"] .urgency-badge.critical {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+[data-theme="dark"] .urgency-badge.high {
+    background: rgba(249, 115, 22, 0.15);
+    color: #f97316;
+}
+
+[data-theme="dark"] .urgency-badge.moderate {
+    background: rgba(234, 179, 8, 0.15);
+    color: #eab308;
+}
+
+[data-theme="dark"] .urgency-badge.low {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+/* ==================== MAIN CONTENT AREA ==================== */
+
+/* Main content com fundo escuro */
+[data-theme="dark"] .main-content {
+    background-color: #0a0a0a;
+    min-height: 100vh;
+}
+
+/* Page content */
+[data-theme="dark"] .page-content {
+    background-color: transparent;
+}
+
+/* Page header melhorado */
+[data-theme="dark"] .page-header {
+    background-color: transparent;
+    border-bottom: 1px solid #27272a;
+    padding: 1.25rem 1.5rem;
+}
+
+[data-theme="dark"] .page-header h2 {
+    color: #ffffff;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+/* Header do app */
+[data-theme="dark"] .app-header {
+    background-color: #0a0a0a;
+    border-bottom: 1px solid #27272a;
+}
+
+/* ==================== SCROLLBAR CUSTOMIZADA ==================== */
+
+[data-theme="dark"] *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+[data-theme="dark"] *::-webkit-scrollbar-track {
+    background: #0a0a0a;
+}
+
+[data-theme="dark"] *::-webkit-scrollbar-thumb {
+    background: #27272a;
+    border-radius: 4px;
+}
+
+[data-theme="dark"] *::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46;
+}
+
+/* ==================== RESPONSIVO ==================== */
+
+@media (max-width: 1200px) {
+    [data-theme="dark"] .charts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    [data-theme="dark"] .sidebar {
+        background-color: #1a1a1a;
+    }
+
+    [data-theme="dark"] .prototype-table thead th,
+    [data-theme="dark"] .prototype-table tbody td {
+        padding: 0.75rem 1rem;
+    }
+
+    [data-theme="dark"] .page-header {
+        padding: 1rem;
+    }
+
+    [data-theme="dark"] .page-header h2 {
+        font-size: 1.25rem;
+    }
+}

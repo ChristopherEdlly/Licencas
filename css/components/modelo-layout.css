@@ -1,0 +1,182 @@
+/**
+ * Layout Estrutural do Modelo
+ * Baseado em: Modelo-de-intefrace-layout
+ * 
+ * ARQUITETURA DO MODELO:
+ * - Background externo: #1a1a1a
+ * - Sidebar: #1a1a1a com borda #27272a
+ * - Área principal: padding + container arredondado #0a0a0a
+ * - Conteúdo interno: background transparente/escuro
+ */
+
+/* ==================== RESET E CORES BASE ==================== */
+
+body {
+    background-color: #1a1a1a;
+}
+
+.app-layout {
+    display: flex;
+    min-height: 100vh;
+    background-color: #1a1a1a;
+}
+
+/* ==================== MAIN CONTENT ==================== */
+
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #1a1a1a;
+}
+
+.content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #0a0a0a;
+    border-radius: 1rem;
+    overflow: hidden;
+    margin: 1rem; /* Adiciona margem externa para criar espaçamento */
+}
+
+/* ==================== HEADER ==================== */
+
+.main-header {
+    background-color: #0a0a0a;
+    border-bottom: 1px solid rgb(39, 39, 42);
+}
+
+/* ==================== PAGE CONTENT ==================== */
+
+.page-content {
+    /* display controlado por new-styles.css - não sobrescrever */
+    flex: 1;
+    flex-direction: column;
+    background-color: transparent;
+    padding: 1.5rem;
+    gap: 1.5rem;
+}
+
+.page-content.active {
+    display: flex;
+}
+
+/* ==================== TABELA ==================== */
+
+.prototype-table-wrapper {
+    background-color: #0f0f0f;
+    border: 1px solid rgb(39, 39, 42);
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.prototype-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.prototype-table thead {
+    border-bottom: 1px solid rgb(39, 39, 42);
+}
+
+.prototype-table thead th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgb(156, 163, 175);
+}
+
+.prototype-table tbody tr {
+    border-bottom: 1px solid rgb(39, 39, 42);
+}
+
+.prototype-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.prototype-table tbody tr:hover {
+    background-color: #1a1a1a;
+}
+
+.prototype-table tbody td {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    color: white;
+}
+
+/* ==================== GRÁFICOS ==================== */
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.chart-panel {
+    background-color: #0f0f0f;
+    border: 1px solid rgb(39, 39, 42);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+}
+
+.chart-panel-header {
+    margin-bottom: 1rem;
+}
+
+.chart-panel-title {
+    font-size: 1rem;
+    font-weight: 500;
+    color: white;
+    margin-bottom: 0.25rem;
+}
+
+.chart-panel-subtitle {
+    font-size: 0.875rem;
+    color: rgb(156, 163, 175);
+}
+
+/* ==================== TEMA CLARO ==================== */
+
+[data-theme="light"] body,
+[data-theme="light"] .app-layout,
+[data-theme="light"] .main-content {
+    background-color: #f3f4f6;
+}
+
+[data-theme="light"] .content-area {
+    background-color: white;
+}
+
+[data-theme="light"] .main-header {
+    background-color: white;
+    border-bottom-color: #e5e7eb;
+}
+
+[data-theme="light"] .prototype-table-wrapper,
+[data-theme="light"] .chart-panel {
+    background-color: white;
+    border-color: #e5e7eb;
+}
+
+[data-theme="light"] .prototype-table tbody tr {
+    border-bottom-color: #e5e7eb;
+}
+
+[data-theme="light"] .prototype-table tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+[data-theme="light"] .prototype-table tbody td {
+    color: #111827;
+}
+
+[data-theme="light"] .chart-panel-title {
+    color: #111827;
+}
+
+[data-theme="light"] .chart-panel-subtitle,
+[data-theme="light"] .prototype-table thead th {
+    color: #6b7280;
+}
