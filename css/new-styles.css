@@ -495,23 +495,15 @@ body.sidebar-collapsed .sidebar .nav-link.active {
 
 .sidebar.collapsed .nav-link {
     justify-content: center;
-    padding: 0.75rem 0;
+    padding: 0.625rem;
     margin: 0.25rem 0.5rem;
     position: relative;
     border-radius: 8px;
 }
 
-.sidebar.collapsed .nav-link i {
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
 .sidebar.collapsed .nav-link:hover {
-    background: var(--bg-tertiary);
+    background: var(--bg-hover);
     transform: none;
-    padding-left: 0;
 }
 
 .sidebar-header {
