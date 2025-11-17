@@ -255,6 +255,21 @@ class AuthenticationManager {
             return;
         }
 
+        // PRODUCTION MODE: Exigir autenticação Microsoft
+        // Na branch main, autenticação é obrigatória (isDevelopmentMode = false)
+        // Na branch development, autenticação é opcional (isDevelopmentMode = true)
+        const isDevelopmentMode = false;
+
+        if (isDevelopmentMode) {
+            // Esconder overlay completamente em modo desenvolvimento
+            this.setOverlayState({
+                visible: false,
+                message: '',
+                disableLogin: false
+            });
+            return;
+        }
+
         if (!this.isEnabled) {
             this.setOverlayState({
                 visible: true,
