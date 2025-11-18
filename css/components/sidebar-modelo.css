@@ -59,7 +59,7 @@
 }
 
 .sidebar-user-name {
-    color: white;
+    color: white; /* Tema escuro */
     font-size: 0.875rem; /* text-sm do modelo */
     font-weight: 400;
     white-space: nowrap;
@@ -68,9 +68,14 @@
     line-height: 1.25rem;
 }
 
+/* Tema claro - nome do usuário deve ser escuro */
+[data-theme="light"] .sidebar-user-name {
+    color: #111827;
+}
+
 .sidebar-user-login,
 .sidebar-user-logout {
-    color: rgb(156, 163, 175);
+    color: rgb(156, 163, 175); /* Tema escuro */
     background: transparent;
     border: none;
     padding: 0;
@@ -85,7 +90,17 @@
 
 .sidebar-user-login:hover,
 .sidebar-user-logout:hover {
-    color: white;
+    color: white; /* Tema escuro */
+}
+
+[data-theme="light"] .sidebar-user-login,
+[data-theme="light"] .sidebar-user-logout {
+    color: #6b7280;
+}
+
+[data-theme="light"] .sidebar-user-login:hover,
+[data-theme="light"] .sidebar-user-logout:hover {
+    color: #111827;
 }
 
 .sidebar-user-login i,
@@ -122,7 +137,7 @@
     gap: 0.75rem; /* gap-3 do modelo */
     padding: 0.5rem 0.75rem; /* px-3 py-2 do modelo */
     border-radius: 0.5rem; /* rounded-lg do modelo */
-    color: rgb(156, 163, 175); /* text-gray-400 */
+    color: rgb(156, 163, 175); /* text-gray-400 - tema escuro */
     text-decoration: none;
     font-size: 0.875rem;
     transition: all 0.2s;
@@ -133,7 +148,7 @@
 }
 
 .sidebar .nav-link:hover {
-    background-color: rgb(39, 39, 42); /* hover:bg-gray-800 */
+    background-color: rgb(39, 39, 42); /* hover:bg-gray-800 - tema escuro */
     color: white;
 }
 
@@ -141,6 +156,8 @@
     background-color: rgb(39, 39, 42);
     color: white;
 }
+
+/* Já existe regra para tema claro abaixo (linhas 444-452) - não duplicar */
 
 .sidebar .nav-link i {
     width: 1.25rem; /* w-5 do modelo */
@@ -221,7 +238,7 @@
     right: 0.5rem; /* right-2 do modelo */
     background: transparent;
     border: none;
-    color: rgb(156, 163, 175);
+    color: rgb(156, 163, 175); /* Tema escuro */
     cursor: pointer;
     padding: 0;
     display: flex;
@@ -232,7 +249,15 @@
 }
 
 .sidebar-promo-close:hover {
-    color: white;
+    color: white; /* Tema escuro */
+}
+
+[data-theme="light"] .sidebar-promo-close {
+    color: #6b7280;
+}
+
+[data-theme="light"] .sidebar-promo-close:hover {
+    color: #111827;
 }
 
 .sidebar-promo-close i {
@@ -264,11 +289,15 @@
 }
 
 .sidebar-promo-description {
-    color: rgb(156, 163, 175);
+    color: rgb(156, 163, 175); /* Tema escuro */
     font-size: 0.75rem; /* text-xs do modelo */
     line-height: 1rem;
     margin-bottom: 0.75rem; /* mb-3 do modelo */
     margin-top: 0;
+}
+
+[data-theme="light"] .sidebar-promo-description {
+    color: #6b7280;
 }
 
 .sidebar-promo-button {
@@ -310,7 +339,7 @@
     gap: 0.75rem; /* gap-3 do modelo */
     padding: 0.5rem 0.75rem; /* px-3 py-2 do modelo */
     border-radius: 0.5rem; /* rounded-lg do modelo */
-    color: rgb(156, 163, 175);
+    color: rgb(156, 163, 175); /* Tema escuro */
     text-decoration: none;
     font-size: 0.875rem;
     transition: all 0.2s;
@@ -321,8 +350,19 @@
 
 .sidebar-footer .nav-link:hover,
 .sidebar-footer .sidebar-info-link:hover {
-    background-color: rgb(39, 39, 42);
+    background-color: rgb(39, 39, 42); /* Tema escuro */
     color: white;
+}
+
+[data-theme="light"] .sidebar-footer .nav-link,
+[data-theme="light"] .sidebar-footer .sidebar-info-link {
+    color: #6b7280;
+}
+
+[data-theme="light"] .sidebar-footer .nav-link:hover,
+[data-theme="light"] .sidebar-footer .sidebar-info-link:hover {
+    background-color: #f3f4f6;
+    color: #111827;
 }
 
 .sidebar-footer .nav-link i,
@@ -371,13 +411,23 @@
 
 .sidebar-filter-actions .btn-clear-all-filters {
     background-color: transparent;
-    border: 1px solid rgb(39, 39, 42);
-    color: rgb(156, 163, 175);
+    border: 1px solid rgb(39, 39, 42); /* Tema escuro */
+    color: rgb(156, 163, 175); /* Tema escuro */
 }
 
 .sidebar-filter-actions .btn-clear-all-filters:hover {
-    background-color: rgb(39, 39, 42);
+    background-color: rgb(39, 39, 42); /* Tema escuro */
     color: white;
+}
+
+[data-theme="light"] .sidebar-filter-actions .btn-clear-all-filters {
+    border-color: #e5e7eb;
+    color: #6b7280;
+}
+
+[data-theme="light"] .sidebar-filter-actions .btn-clear-all-filters:hover {
+    background-color: #f3f4f6;
+    color: #111827;
 }
 
 /* ==================== SIDEBAR TOGGLE ==================== */
@@ -385,7 +435,7 @@
 .sidebar-toggle {
     background: transparent;
     border: none;
-    color: rgb(156, 163, 175);
+    color: rgb(156, 163, 175); /* Tema escuro */
     padding: 0.5rem;
     cursor: pointer;
     transition: color 0.2s;
@@ -395,7 +445,15 @@
 }
 
 .sidebar-toggle:hover {
-    color: white;
+    color: white; /* Tema escuro */
+}
+
+[data-theme="light"] .sidebar-toggle {
+    color: #6b7280;
+}
+
+[data-theme="light"] .sidebar-toggle:hover {
+    color: #111827;
 }
 
 .sidebar-toggle i {

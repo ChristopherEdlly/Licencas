@@ -2872,7 +2872,7 @@ body.sidebar-collapsed .sidebar .nav-link.active {
 .day-name {
     font-size: var(--font-size-xs);
     font-weight: 600;
-    color: var(--text-muted);
+    color: var(--text-secondary); /* Mudado de text-muted para text-secondary para melhor contraste */
     text-align: center;
     padding: 0.25rem;
     text-transform: uppercase;

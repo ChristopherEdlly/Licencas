@@ -141,7 +141,8 @@
     box-shadow: none;
 }
 
-.dark-theme .breadcrumb-history-btn {
+.dark-theme .breadcrumb-history-btn,
+[data-theme="dark"] .breadcrumb-history-btn {
     color: #94a3b8;
     border-color: #2d3748;
 }
@@ -183,15 +184,16 @@
 
 .history-time {
     font-size: 12px;
-    color: #94a3b8;
+    color: #64748b; /* Mudado de #94a3b8 para #64748b para melhor contraste no tema claro */
 }
 
 .dark-theme .history-label {
     color: #f1f5f9;
 }
 
-.dark-theme .history-time {
-    color: #64748b;
+.dark-theme .history-time,
+[data-theme="dark"] .history-time {
+    color: #94a3b8; /* Tema escuro usa cor mais clara */
 }
 
 .breadcrumb-history-menu .dropdown-item {
@@ -224,7 +226,8 @@
     letter-spacing: 0.5px;
 }
 
-.dark-theme .breadcrumb-history-menu .dropdown-header {
+.dark-theme .breadcrumb-history-menu .dropdown-header,
+[data-theme="dark"] .breadcrumb-history-menu .dropdown-header {
     color: #94a3b8;
 }
 

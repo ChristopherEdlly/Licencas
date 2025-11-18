@@ -8998,10 +8998,21 @@ ${notif.obs ? `\nObservações: ${notif.obs}` : ''}
             filtered = this.advancedFilterManager.applyFilters(filtered);
         }
 
-        // Aplicar busca se houver
+        // Aplicar busca se houver - verificar ambos campos de busca
         const searchInput = document.getElementById('searchInput');
-        if (searchInput && searchInput.value && this.smartSearchManager) {
-            filtered = this.smartSearchManager.search(searchInput.value, filtered);
+        const headerSearchInput = document.getElementById('headerSearchInput');
+
+        // Pegar o termo de busca do campo que estiver preenchido
+        let searchTerm = '';
+        if (searchInput && searchInput.value.trim()) {
+            searchTerm = searchInput.value.trim();
+        } else if (headerSearchInput && headerSearchInput.value.trim()) {
+            searchTerm = headerSearchInput.value.trim();
+        }
+
+        // Aplicar busca se houver termo
+        if (searchTerm && this.smartSearchManager) {
+            filtered = this.smartSearchManager.search(searchTerm, filtered);
         }
 
         // Atualizar servidores filtrados
