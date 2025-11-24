@@ -20,19 +20,20 @@
 }
 
 /* ============================================================================
-   2. PAINEL DE CONFIGURAÇÃO (Coluna Esquerda)
+   2. PAINEL DE CONFIGURAÇÃO (Coluna Esquerda) - CARD DESIGN
    ============================================================================ */
 
 .reports-config-redesign {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;  /* Usar margins variáveis entre seções */
   background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 12px;
-  padding: 20px;
+  border: 3px solid var(--border-color, #e5e7eb);  /* Borda MUITO mais grossa: 2px → 3px */
+  border-radius: 20px;  /* Cantos MUITO mais arredondados: 16px → 20px */
+  padding: 40px;  /* MUITO mais espaço interno: 32px → 40px */
   overflow-y: auto;
   height: 100%;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);  /* Sombra DRAMÁTICA: elevation 24dp */
 }
 
 /* Custom scrollbar para o painel de config */
@@ -61,15 +62,17 @@
 #reportsPage .filter-notice {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 14px;
+  gap: 20px;  /* Gap MUITO maior: 16px → 20px */
+  padding: 28px;  /* Padding DRAMÁTICO: 20px → 28px */
   background: linear-gradient(135deg,
-    rgba(59, 130, 246, 0.08) 0%,
-    rgba(37, 99, 235, 0.04) 100%
-  );
-  border: 1.5px solid rgba(59, 130, 246, 0.3);
-  border-radius: 10px;
+    rgba(59, 130, 246, 0.18) 0%,
+    rgba(37, 99, 235, 0.10) 100%
+  );  /* Background MAIS VIBRANTE */
+  border: 3px solid rgba(59, 130, 246, 0.5);  /* Borda MAIS grossa: 2px → 3px */
+  border-radius: 16px;  /* Cantos MAIS arredondados: 12px → 16px */
   transition: all 0.2s ease;
+  margin-bottom: 36px;  /* Espaçamento MAIOR: 32px → 36px */
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.16);  /* Sombra DESTACADA */
 }
 
 #reportsPage .filter-notice:hover {
@@ -84,13 +87,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 56px;  /* DRAMATICAMENTE maior: 48px → 56px */
+  height: 56px;  /* DRAMATICAMENTE maior: 48px → 56px */
   background: rgba(59, 130, 246, 1);
-  border-radius: 8px;
+  border-radius: 14px;  /* Cantos MAIS arredondados: 12px → 14px */
   color: white;
-  font-size: 14px;
+  font-size: 28px;  /* Ícone MUITO MAIOR: 22px → 28px */
   flex-shrink: 0;
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);  /* Sombra FORTE */
 }
 
 #reportsPage .filter-notice-content {
@@ -101,9 +105,9 @@
 }
 
 #reportsPage .filter-notice-text {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary, #1f2937);
+  font-size: 1.25rem;  /* 20px - DRAMATICAMENTE maior: 17px → 20px */
+  font-weight: 800;  /* Bold MAIS FORTE: 700 → 800 */
+  color: var(--text-primary, #111827);
   line-height: 1.4;
 }
 
@@ -138,14 +142,45 @@
 #reportsPage .config-section {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid var(--border-color, #e5e7eb);
+  gap: 24px;  /* Gap MAIOR: 20px → 24px */
+  padding: 32px;  /* Padding GENEROSO: 24px → 32px */
+  margin-bottom: 28px;  /* Espaçamento MAIOR: 24px → 28px */
+  background: linear-gradient(135deg,
+    rgba(59, 130, 246, 0.04) 0%,
+    rgba(37, 99, 235, 0.02) 100%
+  );  /* Background MAIS VISÍVEL */
+  border: 2px solid var(--border-color, #e5e7eb);  /* Borda GROSSA: 1.5px → 2px */
+  border-radius: 16px;  /* Cantos MUITO arredondados: 12px → 16px */
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);  /* Sombra DESTACADA */
 }
 
 #reportsPage .config-section:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+/* Seção compacta (título do relatório) */
+#reportsPage .config-section-compact {
+  margin-bottom: 20px;  /* Espaçamento reduzido */
+}
+
+#reportsPage .config-section-compact::after {
+  margin-top: 20px;  /* Separador mais próximo */
+}
+
+/* Separador visual sutil entre seções principais */
+#reportsPage .config-section::after {
+  content: '';
+  display: block;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--border-color, #e5e7eb) 50%,
+    transparent 100%);
+  margin-top: 28px;
+}
+
+#reportsPage .config-section:last-child::after {
+  display: none;
 }
 
 /* ============================================================================
@@ -155,18 +190,19 @@
 #reportsPage .section-title {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-primary, #1f2937);
+  gap: 16px;  /* Gap MAIOR: 12px → 16px */
+  margin: 0 0 28px 0;  /* Margin bottom GENEROSO: 20px → 28px */
+  font-size: 1.125rem;  /* 18px - DRAMATICAMENTE maior: 14px → 18px */
+  font-weight: 800;  /* Weight MAIS FORTE: 700 → 800 */
+  color: var(--primary-color, #2563eb);  /* COR PRIMÁRIA em vez de preto */
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  letter-spacing: 0.06em;  /* Tracking aumentado */
+  line-height: 1.2;
 }
 
 #reportsPage .section-title i {
-  font-size: 16px;
-  color: rgba(59, 130, 246, 1);
+  font-size: 1.5rem;  /* 24px - MUITO MAIOR: 18px → 24px */
+  color: var(--primary-color, #3b82f6);
   flex-shrink: 0;
 }
 
@@ -181,11 +217,12 @@
 }
 
 #reportsPage .form-field label {
-  font-size: 12px;
+  font-size: 0.8125rem;  /* 13px - antes era 12px */
   font-weight: 600;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary, #4b5563);  /* Mais escuro que #6b7280 */
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.03em;
+  margin-bottom: 2px;  /* Espaço entre label e input */
 }
 
 /* ============================================================================
@@ -194,14 +231,14 @@
 
 .input-redesign {
   width: 100%;
-  min-height: 42px;
-  padding: 0 14px;
-  font-size: 14px;
+  min-height: 52px;  /* MUITO MAIOR: 42px → 52px */
+  padding: 0 18px;  /* Padding MAIOR: 14px → 18px */
+  font-size: 16px;  /* Texto MAIOR: 14px → 16px */
   font-weight: 500;
   color: var(--text-primary, #1f2937);
   background: var(--bg-secondary, #f9fafb);
-  border: 1.5px solid var(--border-color, #d1d5db);
-  border-radius: 8px;
+  border: 2px solid var(--border-color, #d1d5db);  /* Borda GROSSA: 1.5px → 2px */
+  border-radius: 12px;  /* Cantos ARREDONDADOS: 8px → 12px */
   transition: all 0.2s ease;
   font-family: inherit;
 }
@@ -212,15 +249,19 @@
 }
 
 .input-redesign:hover {
-  border-color: rgba(59, 130, 246, 0.5);
+  border-color: rgba(59, 130, 246, 0.6);
   background: var(--bg-primary, #ffffff);
+  transform: translateY(-1px);  /* Elevação sutil */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .input-redesign:focus {
   outline: none;
   border-color: rgba(59, 130, 246, 1);
+  border-width: 3px;  /* Borda AINDA MAIS GROSSA no focus */
   background: var(--bg-primary, #ffffff);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);  /* Ring DESTACADO */
+  transform: translateY(-1px);
 }
 
 /* ============================================================================
@@ -270,11 +311,11 @@
 .column-checkbox {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 14px;  /* Gap MAIOR: 10px → 14px */
+  padding: 16px 18px;  /* Padding GENEROSO: 10px 12px → 16px 18px */
   background: var(--bg-secondary, #f9fafb);
-  border: 1.5px solid var(--border-color, #d1d5db);
-  border-radius: 8px;
+  border: 2px solid var(--border-color, #d1d5db);  /* Borda GROSSA: 1.5px → 2px */
+  border-radius: 12px;  /* Cantos ARREDONDADOS: 8px → 12px */
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
@@ -282,49 +323,52 @@
 
 .column-checkbox:hover {
   background: var(--bg-primary, #ffffff);
-  border-color: rgba(59, 130, 246, 0.5);
-  transform: translateX(2px);
+  border-color: rgba(59, 130, 246, 0.6);
+  transform: translateX(4px) translateY(-2px);  /* Movimento DRAMÁTICO */
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);  /* Sombra NO HOVER */
 }
 
 .column-checkbox input[type="checkbox"] {
   position: relative;
-  width: 18px;
-  height: 18px;
+  width: 24px;  /* MUITO MAIOR: 18px → 24px */
+  height: 24px;  /* MUITO MAIOR: 18px → 24px */
   margin: 0;
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
   background: var(--bg-primary, #ffffff);
-  border: 2px solid var(--border-color, #d1d5db);
-  border-radius: 4px;
+  border: 2.5px solid var(--border-color, #d1d5db);  /* Borda GROSSA: 2px → 2.5px */
+  border-radius: 6px;  /* Cantos ARREDONDADOS: 4px → 6px */
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
 
 .column-checkbox input[type="checkbox"]:hover {
-  border-color: rgba(59, 130, 246, 0.7);
+  border-color: rgba(59, 130, 246, 0.8);
+  transform: scale(1.1);  /* Animação de scale */
 }
 
 .column-checkbox input[type="checkbox"]:checked {
   background: rgba(59, 130, 246, 1);
   border-color: rgba(59, 130, 246, 1);
+  transform: scale(1.05);
 }
 
 .column-checkbox input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
-  left: 5px;
-  top: 1px;
-  width: 5px;
-  height: 10px;
+  left: 7px;  /* Ajustado para o novo tamanho */
+  top: 2px;
+  width: 6px;  /* Checkmark MAIOR */
+  height: 12px;  /* Checkmark MAIOR */
   border: solid white;
-  border-width: 0 2px 2px 0;
+  border-width: 0 3px 3px 0;  /* Traço MAIS GROSSO */
   transform: rotate(45deg);
 }
 
 .column-checkbox span {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;  /* Texto MAIOR: 14px → 15px */
+  font-weight: 600;  /* Weight MAIS FORTE: 500 → 600 */
   color: var(--text-primary, #1f2937);
   line-height: 1.3;
 }

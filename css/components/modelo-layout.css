@@ -137,29 +137,32 @@ body {
 /* Busca do Header */
 .header-search {
     flex: 1;
-    position: relative;
-    max-width: 500px; /* Reduzido de 600px */
+    display: flex;
+    align-items: center;
+    max-width: 500px;
+    background: #1a1a1a;
+    border: 1px solid rgb(39, 39, 42);
+    border-radius: 0.375rem;
+    padding: 0.125rem 0.5rem;
 }
 
 .header-search i {
-    position: absolute;
-    left: 0.625rem; /* Reduzido */
-    top: 50%;
-    transform: translateY(-50%);
-    color: rgb(107, 114, 128); /* text-gray-500 do modelo */
-    font-size: 0.875rem; /* Reduzido */
+    position: static;
+    margin-right: 0.5rem;
+    color: var(--text-tertiary);
+    font-size: 1.2rem;
     pointer-events: none;
 }
 
 .header-search input {
-    width: 100%;
-    padding: 0.375rem 0.625rem 0.375rem 2rem; /* Reduzido */
-    background-color: #1a1a1a; /* bg-[#1a1a1a] do modelo */
-    border: 1px solid rgb(39, 39, 42); /* border-gray-800 */
-    border-radius: 0.375rem;
-    color: rgb(209, 213, 219); /* text-gray-300 */
-    font-size: 0.8125rem; /* Reduzido */
+    flex: 1;
+    padding: 0.375rem 0.5rem;
+    background: transparent;
+    border: none;
+    color: rgb(209, 213, 219);
+    font-size: 0.95rem;
     outline: none;
+    min-width: 0;
     transition: all 0.2s;
 }
 
@@ -173,13 +176,11 @@ body {
 }
 
 .btn-clear-search {
-    position: absolute;
-    right: 0.5rem;
-    top: 50%;
-    transform: translateY(-50%);
+    position: static;
+    margin-left: 0.5rem;
     background: transparent;
     border: none;
-    color: var(--text-secondary); /* Usa variável CSS do tema */
+    color: var(--text-secondary);
     cursor: pointer;
     padding: 0.25rem;
     display: flex;

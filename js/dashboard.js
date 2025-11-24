@@ -518,7 +518,7 @@ class DashboardMultiPage {
 
             // Se o arquivo deletado era o atual, limpar referência
             if (this.currentCacheFileId === fileId) {
-                this.currentCacheFileId = null;
+                this.currentCacheFileId == null;
             }
         } catch (error) {
             console.error('Erro ao deletar arquivo do cache:', error);
@@ -5810,12 +5810,13 @@ class DashboardMultiPage {
                 `;
             } else {
                 // Formato para tabela original
+                const nivelUrgencia = servidor.nivelUrgencia || '';
                 row.innerHTML = `
                     <td><strong>${nomeEscapado}</strong></td>
                     <td>${servidor.idade}</td>
                     <td><span class="lotacao-badge">${lotacaoEscapada}</span></td>
                     <td>${periodoLicencaCompleto}</td>
-                    <td><span class="urgency-badge urgency-${servidor.nivelUrgencia.toLowerCase()}">${servidor.nivelUrgencia}</span></td>
+                    <td><span class="urgency-badge urgency-${nivelUrgencia.toLowerCase()}">${nivelUrgencia || '--'}</span></td>
                     <td class="actions">
                         <button class="btn-icon" data-servidor-nome="${nomeEscapado}" title="Ver detalhes">
                             <i class="bi bi-eye"></i>
@@ -6074,58 +6075,24 @@ class DashboardMultiPage {
     }
 
     showServidorDetails(nomeServidor) {
-        // Agregar TODAS as licenças de servidores com o mesmo nome
+        // Mostrar cada registro da planilha como uma entrada independente, sem agrupar por nome
         const servidoresComMesmoNome = this.allServidores.filter(s => s.nome === nomeServidor);
         if (!servidoresComMesmoNome || servidoresComMesmoNome.length === 0) return;
 
-        // Usar o primeiro servidor como base e agregar licenças de todos
+        // Cada registro vira um card/registro no modal, sem agregação
+        const registrosOriginais = servidoresComMesmoNome.map(s => ({
+            ...s,
+            licencas: Array.isArray(s.licencas) ? s.licencas : []
+        }));
+
+        // Para compatibilidade com o restante do modal, usar o primeiro registro como base
         const servidor = { ...servidoresComMesmoNome[0] };
-
-        // Agregar todas as licenças de todos os servidores com este nome, removendo duplicatas
-        servidor.licencas = [];
-        const licencasUnicas = new Set(); // Para evitar duplicatas
-        const todosOsDadosOriginais = []; // Para coletar todos os dados originais
-        const licencasBrutas = []; // Coletar todas as licenças brutas (com duplicatas) para exibição no modal
-
-        servidoresComMesmoNome.forEach(s => {
-            // Coletar dados originais de cada entrada
-            if (s.dadosOriginais) {
-                todosOsDadosOriginais.push(s.dadosOriginais);
-            }
-            // Coletar licenças brutas (preservando duplicatas)
-            if (s.licencas && s.licencas.length > 0) {
-                s.licencas.forEach(l => {
-                    licencasBrutas.push(Object.assign({}, l));
-                });
-            }
-
-            if (s.licencas && s.licencas.length > 0) {
-                s.licencas.forEach(licenca => {
-                    // Criar uma chave única para a licença baseada nas datas
-                    const chave = `${licenca.inicio.getTime()}-${licenca.fim.getTime()}-${licenca.tipo}`;
-                    if (!licencasUnicas.has(chave)) {
-                        licencasUnicas.add(chave);
-                        servidor.licencas.push(licenca);
-                    }
-                });
-            }
-        });
-
-        // Combinar todos os dados originais únicos
-        servidor.todosOsDadosOriginais = todosOsDadosOriginais;
-        // Preservar licenças brutas separadamente para uso no modal (não tocar `servidor.licencas` usado por agrupamentos)
-        servidor.licencasBrutas = licencasBrutas;
-
-        // Ordenar licenças por data de início
-        servidor.licencas.sort((a, b) => a.inicio - b.inicio);
-
-        // Agrupar licenças por períodos contíguos
-        const periodosAgrupados = this.agruparLicencasPorPeriodos(servidor.licencas);
-
-        // Recalcular estatísticas agregadas
+        servidor.todosOsDadosOriginais = servidoresComMesmoNome.map(s => s.dadosOriginais);
+        servidor.licencasBrutas = servidoresComMesmoNome.flatMap(s => Array.isArray(s.licencas) ? s.licencas : []);
+        servidor.licencas = servidoresComMesmoNome.flatMap(s => Array.isArray(s.licencas) ? s.licencas : []);
+        // Não agrupar períodos, não deduplicar
+        const periodosAgrupados = null;
         servidor.licencasAgendadas = servidor.licencas.length;
-
-        // Detectar se é tabela de licenças prêmio
         const isLicencaPremio = servidor.tipoTabela === 'licenca-premio';
 
         // Informações pessoais removidas: agora consolidadas em 'Registros da Planilha'
@@ -6433,10 +6400,15 @@ class DashboardMultiPage {
         // Unificado: usar sempre a versão visual detalhada para ambos os tipos de planilha
         interpretationContent = '<div class="info-grid">';
 
-        // Determinar qual array de licenças usar baseado no tipo
-        const licencasParaExibir = (isLicencaPremio && periodosAgrupados && periodosAgrupados.length > 0)
-            ? periodosAgrupados.map(p => ({ inicio: p.inicio, fim: p.fim }))
-            : servidor.licencas;
+        // Sempre mostrar cada registro da planilha como um período independente
+        const licencasParaExibir = registrosOriginais.flatMap(r =>
+            (Array.isArray(r.licencas) && r.licencas.length > 0)
+                ? r.licencas.map(l => ({
+                    ...l,
+                    _registro: r // Referência ao registro original para mostrar campos extras se necessário
+                }))
+                : []
+        );
 
         // Mostrar períodos interpretados de forma detalhada
         if (licencasParaExibir && licencasParaExibir.length > 0) {

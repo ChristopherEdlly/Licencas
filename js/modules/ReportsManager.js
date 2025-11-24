@@ -45,6 +45,7 @@ class ReportsManager {
         this.livePreviewEnabled = true;
         this.previewDebounce = null;
         this.lastPreviewAt = null;
+        this.showOnlyFilteredLicenses = false; // Estado do toggle
 
         this.reportTypeLabels = {
             complete: 'Completo',
@@ -60,9 +61,117 @@ class ReportsManager {
      * Inicialização
      */
     init() {
+        this.loadToggleState();
         this.setupEventListeners();
+        this.initCustomDatePickers();
         this.syncFilterNotice();
         this.updateConfig();
+
+        // Atualizar indicadores de disponibilidade após carregar dados
+        // (será chamado novamente quando dados forem carregados)
+        if (this.dashboard && this.dashboard.allServidores && this.dashboard.allServidores.length > 0) {
+            this.updateColumnAvailability();
+            this.sortCheckboxesByAvailability();
+        }
+    }
+
+    /**
+     * Carregar estado do toggle do localStorage
+     */
+    loadToggleState() {
+        const savedState = localStorage.getItem('licenseViewToggleState');
+        this.showOnlyFilteredLicenses = savedState === 'true';
+
+        const toggle = document.getElementById('licenseViewToggle');
+        if (toggle) {
+            toggle.checked = this.showOnlyFilteredLicenses;
+            this.updateToggleLabels();
+        }
+    }
+
+    /**
+     * Salvar estado do toggle no localStorage
+     */
+    saveToggleState() {
+        localStorage.setItem('licenseViewToggleState', this.showOnlyFilteredLicenses.toString());
+    }
+
+    /**
+     * Atualizar labels do toggle
+     */
+    updateToggleLabels() {
+        const labelComplete = document.getElementById('toggleLabelComplete');
+        const labelFiltered = document.getElementById('toggleLabelFiltered');
+        const description = document.getElementById('toggleDescriptionText');
+
+        if (labelComplete) {
+            labelComplete.classList.toggle('active', !this.showOnlyFilteredLicenses);
+        }
+        if (labelFiltered) {
+            labelFiltered.classList.toggle('active', this.showOnlyFilteredLicenses);
+        }
+        if (description) {
+            description.textContent = this.showOnlyFilteredLicenses
+                ? 'Exibindo apenas licenças dentro do período filtrado nos Filtros Avançados'
+                : 'Exibindo todas as licenças dos servidores encontrados';
+        }
+    }
+
+    /**
+     * Inicializar custom datepickers para período
+     */
+    initCustomDatePickers() {
+        if (!window.CustomDatePicker) {
+            console.error('CustomDatePicker não encontrado no window');
+            return;
+        }
+
+        // Datepicker para início
+        this.datePickerStart = new window.CustomDatePicker('reportPeriodStart', {
+            type: 'date',
+            onSelect: (dateStr) => {
+                const input = document.getElementById('reportPeriodStart');
+                if (input) {
+                    input.value = dateStr;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                this.updateConfig();
+            }
+        });
+
+        // Datepicker para fim
+        this.datePickerEnd = new window.CustomDatePicker('reportPeriodEnd', {
+            type: 'date',
+            onSelect: (dateStr) => {
+                const input = document.getElementById('reportPeriodEnd');
+                if (input) {
+                    input.value = dateStr;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                this.updateConfig();
+            }
+        });
+
+        // Garantir que o clique no input abra o datepicker
+        const startInput = document.getElementById('reportPeriodStart');
+        if (startInput) {
+            startInput.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (this.datePickerStart && typeof this.datePickerStart.open === 'function') {
+                    this.datePickerStart.open();
+                }
+            });
+        }
+
+        const endInput = document.getElementById('reportPeriodEnd');
+        if (endInput) {
+            endInput.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (this.datePickerEnd && typeof this.datePickerEnd.open === 'function') {
+                    this.datePickerEnd.open();
+                }
+            });
+        }
     }
 
     /**
@@ -107,7 +216,7 @@ class ReportsManager {
         }
 
         if (selectAllBtn) {
-            selectAllBtn.addEventListener('click', () => this.toggleSelectAllColumns());
+            selectAllBtn.addEventListener('click', () => this.selectAllColumns());
         }
 
         if (editFiltersBtn) {
@@ -120,11 +229,260 @@ class ReportsManager {
             titleInput.addEventListener('input', () => this.updateConfig());
         }
 
-        // Listener para mudança de colunas (novo ID do grid)
-        const columnCheckboxes = document.querySelectorAll('#columnsGridRedesign input[type="checkbox"]');
+        // Listener para mudança de colunas
+        this.setupColumnSelectors();
+
+        // Listener para busca de colunas
+        const columnSearchInput = document.getElementById('columnSearchInput');
+        if (columnSearchInput) {
+            columnSearchInput.addEventListener('input', (e) => this.filterColumns(e.target.value));
+        }
+
+        // Listener para limpar busca de colunas
+        const clearColumnSearch = document.getElementById('clearColumnSearch');
+        if (clearColumnSearch) {
+            clearColumnSearch.addEventListener('click', () => {
+                columnSearchInput.value = '';
+                this.filterColumns('');
+                clearColumnSearch.style.display = 'none';
+            });
+        }
+
+        // Listener para desmarcar todas
+        const unselectAllColumns = document.getElementById('unselectAllColumns');
+        if (unselectAllColumns) {
+            unselectAllColumns.addEventListener('click', () => this.unselectAllColumns());
+        }
+
+        // Listener para acordeão de grupos
+        this.setupColumnAccordion();
+
+        // Listener para o toggle de visualização de licenças
+        const licenseViewToggle = document.getElementById('licenseViewToggle');
+        if (licenseViewToggle) {
+            licenseViewToggle.addEventListener('change', (e) => {
+                this.showOnlyFilteredLicenses = e.target.checked;
+                this.saveToggleState();
+                this.updateToggleLabels();
+                this.updateConfig(); // Atualiza preview
+            });
+            console.log('✅ ReportsManager: Toggle de visualização conectado');
+        }
+    }
+
+    /**
+     * Configurar listeners para checkboxes de colunas
+     */
+    setupColumnSelectors() {
+        const columnCheckboxes = document.querySelectorAll('.column-checkbox input[type="checkbox"]');
         columnCheckboxes.forEach(checkbox => {
             checkbox.addEventListener('change', () => this.updateConfig());
         });
+    }
+
+    /**
+     * Configurar acordeão de grupos de colunas
+     */
+    setupColumnAccordion() {
+        const groupHeaders = document.querySelectorAll('.column-group-header');
+        groupHeaders.forEach(header => {
+            header.addEventListener('click', () => {
+                const group = header.parentElement;
+                group.classList.toggle('active');
+            });
+        });
+    }
+
+    /**
+     * Filtrar colunas por termo de busca
+     */
+    filterColumns(searchTerm) {
+        const normalizedSearch = searchTerm.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const columnCheckboxes = document.querySelectorAll('.column-checkbox');
+        const clearButton = document.getElementById('clearColumnSearch');
+        const emptyState = document.getElementById('columnsEmptyState');
+        const accordion = document.getElementById('columnsAccordion');
+
+        let visibleCount = 0;
+
+        // Mostrar/ocultar botão de limpar busca
+        if (clearButton) {
+            clearButton.style.display = searchTerm ? 'flex' : 'none';
+        }
+
+        columnCheckboxes.forEach(checkbox => {
+            const columnName = checkbox.querySelector('span').textContent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const matches = columnName.includes(normalizedSearch);
+
+            checkbox.classList.toggle('hidden', !matches);
+
+            if (matches) {
+                visibleCount++;
+                // Expandir grupo pai se coluna está visível
+                const group = checkbox.closest('.column-group');
+                if (group && searchTerm) {
+                    group.classList.add('active');
+                }
+            }
+        });
+
+        // Ocultar grupos vazios
+        const groups = document.querySelectorAll('.column-group');
+        groups.forEach(group => {
+            const visibleColumns = group.querySelectorAll('.column-checkbox:not(.hidden)');
+            group.style.display = visibleColumns.length > 0 ? 'block' : 'none';
+        });
+
+        // Mostrar/ocultar empty state
+        if (emptyState) {
+            emptyState.style.display = visibleCount === 0 ? 'flex' : 'none';
+        }
+        if (accordion) {
+            accordion.style.display = visibleCount === 0 ? 'none' : 'flex';
+        }
+    }
+
+    /**
+     * Marcar todas as colunas
+     */
+    selectAllColumns() {
+        const checkboxes = document.querySelectorAll('.column-checkbox input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+            cb.checked = true;
+        });
+        this.updateConfig();
+    }
+
+    /**
+     * Desmarcar todas as colunas
+     */
+    unselectAllColumns() {
+        const checkboxes = document.querySelectorAll('.column-checkbox input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+            cb.checked = false;
+        });
+        this.updateConfig();
+    }
+
+    /**
+     * Atualizar indicadores de disponibilidade de dados nas colunas
+     */
+    updateColumnAvailability() {
+        const data = this.getBaseDataset();
+        const total = data.length;
+
+        // Se não houver dados, não fazer nada
+        if (total === 0) {
+            return;
+        }
+
+        document.querySelectorAll('.column-checkbox').forEach(checkbox => {
+            const column = checkbox.getAttribute('data-column');
+            if (!column) return;
+
+            const input = checkbox.querySelector('input[type="checkbox"]');
+            const icon = checkbox.querySelector('.status-icon');
+
+            if (!input || !icon) return;
+
+            // Contar quantos servidores têm dados nesta coluna
+            let count = 0;
+            data.forEach(servidor => {
+                const value = this.getCellValue(servidor, column);
+                // Considera como "disponível" se não estiver vazio
+                if (value && value !== '' && value !== '—' && value !== '-') {
+                    count++;
+                }
+            });
+
+            const percentage = (count / total) * 100;
+
+            // Remover classes antigas
+            icon.classList.remove('bi-check-circle', 'bi-exclamation-triangle', 'bi-x-circle', 'bi-circle');
+            icon.style.opacity = '1';
+
+            // Definir status baseado na disponibilidade
+            if (percentage < 10) {
+                // Sem dados - desabilitar checkbox
+                icon.classList.add('bi-x-circle', 'unavailable');
+                input.disabled = true;
+                input.checked = false; // Desmarcar automaticamente
+                checkbox.classList.add('disabled');
+
+                // Adicionar texto "(sem dados)" se não existir
+                if (!checkbox.querySelector('.status-text')) {
+                    const statusText = document.createElement('small');
+                    statusText.className = 'status-text';
+                    statusText.textContent = '(sem dados)';
+                    checkbox.appendChild(statusText);
+                }
+            } else if (percentage < 60) {
+                // Poucos dados - aviso
+                icon.classList.add('bi-exclamation-triangle', 'partial');
+                input.disabled = false;
+                checkbox.classList.remove('disabled');
+
+                // Remover texto "(sem dados)" se existir
+                const statusText = checkbox.querySelector('.status-text');
+                if (statusText) {
+                    statusText.remove();
+                }
+            } else {
+                // Disponível
+                icon.classList.add('bi-check-circle', 'available');
+                input.disabled = false;
+                checkbox.classList.remove('disabled');
+
+                // Remover texto "(sem dados)" se existir
+                const statusText = checkbox.querySelector('.status-text');
+                if (statusText) {
+                    statusText.remove();
+                }
+            }
+
+            // Adicionar tooltip com informação detalhada
+            icon.title = `${Math.round(percentage)}% dos registros têm dados (${count}/${total})`;
+        });
+
+        console.log('✅ Indicadores de disponibilidade de colunas atualizados');
+    }
+
+    /**
+     * Ordenar checkboxes por status de disponibilidade
+     * Ordem: Disponíveis (✓) → Parciais (⚠) → Sem dados (✗)
+     */
+    sortCheckboxesByAvailability() {
+        // Processar cada grupo
+        document.querySelectorAll('.column-group').forEach(group => {
+            const body = group.querySelector('.column-group-body');
+            if (!body) return;
+
+            // Coletar todos os checkboxes e seus status
+            const checkboxes = Array.from(body.querySelectorAll('.column-checkbox'));
+
+            // Ordenar por prioridade de status
+            const sorted = checkboxes.sort((a, b) => {
+                const iconA = a.querySelector('.status-icon');
+                const iconB = b.querySelector('.status-icon');
+
+                const getPriority = (icon) => {
+                    if (!icon) return 3;
+                    if (icon.classList.contains('available')) return 0;
+                    if (icon.classList.contains('partial')) return 1;
+                    if (icon.classList.contains('unavailable')) return 2;
+                    return 3;
+                };
+
+                return getPriority(iconA) - getPriority(iconB);
+            });
+
+            // Reordenar no DOM
+            sorted.forEach(checkbox => {
+                body.appendChild(checkbox);
+            });
+        });
+
+        console.log('✅ Checkboxes ordenados por disponibilidade');
     }
 
     /**
@@ -194,11 +552,24 @@ class ReportsManager {
 
         this.updateColumnsSelectionState();
 
-        // Coletar colunas selecionadas (novo ID do grid)
+        // Atualizar indicadores de disponibilidade quando dados ou filtros mudam
+        if (this.dashboard && this.dashboard.allServidores && this.dashboard.allServidores.length > 0) {
+            this.updateColumnAvailability();
+            this.sortCheckboxesByAvailability();
+        }
+
+        // Coletar colunas selecionadas (novo seletor de acordeão)
         const selectedColumns = [];
-        document.querySelectorAll('#columnsGridRedesign input[type="checkbox"]:checked').forEach(checkbox => {
+        document.querySelectorAll('.column-checkbox input[type="checkbox"]:checked').forEach(checkbox => {
             selectedColumns.push(checkbox.value);
         });
+
+        // Obter datas do período
+        const dateStartInput = document.getElementById('reportPeriodStart');
+        const dateEndInput = document.getElementById('reportPeriodEnd');
+        // O custom datepicker sempre retorna yyyy-mm-dd
+        const dateStart = dateStartInput && dateStartInput.value ? dateStartInput.value : null;
+        const dateEnd = dateEndInput && dateEndInput.value ? dateEndInput.value : null;
 
         // Orientação automática baseada em número de colunas
         const orientation = selectedColumns.length <= 5 ? 'portrait' : 'landscape';
@@ -211,8 +582,8 @@ class ReportsManager {
             includeStats: true,   // Sempre incluído
             includeLogo: true,    // Sempre incluído
             columns: selectedColumns.length > 0 ? selectedColumns : [...this.defaultColumns],
-            dateStart: null,      // Usar filtros avançados
-            dateEnd: null,        // Usar filtros avançados
+            dateStart: dateStart,
+            dateEnd: dateEnd,
             urgencyFilter: '',    // Usar filtros avançados
             cargoFilter: '',      // Usar filtros avançados
             limit: 'all'          // Sempre exportar todos
@@ -234,15 +605,19 @@ class ReportsManager {
     }
 
     updateColumnsSelectionState() {
-        const columnsContainer = document.getElementById('columnsGridRedesign');
-        if (!columnsContainer) return;
-
-        // Atualizar botão "Marcar Todas"
-        const checkboxes = columnsContainer.querySelectorAll('input[type="checkbox"]');
+        // Atualizar estado visual dos botões de seleção
+        const checkboxes = document.querySelectorAll('.column-checkbox input[type="checkbox"]');
         const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-        const btn = document.getElementById('selectAllColumns');
-        if (btn) {
-            btn.textContent = allChecked ? '☐ Desmarcar Todas' : '☑ Marcar Todas';
+        const noneChecked = Array.from(checkboxes).every(cb => !cb.checked);
+
+        const selectAllBtn = document.getElementById('selectAllColumns');
+        const unselectAllBtn = document.getElementById('unselectAllColumns');
+
+        if (selectAllBtn) {
+            selectAllBtn.disabled = allChecked;
+        }
+        if (unselectAllBtn) {
+            unselectAllBtn.disabled = noneChecked;
         }
     }
 
@@ -396,27 +771,64 @@ class ReportsManager {
     }
 
     /**
+     * Obter filtro de período ativo
+     */
+    getActivePeriodFilter() {
+        // Tentar obter do AdvancedFiltersBuilder primeiro (usado com dados reais)
+        const advFiltersBuilder = this.dashboard?.advancedFiltersBuilder;
+        if (advFiltersBuilder && advFiltersBuilder.filters) {
+            const periodFilters = advFiltersBuilder.filters.filter(f => f.type === 'periodo');
+            if (periodFilters.length > 0) {
+                const filter = periodFilters[0];
+                // AdvancedFiltersBuilder armazena como { inicio, fim }
+                return {
+                    dataInicio: filter.value?.inicio,
+                    dataFim: filter.value?.fim
+                };
+            }
+        }
+
+        // Fallback: tentar currentFilters (usado nos testes com dados mock)
+        const currentPeriod = this.dashboard?.currentFilters?.periodo;
+        if (currentPeriod && (currentPeriod.dataInicio || currentPeriod.dataFim)) {
+            return currentPeriod;
+        }
+
+        return null;
+    }
+
+    /**
      * Filtrar dados para o relatório
      */
     getFilteredData() {
         let data = [...this.getBaseDataset()];
 
-        // Filtro de data
-        const startDate = this.parseDate(this.reportConfig.dateStart);
-        const endDate = this.parseDate(this.reportConfig.dateEnd, true);
+        // FILTRO DE PERÍODO COM TOGGLE
+        // Se o toggle "Apenas Filtradas" está ativo, remover servidores sem licenças no período
+        if (this.showOnlyFilteredLicenses) {
+            const periodFilter = this.getActivePeriodFilter();
 
-        if (startDate || endDate) {
-            data = data.filter(servidor => {
-                const licencas = this.getAllLicenses(servidor);
-                if (licencas.length === 0) return false;
+            if (periodFilter && (periodFilter.dataInicio || periodFilter.dataFim)) {
+                let filterStartDate = this.parseDate(periodFilter.dataInicio);
+                let filterEndDate = this.parseDate(periodFilter.dataFim, true);
 
-                return licencas.some(({ inicio, fim }) => {
-                    const fimAjustado = fim || inicio;
-                    if (startDate && fimAjustado < startDate) return false;
-                    if (endDate && inicio > endDate) return false;
-                    return true;
+                if (!filterStartDate) filterStartDate = new Date(1900, 0, 1);
+                if (!filterEndDate) filterEndDate = new Date(2100, 0, 1);
+
+                // Filtrar servidores que têm pelo menos uma licença no período
+                data = data.filter(servidor => {
+                    const licenses = this.getAllLicenses(servidor);
+
+                    // Verificar se o servidor tem pelo menos uma licença que intersecta o período
+                    const hasLicenseInPeriod = licenses.some(licenca => {
+                        const inicio = licenca.inicio;
+                        const fimAjustado = licenca.fim || licenca.inicio;
+                        return (inicio <= filterEndDate && fimAjustado >= filterStartDate);
+                    });
+
+                    return hasLicenseInPeriod;
                 });
-            });
+            }
         }
 
         // Filtro de urgência
@@ -833,21 +1245,41 @@ class ReportsManager {
                 if (licenses.length === 0 && primaryLicense?.inicio) {
                     licenses = [primaryLicense];
                 }
+                if (licenses.length === 0) {
+                    return '';
+                }
+
+                // LÓGICA DO TOGGLE: Se ativado, filtrar apenas licenças no período dos Filtros Avançados
+                if (this.showOnlyFilteredLicenses) {
+                    const periodFilter = this.getActivePeriodFilter();
+
+                    if (periodFilter && (periodFilter.dataInicio || periodFilter.dataFim)) {
+                        let filterStartDate = this.parseDate(periodFilter.dataInicio);
+                        let filterEndDate = this.parseDate(periodFilter.dataFim, true);
+
+                        if (!filterStartDate) filterStartDate = new Date(1900, 0, 1);
+                        if (!filterEndDate) filterEndDate = new Date(2100, 0, 1);
+
+                        licenses = licenses.filter(licenca => {
+                            const inicio = licenca.inicio;
+                            const fimAjustado = licenca.fim || licenca.inicio;
+                            return (inicio <= filterEndDate && fimAjustado >= filterStartDate);
+                        });
+                    }
+                }
 
                 if (licenses.length === 0) {
                     return '';
                 }
 
                 licenses.sort((a, b) => (a.inicio?.getTime?.() || 0) - (b.inicio?.getTime?.() || 0));
-
-                        const segmentJoiner = raw ? '\u000a' : '\n';
+                const segmentJoiner = raw ? '\u000a' : '\n';
                 const segments = licenses.map(licenca => {
                     const inicio = licenca.inicio ? this.formatDate(licenca.inicio) : '-';
                     const fim = licenca.fim ? this.formatDate(licenca.fim) : inicio;
                     const label = `${inicio} até ${fim}`;
                     return label;
                 });
-
                 const joined = segments.join(segmentJoiner);
                 return joined;
             }
@@ -965,29 +1397,16 @@ class ReportsManager {
                 doc.setFontSize(11);
                 doc.setFont(undefined, 'bold');
                 doc.setTextColor(40, 40, 40);
-                doc.text('Resumo Executivo', margin, yPosition);
+                doc.text('Resumo', margin, yPosition);
                 yPosition += 6;
 
                 doc.setFontSize(9);
                 doc.setFont(undefined, 'normal');
                 doc.setTextColor(60, 60, 60);
 
-                const urgencySummaryParts = [
-                    `Crítica: ${stats.urgencyCounts.critica || 0}`,
-                    `Alta: ${stats.urgencyCounts.alta || 0}`,
-                    `Moderada: ${stats.urgencyCounts.moderada || 0}`,
-                    `Baixa: ${stats.urgencyCounts.baixa || 0}`
-                ];
-
-                if (stats.urgencyCounts.semLicenca) {
-                    urgencySummaryParts.push(`Sem Licença: ${stats.urgencyCounts.semLicenca}`);
-                }
-
+                // Apenas total de servidores
                 const statsText = [
-                    `Total de Servidores: ${stats.total}`,
-                    `Idade Média: ${stats.avgAge !== null ? `${stats.avgAge} anos` : '—'}`,
-                    `Cargos Diferentes: ${stats.cargos}`,
-                    `Urgências - ${urgencySummaryParts.join(' | ')}`
+                    `Total de Servidores: ${stats.total}`
                 ];
 
                 statsText.forEach(line => {
@@ -1002,18 +1421,22 @@ class ReportsManager {
                 yPosition += 5;
             }
 
-            const columnLabels = this.reportConfig.columns.map(col => this.columnLabels[col] || col);
-            const previewRange = {
-                limit: Math.min(data.length, 15),
-                total: data.length
-            };
-            const metadataLines = this.getReportMetadataLines(previewRange, columnLabels);
-
+            // Exibir período selecionado, se houver
+            const periodLines = [];
+            if (this.reportConfig.dateStart || this.reportConfig.dateEnd) {
+                let periodText = 'Período selecionado: ';
+                if (this.reportConfig.dateStart) {
+                    periodText += `de ${this.reportConfig.dateStart} `;
+                }
+                if (this.reportConfig.dateEnd) {
+                    periodText += `até ${this.reportConfig.dateEnd}`;
+                }
+                periodLines.push(periodText.trim());
+            }
             doc.setFontSize(9);
             doc.setFont(undefined, 'normal');
             doc.setTextColor(70, 70, 70);
-
-            metadataLines.forEach(line => {
+            periodLines.forEach(line => {
                 if (yPosition > pageHeight - margin) {
                     doc.addPage();
                     yPosition = margin + 6;
@@ -1021,29 +1444,10 @@ class ReportsManager {
                 doc.text(line, margin, yPosition);
                 yPosition += 5;
             });
-
             yPosition += 4;
 
             // Gráficos
-            if (this.reportConfig.includeCharts && data.length > 0) {
-                try {
-                    const chartImage = await this.generateChartImage(data);
-                    if (chartImage) {
-                        const imgWidth = pageWidth - margin * 2;
-                        const imgHeight = 50;
-
-                        if (yPosition + imgHeight > pageHeight - margin) {
-                            doc.addPage();
-                            yPosition = margin + 6;
-                        }
-
-                        doc.addImage(chartImage, 'PNG', margin, yPosition, imgWidth, imgHeight);
-                        yPosition += imgHeight + 8;
-                    }
-                } catch (chartError) {
-                    console.warn('Erro ao gerar gráfico:', chartError);
-                }
-            }
+            // Gráfico removido do PDF
 
             // Tabela de dados
             doc.setFontSize(11);
@@ -1065,7 +1469,8 @@ class ReportsManager {
                     fontSize: 7,
                     cellPadding: 2,
                     overflow: 'linebreak',
-                    cellWidth: 'wrap'
+                    cellWidth: 'auto',
+                    minCellWidth: 20,
                 },
                 headStyles: {
                     fillColor: [59, 130, 246],
@@ -1077,7 +1482,16 @@ class ReportsManager {
                     fillColor: [245, 247, 250]
                 },
                 margin: { left: margin, right: margin },
-                theme: 'grid'
+                tableWidth: 'wrap',
+                theme: 'grid',
+                didDrawPage: function (data) {
+                    // Garante que a tabela não ultrapasse a largura da página
+                    const doc = data.doc;
+                    const pageWidth = doc.internal.pageSize.getWidth();
+                    if (data.table && data.table.width > (pageWidth - margin * 2)) {
+                        data.table.width = pageWidth - margin * 2;
+                    }
+                }
             });
 
             const pageCount = doc.internal.getNumberOfPages();

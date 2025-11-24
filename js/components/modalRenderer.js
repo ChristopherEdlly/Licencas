@@ -17,15 +17,18 @@ class ModalRenderer {
             return '<div class="no-data">Nenhum registro encontrado</div>';
         }
 
-        // Processar todas as linhas
+        // Exibir todos os campos, mesmo vazios, exceto SERVIDOR/NOME/campos técnicos
         const linhas = servidor.todosOsDadosOriginais.map(dados => {
             const linha = {};
             Object.entries(dados).forEach(([key, value]) => {
                 const keyUpper = key.toUpperCase();
-                if (!keyUpper.includes('SERVIDOR') && 
+                if (!keyUpper.includes('SERVIDOR') &&
                     !keyUpper.includes('NOME') &&
-                    value && value !== '' && value !== 'undefined' && value !== 'null') {
-                    linha[key] = value;
+                    !key.startsWith('_')) {
+                    // Exibir valor, mesmo se vazio/null/undefined
+                    linha[key] = (value === undefined || value === null || value === '' || value === 'undefined' || value === 'null')
+                        ? '<span class="empty-value">(vazio)</span>'
+                        : this.escapeHtml(value.toString());
                 }
             });
             return linha;

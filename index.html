@@ -21,6 +21,8 @@
     <link href="css/components/reports-page-redesign.css" rel="stylesheet">
     <link href="css/components/widget-library.css" rel="stylesheet">
     <link href="css/components/ui-improvements.css" rel="stylesheet">
+    <link href="css/components/license-view-toggle.css" rel="stylesheet">
+    <link href="css/components/columns-selector.css" rel="stylesheet">
     <!-- Modelo Layout - Deve ser o ÚLTIMO CSS para sobrescrever tudo -->
     <link href="css/components/sidebar-modelo.css" rel="stylesheet">
     <link href="css/components/modelo-layout.css" rel="stylesheet">
@@ -158,9 +160,9 @@
 
                 <!-- Busca -->
                 <div class="header-search">
-                    <i class="bi bi-search"></i>
+                    <i class="bi bi-search" aria-hidden="true" style="margin-right: 0.75rem;"></i>
                     <input type="text" id="headerSearchInput" placeholder="Buscar servidor..." autocomplete="off">
-                    <button class="btn-clear-search" id="clearHeaderSearchBtn" style="display: none;">
+                    <button class="btn-clear-search" id="clearHeaderSearchBtn" style="margin-left: 0.75rem; display: none;">
                         <i class="bi bi-x"></i>
                     </button>
                 </div>
@@ -528,7 +530,7 @@
                             </div>
 
                             <!-- Seção: Informações Básicas -->
-                            <div class="config-section">
+                            <div class="config-section config-section-compact">
                                 <h3 class="section-title">
                                     <i class="bi bi-file-text"></i>
                                     Informações do Relatório
@@ -547,71 +549,174 @@
 
                             </div>
 
+                            <!-- Toggle de Visualização de Licenças -->
+                            <div class="license-view-toggle-container">
+                                <div class="toggle-header">
+                                    <i class="bi bi-eye"></i>
+                                    <span class="toggle-label">Visualização de Licenças</span>
+                                </div>
+                                <div class="toggle-switch-wrapper">
+                                    <span class="toggle-option" id="toggleLabelComplete">Visão Completa</span>
+                                    <label class="toggle-switch-ios">
+                                        <input type="checkbox" id="licenseViewToggle">
+                                        <span class="toggle-slider-ios"></span>
+                                    </label>
+                                    <span class="toggle-option" id="toggleLabelFiltered">Apenas Filtradas</span>
+                                </div>
+                                <p class="toggle-description">
+                                    <span id="toggleDescriptionText">Exibindo todas as licenças dos servidores encontrados</span>
+                                </p>
+                            </div>
+
                             <!-- Seção: Seleção de Colunas -->
                             <div class="config-section">
                                 <h3 class="section-title">
                                     <i class="bi bi-layout-three-columns"></i>
                                     Colunas a Incluir
-                                    <button class="btn-select-all" id="selectAllColumns">Marcar Todas</button>
                                 </h3>
 
-                                <div class="columns-grid" id="columnsGridRedesign">
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="nome" checked>
-                                        <span>Nome</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="cpf">
-                                        <span>CPF</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="matricula">
-                                        <span>Matrícula</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="cargo" checked>
-                                        <span>Cargo</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="lotacao" checked>
-                                        <span>Lotação</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="idade" checked>
-                                        <span>Idade</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="urgencia" checked>
-                                        <span>Urgência</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="periodoLicenca" checked>
-                                        <span>Período da Licença</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="dataInicio">
-                                        <span>Data Início</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="dataFim">
-                                        <span>Data Fim</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="superintendencia">
-                                        <span>Superintendência</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="subsecretaria">
-                                        <span>Subsecretaria</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="diasLicenca">
-                                        <span>Dias de Licença</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="mesesLicenca">
-                                        <span>Meses de Licença</span>
-                                    </label>
+                                <!-- Controles de Busca e Seleção -->
+                                <div class="columns-controls">
+                                    <div class="search-box-columns">
+                                        <i class="bi bi-search"></i>
+                                        <input
+                                            type="text"
+                                            id="columnSearchInput"
+                                            placeholder="Buscar colunas..."
+                                            autocomplete="off"
+                                        >
+                                        <button class="btn-clear-search" id="clearColumnSearch" style="display: none;">
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                    </div>
+                                    <div class="bulk-actions">
+                                        <button class="btn-select-action" id="selectAllColumns">
+                                            <i class="bi bi-check-all"></i>
+                                            Marcar Todas
+                                        </button>
+                                        <button class="btn-select-action" id="unselectAllColumns">
+                                            <i class="bi bi-x-square"></i>
+                                            Desmarcar Todas
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Grupos de Colunas (Acordeão) -->
+                                <div class="columns-accordion" id="columnsAccordion">
+
+                                    <!-- Grupo: Dados do Servidor -->
+                                    <div class="column-group" data-group="servidor">
+                                        <div class="column-group-header">
+                                            <i class="bi bi-chevron-down group-chevron"></i>
+                                            <i class="bi bi-person-badge group-icon"></i>
+                                            <span class="group-title">Dados do Servidor</span>
+                                            <span class="group-count">5 colunas</span>
+                                        </div>
+                                        <div class="column-group-body">
+                                            <label class="column-checkbox" data-column="nome">
+                                                <input type="checkbox" value="nome" checked>
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Nome</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="cpf">
+                                                <input type="checkbox" value="cpf">
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>CPF</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="matricula">
+                                                <input type="checkbox" value="matricula">
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Matrícula</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="cargo">
+                                                <input type="checkbox" value="cargo" checked>
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Cargo</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="idade">
+                                                <input type="checkbox" value="idade" checked>
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Idade</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Grupo: Localização -->
+                                    <div class="column-group" data-group="localizacao">
+                                        <div class="column-group-header">
+                                            <i class="bi bi-chevron-down group-chevron"></i>
+                                            <i class="bi bi-building group-icon"></i>
+                                            <span class="group-title">Localização</span>
+                                            <span class="group-count">3 colunas</span>
+                                        </div>
+                                        <div class="column-group-body">
+                                            <label class="column-checkbox" data-column="lotacao">
+                                                <input type="checkbox" value="lotacao" checked>
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Lotação</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="superintendencia">
+                                                <input type="checkbox" value="superintendencia">
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Superintendência</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="subsecretaria">
+                                                <input type="checkbox" value="subsecretaria">
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Subsecretaria</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Grupo: Informações da Licença -->
+                                    <div class="column-group active" data-group="licenca">
+                                        <div class="column-group-header">
+                                            <i class="bi bi-chevron-down group-chevron"></i>
+                                            <i class="bi bi-calendar-check group-icon"></i>
+                                            <span class="group-title">Informações da Licença</span>
+                                            <span class="group-count">6 colunas</span>
+                                        </div>
+                                        <div class="column-group-body">
+                                            <label class="column-checkbox" data-column="urgencia">
+                                                <input type="checkbox" value="urgencia" checked>
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Urgência</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="periodoLicenca">
+                                                <input type="checkbox" value="periodoLicenca" checked>
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Período da Licença</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="dataInicio">
+                                                <input type="checkbox" value="dataInicio">
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Data Início</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="dataFim">
+                                                <input type="checkbox" value="dataFim">
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Data Fim</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="diasLicenca">
+                                                <input type="checkbox" value="diasLicenca">
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Dias de Licença</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="mesesLicenca">
+                                                <input type="checkbox" value="mesesLicenca">
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Meses de Licença</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <!-- Mensagem quando nenhuma coluna é encontrada na busca -->
+                                <div class="columns-empty-state" id="columnsEmptyState" style="display: none;">
+                                    <i class="bi bi-inbox"></i>
+                                    <p>Nenhuma coluna encontrada</p>
+                                    <small>Tente buscar por outro termo</small>
                                 </div>
                             </div>
 

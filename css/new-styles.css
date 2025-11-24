@@ -1165,19 +1165,35 @@ body.sidebar-collapsed .sidebar .nav-link.active {
     position: relative;
     display: flex;
     align-items: center;
+    width: 100%;
 }
 
+/* Remover posicionamento absoluto do ícone de busca dentro da barra */
 .search-box i {
-    position: absolute;
-    left: 0.75rem;
-    color: var(--text-muted);
-    font-size: 0.875rem;
-    z-index: 2;
+    display: none;
+}
+
+/* Novo botão de busca fora da barra */
+.btn-search {
+    margin-left: 0.5rem;
+    background: var(--primary);
+    border: none;
+    color: #fff;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s;
+}
+.btn-search:hover {
+    background: var(--primary-dark, #3730a3);
 }
 
 .search-box input {
     width: 100%;
-    padding: 0.75rem 2.5rem 0.75rem 2.25rem;
+    padding: 0.75rem 2.5rem 0.75rem 1rem; /* padding right para espaço do clear */
     border: 2px solid var(--border);
     border-radius: 8px;
     background: var(--bg-secondary);
@@ -1198,7 +1214,9 @@ body.sidebar-collapsed .sidebar .nav-link.active {
 
 .btn-clear {
     position: absolute;
-    right: 1.5rem;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
     background: none;
     border: none;
     color: var(--text-muted);
@@ -1208,6 +1226,7 @@ body.sidebar-collapsed .sidebar .nav-link.active {
     display: flex;
     align-items: center;
     transition: color 0.2s ease;
+    z-index: 3;
 }
 
 .btn-clear:hover {
@@ -1431,7 +1450,6 @@ body.sidebar-collapsed .sidebar .nav-link.active {
 .header-search {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -1448,6 +1466,8 @@ body.sidebar-collapsed .sidebar .nav-link.active {
 .header-search i {
     color: var(--text-secondary);
     font-size: 1rem;
+    position: static;
+    pointer-events: none;
 }
 
 .header-search input {
@@ -1471,6 +1491,7 @@ body.sidebar-collapsed .sidebar .nav-link.active {
     padding: 0.25rem;
     border-radius: 4px;
     transition: all 0.2s ease;
+    position: static;
 }
 
 .btn-clear-search:hover {

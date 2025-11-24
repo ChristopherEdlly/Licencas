@@ -1,0 +1,587 @@
+/**
+ * Columns Selector - Seletor de Colunas com Busca e Agrupamento
+ * Componente para selecionar colunas do relatório com busca inteligente
+ */
+
+/* Controles de Busca e Ações em Massa */
+.columns-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.search-box-columns {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: var(--input-bg, #f9fafb);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    padding: 0.625rem 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.search-box-columns:focus-within {
+    border-color: var(--primary-color, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    background: var(--card-bg, #ffffff);
+}
+
+.search-box-columns i.bi-search {
+    color: var(--text-secondary, #6b7280);
+    font-size: 1rem;
+    margin-right: 0.5rem;
+}
+
+.search-box-columns input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 0.875rem;
+    color: var(--text-primary, #1f2937);
+    padding: 0;
+}
+
+.search-box-columns input::placeholder {
+    color: var(--text-secondary, #9ca3af);
+}
+
+.search-box-columns .btn-clear-search {
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    cursor: pointer;
+    color: var(--text-secondary, #6b7280);
+    transition: color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.search-box-columns .btn-clear-search:hover {
+    color: var(--text-primary, #1f2937);
+}
+
+/* Ações em Massa */
+.bulk-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-select-action {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-primary, #1f2937);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-select-action:hover {
+    background: var(--primary-color, #3b82f6);
+    border-color: var(--primary-color, #3b82f6);
+    color: #ffffff;
+}
+
+.btn-select-action i {
+    font-size: 1rem;
+}
+
+/* Acordeão de Grupos de Colunas */
+.columns-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.column-group {
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--card-bg, #ffffff);
+    transition: all 0.2s ease;
+}
+
+.column-group:hover {
+    border-color: var(--primary-color, #3b82f6);
+}
+
+.column-group.active .column-group-body {
+    display: block;
+}
+
+.column-group.active .group-chevron {
+    transform: rotate(0deg);
+}
+
+.column-group-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary, #f9fafb);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s ease;
+}
+
+.column-group-header:hover {
+    background: var(--bg-hover, #f3f4f6);
+}
+
+.group-chevron {
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6b7280);
+    transition: transform 0.2s ease;
+    transform: rotate(-90deg);
+}
+
+.group-icon {
+    font-size: 1rem;
+    color: var(--primary-color, #3b82f6);
+}
+
+.group-title {
+    flex: 1;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--text-primary, #1f2937);
+}
+
+.group-count {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #9ca3af);
+    font-weight: 500;
+}
+
+.column-group-body {
+    display: none;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+/* Checkboxes das Colunas */
+.column-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    user-select: none;
+}
+
+.column-checkbox:hover {
+    background: var(--bg-hover, #f3f4f6);
+}
+
+.column-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-color, #d1d5db);
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.column-checkbox input[type="checkbox"]:checked {
+    background-color: var(--primary-color, #3b82f6);
+    border-color: var(--primary-color, #3b82f6);
+}
+
+.column-checkbox span {
+    font-size: 0.875rem;
+    color: var(--text-primary, #374151);
+}
+
+.column-checkbox.hidden {
+    display: none;
+}
+
+/* Status Icons - Indicadores de Disponibilidade */
+.column-checkbox .status-icon {
+    font-size: 0.875rem;
+    margin-left: -0.25rem;
+    margin-right: 0.25rem;
+    transition: opacity 0.2s ease, color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.column-checkbox .status-icon.available {
+    color: #10b981; /* Green - dados disponíveis */
+}
+
+.column-checkbox .status-icon.partial {
+    color: #f59e0b; /* Amber - dados parciais */
+}
+
+.column-checkbox .status-icon.unavailable {
+    color: #9ca3af; /* Gray - sem dados */
+}
+
+.column-checkbox .status-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #9ca3af);
+    font-style: italic;
+    margin-left: auto;
+}
+
+.column-checkbox.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.column-checkbox.disabled:hover {
+    background: transparent;
+}
+
+.column-checkbox.disabled input[type="checkbox"] {
+    cursor: not-allowed;
+}
+
+/* Empty State */
+.columns-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    text-align: center;
+}
+
+.columns-empty-state i {
+    font-size: 3rem;
+    color: var(--text-secondary, #9ca3af);
+    margin-bottom: 0.75rem;
+}
+
+.columns-empty-state p {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+    margin: 0 0 0.25rem 0;
+}
+
+.columns-empty-state small {
+    font-size: 0.8125rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+/* Tema Dark */
+[data-theme="dark"] .search-box-columns {
+    background: var(--input-bg-dark, #374151);
+    border-color: var(--border-color-dark, #4b5563);
+}
+
+[data-theme="dark"] .search-box-columns:focus-within {
+    background: var(--card-bg-dark, #1f2937);
+    border-color: var(--primary-color, #60a5fa);
+}
+
+[data-theme="dark"] .search-box-columns input {
+    color: var(--text-primary-dark, #f9fafb);
+}
+
+[data-theme="dark"] .btn-select-action {
+    background: var(--card-bg-dark, #1f2937);
+    border-color: var(--border-color-dark, #374151);
+    color: var(--text-primary-dark, #f9fafb);
+}
+
+[data-theme="dark"] .btn-select-action:hover {
+    background: var(--primary-color, #3b82f6);
+    border-color: var(--primary-color, #3b82f6);
+}
+
+[data-theme="dark"] .column-group {
+    background: var(--card-bg-dark, #1f2937);
+    border-color: var(--border-color-dark, #374151);
+}
+
+[data-theme="dark"] .column-group-header {
+    background: var(--bg-secondary-dark, #374151);
+}
+
+[data-theme="dark"] .column-group-header:hover {
+    background: var(--bg-hover-dark, #4b5563);
+}
+
+[data-theme="dark"] .column-group-body {
+    border-color: var(--border-color-dark, #374151);
+}
+
+[data-theme="dark"] .group-title {
+    color: var(--text-primary-dark, #f9fafb);
+}
+
+[data-theme="dark"] .column-checkbox span {
+    color: var(--text-primary-dark, #e5e7eb);
+}
+
+[data-theme="dark"] .column-checkbox:hover {
+    background: var(--bg-hover-dark, #374151);
+}
+
+/* Status Icons - Dark Mode */
+[data-theme="dark"] .column-checkbox .status-icon.available {
+    color: #34d399; /* Lighter green for dark mode */
+}
+
+[data-theme="dark"] .column-checkbox .status-icon.partial {
+    color: #fbbf24; /* Lighter amber for dark mode */
+}
+
+[data-theme="dark"] .column-checkbox .status-icon.unavailable {
+    color: #6b7280; /* Slightly lighter gray for dark mode */
+}
+
+[data-theme="dark"] .column-checkbox .status-text {
+    color: var(--text-secondary-dark, #9ca3af);
+}
+
+[data-theme="dark"] .column-checkbox.disabled {
+    opacity: 0.4;
+}
+
+/* Modo Alto Contraste */
+body.high-contrast .search-box-columns {
+    border-width: 2px;
+}
+
+body.high-contrast .column-group {
+    border-width: 2px;
+}
+
+body.high-contrast .btn-select-action {
+    border-width: 2px;
+}
+
+body.high-contrast .column-checkbox input[type="checkbox"] {
+    border-width: 3px;
+}
+
+/* Status Icons - High Contrast Mode */
+body.high-contrast .column-checkbox .status-icon.available {
+    color: #059669; /* Darker green for better contrast */
+    font-weight: bold;
+}
+
+body.high-contrast .column-checkbox .status-icon.partial {
+    color: #d97706; /* Darker amber for better contrast */
+    font-weight: bold;
+}
+
+body.high-contrast .column-checkbox .status-icon.unavailable {
+    color: #4b5563; /* Darker gray for better contrast */
+    font-weight: bold;
+}
+
+body.high-contrast .column-checkbox.disabled {
+    opacity: 0.6;
+}
+
+body.high-contrast .column-checkbox .status-text {
+    font-weight: 600;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .bulk-actions {
+        flex-direction: column;
+    }
+
+    .btn-select-action {
+        width: 100%;
+    }
+}
+
+/* Animações */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.column-group.active .column-group-body {
+    animation: slideDown 0.2s ease-out;
+}
+
+/* Redução de movimento */
+@media (prefers-reduced-motion: reduce) {
+    .group-chevron,
+    .column-checkbox,
+    .btn-select-action,
+    .search-box-columns,
+    .column-group {
+        transition: none;
+    }
+
+    .column-group.active .column-group-body {
+        animation: none;
+    }
+}
+
+/* ===== MELHORIAS DO ACCORDION (UI/UX Refactor) ===== */
+
+/* Chevron maior e mais destacado */
+.group-chevron {
+    font-size: 1.125rem;  /* 18px - antes era 14px */
+    color: var(--primary-color, #3b82f6);  /* Azul primário ao invés de cinza */
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: rotate(-90deg);
+    font-weight: 700;  /* Bold para maior destaque */
+    margin-right: 0.25rem;  /* Espaçamento adicional */
+}
+
+/* Header mais interativo */
+.column-group-header {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;  /* 10px - antes era 8px */
+    padding: 0.875rem 1.125rem;  /* 14px 18px - padding maior */
+    background: var(--bg-secondary, #f9fafb);
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 8px;  /* Bordas arredondadas no header */
+}
+
+/* Hover mais destacado com elevação */
+.column-group-header:hover {
+    background: linear-gradient(135deg,
+        rgba(59, 130, 246, 0.06) 0%,
+        rgba(37, 99, 235, 0.03) 100%);
+    transform: translateX(2px);  /* Movimento sutil para direita */
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.12);  /* Sombra sutil */
+}
+
+/* Active state - grupo expandido */
+.column-group.active .column-group-header {
+    background: linear-gradient(135deg,
+        rgba(59, 130, 246, 0.08) 0%,
+        rgba(37, 99, 235, 0.04) 100%);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+/* Rotação do chevron quando expandido */
+.column-group.active .group-chevron {
+    transform: rotate(0deg);
+    color: var(--primary-color, #2563eb);  /* Azul mais escuro quando ativo */
+}
+
+/* Título do grupo mais destacado */
+.group-title {
+    flex: 1;
+    font-weight: 600;
+    font-size: 0.9375rem;  /* 15px - antes era 14px */
+    color: var(--text-primary, #1f2937);
+    letter-spacing: -0.01em;  /* Tracking negativo para melhor legibilidade */
+}
+
+/* Counter badge redesenhado */
+.group-count {
+    font-size: 0.6875rem;  /* 11px */
+    color: var(--text-secondary, #9ca3af);
+    font-weight: 600;
+    background: rgba(59, 130, 246, 0.1);
+    padding: 0.125rem 0.5rem;
+    border-radius: 12px;
+    letter-spacing: 0.02em;
+}
+
+/* ===== GRUPOS DE COLUNAS - DESIGN CLEAN ===== */
+
+/* Accordion container */
+.columns-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;  /* 8px → 12px - mais respiração */
+}
+
+/* Grupo individual - menos "boxy" */
+.column-group {
+    border: 1.5px solid var(--border-color, #e5e7eb);  /* Borda mais grossa */
+    border-radius: 10px;  /* 8px → 10px */
+    overflow: hidden;
+    background: transparent;  /* Sem fundo - mais clean */
+    transition: all 0.2s ease;
+}
+
+.column-group:hover {
+    border-color: rgba(59, 130, 246, 0.4);
+    box-shadow: 0 2px 12px rgba(59, 130, 246, 0.08);
+}
+
+/* Body do grupo - padding ajustado */
+.column-group-body {
+    display: none;
+    padding: 12px 16px 16px 16px;  /* 12px top, 16px lateral/bottom */
+    border-top: 1.5px solid var(--border-color, #e5e7eb);
+    background: var(--bg-primary, #ffffff);  /* Fundo branco no body */
+}
+
+/* Checkboxes com spacing melhor */
+.column-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    margin-bottom: 6px;  /* Espaçamento entre checkboxes */
+}
+
+.column-checkbox:last-child {
+    margin-bottom: 0;
+}
+
+.column-checkbox:hover {
+    background: rgba(59, 130, 246, 0.04);
+    transform: translateX(4px);  /* Movimento mais pronunciado */
+}
+
+/* ===== STATUS ICONS - MAIS VISÍVEIS ===== */
+
+.column-checkbox .status-icon {
+    font-size: 1rem;  /* 16px - antes era 14px */
+    margin-left: 0;  /* Remover margin negativo */
+    margin-right: 8px;  /* Espaço consistente */
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+/* Animação ao aparecer */
+.column-checkbox .status-icon {
+    animation: fadeInStatus 0.3s ease-out;
+}
+
+@keyframes fadeInStatus {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}

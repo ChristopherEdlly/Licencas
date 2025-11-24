@@ -674,3 +674,8 @@ class CustomDatePicker {
         }
     }
 }
+
+// Garantir exportação global
+if (typeof window !== 'undefined') {
+    window.CustomDatePicker = CustomDatePicker;
+}
