@@ -1,0 +1,642 @@
+/**
+ * Layout Estrutural do Modelo
+ * Baseado em: Modelo-de-intefrace-layout
+ *
+ * ARQUITETURA DO MODELO:
+ * - Background externo: #1a1a1a
+ * - Sidebar: #1a1a1a com borda #27272a
+ * - Área principal: padding + container arredondado #0a0a0a
+ * - Conteúdo interno: background transparente/escuro
+ */
+
+/* ==================== VARIÁVEIS CSS ==================== */
+
+:root {
+    /* Cores principais - Tema escuro */
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #0f0f0f;
+    --bg-tertiary: #0a0a0a;
+    --border-color: rgb(39, 39, 42);
+
+    /* Cores de texto */
+    --text-primary: #ffffff;
+    --text-secondary: rgb(156, 163, 175);
+    --text-tertiary: rgb(107, 114, 128);
+    --text-muted: rgb(75, 85, 99);
+
+    /* Cores de ação */
+    --color-blue: rgb(37, 99, 235);
+    --color-blue-hover: rgb(29, 78, 216);
+    --color-blue-light: rgb(96, 165, 250);
+
+    /* Cores de urgência */
+    --color-critical: #ef4444;
+    --color-high: #f97316;
+    --color-moderate: #f59e0b;
+    --color-low: #10b981;
+
+    /* Espaçamentos */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.375rem;
+    --spacing-md: 0.5rem;
+    --spacing-lg: 0.75rem;
+    --spacing-xl: 1rem;
+    --spacing-2xl: 1.5rem;
+
+    /* Border radius */
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    --radius-2xl: 1.25rem;
+
+    /* Fontes */
+    --font-xs: 0.75rem;
+    --font-sm: 0.8125rem;
+    --font-base: 0.875rem;
+    --font-lg: 1rem;
+}
+
+[data-theme="light"] {
+    /* Cores principais - Tema claro */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f9fafb;
+    --bg-tertiary: #f3f4f6;
+    --border-color: #e5e7eb;
+
+    /* Cores de texto */
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --text-tertiary: #9ca3af;
+    --text-muted: #d1d5db;
+}
+
+/* ==================== RESET E CORES BASE ==================== */
+
+body {
+    background-color: #1a1a1a;
+}
+
+.app-layout {
+    display: flex;
+    min-height: 100vh;
+    background-color: #1a1a1a;
+}
+
+/* ==================== MAIN CONTENT ==================== */
+
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #0f0f0f;
+    padding: 0.75rem; /* Reduzido de 1rem */
+    border-top-left-radius: 1.25rem; /* 20px mantido */
+    overflow: hidden; /* Garante que o conteúdo não vaze */
+    max-height: 100vh; /* Limita altura à viewport */
+}
+
+.content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #0a0a0a;
+    border-radius: 1rem;
+    overflow: hidden;
+}
+
+/* ==================== HEADER ==================== */
+
+.main-header {
+    padding: 0.75rem 1rem; /* Reduzido para ser mais compacto */
+    display: flex;
+    align-items: center;
+    gap: 0.75rem; /* Reduzido de 1rem */
+    flex-shrink: 0; /* Não encolhe quando há overflow */
+}
+
+/* Contador de Servidores */
+.server-count {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem; /* Reduzido */
+    padding: 0.375rem 0.75rem; /* Reduzido */
+    background-color: #1a1a1a;
+    border: 1px solid rgb(39, 39, 42);
+    border-radius: 0.375rem;
+    color: white;
+    font-size: 0.8125rem; /* Reduzido */
+    white-space: nowrap;
+}
+
+.server-count i {
+    color: var(--text-secondary); /* Usa variável CSS do tema */
+    font-size: 0.875rem; /* Reduzido */
+}
+
+/* Busca do Header */
+.header-search {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    max-width: 500px;
+    background: #1a1a1a;
+    border: 1px solid rgb(39, 39, 42);
+    border-radius: 0.375rem;
+    padding: 0.125rem 0.5rem;
+}
+
+.header-search i {
+    position: static;
+    margin-right: 0.5rem;
+    color: var(--text-tertiary);
+    font-size: 1.2rem;
+    pointer-events: none;
+}
+
+.header-search input {
+    flex: 1;
+    padding: 0.375rem 0.5rem;
+    background: transparent;
+    border: none;
+    color: rgb(209, 213, 219);
+    font-size: 0.95rem;
+    outline: none;
+    min-width: 0;
+    transition: all 0.2s;
+}
+
+.header-search input::placeholder {
+    color: rgb(75, 85, 99); /* placeholder:text-gray-600 */
+}
+
+.header-search input:focus {
+    border-color: rgb(59, 130, 246);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.btn-clear-search {
+    position: static;
+    margin-left: 0.5rem;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.25rem;
+    transition: all 0.2s;
+}
+
+.btn-clear-search:hover {
+    color: var(--text-primary);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="light"] .btn-clear-search:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Wrapper de Upload */
+.upload-wrapper {
+    position: relative;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-import {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem; /* Reduzido */
+    padding: 0.375rem 0.75rem; /* Reduzido */
+    background-color: rgb(37, 99, 235); /* bg-blue-600 */
+    color: white;
+    border: none;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem; /* Reduzido */
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn-import:hover {
+    background-color: rgb(29, 78, 216); /* hover:bg-blue-700 */
+}
+
+.btn-recent-files {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.375rem; /* Reduzido */
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    color: var(--text-secondary); /* Usa variável CSS do tema */
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-recent-files:hover {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* Auth Wrapper */
+.auth-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-microsoft {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem; /* Reduzido */
+    padding: 0.375rem 0.75rem; /* Reduzido */
+    background: linear-gradient(to right, #2563eb, #1d4ed8);
+    color: white;
+    border: none;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem; /* Reduzido */
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn-microsoft:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+}
+
+.account-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background-color: rgba(37, 99, 235, 0.1);
+    border: 1px solid rgba(37, 99, 235, 0.3);
+    border-radius: 0.5rem;
+}
+
+.account-chip i {
+    color: rgb(96, 165, 250);
+    font-size: 1.25rem;
+}
+
+.account-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.account-name {
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.account-action {
+    color: var(--text-secondary); /* Usa variável CSS do tema */
+    font-size: 0.75rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    text-align: left;
+    transition: color 0.2s;
+}
+
+.account-action:hover {
+    color: var(--text-primary);
+}
+
+/* Theme Toggle */
+.btn-theme {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem; /* Reduzido de 2.5rem */
+    height: 2rem; /* Reduzido de 2.5rem */
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    color: var(--text-secondary); /* Usa variável CSS do tema */
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-theme i {
+    font-size: 0.875rem; /* Tamanho do ícone */
+}
+
+.btn-theme:hover {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* ==================== PAGE CONTENT ==================== */
+
+.page-content {
+    /* display controlado por new-styles.css - não sobrescrever */
+    flex: 1;
+    flex-direction: column;
+    gap: 1rem; /* Reduzido de 1.5rem */
+    padding: 1rem; /* Padding interno */
+    overflow-y: auto; /* Permite scroll interno se necessário */
+}
+
+.page-content.active {
+    display: flex;
+}
+
+/* ==================== TABELA ==================== */
+
+.prototype-table-wrapper {
+    background-color: #0f0f0f;
+    border: 1px solid rgb(39, 39, 42);
+    border-radius: 0.75rem;
+    overflow: auto; /* Permite scroll na tabela se necessário */
+    max-height: 280px; /* Altura máxima reduzida para caber na tela */
+}
+
+.prototype-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.prototype-table thead {
+    border-bottom: 1px solid rgb(39, 39, 42);
+}
+
+.prototype-table thead th {
+    padding: 0.5rem 0.75rem; /* Reduzido */
+    text-align: left;
+    font-size: 0.75rem; /* Reduzido de 0.875rem */
+    font-weight: 500;
+    color: var(--text-secondary); /* Usa variável CSS do tema */
+    position: sticky; /* Header fixo ao fazer scroll */
+    top: 0;
+    background-color: var(--bg-secondary);
+    z-index: 10;
+}
+
+.prototype-table tbody tr {
+    border-bottom: 1px solid rgb(39, 39, 42);
+}
+
+.prototype-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.prototype-table tbody tr:hover {
+    background-color: #1a1a1a;
+}
+
+.prototype-table tbody td {
+    padding: 0.5rem 0.75rem; /* Reduzido */
+    font-size: 0.8125rem; /* Reduzido de 0.875rem */
+    color: white;
+    line-height: 1.4; /* Compacta a altura das linhas */
+}
+
+/* ==================== GRÁFICOS ==================== */
+
+.charts-grid {
+    display: flex; /* flex do modelo App.tsx linha 19 */
+    gap: 1rem; /* Reduzido de 1.5rem para economizar espaço */
+    flex-wrap: wrap; /* permite quebra em telas menores */
+}
+
+.chart-panel {
+    flex: 1; /* flex-1 do modelo para cada gráfico */
+    min-width: 300px; /* largura mínima para responsividade */
+    background-color: #0f0f0f; /* bg-[#0f0f0f] do modelo */
+    border: 1px solid rgb(39, 39, 42); /* border-gray-800 */
+    border-radius: 0.5rem; /* rounded-lg do modelo */
+    padding: 1rem; /* Reduzido de 1.5rem */
+}
+
+.chart-panel-header {
+    margin-bottom: 0.75rem; /* Reduzido de 1.5rem */
+}
+
+.chart-panel-title {
+    font-size: 0.875rem; /* Reduzido de 1rem */
+    font-weight: 500; /* Aumentado para compensar tamanho menor */
+    color: white;
+    margin-bottom: 0.125rem; /* Reduzido */
+    line-height: 1.4;
+}
+
+.chart-panel-subtitle {
+    font-size: 0.75rem; /* Reduzido de 0.875rem */
+    color: rgb(156, 163, 175); /* text-gray-400 */
+    line-height: 1.2;
+}
+
+.chart-panel-body {
+    position: relative;
+    height: 200px; /* Altura fixa reduzida (era 16rem = 256px) */
+}
+
+/* ==================== TEMA CLARO ==================== */
+
+[data-theme="light"] body,
+[data-theme="light"] .app-layout,
+[data-theme="light"] .main-content {
+    background-color: #f3f4f6;
+}
+
+[data-theme="light"] .content-area {
+    background-color: white;
+}
+
+[data-theme="light"] .main-header {
+    background-color: white;
+    border-bottom-color: #e5e7eb;
+}
+
+[data-theme="light"] .prototype-table-wrapper,
+[data-theme="light"] .chart-panel {
+    background-color: white;
+    border-color: #e5e7eb;
+}
+
+[data-theme="light"] .prototype-table tbody tr {
+    border-bottom-color: #e5e7eb;
+}
+
+[data-theme="light"] .prototype-table tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+[data-theme="light"] .prototype-table tbody td {
+    color: #111827;
+}
+
+[data-theme="light"] .chart-panel-title {
+    color: #111827;
+}
+
+[data-theme="light"] .chart-panel-subtitle,
+[data-theme="light"] .prototype-table thead th {
+    color: #4b5563; /* Escurecido de #6b7280 para melhor contraste */
+}
+
+/* Header no tema claro */
+[data-theme="light"] .server-count {
+    background-color: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #111827;
+}
+
+[data-theme="light"] .server-count i {
+    color: #4b5563; /* Escurecido para melhor contraste */
+}
+
+[data-theme="light"] .header-search input {
+    background-color: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #111827;
+}
+
+[data-theme="light"] .header-search input::placeholder {
+    color: #6b7280; /* Escurecido de #9ca3af para melhor contraste */
+}
+
+[data-theme="light"] .header-search i {
+    color: #4b5563; /* Escurecido para melhor contraste */
+}
+
+[data-theme="light"] .btn-clear-search {
+    color: #4b5563; /* Escurecido para melhor contraste */
+}
+
+[data-theme="light"] .btn-clear-search:hover {
+    color: #111827;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .btn-recent-files {
+    border-color: #e5e7eb;
+    color: #4b5563; /* Escurecido para melhor contraste */
+}
+
+[data-theme="light"] .btn-recent-files:hover {
+    background-color: #f3f4f6;
+    color: #111827;
+}
+
+[data-theme="light"] .btn-theme {
+    border-color: #e5e7eb;
+    color: #4b5563; /* Escurecido para melhor contraste */
+}
+
+[data-theme="light"] .btn-theme:hover {
+    background-color: #f3f4f6;
+    color: #111827;
+}
+
+/* ==================== RESPONSIVIDADE ==================== */
+
+/* Tablets e telas menores */
+@media (max-width: 1024px) {
+    .charts-grid {
+        flex-direction: column;
+    }
+
+    .chart-panel {
+        min-width: 100%;
+    }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .main-content {
+        padding: 0.5rem;
+    }
+
+    .content-area {
+        border-radius: 0.75rem;
+    }
+
+    .main-header {
+        padding: 0.75rem 1rem;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .server-count {
+        order: 1;
+        flex: 1;
+        min-width: 120px;
+    }
+
+    .header-search {
+        order: 3;
+        flex-basis: 100%;
+        max-width: 100%;
+    }
+
+    .upload-wrapper {
+        order: 2;
+    }
+
+    .auth-wrapper {
+        order: 4;
+    }
+
+    .btn-theme {
+        order: 5;
+    }
+
+    .btn-import span {
+        display: none; /* Esconde texto em mobile, só ícone */
+    }
+
+    .btn-import {
+        padding: 0.5rem;
+    }
+
+    .page-content {
+        padding: 1rem;
+        gap: 1rem;
+    }
+
+    .chart-panel {
+        padding: 1rem;
+    }
+
+    .chart-panel-header {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Mobile pequeno */
+@media (max-width: 480px) {
+    .sidebar {
+        width: 4.5rem; /* Sidebar colapsada por padrão em telas muito pequenas */
+    }
+
+    .main-header {
+        padding: 0.5rem;
+    }
+
+    .server-count,
+    .upload-wrapper,
+    .auth-wrapper {
+        font-size: 0.8125rem;
+    }
+
+    .btn-microsoft span {
+        display: none;
+    }
+
+    .btn-microsoft {
+        padding: 0.5rem;
+    }
+}

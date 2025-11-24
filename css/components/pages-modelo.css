@@ -1,0 +1,375 @@
+/**
+ * Estilos das Páginas - Modelo Unificado
+ * Aplica o tema visual do modelo para todas as páginas
+ * Calendar, Timeline, Reports, Settings, Tips
+ */
+
+/* ==================== PÁGINAS INTERNAS ==================== */
+
+/* Títulos de página */
+.page-title {
+    font-size: var(--font-lg);
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xl);
+}
+
+.page-subtitle {
+    font-size: var(--font-base);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-2xl);
+}
+
+/* ==================== CALENDAR PAGE ==================== */
+
+#calendarPage {
+    gap: var(--spacing-xl);
+}
+
+.calendar-container {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xl);
+}
+
+.calendar-header h2 {
+    font-size: var(--font-lg);
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.calendar-controls {
+    display: flex;
+    gap: var(--spacing-md);
+}
+
+.calendar-controls button {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--font-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.calendar-controls button:hover {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* ==================== TIMELINE PAGE ==================== */
+
+#timelinePage {
+    gap: var(--spacing-xl);
+}
+
+.timeline-controls {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+    flex-wrap: wrap;
+}
+
+.timeline-controls .btn-group {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.timeline-controls button {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--font-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.timeline-controls button.active {
+    background-color: var(--color-blue);
+    border-color: var(--color-blue);
+    color: white;
+}
+
+.timeline-controls button:hover:not(.active) {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.timeline-chart-container {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    height: 400px;
+}
+
+/* ==================== REPORTS PAGE ==================== */
+
+#reportsPage {
+    gap: var(--spacing-xl);
+}
+
+.reports-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--spacing-xl);
+}
+
+.report-card {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.report-card:hover {
+    border-color: var(--color-blue);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.report-card-icon {
+    width: 3rem;
+    height: 3rem;
+    background: linear-gradient(135deg, var(--color-blue), var(--color-blue-light));
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.report-card-icon i {
+    font-size: 1.5rem;
+    color: white;
+}
+
+.report-card-title {
+    font-size: var(--font-base);
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.report-card-description {
+    font-size: var(--font-xs);
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+/* ==================== SETTINGS PAGE ==================== */
+
+#settingsPage {
+    gap: var(--spacing-xl);
+    max-width: 800px;
+}
+
+.settings-section {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-2xl);
+    margin-bottom: var(--spacing-xl);
+}
+
+.settings-section-title {
+    font-size: var(--font-lg);
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-group {
+    margin-bottom: var(--spacing-2xl);
+}
+
+.settings-group:last-child {
+    margin-bottom: 0;
+}
+
+.settings-label {
+    display: block;
+    font-size: var(--font-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-md);
+}
+
+.settings-description {
+    font-size: var(--font-xs);
+    color: var(--text-secondary);
+    margin-top: var(--spacing-xs);
+    line-height: 1.4;
+}
+
+.settings-input,
+.settings-select {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-sm);
+    outline: none;
+    transition: all 0.2s;
+}
+
+.settings-input:focus,
+.settings-select:focus {
+    border-color: var(--color-blue);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.settings-checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.settings-checkbox {
+    width: 1.25rem;
+    height: 1.25rem;
+    cursor: pointer;
+}
+
+.settings-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    padding-top: var(--spacing-xl);
+    border-top: 1px solid var(--border-color);
+}
+
+.btn-save,
+.btn-reset {
+    padding: var(--spacing-sm) var(--spacing-2xl);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-save {
+    background-color: var(--color-blue);
+    border: none;
+    color: white;
+}
+
+.btn-save:hover {
+    background-color: var(--color-blue-hover);
+}
+
+.btn-reset {
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.btn-reset:hover {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* ==================== TIPS PAGE ==================== */
+
+#tipsPage {
+    gap: var(--spacing-xl);
+    max-width: 900px;
+}
+
+.tips-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-xl);
+}
+
+.tip-card {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+}
+
+.tip-card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.tip-card-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tip-card-icon i {
+    font-size: 1.25rem;
+    color: var(--color-blue-light);
+}
+
+.tip-card-title {
+    font-size: var(--font-base);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.tip-card-content {
+    font-size: var(--font-sm);
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.keyboard-shortcut {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-md);
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-xs);
+    font-family: monospace;
+    color: var(--text-secondary);
+    margin: var(--spacing-xs);
+}
+
+/* ==================== RESPONSIVIDADE ==================== */
+
+@media (max-width: 768px) {
+    .reports-grid,
+    .tips-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .settings-section {
+        padding: var(--spacing-xl);
+    }
+
+    .timeline-chart-container {
+        height: 300px;
+    }
+}

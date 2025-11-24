@@ -1,6 +1,33 @@
 // Parser de Cronogramas - Versão Corrigida e Melhorada
 if (typeof CronogramaParser === 'undefined') {
 class CronogramaParser {
+    // Centraliza extração dos campos essenciais, sempre retorna string ou null
+    static extractNome(dados) {
+        return CronogramaParser.prototype.getField(dados, ['SERVIDOR', 'NOME'])?.trim() || '';
+    }
+    static extractLotacao(dados) {
+        return CronogramaParser.prototype.getField(dados, ['LOTACAO', 'LOTAÇÃO'])?.trim() || '';
+    }
+    static extractCargo(dados) {
+        return CronogramaParser.prototype.getField(dados, ['CARGO'])?.trim() || '';
+    }
+    static extractPeriodo(dados) {
+        // Tenta várias formas: coluna única, dupla, incremental
+        const inicio = CronogramaParser.prototype.getField(dados, [
+            'INICIO', 'INÍCIO', 'INICIO DE LICENCA PREMIO', 'INICIO DE LICENÇA PREMIO', 'A_PARTIR', 'APARTIR'
+        ])?.trim() || '';
+        const fim = CronogramaParser.prototype.getField(dados, [
+            'FINAL', 'FIM', 'FINAL DE LICENCA PREMIO', 'FINAL DE LICENÇA PREMIO', 'TERMINO', 'TÉRMINO'
+        ])?.trim() || '';
+        // Se ambos presentes, retorna objeto; se só um, retorna string
+        if (inicio && fim) return { inicio, fim };
+        if (inicio) return { inicio, fim: '' };
+        if (fim) return { inicio: '', fim };
+        // Tenta cronograma textual
+        const cronograma = CronogramaParser.prototype.getField(dados, ['CRONOGRAMA', 'CRONOGRAMA DE LICENCA'])?.trim() || '';
+        if (cronograma) return { inicio: cronograma, fim: '' };
+        return { inicio: '', fim: '' };
+    }
     constructor() {
         this.mesesAbrev = {
             'jan': 1, 'fev': 2, 'mar': 3, 'abr': 4, 'mai': 5, 'jun': 6,
@@ -74,23 +101,28 @@ class CronogramaParser {
         const headerYears = this.extractYearsFromHeaders(headers);
         
         // Detectar tipo de tabela baseado nos headers
-        const isLicencasPremio = this.detectarTipoTabela(headers);
-        
+        const tipoFormato = this.detectarTipoTabela(headers);
+
+        // Para o novo formato, precisamos agrupar múltiplas linhas por servidor
+        if (tipoFormato === 'novo') {
+            return this.processarNovoFormato(linhas, headers, headerYears);
+        }
+
         const servidores = [];
-        
+
         for (let i = 1; i < linhas.length; i++) {
             const linha = linhas[i].trim();
             if (!linha) continue;
-            
+
             const dados = this.parseLinha(linha, headers);
             if (dados && dados.SERVIDOR) {
                 let servidor;
-                if (isLicencasPremio) {
+                if (tipoFormato === 'licencas_premio') {
                     servidor = this.processarServidorLicencaPremio(dados, headerYears);
                 } else {
                     servidor = this.processarServidor(dados, headerYears);
                 }
-                
+
                 if (servidor) {
                     servidores.push(servidor);
                 }
@@ -124,7 +156,28 @@ class CronogramaParser {
     // Detectar tipo de tabela baseado nos headers
     detectarTipoTabela(headers) {
         const headersStr = headers.join(',').toLowerCase();
-        return headersStr.includes('inicio de licença') || headersStr.includes('final de licença');
+
+        // Novo formato: detecta por colunas específicas (NUMERO, EMISSAO, A_PARTIR, TERMINO, GOZO)
+        const isNovoFormato = headers.some(h => {
+            const normalized = this.normalizeKey(h);
+            return normalized === 'APARTIR' || normalized === 'GOZO' ||
+                   (normalized === 'NUMERO' && headers.some(h2 => this.normalizeKey(h2) === 'EMISSAO'));
+        });
+
+        if (isNovoFormato) {
+            if (this.debug) console.log('📋 Formato detectado: NOVO (NUMERO, EMISSAO, A_PARTIR, TERMINO, GOZO)');
+            return 'novo';
+        }
+
+        // Formato antigo: licenças prêmio
+        const isLicencasPremio = headersStr.includes('inicio de licença') || headersStr.includes('final de licença');
+        if (isLicencasPremio) {
+            if (this.debug) console.log('📋 Formato detectado: LICENÇAS PRÊMIO (antigo)');
+            return 'licencas_premio';
+        }
+
+        if (this.debug) console.log('📋 Formato detectado: PADRÃO');
+        return 'padrao';
     }
 
     parseLinha(linha, headers) {
@@ -160,28 +213,142 @@ class CronogramaParser {
         
         // Adicionar mapa de índices ao objeto de dados
         dados._colIndexMap = colIndexMap;
-        
+
         return dados;
+    }
+
+    /**
+     * Processa o novo formato CSV onde cada linha representa UMA licença
+     * Múltiplas linhas do mesmo servidor precisam ser agrupadas
+     */
+    processarNovoFormato(linhas, headers, headerYears) {
+        if (this.debug) console.log('🆕 Processando novo formato CSV...');
+
+        const servidoresPorCPF = new Map(); // Agrupar por CPF
+
+        for (let i = 1; i < linhas.length; i++) {
+            const linha = linhas[i].trim();
+            if (!linha) continue;
+
+            const dados = this.parseLinha(linha, headers);
+            if (!dados) continue;
+
+            // Padronizado: extrair campos essenciais
+            const nome = CronogramaParser.extractNome(dados);
+            const cpf = this.getField(dados, ['CPF'])?.trim() || '';
+            if (!nome) continue;
+
+            // Período pode ser coluna única, dupla ou incremental
+            const periodo = CronogramaParser.extractPeriodo(dados);
+            const gozo = this.getField(dados, ['GOZO'])?.trim() || '0';
+
+            // Se não tem período, só cria base do servidor
+            if ((!periodo.inicio && !periodo.fim) || periodo.inicio === '29/12/1899') {
+                if (!servidoresPorCPF.has(cpf)) {
+                    servidoresPorCPF.set(cpf, {
+                        nome,
+                        cpf,
+                        cargo: CronogramaParser.extractCargo(dados),
+                        lotacao: CronogramaParser.extractLotacao(dados),
+                        rg: this.getField(dados, ['RG'])?.trim() || '',
+                        unidade: this.getField(dados, ['UNIDADE'])?.trim() || '',
+                        licencas: [],
+                        dadosOriginais: { ...dados }
+                    });
+                }
+                continue;
+            }
+
+            if (!servidoresPorCPF.has(cpf)) {
+                servidoresPorCPF.set(cpf, {
+                    nome,
+                    cpf,
+                    cargo: CronogramaParser.extractCargo(dados),
+                    lotacao: CronogramaParser.extractLotacao(dados),
+                    rg: this.getField(dados, ['RG'])?.trim() || '',
+                    unidade: this.getField(dados, ['UNIDADE'])?.trim() || '',
+                    licencas: [],
+                    dadosOriginais: { ...dados }
+                });
+            }
+            const servidor = servidoresPorCPF.get(cpf);
+
+            // Adiciona licença, tentando parsear datas
+            const dataInicio = this.parseDate(periodo.inicio);
+            const dataFim = this.parseDate(periodo.fim);
+            const diasGozo = parseInt(gozo) || 0;
+            if (dataInicio && dataFim) {
+                servidor.licencas.push({
+                    inicio: dataInicio,
+                    fim: dataFim,
+                    tipo: 'prevista',
+                    meses: Math.round(diasGozo / 30),
+                    diasGozo: diasGozo,
+                    numero: this.getField(dados, ['NUMERO', 'NÚMERO'])?.trim() || '',
+                    emissao: this.parseDate(this.getField(dados, ['EMISSAO', 'EMISSÃO'])?.trim() || ''),
+                    aquisitivoInicio: this.parseDate(this.getField(dados, ['AQUISITIVO_INICIO'])?.trim() || ''),
+                    aquisitivoFim: this.parseDate(this.getField(dados, ['AQUISITIVO_FIM'])?.trim() || ''),
+                    dadosOriginais: { ...dados }
+                });
+            }
+        }
+
+        // Converter Map para Array e processar cada servidor
+        const servidores = [];
+        for (const [cpf, dadosServidor] of servidoresPorCPF) {
+            // Pular servidores sem licenças
+            if (dadosServidor.licencas.length === 0) {
+                if (this.debug) console.log(`⚠️  Servidor ${dadosServidor.nome} (${cpf}) sem licenças agendadas`);
+                continue;
+            }
+
+            // Ordenar licenças por data de início
+            dadosServidor.licencas.sort((a, b) => a.inicio - b.inicio);
+
+            // Criar objeto servidor formatado
+            const servidor = {
+                nome: dadosServidor.nome,
+                cpf: dadosServidor.cpf,
+                cargo: dadosServidor.cargo,
+                lotacao: dadosServidor.lotacao,
+                rg: dadosServidor.rg,
+                unidade: dadosServidor.unidade,
+                licencas: dadosServidor.licencas,
+                proximaLicenca: dadosServidor.licencas[0]?.inicio || null,
+                tipoTabela: 'novo_formato',
+                idade: null,
+                sexo: '',
+                admissao: null,
+                meses: dadosServidor.licencas.reduce((sum, lic) => sum + (lic.meses || 0), 0),
+                dadosOriginais: dadosServidor.dadosOriginais || {}
+            };
+            servidores.push(servidor);
+        }
+
+        if (this.debug) {
+            console.log(`✅ Novo formato processado: ${servidores.length} servidores, ${Array.from(servidoresPorCPF.values()).reduce((sum, s) => sum + s.licencas.length, 0)} licenças`);
+        }
+
+        return servidores;
     }
 
     processarServidor(dados, headerYears = null) {
         try {
             const servidor = {
-                nome: this.getField(dados, ['SERVIDOR', 'NOME'])?.trim() || 'Nome não informado',
+                nome: CronogramaParser.extractNome(dados) || 'Nome não informado',
                 cpf: this.getField(dados, ['CPF'])?.trim() || '',
                 idade: this.extrairIdade(this.getField(dados, ['IDADE'])),
                 sexo: this.getField(dados, ['SEXO'])?.trim() || '',
                 admissao: this.parseDate(this.getField(dados, ['ADMISSAO', 'ADMISSÃO'])),
                 meses: parseInt(this.getField(dados, ['MESES'])) || 0,
-                lotacao: this.getField(dados, ['LOTACAO', 'LOTAÇÃO'])?.trim() || '',
+                lotacao: CronogramaParser.extractLotacao(dados),
                 superintendencia: this.getField(dados, ['SUPERINTENDENCIA', 'SUPERINTENDÊNCIA'])?.trim() || '',
                 subsecretaria: this.getField(dados, ['SUBSECRETARIA'])?.trim() || '',
-                cargo: this.getField(dados, ['CARGO'])?.trim() || '',
+                cargo: CronogramaParser.extractCargo(dados),
                 cronograma: this.getField(dados, ['INICIO', 'CRONOGRAMA', 'CRONOGRAMA DE LICENCA'])?.trim() || '',
                 licensas: [],
                 nivelUrgencia: 'Baixo',
                 tipoTabela: 'cronograma',
-                // Armazenar dados originais para referência
                 dadosOriginais: { ...dados }
             };
 
@@ -264,69 +431,49 @@ class CronogramaParser {
     // Processar servidor da tabela de licenças prêmio
     processarServidorLicencaPremio(dados) {
         try {
+            // Para cada linha, retorna um "servidor" com apenas UM período, para garantir que todos os registros sejam preservados
+            const inicioMes = this.getField(dados, ['INICIO DE LICENCA PREMIO', 'INICIO DE LICENÇA PREMIO', 'INICIO'])?.trim();
+            const finalMes = this.getField(dados, ['FINAL DE LICENCA PREMIO', 'FINAL DE LICENÇA PREMIO', 'FINAL'])?.trim();
+            if (!(inicioMes && finalMes)) return null;
+
+            // Cada linha vira um registro único, mesmo que o nome seja igual
+            const licencas = this.processarPeriodoLicencaPremioMultiplo(inicioMes, finalMes, `${inicioMes}-${finalMes}`);
+            if (!licencas || licencas.length === 0) return null;
+
+            // Para cada período, criar um registro de servidor (mas todos com o mesmo nome, cargo, etc)
+            // (mas para manter compatibilidade, retorna um objeto com todas as licenças deste registro)
             const servidor = {
                 nome: dados.SERVIDOR?.trim() || 'Nome não informado',
-                cpf: '', // Não disponível nesta tabela
-                idade: 0, // Não disponível nesta tabela
-                sexo: '', // Não disponível nesta tabela
-                admissao: null, // Não disponível nesta tabela
-                meses: 0, // Não disponível nesta tabela
-                lotacao: '', // Não disponível nesta tabela
-                superintendencia: '', // Não disponível nesta tabela
-                subsecretaria: '', // Não disponível nesta tabela
+                cpf: '',
+                idade: 0,
+                sexo: '',
+                admissao: null,
+                meses: 0,
+                lotacao: '',
+                superintendencia: '',
+                subsecretaria: '',
                 cargo: dados.CARGO?.trim() || '',
-                cronograma: '', // Não há cronograma textual
-                licencas: [],
-                nivelUrgencia: 'Baixo',
+                cronograma: '',
+                licencas: licencas,
+                nivelUrgencia: null,
                 tipoTabela: 'licenca-premio',
-                // Armazenar dados originais para referência
                 dadosOriginais: { ...dados }
             };
 
-            // Processar período de licença
-            const inicioMes = this.getField(dados, ['INICIO DE LICENCA PREMIO', 'INICIO DE LICENÇA PREMIO', 'INICIO'])?.trim();
-            const finalMes = this.getField(dados, ['FINAL DE LICENCA PREMIO', 'FINAL DE LICENÇA PREMIO', 'FINAL'])?.trim();
-            
-            if (inicioMes && finalMes) {
-                const periodoOriginalId = `${inicioMes}-${finalMes}`;
-                const licencas = this.processarPeriodoLicencaPremioMultiplo(inicioMes, finalMes, periodoOriginalId);
-                if (licencas && licencas.length > 0) {
-                    servidor.licencas.push(...licencas);
-                }
-            }
-            
-            // Separar licenças passadas (já usadas) das futuras (agendadas)
+            // Estatísticas
             const agora = new Date();
-            const licencasPassadas = servidor.licencas.filter(lic => lic.fim && new Date(lic.fim) < agora);
-            const licencasFuturas = servidor.licencas.filter(lic => !lic.fim || new Date(lic.fim) >= agora);
-            
-            // Calcular MESES de cada grupo (cada período = 1 mês na tabela de licença prêmio)
-            const mesesGozados = licencasPassadas.length; // Cada período = 1 mês
-            const mesesAgendados = licencasFuturas.length; // Cada período = 1 mês
-            
-            // Calcular estatísticas
-            servidor.licencasAgendadas = mesesAgendados; // Meses futuros
-            servidor.licencasGozadas = mesesGozados;     // Meses já passados
-            servidor.totalLicencasAdquiridas = servidor.licencas.length; // Total de meses
-            
-            // Determinar próxima licença
-            const proximaLicenca = this.obterProximaLicenca(servidor.licencas);
-            
-            // Para licenças prêmio, SEMPRE usar o período COMPLETO (da primeira até a última licença)
-            // Não importa se são passadas ou futuras - mostrar sempre o período completo do CSV
-            if (servidor.licencas.length > 0) {
-                const primeiraLicenca = servidor.licencas[0];
-                const ultimaLicenca = servidor.licencas[servidor.licencas.length - 1];
-                servidor.proximaLicencaInicio = primeiraLicenca.inicio;
-                servidor.proximaLicencaFim = ultimaLicenca.fim;
+            const licencasPassadas = licencas.filter(lic => lic.fim && new Date(lic.fim) < agora);
+            const licencasFuturas = licencas.filter(lic => !lic.fim || new Date(lic.fim) >= agora);
+            servidor.licencasAgendadas = licencasFuturas.length;
+            servidor.licencasGozadas = licencasPassadas.length;
+            servidor.totalLicencasAdquiridas = licencas.length;
+            if (licencas.length > 0) {
+                servidor.proximaLicencaInicio = licencas[0].inicio;
+                servidor.proximaLicencaFim = licencas[licencas.length - 1].fim;
             } else {
                 servidor.proximaLicencaInicio = null;
                 servidor.proximaLicencaFim = null;
             }
-            
-            // Licenças prêmio não têm cálculo de urgência (removido)
-            servidor.nivelUrgencia = null;
-            
             return servidor;
         } catch (error) {
             console.error('Erro ao processar servidor de licença prêmio:', error);

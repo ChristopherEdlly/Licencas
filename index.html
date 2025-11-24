@@ -15,12 +15,18 @@
     <link href="css/components/high-contrast.css" rel="stylesheet">
     <link href="css/components/custom-modal.css" rel="stylesheet">
     <link href="css/components/breadcrumbs.css" rel="stylesheet">
-    <link href="css/components/notification-center.css" rel="stylesheet">
+    <!-- <link href="css/components/notification-center.css" rel="stylesheet"> -->
     <link href="css/components/tips-page.css" rel="stylesheet">
     <link href="css/components/reports-page.css" rel="stylesheet">
     <link href="css/components/reports-page-redesign.css" rel="stylesheet">
     <link href="css/components/widget-library.css" rel="stylesheet">
     <link href="css/components/ui-improvements.css" rel="stylesheet">
+    <link href="css/components/license-view-toggle.css" rel="stylesheet">
+    <link href="css/components/columns-selector.css" rel="stylesheet">
+    <!-- Modelo Layout - Deve ser o ÚLTIMO CSS para sobrescrever tudo -->
+    <link href="css/components/sidebar-modelo.css" rel="stylesheet">
+    <link href="css/components/modelo-layout.css" rel="stylesheet">
+    <link href="css/components/pages-modelo.css" rel="stylesheet">
     <script>window.__ENV__ = window.__ENV__ || {};</script>
     <script src="env.config.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -61,63 +67,83 @@
     <div class="app-layout">
         <!-- Sidebar -->
         <aside class="sidebar">
-            <!-- Header da Sidebar -->
+            <!-- User Account -->
             <div class="sidebar-header">
-                <button class="sidebar-toggle" id="sidebarToggle" title="Recolher sidebar" aria-label="Alternar sidebar"
-                    aria-expanded="true">
-                    <i class="bi bi-list"></i>
-                </button>
+                <div class="sidebar-user-account" id="sidebarUserAccount">
+                    <div class="sidebar-user-avatar" id="sidebarUserAvatar">
+                        <span>U</span>
+                    </div>
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-name" id="sidebarUserName">Usuário</div>
+                    </div>
+                    <button class="sidebar-user-login" id="sidebarUserLogin" title="Entrar com Microsoft">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                    </button>
+                    <button class="sidebar-user-logout" id="sidebarUserLogout" title="Sair" style="display: none;">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </button>
+                </div>
             </div>
 
-            <!-- Navegação -->
+            <!-- Navigation -->
             <nav class="sidebar-nav">
-                <a href="#" class="nav-link active" data-page="home" data-tooltip="Visão Geral">
+                <a href="#" class="nav-link active" data-page="home">
                     <i class="bi bi-house"></i>
                     <span>Visão Geral</span>
                 </a>
-                <a href="#" class="nav-link" data-page="calendar" data-tooltip="Calendário">
+                <a href="#" class="nav-link" data-page="calendar">
                     <i class="bi bi-calendar3"></i>
                     <span>Calendário</span>
                 </a>
-                <a href="#" class="nav-link" data-page="timeline" data-tooltip="Timeline">
+                <a href="#" class="nav-link" data-page="timeline">
                     <i class="bi bi-clock-history"></i>
                     <span>Timeline</span>
                 </a>
-                <a href="#" class="nav-link" data-page="reports" data-tooltip="Relatórios">
+                <a href="#" class="nav-link" data-page="reports">
                     <i class="bi bi-file-earmark-bar-graph"></i>
                     <span>Relatórios</span>
                 </a>
-                <a href="#" class="nav-link" data-page="settings" data-tooltip="Configurações">
+
+                <!-- SharePoint Integration Banner -->
+                <div class="sidebar-promo-banner" id="sidebarSharePointBanner" style="display: none;">
+                    <button class="sidebar-promo-close" id="sidebarPromoClose">
+                        <i class="bi bi-x"></i>
+                    </button>
+                    <span class="badge badge-new">Novo</span>
+                    <div class="sidebar-promo-title">Integração SharePoint</div>
+                    <p class="sidebar-promo-description">
+                        Conecte-se ao SharePoint para importar dados automaticamente
+                    </p>
+                    <button class="sidebar-promo-button" id="sidebarSharePointConnect">
+                        Conectar ↗
+                    </button>
+                </div>
+            </nav>
+
+            <!-- Bottom Navigation -->
+            <div class="sidebar-footer">
+                <a href="#" class="nav-link" data-page="settings">
                     <i class="bi bi-gear"></i>
                     <span>Configurações</span>
                 </a>
-            </nav>
-
-            <!-- Sidebar Footer (opcional para informações adicionais) -->
-            <div class="sidebar-footer">
-                <div class="sidebar-info">
-                    <!-- Botão para Dicas e Atalhos -->
-                    <a href="#" class="sidebar-info-link" data-page="tips">
-                        <i class="bi bi-lightbulb"></i>
-                        <span>Dicas e Atalhos</span>
-                    </a>
-
-                    <!-- Botões de filtro -->
-                    <div class="sidebar-filter-actions">
-                        <button class="btn-advanced-filters" id="btnAdvancedFilters"
-                            title="Abrir painel de filtros avançados" aria-label="Filtros avançados" tabindex="0"
-                            aria-pressed="false" role="button">
-                            <i class="bi bi-sliders"></i>
-                            <span>Filtros Avançados</span>
-                            <span class="filter-badge" id="activeFiltersBadge" style="display: none;">0</span>
-                        </button>
-                        <button class="btn-clear-all-filters" id="btnClearAllFilters"
-                            title="Remover todos os filtros aplicados" aria-label="Limpar todos os filtros" tabindex="0"
-                            aria-pressed="false" role="button">
-                            <i class="bi bi-arrow-counterclockwise"></i>
-                            <span>Limpar Filtros</span>
-                        </button>
-                    </div>
+                <a href="#" class="nav-link" data-page="tips">
+                    <i class="bi bi-lightbulb"></i>
+                    <span>Dicas e Atalhos</span>
+                </a>
+                
+                <!-- Botões de filtro -->
+                <div class="sidebar-filter-actions">
+                    <button class="btn-advanced-filters" id="btnAdvancedFilters"
+                        title="Abrir painel de filtros avançados" aria-label="Filtros avançados">
+                        <i class="bi bi-sliders"></i>
+                        <span>Filtros Avançados</span>
+                        <span class="filter-badge" id="activeFiltersBadge" style="display: none;">0</span>
+                    </button>
+                    <button class="btn-clear-all-filters" id="btnClearAllFilters"
+                        title="Remover todos os filtros aplicados" aria-label="Limpar todos os filtros">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                        <span>Limpar Filtros</span>
+                    </button>
                 </div>
             </div>
         </aside>
@@ -134,9 +160,9 @@
 
                 <!-- Busca -->
                 <div class="header-search">
-                    <i class="bi bi-search"></i>
+                    <i class="bi bi-search" aria-hidden="true" style="margin-right: 0.75rem;"></i>
                     <input type="text" id="headerSearchInput" placeholder="Buscar servidor..." autocomplete="off">
-                    <button class="btn-clear-search" id="clearHeaderSearchBtn" style="display: none;">
+                    <button class="btn-clear-search" id="clearHeaderSearchBtn" style="margin-left: 0.75rem; display: none;">
                         <i class="bi bi-x"></i>
                     </button>
                 </div>
@@ -196,137 +222,59 @@
                 <div class="page-content active" id="homePage">
                     <!-- Vista de Cronograma -->
                     <div class="view-content active" id="cronogramaView">
-
-                        <!-- Filter Chips Container - Oculto da home para não comprometer o layout -->
-                        <div class="filter-chips-container" id="filterChipsContainer" style="display: none !important;">
-                            <div class="chips-header" style="display: none;">
-                                <span class="chips-label">
-                                    <i class="bi bi-funnel-fill"></i>
-                                    Filtros Ativos
-                                </span>
-                                <button class="btn-clear-all" id="clearAllFiltersBtn">
-                                    <i class="bi bi-x-circle"></i>
-                                    Limpar Todos
-                                </button>
-                            </div>
-                            <div class="chips-body" style="display: none;">
-                                <div class="filter-chips-list" id="filterChipsList">
-                                    <!-- Chips serão inseridos aqui dinamicamente -->
-                                </div>
-                                <div class="chips-footer">
-                                    <span class="results-counter" id="resultsCounter">
-                                        <i class="bi bi-bar-chart-line"></i>
-                                        <span id="resultsCountText">0 resultados</span>
-                                    </span>
-                                </div>
-                            </div>
+                        <!-- Tabela de Servidores -->
+                        <div class="prototype-table-wrapper">
+                            <table class="prototype-table" id="servidoresTable">
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Cargo</th>
+                                        <th>Data</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableBody">
+                                </tbody>
+                            </table>
                         </div>
 
-                        <!-- Cards de Estatísticas - Linha Superior -->
-                        <div class="stats-cards">
-                            <div class="stat-card critical">
-                                <div class="card-icon">
-                                    <i class="bi bi-exclamation-triangle"></i>
+                        <!-- Painéis de Gráficos -->
+                        <div class="charts-grid">
+                            <!-- Gráfico de Urgência (Barras Horizontais) -->
+                            <div class="chart-panel">
+                                <div class="chart-panel-header">
+                                    <div class="chart-panel-title">Quantidade de Pessoas por Urgência</div>
+                                    <div class="chart-panel-subtitle">Total: <span id="urgencyTotal">0</span> pessoas</div>
                                 </div>
-                                <div class="card-content">
-                                    <h3 id="criticalCount">0</h3>
-                                    <p>Urgência Crítica</p>
-                                </div>
-                            </div>
-                            <div class="stat-card high">
-                                <div class="card-icon">
-                                    <i class="bi bi-clock"></i>
-                                </div>
-                                <div class="card-content">
-                                    <h3 id="highCount">0</h3>
-                                    <p>Urgência Alta</p>
-                                </div>
-                            </div>
-                            <div class="stat-card moderate">
-                                <div class="card-icon">
-                                    <i class="bi bi-calendar-check"></i>
-                                </div>
-                                <div class="card-content">
-                                    <h3 id="moderateCount">0</h3>
-                                    <p>Urgência Moderada</p>
-                                </div>
-                            </div>
-                            <div class="stat-card error" id="errorCard">
-                                <div class="card-icon">
-                                    <i class="bi bi-exclamation-octagon"></i>
-                                </div>
-                                <div class="card-content">
-                                    <h3 id="errorCount">0</h3>
-                                    <p>Problemas</p>
-                                    <span id="errorBadge" class="error-badge" aria-hidden="true"
-                                        style="display:none"></span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Conteúdo Principal - Gráfico e Tabela -->
-                        <div class="content-grid">
-                            <!-- Gráfico -->
-                            <div class="chart-area">
-                                <div class="chart-header">
-                                    <h3 class="chart-title">Distribuição por Urgência</h3>
-                                </div>
-                                <div class="chart-container">
+                                <div class="chart-panel-body">
                                     <canvas id="urgencyChart"></canvas>
                                 </div>
-                                <div class="chart-legends">
-                                    <div class="legend-card critical" data-urgency="critical">
-                                        <div class="legend-color"></div>
-                                        <span class="legend-label">Crítica</span>
-                                        <span class="legend-count" id="legendCritical">0</span>
-                                    </div>
-                                    <div class="legend-card high" data-urgency="high">
-                                        <div class="legend-color"></div>
-                                        <span class="legend-label">Alta</span>
-                                        <span class="legend-count" id="legendHigh">0</span>
-                                    </div>
-                                    <div class="legend-card moderate" data-urgency="moderate">
-                                        <div class="legend-color"></div>
-                                        <span class="legend-label">Moderada</span>
-                                        <span class="legend-count" id="legendModerate">0</span>
-                                    </div>
-                                    <div class="legend-card low" data-urgency="low">
-                                        <div class="legend-color"></div>
-                                        <span class="legend-label">Baixa</span>
-                                        <span class="legend-count" id="legendLow">0</span>
-                                    </div>
-                                </div>
                             </div>
 
-                            <!-- Tabela -->
-                            <div class="table-area">
-                                <div class="table-header">
-                                    <h3 class="table-title">Servidores</h3>
-                                    <div class="table-header-actions">
-                                        <span class="result-count" id="resultCount">0 resultados</span>
-                                        <button class="btn-export" id="exportServidoresBtn" title="Exportar dados">
-                                            <i class="bi bi-download"></i>
-                                            <span>Exportar</span>
-                                        </button>
-                                    </div>
+                            <!-- Gráfico de Cargos (Pizza/Rosca) -->
+                            <div class="chart-panel">
+                                <div class="chart-panel-header">
+                                    <div class="chart-panel-title">Servidores por Cargo</div>
+                                    <div class="chart-panel-subtitle">Total: <span id="cargoTotal">0</span> servidores</div>
                                 </div>
-                                <div class="table-container">
-                                    <table class="data-table" id="servidoresTable">
-                                        <thead>
-                                            <tr>
-                                                <th>Nome</th>
-                                                <th>Idade</th>
-                                                <th>Lotação</th>
-                                                <th>Próxima Licença</th>
-                                                <th>Urgência</th>
-                                                <th>Ações</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="tableBody">
-                                        </tbody>
-                                    </table>
+                                <div class="chart-panel-body">
+                                    <canvas id="cargoChart"></canvas>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- IDs ocultos para compatibilidade -->
+                        <div style="display: none;">
+                            <span id="criticalCount">0</span>
+                            <span id="highCount">0</span>
+                            <span id="moderateCount">0</span>
+                            <span id="errorCount">0</span>
+                            <span id="legendCritical">0</span>
+                            <span id="legendHigh">0</span>
+                            <span id="legendModerate">0</span>
+                            <span id="legendLow">0</span>
+                            <span id="resultCount">0</span>
+                            <span id="lotacaoTotal">0</span>
+                            <span id="exportServidoresBtn"></span>
                         </div>
                     </div>
 
@@ -582,7 +530,7 @@
                             </div>
 
                             <!-- Seção: Informações Básicas -->
-                            <div class="config-section">
+                            <div class="config-section config-section-compact">
                                 <h3 class="section-title">
                                     <i class="bi bi-file-text"></i>
                                     Informações do Relatório
@@ -601,71 +549,174 @@
 
                             </div>
 
+                            <!-- Toggle de Visualização de Licenças -->
+                            <div class="license-view-toggle-container">
+                                <div class="toggle-header">
+                                    <i class="bi bi-eye"></i>
+                                    <span class="toggle-label">Visualização de Licenças</span>
+                                </div>
+                                <div class="toggle-switch-wrapper">
+                                    <span class="toggle-option" id="toggleLabelComplete">Visão Completa</span>
+                                    <label class="toggle-switch-ios">
+                                        <input type="checkbox" id="licenseViewToggle">
+                                        <span class="toggle-slider-ios"></span>
+                                    </label>
+                                    <span class="toggle-option" id="toggleLabelFiltered">Apenas Filtradas</span>
+                                </div>
+                                <p class="toggle-description">
+                                    <span id="toggleDescriptionText">Exibindo todas as licenças dos servidores encontrados</span>
+                                </p>
+                            </div>
+
                             <!-- Seção: Seleção de Colunas -->
                             <div class="config-section">
                                 <h3 class="section-title">
                                     <i class="bi bi-layout-three-columns"></i>
                                     Colunas a Incluir
-                                    <button class="btn-select-all" id="selectAllColumns">Marcar Todas</button>
                                 </h3>
 
-                                <div class="columns-grid" id="columnsGridRedesign">
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="nome" checked>
-                                        <span>Nome</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="cpf">
-                                        <span>CPF</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="matricula">
-                                        <span>Matrícula</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="cargo" checked>
-                                        <span>Cargo</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="lotacao" checked>
-                                        <span>Lotação</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="idade" checked>
-                                        <span>Idade</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="urgencia" checked>
-                                        <span>Urgência</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="periodoLicenca" checked>
-                                        <span>Período da Licença</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="dataInicio">
-                                        <span>Data Início</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="dataFim">
-                                        <span>Data Fim</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="superintendencia">
-                                        <span>Superintendência</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="subsecretaria">
-                                        <span>Subsecretaria</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="diasLicenca">
-                                        <span>Dias de Licença</span>
-                                    </label>
-                                    <label class="column-checkbox">
-                                        <input type="checkbox" value="mesesLicenca">
-                                        <span>Meses de Licença</span>
-                                    </label>
+                                <!-- Controles de Busca e Seleção -->
+                                <div class="columns-controls">
+                                    <div class="search-box-columns">
+                                        <i class="bi bi-search"></i>
+                                        <input
+                                            type="text"
+                                            id="columnSearchInput"
+                                            placeholder="Buscar colunas..."
+                                            autocomplete="off"
+                                        >
+                                        <button class="btn-clear-search" id="clearColumnSearch" style="display: none;">
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                    </div>
+                                    <div class="bulk-actions">
+                                        <button class="btn-select-action" id="selectAllColumns">
+                                            <i class="bi bi-check-all"></i>
+                                            Marcar Todas
+                                        </button>
+                                        <button class="btn-select-action" id="unselectAllColumns">
+                                            <i class="bi bi-x-square"></i>
+                                            Desmarcar Todas
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Grupos de Colunas (Acordeão) -->
+                                <div class="columns-accordion" id="columnsAccordion">
+
+                                    <!-- Grupo: Dados do Servidor -->
+                                    <div class="column-group" data-group="servidor">
+                                        <div class="column-group-header">
+                                            <i class="bi bi-chevron-down group-chevron"></i>
+                                            <i class="bi bi-person-badge group-icon"></i>
+                                            <span class="group-title">Dados do Servidor</span>
+                                            <span class="group-count">5 colunas</span>
+                                        </div>
+                                        <div class="column-group-body">
+                                            <label class="column-checkbox" data-column="nome">
+                                                <input type="checkbox" value="nome" checked>
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Nome</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="cpf">
+                                                <input type="checkbox" value="cpf">
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>CPF</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="matricula">
+                                                <input type="checkbox" value="matricula">
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Matrícula</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="cargo">
+                                                <input type="checkbox" value="cargo" checked>
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Cargo</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="idade">
+                                                <input type="checkbox" value="idade" checked>
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Idade</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Grupo: Localização -->
+                                    <div class="column-group" data-group="localizacao">
+                                        <div class="column-group-header">
+                                            <i class="bi bi-chevron-down group-chevron"></i>
+                                            <i class="bi bi-building group-icon"></i>
+                                            <span class="group-title">Localização</span>
+                                            <span class="group-count">3 colunas</span>
+                                        </div>
+                                        <div class="column-group-body">
+                                            <label class="column-checkbox" data-column="lotacao">
+                                                <input type="checkbox" value="lotacao" checked>
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Lotação</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="superintendencia">
+                                                <input type="checkbox" value="superintendencia">
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Superintendência</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="subsecretaria">
+                                                <input type="checkbox" value="subsecretaria">
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Subsecretaria</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Grupo: Informações da Licença -->
+                                    <div class="column-group active" data-group="licenca">
+                                        <div class="column-group-header">
+                                            <i class="bi bi-chevron-down group-chevron"></i>
+                                            <i class="bi bi-calendar-check group-icon"></i>
+                                            <span class="group-title">Informações da Licença</span>
+                                            <span class="group-count">6 colunas</span>
+                                        </div>
+                                        <div class="column-group-body">
+                                            <label class="column-checkbox" data-column="urgencia">
+                                                <input type="checkbox" value="urgencia" checked>
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Urgência</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="periodoLicenca">
+                                                <input type="checkbox" value="periodoLicenca" checked>
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Período da Licença</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="dataInicio">
+                                                <input type="checkbox" value="dataInicio">
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Data Início</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="dataFim">
+                                                <input type="checkbox" value="dataFim">
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Data Fim</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="diasLicenca">
+                                                <input type="checkbox" value="diasLicenca">
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Dias de Licença</span>
+                                            </label>
+                                            <label class="column-checkbox" data-column="mesesLicenca">
+                                                <input type="checkbox" value="mesesLicenca">
+                                                <i class="bi bi-circle status-icon" style="opacity: 0;"></i>
+                                                <span>Meses de Licença</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <!-- Mensagem quando nenhuma coluna é encontrada na busca -->
+                                <div class="columns-empty-state" id="columnsEmptyState" style="display: none;">
+                                    <i class="bi bi-inbox"></i>
+                                    <p>Nenhuma coluna encontrada</p>
+                                    <small>Tente buscar por outro termo</small>
                                 </div>
                             </div>
 
@@ -1422,8 +1473,9 @@
     <script src="js/modules/LoadingSkeletons.js"></script>
     <script src="js/modules/HighContrastManager.js"></script>
     <script src="js/modules/BreadcrumbsManager.js"></script>
-    <script src="js/modules/NotificationManager.js"></script>
+    <!-- <script src="js/modules/NotificationManager.js"></script> -->
     <script src="js/modules/ReportsManager.js"></script>
+    <script src="js/modules/SidebarManager.js"></script>
     <script src="js/modules/SharePointLoadingUI.js"></script>
     <script src="js/modules/AuthenticationManager.js"></script>
     <script src="js/modules/SharePointDataLoader.js"></script>

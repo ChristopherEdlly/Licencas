@@ -518,7 +518,7 @@ class DashboardMultiPage {
 
             // Se o arquivo deletado era o atual, limpar referência
             if (this.currentCacheFileId === fileId) {
-                this.currentCacheFileId = null;
+                this.currentCacheFileId == null;
             }
         } catch (error) {
             console.error('Erro ao deletar arquivo do cache:', error);
@@ -3053,14 +3053,160 @@ class DashboardMultiPage {
         const ctx = document.getElementById('urgencyChart');
         if (!ctx) return;
 
-    // Destruir gráfico existente
+        // Destruir gráfico existente
         if (this.charts.urgency) {
             this.charts.urgency.destroy();
         }
 
-        // SEMPRE mostrar gráfico de CARGO/LOTAÇÃO (lógica adaptativa)
-        // Independente do tipo de tabela
+        // Criar gráfico de URGÊNCIA (barras horizontais)
+        this.createUrgencyBarChart();
+
+        // Criar gráfico de CARGO separadamente
         this.createCargoChart();
+    }
+
+    // Novo método para criar gráfico de urgência com barras horizontais
+    createUrgencyBarChart() {
+        const ctx = document.getElementById('urgencyChart');
+        if (!ctx) return;
+
+        // Verificar se há dados de idade/urgência disponíveis
+        const hasUrgencyData = this.filteredServidores.some(s => s.urgencia);
+        const hasAgeData = this.filteredServidores.some(s => s.idade || s.dataNascimento);
+
+        // Se não há dados de idade, mostrar mensagem
+        if (!hasAgeData && this.filteredServidores.length > 0) {
+            const panel = ctx.closest('.chart-panel');
+            if (panel) {
+                const body = panel.querySelector('.chart-panel-body');
+                if (body) {
+                    body.innerHTML = `
+                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; gap: 0.5rem; color: rgb(156, 163, 175); text-align: center; padding: 1rem;">
+                            <i class="bi bi-exclamation-circle" style="font-size: 2rem; color: rgb(251, 191, 36);"></i>
+                            <div style="font-size: 0.875rem; font-weight: 500;">Dados insuficientes</div>
+                            <div style="font-size: 0.75rem; max-width: 300px;">A tabela não possui dados de idade ou data de nascimento para calcular urgências de aposentadoria.</div>
+                        </div>
+                    `;
+                }
+            }
+
+            const totalEl = document.getElementById('urgencyTotal');
+            if (totalEl) totalEl.textContent = '0';
+            return;
+        }
+
+        // Contar urgências
+        const urgencyCounts = {
+            'Crítico': 0,
+            'Alta': 0,
+            'Moderada': 0,
+            'Baixa': 0
+        };
+
+        this.filteredServidores.forEach(servidor => {
+            const urgencia = servidor.urgencia;
+            if (urgencia === 'critica') urgencyCounts['Crítico']++;
+            else if (urgencia === 'alta') urgencyCounts['Alta']++;
+            else if (urgencia === 'moderada') urgencyCounts['Moderada']++;
+            else if (urgencia === 'baixa') urgencyCounts['Baixa']++;
+        });
+
+        const data = [
+            { name: 'Baixa', value: urgencyCounts['Baixa'], color: '#10b981' },
+            { name: 'Moderada', value: urgencyCounts['Moderada'], color: '#f59e0b' },
+            { name: 'Alta', value: urgencyCounts['Alta'], color: '#f97316' },
+            { name: 'Crítico', value: urgencyCounts['Crítico'], color: '#ef4444' }
+        ];
+
+        const total = data.reduce((sum, item) => sum + item.value, 0);
+
+        // Se não há urgências calculadas mesmo com dados de idade
+        if (total === 0 && this.filteredServidores.length > 0) {
+            const panel = ctx.closest('.chart-panel');
+            if (panel) {
+                const body = panel.querySelector('.chart-panel-body');
+                if (body) {
+                    body.innerHTML = `
+                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; gap: 0.5rem; color: rgb(156, 163, 175); text-align: center; padding: 1rem;">
+                            <i class="bi bi-info-circle" style="font-size: 2rem; color: rgb(59, 130, 246);"></i>
+                            <div style="font-size: 0.875rem; font-weight: 500;">Sem urgências calculadas</div>
+                            <div style="font-size: 0.75rem; max-width: 300px;">Não foi possível calcular urgências para os servidores filtrados.</div>
+                        </div>
+                    `;
+                }
+            }
+
+            const totalEl = document.getElementById('urgencyTotal');
+            if (totalEl) totalEl.textContent = '0';
+            return;
+        }
+
+        // Atualizar total no subtitle
+        const totalEl = document.getElementById('urgencyTotal');
+        if (totalEl) totalEl.textContent = total;
+
+        this.charts.urgency = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.name),
+                datasets: [{
+                    data: data.map(d => d.value),
+                    backgroundColor: data.map(d => d.color),
+                    borderWidth: 0,
+                    barThickness: 24,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                indexAxis: 'y', // Barras horizontais
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: (context) => {
+                                const value = context.parsed.x;
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${value} pessoas (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#6a6a6a',
+                            font: {
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            color: '#1a1a1a',
+                            drawBorder: false
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            color: '#6a6a6a',
+                            font: {
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
     }
 
     getAdaptiveChartData() {
@@ -3137,7 +3283,14 @@ class DashboardMultiPage {
     }
 
     createCargoChart() {
-        const ctx = document.getElementById('urgencyChart');
+        const ctx = document.getElementById('cargoChart');
+        if (!ctx) return;
+
+        // Destruir gráfico existente
+        if (this.charts.cargo) {
+            this.charts.cargo.destroy();
+        }
+
         const cargoData = this.getAdaptiveChartData();
 
         // Atualizar título do gráfico baseado no campo usado
@@ -3152,10 +3305,17 @@ class DashboardMultiPage {
             chartTitle.textContent = titleMap[cargoData.fieldUsed] || 'Distribuição';
         }
 
+        // Atualizar total no subtitle
+        const totalEl = document.getElementById('cargoTotal');
+        if (totalEl) {
+            const total = cargoData.values.reduce((a, b) => a + b, 0);
+            totalEl.textContent = total;
+        }
+
         // 🔒 SALVAR CORES ORIGINAIS para referência futura (imutável)
         this.originalChartColors = (cargoData.colors || CARGO_COLORS.slice(0, cargoData.labels.length)).map(c => c);
 
-        this.charts.urgency = new Chart(ctx, {
+        this.charts.cargo = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: cargoData.labels,
@@ -3207,11 +3367,11 @@ class DashboardMultiPage {
             }
         });
 
-        // Registrar chart globalmente
-        window.dashboardChart = this.charts.urgency;
+        // Registrar chart globalmente para compatibilidade
+        window.dashboardChart = this.charts.cargo;
 
-    // Atualizar contagens da legenda com dados adaptativos
-    this.updateCargoLegend(cargoData);
+        // Atualizar contagens da legenda com dados adaptativos
+        this.updateCargoLegend(cargoData);
     }
 
     createTimelineChart() {
@@ -5650,12 +5810,13 @@ class DashboardMultiPage {
                 `;
             } else {
                 // Formato para tabela original
+                const nivelUrgencia = servidor.nivelUrgencia || '';
                 row.innerHTML = `
                     <td><strong>${nomeEscapado}</strong></td>
                     <td>${servidor.idade}</td>
                     <td><span class="lotacao-badge">${lotacaoEscapada}</span></td>
                     <td>${periodoLicencaCompleto}</td>
-                    <td><span class="urgency-badge urgency-${servidor.nivelUrgencia.toLowerCase()}">${servidor.nivelUrgencia}</span></td>
+                    <td><span class="urgency-badge urgency-${nivelUrgencia.toLowerCase()}">${nivelUrgencia || '--'}</span></td>
                     <td class="actions">
                         <button class="btn-icon" data-servidor-nome="${nomeEscapado}" title="Ver detalhes">
                             <i class="bi bi-eye"></i>
@@ -5914,58 +6075,24 @@ class DashboardMultiPage {
     }
 
     showServidorDetails(nomeServidor) {
-        // Agregar TODAS as licenças de servidores com o mesmo nome
+        // Mostrar cada registro da planilha como uma entrada independente, sem agrupar por nome
         const servidoresComMesmoNome = this.allServidores.filter(s => s.nome === nomeServidor);
         if (!servidoresComMesmoNome || servidoresComMesmoNome.length === 0) return;
 
-        // Usar o primeiro servidor como base e agregar licenças de todos
+        // Cada registro vira um card/registro no modal, sem agregação
+        const registrosOriginais = servidoresComMesmoNome.map(s => ({
+            ...s,
+            licencas: Array.isArray(s.licencas) ? s.licencas : []
+        }));
+
+        // Para compatibilidade com o restante do modal, usar o primeiro registro como base
         const servidor = { ...servidoresComMesmoNome[0] };
-
-        // Agregar todas as licenças de todos os servidores com este nome, removendo duplicatas
-        servidor.licencas = [];
-        const licencasUnicas = new Set(); // Para evitar duplicatas
-        const todosOsDadosOriginais = []; // Para coletar todos os dados originais
-        const licencasBrutas = []; // Coletar todas as licenças brutas (com duplicatas) para exibição no modal
-
-        servidoresComMesmoNome.forEach(s => {
-            // Coletar dados originais de cada entrada
-            if (s.dadosOriginais) {
-                todosOsDadosOriginais.push(s.dadosOriginais);
-            }
-            // Coletar licenças brutas (preservando duplicatas)
-            if (s.licencas && s.licencas.length > 0) {
-                s.licencas.forEach(l => {
-                    licencasBrutas.push(Object.assign({}, l));
-                });
-            }
-
-            if (s.licencas && s.licencas.length > 0) {
-                s.licencas.forEach(licenca => {
-                    // Criar uma chave única para a licença baseada nas datas
-                    const chave = `${licenca.inicio.getTime()}-${licenca.fim.getTime()}-${licenca.tipo}`;
-                    if (!licencasUnicas.has(chave)) {
-                        licencasUnicas.add(chave);
-                        servidor.licencas.push(licenca);
-                    }
-                });
-            }
-        });
-
-        // Combinar todos os dados originais únicos
-        servidor.todosOsDadosOriginais = todosOsDadosOriginais;
-        // Preservar licenças brutas separadamente para uso no modal (não tocar `servidor.licencas` usado por agrupamentos)
-        servidor.licencasBrutas = licencasBrutas;
-
-        // Ordenar licenças por data de início
-        servidor.licencas.sort((a, b) => a.inicio - b.inicio);
-
-        // Agrupar licenças por períodos contíguos
-        const periodosAgrupados = this.agruparLicencasPorPeriodos(servidor.licencas);
-
-        // Recalcular estatísticas agregadas
+        servidor.todosOsDadosOriginais = servidoresComMesmoNome.map(s => s.dadosOriginais);
+        servidor.licencasBrutas = servidoresComMesmoNome.flatMap(s => Array.isArray(s.licencas) ? s.licencas : []);
+        servidor.licencas = servidoresComMesmoNome.flatMap(s => Array.isArray(s.licencas) ? s.licencas : []);
+        // Não agrupar períodos, não deduplicar
+        const periodosAgrupados = null;
         servidor.licencasAgendadas = servidor.licencas.length;
-
-        // Detectar se é tabela de licenças prêmio
         const isLicencaPremio = servidor.tipoTabela === 'licenca-premio';
 
         // Informações pessoais removidas: agora consolidadas em 'Registros da Planilha'
@@ -6273,10 +6400,15 @@ class DashboardMultiPage {
         // Unificado: usar sempre a versão visual detalhada para ambos os tipos de planilha
         interpretationContent = '<div class="info-grid">';
 
-        // Determinar qual array de licenças usar baseado no tipo
-        const licencasParaExibir = (isLicencaPremio && periodosAgrupados && periodosAgrupados.length > 0)
-            ? periodosAgrupados.map(p => ({ inicio: p.inicio, fim: p.fim }))
-            : servidor.licencas;
+        // Sempre mostrar cada registro da planilha como um período independente
+        const licencasParaExibir = registrosOriginais.flatMap(r =>
+            (Array.isArray(r.licencas) && r.licencas.length > 0)
+                ? r.licencas.map(l => ({
+                    ...l,
+                    _registro: r // Referência ao registro original para mostrar campos extras se necessário
+                }))
+                : []
+        );
 
         // Mostrar períodos interpretados de forma detalhada
         if (licencasParaExibir && licencasParaExibir.length > 0) {
@@ -8838,10 +8970,21 @@ ${notif.obs ? `\nObservações: ${notif.obs}` : ''}
             filtered = this.advancedFilterManager.applyFilters(filtered);
         }
 
-        // Aplicar busca se houver
+        // Aplicar busca se houver - verificar ambos campos de busca
         const searchInput = document.getElementById('searchInput');
-        if (searchInput && searchInput.value && this.smartSearchManager) {
-            filtered = this.smartSearchManager.search(searchInput.value, filtered);
+        const headerSearchInput = document.getElementById('headerSearchInput');
+
+        // Pegar o termo de busca do campo que estiver preenchido
+        let searchTerm = '';
+        if (searchInput && searchInput.value.trim()) {
+            searchTerm = searchInput.value.trim();
+        } else if (headerSearchInput && headerSearchInput.value.trim()) {
+            searchTerm = headerSearchInput.value.trim();
+        }
+
+        // Aplicar busca se houver termo
+        if (searchTerm && this.smartSearchManager) {
+            filtered = this.smartSearchManager.search(searchTerm, filtered);
         }
 
         // Atualizar servidores filtrados

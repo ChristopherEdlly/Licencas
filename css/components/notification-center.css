@@ -73,7 +73,7 @@
     background: none;
     border: none;
     font-size: 18px;
-    color: #94a3b8;
+    color: #64748b; /* Mudado de #94a3b8 para #64748b para melhor contraste */
     cursor: pointer;
     padding: 4px;
     transition: color 0.2s;
@@ -81,6 +81,16 @@
 
 .toast-close:hover {
     color: #1e293b;
+}
+
+.dark-theme .toast-close,
+[data-theme="dark"] .toast-close {
+    color: #94a3b8;
+}
+
+.dark-theme .toast-close:hover,
+[data-theme="dark"] .toast-close:hover {
+    color: #f1f5f9;
 }
 
 /* Sino de Notificações */
@@ -206,6 +216,11 @@
     align-items: center;
     justify-content: center;
     height: 300px;
+    color: #64748b; /* Mudado de #94a3b8 para #64748b para melhor contraste */
+}
+
+.dark-theme .notification-empty,
+[data-theme="dark"] .notification-empty {
     color: #94a3b8;
 }
 
@@ -265,6 +280,11 @@
 
 .notification-time {
     font-size: 11px;
+    color: #64748b; /* Mudado de #94a3b8 para #64748b para melhor contraste */
+}
+
+.dark-theme .notification-time,
+[data-theme="dark"] .notification-time {
     color: #94a3b8;
 }
 
@@ -283,7 +303,7 @@
     border: none;
     padding: 6px;
     cursor: pointer;
-    color: #94a3b8;
+    color: #64748b; /* Mudado de #94a3b8 para #64748b para melhor contraste */
     border-radius: 4px;
     transition: all 0.2s;
 }
@@ -291,6 +311,17 @@
 .btn-icon:hover {
     background: #f1f5f9;
     color: #0d6efd;
+}
+
+.dark-theme .btn-icon,
+[data-theme="dark"] .btn-icon {
+    color: #94a3b8;
+}
+
+.dark-theme .btn-icon:hover,
+[data-theme="dark"] .btn-icon:hover {
+    background: #374151;
+    color: #6ea8fe;
 }
 
 /* Dark Theme */

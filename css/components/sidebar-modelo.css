@@ -1,0 +1,532 @@
+/**
+ * Sidebar - Estilo 100% Fiel ao Modelo
+ * Baseado em: Modelo-de-intefrace-layout/src/components/Sidebar.tsx
+ * 
+ * CARACTERÍSTICAS DO MODELO:
+ * - Fundo: #1a1a1a
+ * - Bordas: #27272a (#374151 em alguns casos)
+ * - Texto normal: #9ca3af
+ * - Texto hover: #ffffff
+ * - Hover background: #27272a
+ * - Avatar com gradiente: from-blue-500 to-cyan-500
+ */
+
+/* ==================== SIDEBAR CONTAINER ==================== */
+
+.sidebar {
+    width: 16rem; /* 256px - w-64 do modelo */
+    background-color: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    position: relative;
+}
+
+/* ==================== USER ACCOUNT (TOPO) ==================== */
+
+.sidebar-header {
+    padding: 1rem; /* p-4 do modelo */
+    border-bottom: 1px solid rgb(39, 39, 42);
+}
+
+.sidebar-user-account {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem; /* gap-3 do modelo */
+}
+
+/* Avatar com gradiente azul-ciano */
+.sidebar-user-avatar {
+    width: 2.5rem; /* w-10 do modelo */
+    height: 2.5rem; /* h-10 do modelo */
+    background: linear-gradient(to bottom right, #3b82f6, #06b6d4);
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.sidebar-user-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.sidebar-user-name {
+    color: white; /* Tema escuro */
+    font-size: 0.875rem; /* text-sm do modelo */
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.25rem;
+}
+
+/* Tema claro - nome do usuário deve ser escuro */
+[data-theme="light"] .sidebar-user-name {
+    color: #111827;
+}
+
+.sidebar-user-login,
+.sidebar-user-logout {
+    color: rgb(156, 163, 175); /* Tema escuro */
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.sidebar-user-login:hover,
+.sidebar-user-logout:hover {
+    color: white; /* Tema escuro */
+}
+
+[data-theme="light"] .sidebar-user-login,
+[data-theme="light"] .sidebar-user-logout {
+    color: #6b7280;
+}
+
+[data-theme="light"] .sidebar-user-login:hover,
+[data-theme="light"] .sidebar-user-logout:hover {
+    color: #111827;
+}
+
+.sidebar-user-login i,
+.sidebar-user-logout i {
+    width: 1rem; /* w-4 do modelo */
+    height: 1rem; /* h-4 do modelo */
+    font-size: 1rem;
+}
+
+/* ==================== NAVIGATION ==================== */
+
+.sidebar-nav {
+    flex: 1;
+    padding: 1rem; /* p-4 do modelo */
+    display: flex;
+    flex-direction: column;
+    gap: 0; /* Removido gap global, aplicamos individualmente */
+    overflow-y: auto;
+}
+
+/* Espaçamento entre links */
+.sidebar-nav > a.nav-link {
+    margin-bottom: 0.25rem; /* space-y-1 do modelo */
+}
+
+.sidebar-nav > a.nav-link:last-of-type {
+    margin-bottom: 0;
+}
+
+/* Links de navegação */
+.sidebar .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem; /* gap-3 do modelo */
+    padding: 0.5rem 0.75rem; /* px-3 py-2 do modelo */
+    border-radius: 0.5rem; /* rounded-lg do modelo */
+    color: rgb(156, 163, 175); /* text-gray-400 - tema escuro */
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    position: relative;
+}
+
+.sidebar .nav-link:hover {
+    background-color: rgb(39, 39, 42); /* hover:bg-gray-800 - tema escuro */
+    color: white;
+}
+
+.sidebar .nav-link.active {
+    background-color: rgb(39, 39, 42);
+    color: white;
+}
+
+/* Já existe regra para tema claro abaixo (linhas 444-452) - não duplicar */
+
+.sidebar .nav-link i {
+    width: 1.25rem; /* w-5 do modelo */
+    height: 1.25rem; /* h-5 do modelo */
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar .nav-link span {
+    flex: 1;
+    line-height: 1.25rem;
+}
+
+/* Badges nos links */
+.sidebar .nav-link .badge {
+    margin-left: auto;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: rgb(39, 39, 42);
+    color: white;
+    border: 0;
+    line-height: 1.5;
+}
+
+.sidebar .nav-link .badge.badge-new {
+    background-color: rgb(16, 185, 129);
+    color: white;
+}
+
+.sidebar .nav-link .bi-chevron-down {
+    width: 1rem;
+    height: 1rem;
+    font-size: 1rem;
+    margin-left: 0.25rem;
+}
+
+/* Badge de filtros ativos */
+.sidebar .btn-advanced-filters .filter-badge {
+    position: absolute;
+    top: -0.25rem;
+    right: -0.25rem;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.25rem;
+    background-color: rgb(239, 68, 68);
+    color: white;
+    border-radius: 9999px;
+    font-size: 0.625rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar .btn-advanced-filters {
+    position: relative;
+}
+
+/* ==================== PROMOTIONAL BANNER ==================== */
+
+.sidebar-promo-banner {
+    margin-top: 1.5rem; /* mt-6 do modelo */
+    padding: 1rem; /* p-4 do modelo */
+    background: linear-gradient(to bottom right, rgba(6, 78, 59, 0.5), rgba(6, 95, 70, 0.3));
+    border: 1px solid rgba(6, 95, 70, 0.5);
+    border-radius: 0.5rem; /* rounded-lg do modelo */
+    position: relative;
+}
+
+.sidebar-promo-close {
+    position: absolute;
+    top: 0.5rem; /* top-2 do modelo */
+    right: 0.5rem; /* right-2 do modelo */
+    background: transparent;
+    border: none;
+    color: rgb(156, 163, 175); /* Tema escuro */
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.sidebar-promo-close:hover {
+    color: white; /* Tema escuro */
+}
+
+[data-theme="light"] .sidebar-promo-close {
+    color: #6b7280;
+}
+
+[data-theme="light"] .sidebar-promo-close:hover {
+    color: #111827;
+}
+
+.sidebar-promo-close i {
+    width: 1rem;
+    height: 1rem;
+    font-size: 1rem;
+}
+
+.sidebar-promo-banner .badge {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: rgb(16, 185, 129);
+    color: white;
+    border: 0;
+    margin-bottom: 0.5rem; /* mb-2 do modelo */
+    line-height: 1;
+}
+
+.sidebar-promo-title {
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 400;
+    margin-bottom: 0.25rem; /* mb-1 do modelo */
+    line-height: 1.25rem;
+    margin-top: 0;
+}
+
+.sidebar-promo-description {
+    color: rgb(156, 163, 175); /* Tema escuro */
+    font-size: 0.75rem; /* text-xs do modelo */
+    line-height: 1rem;
+    margin-bottom: 0.75rem; /* mb-3 do modelo */
+    margin-top: 0;
+}
+
+[data-theme="light"] .sidebar-promo-description {
+    color: #6b7280;
+}
+
+.sidebar-promo-button {
+    width: 100%;
+    padding: 0.375rem 0.75rem; /* size-sm do modelo */
+    font-size: 0.875rem;
+    background: transparent;
+    border: 1px solid rgb(6, 95, 70);
+    color: rgb(52, 211, 153);
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+}
+
+.sidebar-promo-button:hover {
+    background-color: rgba(6, 78, 59, 0.5);
+    color: rgb(110, 231, 183);
+}
+
+/* ==================== SIDEBAR FOOTER ==================== */
+
+.sidebar-footer {
+    padding: 1rem; /* p-4 do modelo */
+    border-top: 1px solid rgb(39, 39, 42);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem; /* space-y-1 do modelo */
+}
+
+/* Links e botões do footer */
+.sidebar-footer .nav-link,
+.sidebar-footer .sidebar-info-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem; /* gap-3 do modelo */
+    padding: 0.5rem 0.75rem; /* px-3 py-2 do modelo */
+    border-radius: 0.5rem; /* rounded-lg do modelo */
+    color: rgb(156, 163, 175); /* Tema escuro */
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+}
+
+.sidebar-footer .nav-link:hover,
+.sidebar-footer .sidebar-info-link:hover {
+    background-color: rgb(39, 39, 42); /* Tema escuro */
+    color: white;
+}
+
+[data-theme="light"] .sidebar-footer .nav-link,
+[data-theme="light"] .sidebar-footer .sidebar-info-link {
+    color: #6b7280;
+}
+
+[data-theme="light"] .sidebar-footer .nav-link:hover,
+[data-theme="light"] .sidebar-footer .sidebar-info-link:hover {
+    background-color: #f3f4f6;
+    color: #111827;
+}
+
+.sidebar-footer .nav-link i,
+.sidebar-footer .sidebar-info-link i {
+    width: 1.25rem; /* w-5 do modelo */
+    height: 1.25rem; /* h-5 do modelo */
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+/* ==================== SIDEBAR ACTIONS (FILTROS) ==================== */
+
+.sidebar-filter-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem; /* gap-2 */
+    margin-top: 0.75rem; /* mt-3 */
+    padding-top: 0.75rem; /* pt-3 separação visual */
+    border-top: 1px solid rgba(39, 39, 42, 0.5);
+}
+
+.sidebar-filter-actions .btn-advanced-filters,
+.sidebar-filter-actions .btn-clear-all-filters {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem; /* px-3 py-2 */
+    border-radius: 0.5rem; /* rounded-lg */
+    font-size: 0.875rem; /* text-sm */
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    white-space: nowrap;
+}
+
+.sidebar-filter-actions .btn-advanced-filters {
+    background-color: rgb(37, 99, 235); /* bg-blue-600 */
+    color: white;
+}
+
+.sidebar-filter-actions .btn-advanced-filters:hover {
+    background-color: rgb(29, 78, 216);
+}
+
+.sidebar-filter-actions .btn-clear-all-filters {
+    background-color: transparent;
+    border: 1px solid rgb(39, 39, 42); /* Tema escuro */
+    color: rgb(156, 163, 175); /* Tema escuro */
+}
+
+.sidebar-filter-actions .btn-clear-all-filters:hover {
+    background-color: rgb(39, 39, 42); /* Tema escuro */
+    color: white;
+}
+
+[data-theme="light"] .sidebar-filter-actions .btn-clear-all-filters {
+    border-color: #e5e7eb;
+    color: #6b7280;
+}
+
+[data-theme="light"] .sidebar-filter-actions .btn-clear-all-filters:hover {
+    background-color: #f3f4f6;
+    color: #111827;
+}
+
+/* ==================== SIDEBAR TOGGLE ==================== */
+
+.sidebar-toggle {
+    background: transparent;
+    border: none;
+    color: rgb(156, 163, 175); /* Tema escuro */
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-toggle:hover {
+    color: white; /* Tema escuro */
+}
+
+[data-theme="light"] .sidebar-toggle {
+    color: #6b7280;
+}
+
+[data-theme="light"] .sidebar-toggle:hover {
+    color: #111827;
+}
+
+.sidebar-toggle i {
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 1.5rem;
+}
+
+/* ==================== SIDEBAR COLLAPSED ==================== */
+
+.sidebar.collapsed {
+    width: 4.5rem;
+}
+
+.sidebar.collapsed .sidebar-user-info,
+.sidebar.collapsed .sidebar-user-logout,
+.sidebar.collapsed .nav-link span,
+.sidebar.collapsed .nav-link .badge,
+.sidebar.collapsed .nav-link .bi-chevron-down,
+.sidebar.collapsed .sidebar-promo-banner,
+.sidebar.collapsed .sidebar-filter-actions span {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-user-account {
+    justify-content: center;
+}
+
+.sidebar.collapsed .nav-link,
+.sidebar.collapsed .sidebar-footer .nav-link,
+.sidebar.collapsed .sidebar-footer .sidebar-info-link {
+    justify-content: center;
+    padding: 0.5rem;
+}
+
+/* ==================== TEMA CLARO ==================== */
+
+[data-theme="light"] .sidebar {
+    background-color: #ffffff;
+}
+
+[data-theme="light"] .sidebar-header {
+    border-bottom-color: #e5e7eb;
+}
+
+[data-theme="light"] .sidebar .nav-link {
+    color: #6b7280;
+}
+
+[data-theme="light"] .sidebar .nav-link:hover,
+[data-theme="light"] .sidebar .nav-link.active {
+    background-color: #f3f4f6;
+    color: #111827;
+}
+
+[data-theme="light"] .sidebar-footer {
+    border-top-color: #e5e7eb;
+}
+
+[data-theme="light"] .sidebar-user-logout {
+    color: #6b7280;
+}
+
+[data-theme="light"] .sidebar-user-logout:hover {
+    color: #111827;
+}
+
+[data-theme="light"] .sidebar-filter-actions .btn-clear-all-filters {
+    border-color: #e5e7eb;
+    color: #6b7280;
+}
+
+[data-theme="light"] .sidebar-filter-actions .btn-clear-all-filters:hover {
+    background-color: #f3f4f6;
+    color: #111827;
+}
