@@ -255,9 +255,9 @@ class AuthenticationManager {
             return;
         }
 
-        // DEVELOPMENT MODE: Desabilitar overlay de autenticação obrigatória
-        // Remove o bloqueio para permitir debug e testes sem autenticação
-        const isDevelopmentMode = true; // Alterar para false na branch main
+        // MODO MAIN: Autenticação obrigatória
+        // Para desenvolvimento, altere para true. Na main, mantenha como false.
+        const isDevelopmentMode = false;
 
         if (isDevelopmentMode) {
             // Esconder overlay completamente em modo desenvolvimento
