@@ -36,8 +36,8 @@ Modelo*
 claude.md
 
 # Arquivos de teste
-teste*
 *.log
+tests/
 /react-builder
 /react-builder/*
 react-builder/

@@ -1,53 +1,75 @@
 /**
- * Sidebar - Estilo 100% Fiel ao Modelo
- * Baseado em: Modelo-de-intefrace-layout/src/components/Sidebar.tsx
- * 
- * CARACTERÍSTICAS DO MODELO:
- * - Fundo: #1a1a1a
- * - Bordas: #27272a (#374151 em alguns casos)
- * - Texto normal: #9ca3af
- * - Texto hover: #ffffff
- * - Hover background: #27272a
- * - Avatar com gradiente: from-blue-500 to-cyan-500
+ * Sidebar - Layout Moderno Premium Style
+ * Inspirado em: Vercel, Linear, Stripe Dashboard
+ *
+ * LAYOUT PRINCIPLES:
+ * - Compact header (48px) with minimalist user section
+ * - Dense navigation with consistent 40px items
+ * - Sticky promotional banner
+ * - Compact footer (56px) with settings + filters
+ * - Total width: 240px (optimal for modern dashboards)
  */
 
 /* ==================== SIDEBAR CONTAINER ==================== */
 
 .sidebar {
-    width: 16rem; /* 256px - w-64 do modelo */
-    background-color: #1a1a1a;
+    width: 15rem; /* 240px - padrão moderno */
+    background: #0a0a0b;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
     position: relative;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ==================== USER ACCOUNT (TOPO) ==================== */
+/* ==================== USER ACCOUNT (ULTRA COMPACT HEADER) ==================== */
 
 .sidebar-header {
-    padding: 1rem; /* p-4 do modelo */
-    border-bottom: 1px solid rgb(39, 39, 42);
+    height: 56px; /* Altura aumentada para melhor visualização */
+    padding: 0 1rem; /* Padding aumentado */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: transparent; /* Remover fundo escuro */
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
 }
 
 .sidebar-user-account {
     display: flex;
     align-items: center;
-    gap: 0.75rem; /* gap-3 do modelo */
+    justify-content: flex-start; /* Forçar alinhamento à esquerda */
+    gap: 0.75rem; /* Gap maior para melhor espaçamento */
+    width: 100%;
+    height: 100%;
+    transition: all 0.2s ease;
 }
 
-/* Avatar com gradiente azul-ciano */
+.sidebar-user-account:hover {
+    opacity: 0.9;
+}
+
+/* Avatar maior e mais visível */
 .sidebar-user-avatar {
-    width: 2.5rem; /* w-10 do modelo */
-    height: 2.5rem; /* h-10 do modelo */
-    background: linear-gradient(to bottom right, #3b82f6, #06b6d4);
-    border-radius: 9999px;
+    width: 32px; /* Aumentado de 28px */
+    height: 32px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 0.875rem;
-    font-weight: 500;
+    font-size: 0.875rem; /* Fonte maior */
+    font-weight: 700;
     flex-shrink: 0;
+    border: 2px solid rgba(59, 130, 246, 0.4);
+    transition: all 0.2s ease;
+}
+
+.sidebar-user-account:hover .sidebar-user-avatar {
+    border-color: rgba(59, 130, 246, 0.6);
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
 }
 
 .sidebar-user-info {
@@ -59,38 +81,42 @@
 }
 
 .sidebar-user-name {
-    color: white; /* Tema escuro */
-    font-size: 0.875rem; /* text-sm do modelo */
-    font-weight: 400;
+    color: #ffffff; /* Branco puro para maior contraste */
+    font-size: 0.875rem; /* Aumentado de 0.8125rem */
+    font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.25rem;
+    line-height: 1.3;
+    letter-spacing: 0.01em; /* Melhor legibilidade */
 }
 
 /* Tema claro - nome do usuário deve ser escuro */
 [data-theme="light"] .sidebar-user-name {
     color: #111827;
+    font-weight: 600;
 }
 
 .sidebar-user-login,
 .sidebar-user-logout {
-    color: rgb(156, 163, 175); /* Tema escuro */
+    color: #9ca3af;
     background: transparent;
     border: none;
     padding: 0;
     cursor: pointer;
-    transition: color 0.2s;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
 }
 
 .sidebar-user-login:hover,
 .sidebar-user-logout:hover {
-    color: white; /* Tema escuro */
+    color: white;
+    background: rgba(255, 255, 255, 0.08);
 }
 
 [data-theme="light"] .sidebar-user-login,
@@ -110,59 +136,85 @@
     font-size: 1rem;
 }
 
-/* ==================== NAVIGATION ==================== */
+/* ==================== NAVIGATION (DENSE & COMPACT) ==================== */
 
 .sidebar-nav {
     flex: 1;
-    padding: 1rem; /* p-4 do modelo */
+    padding: 0.75rem; /* Aumentado de 0.5rem para 0.75rem */
     display: flex;
     flex-direction: column;
-    gap: 0; /* Removido gap global, aplicamos individualmente */
+    gap: 4px; /* Aumentado de 1px para 4px - mais espaço entre links */
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
-/* Espaçamento entre links */
-.sidebar-nav > a.nav-link {
-    margin-bottom: 0.25rem; /* space-y-1 do modelo */
+.sidebar-nav::-webkit-scrollbar {
+    width: 4px;
 }
 
-.sidebar-nav > a.nav-link:last-of-type {
-    margin-bottom: 0;
+.sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
 }
 
-/* Links de navegação */
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Links de navegação densos - 40px altura */
 .sidebar .nav-link {
     display: flex;
     align-items: center;
-    gap: 0.75rem; /* gap-3 do modelo */
-    padding: 0.5rem 0.75rem; /* px-3 py-2 do modelo */
-    border-radius: 0.5rem; /* rounded-lg do modelo */
-    color: rgb(156, 163, 175); /* text-gray-400 - tema escuro */
+    gap: 0.75rem;
+    height: 40px;
+    padding: 0 0.75rem;
+    margin: 0; /* Reset margin - gap do parent controla espaçamento */
+    border-radius: 6px;
+    color: #9ca3af;
     text-decoration: none;
     font-size: 0.875rem;
-    transition: all 0.2s;
+    font-weight: 500;
+    transition: all 0.15s ease;
     background-color: transparent;
-    border: none;
     cursor: pointer;
     position: relative;
 }
 
 .sidebar .nav-link:hover {
-    background-color: rgb(39, 39, 42); /* hover:bg-gray-800 - tema escuro */
-    color: white;
+    background: rgba(255, 255, 255, 0.06);
+    color: #e5e7eb;
 }
 
 .sidebar .nav-link.active {
-    background-color: rgb(39, 39, 42);
-    color: white;
+    background: rgba(59, 130, 246, 0.2); /* Fundo mais forte */
+    color: #ffffff;
+    font-weight: 600; /* Texto mais pesado */
+}
+
+.sidebar .nav-link.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px; /* Mais largo: 3px -> 4px */
+    height: 100%; /* Altura total do link */
+    background: #3b82f6;
+    border-radius: 0 3px 3px 0; /* Border radius maior */
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.6); /* Sombra para destacar */
 }
 
 /* Já existe regra para tema claro abaixo (linhas 444-452) - não duplicar */
 
 .sidebar .nav-link i {
-    width: 1.25rem; /* w-5 do modelo */
-    height: 1.25rem; /* h-5 do modelo */
-    font-size: 1.25rem;
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -171,7 +223,7 @@
 
 .sidebar .nav-link span {
     flex: 1;
-    line-height: 1.25rem;
+    line-height: 1;
 }
 
 /* Badges nos links */
@@ -221,15 +273,21 @@
     position: relative;
 }
 
-/* ==================== PROMOTIONAL BANNER ==================== */
+/* ==================== PROMOTIONAL BANNER (COMPACT) ==================== */
 
 .sidebar-promo-banner {
-    margin-top: 1.5rem; /* mt-6 do modelo */
-    padding: 1rem; /* p-4 do modelo */
-    background: linear-gradient(to bottom right, rgba(6, 78, 59, 0.5), rgba(6, 95, 70, 0.3));
-    border: 1px solid rgba(6, 95, 70, 0.5);
-    border-radius: 0.5rem; /* rounded-lg do modelo */
+    margin: 0.5rem 0.5rem 0.75rem 0.5rem;
+    padding: 0.875rem;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 8px;
     position: relative;
+    transition: all 0.2s ease;
+}
+
+.sidebar-promo-banner:hover {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.3);
 }
 
 .sidebar-promo-close {
@@ -268,31 +326,33 @@
 
 .sidebar-promo-banner .badge {
     display: inline-block;
-    padding: 0.125rem 0.5rem;
-    border-radius: 0.375rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    background-color: rgb(16, 185, 129);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.625rem;
+    font-weight: 700;
+    background: #10b981;
     color: white;
     border: 0;
-    margin-bottom: 0.5rem; /* mb-2 do modelo */
+    margin-bottom: 0.5rem;
     line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .sidebar-promo-title {
-    color: white;
-    font-size: 0.875rem;
-    font-weight: 400;
-    margin-bottom: 0.25rem; /* mb-1 do modelo */
-    line-height: 1.25rem;
+    color: #e5e7eb;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    line-height: 1.3;
     margin-top: 0;
 }
 
 .sidebar-promo-description {
-    color: rgb(156, 163, 175); /* Tema escuro */
-    font-size: 0.75rem; /* text-xs do modelo */
-    line-height: 1rem;
-    margin-bottom: 0.75rem; /* mb-3 do modelo */
+    color: #9ca3af;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    margin-bottom: 0.625rem;
     margin-top: 0;
 }
 
@@ -302,14 +362,16 @@
 
 .sidebar-promo-button {
     width: 100%;
-    padding: 0.375rem 0.75rem; /* size-sm do modelo */
-    font-size: 0.875rem;
-    background: transparent;
-    border: 1px solid rgb(6, 95, 70);
-    color: rgb(52, 211, 153);
-    border-radius: 0.375rem;
+    height: 32px;
+    padding: 0 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #34d399;
+    border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -317,32 +379,36 @@
 }
 
 .sidebar-promo-button:hover {
-    background-color: rgba(6, 78, 59, 0.5);
-    color: rgb(110, 231, 183);
+    background: rgba(16, 185, 129, 0.2);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #6ee7b7;
 }
 
-/* ==================== SIDEBAR FOOTER ==================== */
+/* ==================== SIDEBAR FOOTER (COMPACT) ==================== */
 
 .sidebar-footer {
-    padding: 1rem; /* p-4 do modelo */
-    border-top: 1px solid rgb(39, 39, 42);
+    padding: 0.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
-    gap: 0.25rem; /* space-y-1 do modelo */
+    gap: 1px;
+    flex-shrink: 0;
 }
 
-/* Links e botões do footer */
+/* Links do footer - estilo consistente com nav */
 .sidebar-footer .nav-link,
 .sidebar-footer .sidebar-info-link {
     display: flex;
     align-items: center;
-    gap: 0.75rem; /* gap-3 do modelo */
-    padding: 0.5rem 0.75rem; /* px-3 py-2 do modelo */
-    border-radius: 0.5rem; /* rounded-lg do modelo */
-    color: rgb(156, 163, 175); /* Tema escuro */
+    gap: 0.75rem;
+    height: 40px;
+    padding: 0 0.75rem;
+    border-radius: 6px;
+    color: #9ca3af;
     text-decoration: none;
     font-size: 0.875rem;
-    transition: all 0.2s;
+    transition: all 0.15s ease;
     background-color: transparent;
     border: none;
     cursor: pointer;
@@ -350,8 +416,8 @@
 
 .sidebar-footer .nav-link:hover,
 .sidebar-footer .sidebar-info-link:hover {
-    background-color: rgb(39, 39, 42); /* Tema escuro */
-    color: white;
+    background-color: rgba(255, 255, 255, 0.06);
+    color: #e5e7eb;
 }
 
 [data-theme="light"] .sidebar-footer .nav-link,
@@ -367,21 +433,21 @@
 
 .sidebar-footer .nav-link i,
 .sidebar-footer .sidebar-info-link i {
-    width: 1.25rem; /* w-5 do modelo */
-    height: 1.25rem; /* h-5 do modelo */
-    font-size: 1.25rem;
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
     flex-shrink: 0;
 }
 
-/* ==================== SIDEBAR ACTIONS (FILTROS) ==================== */
+/* ==================== SIDEBAR ACTIONS (COMPACT FILTERS) ==================== */
 
 .sidebar-filter-actions {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem; /* gap-2 */
-    margin-top: 0.75rem; /* mt-3 */
-    padding-top: 0.75rem; /* pt-3 separação visual */
-    border-top: 1px solid rgba(39, 39, 42, 0.5);
+    gap: 1px;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .sidebar-filter-actions .btn-advanced-filters,
@@ -390,34 +456,38 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 0.5rem 0.75rem; /* px-3 py-2 */
-    border-radius: 0.5rem; /* rounded-lg */
-    font-size: 0.875rem; /* text-sm */
-    font-weight: 500;
+    height: 40px;
+    padding: 0 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s ease;
     border: none;
     white-space: nowrap;
 }
 
+/* Botão de Filtros Avançados */
 .sidebar-filter-actions .btn-advanced-filters {
-    background-color: rgb(37, 99, 235); /* bg-blue-600 */
+    background: #3b82f6;
     color: white;
 }
 
 .sidebar-filter-actions .btn-advanced-filters:hover {
-    background-color: rgb(29, 78, 216);
+    background: #2563eb;
 }
 
+/* Botão Limpar Filtros */
 .sidebar-filter-actions .btn-clear-all-filters {
-    background-color: transparent;
-    border: 1px solid rgb(39, 39, 42); /* Tema escuro */
-    color: rgb(156, 163, 175); /* Tema escuro */
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #9ca3af;
 }
 
 .sidebar-filter-actions .btn-clear-all-filters:hover {
-    background-color: rgb(39, 39, 42); /* Tema escuro */
-    color: white;
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
 }
 
 [data-theme="light"] .sidebar-filter-actions .btn-clear-all-filters {
@@ -489,28 +559,79 @@
     padding: 0.5rem;
 }
 
-/* ==================== TEMA CLARO ==================== */
+/* ==================== TEMA CLARO (COMPACT DESIGN) ==================== */
 
 [data-theme="light"] .sidebar {
-    background-color: #ffffff;
+    background: #ffffff;
+    border-right-color: rgba(0, 0, 0, 0.08);
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
 }
 
 [data-theme="light"] .sidebar-header {
-    border-bottom-color: #e5e7eb;
+    border-bottom-color: rgba(0, 0, 0, 0.06);
+    background: #f9fafb;
+}
+
+[data-theme="light"] .sidebar-user-name {
+    color: #111827;
 }
 
 [data-theme="light"] .sidebar .nav-link {
     color: #6b7280;
 }
 
-[data-theme="light"] .sidebar .nav-link:hover,
-[data-theme="light"] .sidebar .nav-link.active {
-    background-color: #f3f4f6;
+[data-theme="light"] .sidebar .nav-link:hover {
+    background: rgba(0, 0, 0, 0.04);
     color: #111827;
 }
 
+[data-theme="light"] .sidebar .nav-link.active {
+    background: rgba(59, 130, 246, 0.1);
+    color: #1f2937;
+}
+
+[data-theme="light"] .sidebar .nav-link.active::before {
+    background: #3b82f6;
+}
+
 [data-theme="light"] .sidebar-footer {
-    border-top-color: #e5e7eb;
+    border-top-color: rgba(0, 0, 0, 0.06);
+    background: #f9fafb;
+}
+
+[data-theme="light"] .sidebar-footer .nav-link,
+[data-theme="light"] .sidebar-footer .sidebar-info-link {
+    color: #6b7280;
+}
+
+[data-theme="light"] .sidebar-footer .nav-link:hover,
+[data-theme="light"] .sidebar-footer .sidebar-info-link:hover {
+    background: rgba(0, 0, 0, 0.04);
+    color: #111827;
+}
+
+[data-theme="light"] .sidebar-promo-banner {
+    background: rgba(16, 185, 129, 0.06);
+    border-color: rgba(16, 185, 129, 0.15);
+}
+
+[data-theme="light"] .sidebar-promo-title {
+    color: #111827;
+}
+
+[data-theme="light"] .sidebar-promo-description {
+    color: #6b7280;
+}
+
+[data-theme="light"] .sidebar-filter-actions .btn-clear-all-filters {
+    border-color: rgba(0, 0, 0, 0.1);
+    color: #6b7280;
+}
+
+[data-theme="light"] .sidebar-filter-actions .btn-clear-all-filters:hover {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.2);
+    color: #dc2626;
 }
 
 [data-theme="light"] .sidebar-user-logout {
