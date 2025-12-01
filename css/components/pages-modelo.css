@@ -175,11 +175,6 @@
 
 /* ==================== SETTINGS PAGE ==================== */
 
-#settingsPage {
-    gap: var(--spacing-xl);
-    max-width: 800px;
-}
-
 .settings-section {
     background-color: var(--bg-secondary);
     border: 1px solid var(--border-color);

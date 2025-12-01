@@ -16,7 +16,7 @@
     height: 100%;
     padding: 20px;
     overflow: hidden;
-    background: var(--bg-primary);
+    background: var(--card-bg, var(--bg-primary));
     --reports-clickable-bg: rgba(59, 130, 246, 0.12);
     --reports-clickable-border: rgba(59, 130, 246, 0.36);
     --reports-editable-bg: rgba(59, 130, 246, 0.05);
@@ -35,7 +35,7 @@
    ======================================== */
 
 .reports-config-panel {
-    background: var(--card-bg);
+    background: var(--card-bg, var(--bg-primary));
     border-radius: 16px;
     padding: 0;
     border: 1px solid var(--border-color);

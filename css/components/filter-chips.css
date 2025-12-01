@@ -5,7 +5,7 @@
 
 /* ==================== Container Principal ==================== */
 .filter-chips-container {
-    background: var(--surface);
+    background: var(--card-bg, var(--bg-primary));
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 1rem;

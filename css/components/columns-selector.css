@@ -15,7 +15,7 @@
     position: relative;
     display: flex;
     align-items: center;
-    background: var(--input-bg, #f9fafb);
+    background: var(--input-bg, var(--card-bg, var(--bg-primary)));
     border: 1px solid var(--border-color, #e5e7eb);
     border-radius: 8px;
     padding: 0.625rem 0.875rem;

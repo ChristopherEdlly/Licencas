@@ -5,6 +5,7 @@
 Sistema JavaScript modular organizado por **fluxos de dados** e **responsabilidades funcionais**. Diferente do CSS, a migração JS requer **extremo cuidado** pois qualquer erro quebra completamente a aplicação.
 
 **Princípios:**
+
 - ✅ **Organização por fluxo de dados** (input → transformação → output)
 - ✅ **Migração incremental e testada** (nunca quebrar o que funciona)
 - ✅ **Dependências explícitas** (clear imports/exports)
@@ -15,14 +16,14 @@ Sistema JavaScript modular organizado por **fluxos de dados** e **responsabilida
 
 ## 🎯 Diferenças Críticas: CSS vs. JavaScript
 
-| Aspecto | CSS | JavaScript |
-|---------|-----|------------|
-| **Erro** | Visual (não quebra) | Fatal (quebra tudo) |
-| **Ordem** | Pode variar | **CRÍTICA** - ordem importa |
-| **Dependências** | Independente | **Altamente acoplado** |
-| **Teste** | Visual imediato | Precisa rodar código |
-| **Rollback** | Fácil | Complexo |
-| **Risco** | Baixo | **ALTO** |
+| Aspecto                 | CSS                  | JavaScript                         |
+| ----------------------- | -------------------- | ---------------------------------- |
+| **Erro**          | Visual (não quebra) | Fatal (quebra tudo)                |
+| **Ordem**         | Pode variar          | **CRÍTICA** - ordem importa |
+| **Dependências** | Independente         | **Altamente acoplado**       |
+| **Teste**         | Visual imediato      | Precisa rodar código              |
+| **Rollback**      | Fácil               | Complexo                           |
+| **Risco**         | Baixo                | **ALTO**                     |
 
 **CONCLUSÃO**: JavaScript precisa de **estratégia de migração gradual** com testes em cada etapa.
 
@@ -158,6 +159,7 @@ js/
 ### **1-core/data-flow/ - Fluxo de Dados**
 
 #### **DataLoader.js** - Carregamento
+
 ```javascript
 /**
  * Responsabilidade: Carregar dados de diferentes fontes
@@ -189,6 +191,7 @@ class DataLoader {
 ```
 
 #### **DataParser.js** - Parsing
+
 ```javascript
 /**
  * Responsabilidade: Converter raw data → structured data
@@ -220,6 +223,7 @@ class DataParser {
 ```
 
 #### **DataTransformer.js** - Transformação
+
 ```javascript
 /**
  * Responsabilidade: Enriquecer dados com cálculos
@@ -272,6 +276,7 @@ class DataTransformer {
 ```
 
 #### **DataFilter.js** - Filtragem
+
 ```javascript
 /**
  * Responsabilidade: Filtrar dados com múltiplos critérios
@@ -315,6 +320,7 @@ class DataFilter {
 ```
 
 #### **DataAggregator.js** - Agregação
+
 ```javascript
 /**
  * Responsabilidade: Agregar dados para estatísticas
@@ -357,6 +363,7 @@ class DataAggregator {
 ### **3-managers/state/ - Gerenciamento de Estado**
 
 #### **DataStateManager.js** - Estado Global dos Dados
+
 ```javascript
 /**
  * Responsabilidade: Single source of truth para dados
@@ -402,6 +409,7 @@ window.dataStateManager = new DataStateManager();
 ```
 
 #### **FilterStateManager.js** - Estado dos Filtros
+
 ```javascript
 /**
  * Responsabilidade: Gerenciar filtros ativos
@@ -458,6 +466,7 @@ window.filterStateManager = new FilterStateManager();
 ### **5-app/ - Aplicação Principal**
 
 #### **App.js** - Controller Principal
+
 ```javascript
 /**
  * Responsabilidade: Orquestrador principal da aplicação
@@ -599,6 +608,7 @@ document.addEventListener('DOMContentLoaded', () => {
 **Objetivo:** Criar estrutura sem tocar no código existente
 
 **Passos:**
+
 1. Criar estrutura de pastas vazia
 2. Copiar (não mover) arquivos existentes para `legacy/`
 3. Criar arquivos novos vazios com comentários de TODOs
@@ -608,6 +618,7 @@ document.addEventListener('DOMContentLoaded', () => {
 **Risco:** 🟢 Zero (não modificamos código)
 
 **Checklist:**
+
 - [ ] Criar pastas: `1-core/`, `2-services/`, `3-managers/`, `4-pages/`, `5-app/`, `legacy/`
 - [ ] Copiar `dashboard.js` → `legacy/dashboard.js` (backup)
 - [ ] Criar arquivos vazios com TODOs
@@ -620,11 +631,13 @@ document.addEventListener('DOMContentLoaded', () => {
 **Objetivo:** Migrar funções puras sem dependências
 
 **Ordem:**
+
 1. `DateUtils.js` - Funções de data (já existe)
 2. `FormatUtils.js` - Formatação (já existe)
 3. `ValidationUtils.js` - Validação (já existe)
 
 **Estratégia:**
+
 ```javascript
 // 1-core/utilities/DateUtils.js (NOVO)
 class DateUtils {
@@ -645,6 +658,7 @@ if (typeof DateUtils !== 'undefined') {
 ```
 
 **Teste:**
+
 ```javascript
 // No console do navegador
 console.log(DateUtils.parseBrazilianDate('jan/2025')); // Deve funcionar
@@ -652,6 +666,7 @@ console.log(window.parseBrazilianDate('jan/2025'));    // Deve funcionar (bridge
 ```
 
 **Checklist:**
+
 - [ ] Migrar `DateUtils.js`
 - [ ] Criar bridge de compatibilidade
 - [ ] Testar todas as funções
@@ -668,6 +683,7 @@ console.log(window.parseBrazilianDate('jan/2025'));    // Deve funcionar (bridge
 **Objetivo:** Isolar cálculos de aposentadoria, licenças e urgência
 
 **Ordem:**
+
 1. `AposentadoriaAnalyzer.js` - Já existe em `core/`
 2. `LicencaCalculator.js` - Já existe em `core/`
 3. `UrgencyAnalyzer.js` - Já existe em `core/`
@@ -675,6 +691,7 @@ console.log(window.parseBrazilianDate('jan/2025'));    // Deve funcionar (bridge
 **Esses já estão isolados!** ✅
 
 **Teste:**
+
 ```javascript
 // Testar que continuam funcionando
 const servidor = { idade: 45, sexo: 'F', dataAdmissao: new Date('2000-01-01') };
@@ -683,6 +700,7 @@ console.log(resultado); // Deve retornar objeto correto
 ```
 
 **Checklist:**
+
 - [ ] Verificar que `AposentadoriaAnalyzer` funciona isoladamente
 - [ ] Verificar que `LicencaCalculator` funciona isoladamente
 - [ ] Verificar que `UrgencyAnalyzer` funciona isoladamente
@@ -738,6 +756,7 @@ class DashboardMultiPage {
 ```
 
 **Teste:**
+
 ```javascript
 // Código antigo continua funcionando
 dashboard.allServidores = [/* dados */];
@@ -750,6 +769,7 @@ console.log(dashboard.allServidores === dashboard.dataStateManager.getAllServido
 ```
 
 **Checklist:**
+
 - [ ] Criar `DataStateManager` como wrapper
 - [ ] Criar `FilterStateManager` como wrapper
 - [ ] Testar que código antigo continua funcionando
@@ -808,6 +828,7 @@ class DashboardMultiPage {
 ```
 
 **Teste A/B:**
+
 ```javascript
 // Testar pipeline antigo
 window.USE_NEW_PIPELINE = false;
@@ -826,6 +847,7 @@ console.log('Resultados idênticos?',
 ```
 
 **Checklist:**
+
 - [ ] Criar `DataLoader.js`
 - [ ] Criar `DataParser.js` (copiar de cronogramaParser)
 - [ ] Criar `DataTransformer.js`
@@ -869,6 +891,7 @@ class TableManager {
 ```
 
 **Checklist:**
+
 - [ ] Refatorar `TableManager` para usar DataStateManager
 - [ ] Refatorar `ChartManager` para usar DataStateManager
 - [ ] Adicionar auto-subscribe em ambos
@@ -911,6 +934,7 @@ window.dashboard.init();
 ```
 
 **Teste:**
+
 ```javascript
 // Ambos devem coexistir
 console.log(window.app);       // App instance
@@ -919,6 +943,7 @@ console.log(window.app.dataStateManager === window.dashboard.dataStateManager); 
 ```
 
 **Checklist:**
+
 - [ ] Criar `App.js` básico
 - [ ] Fazer App e Dashboard compartilharem managers
 - [ ] Testar que ambos funcionam simultaneamente
@@ -955,12 +980,14 @@ document.addEventListener('DOMContentLoaded', () => {
 ```
 
 **Testes extensivos:**
+
 1. Testar TODAS as funcionalidades com `USE_NEW_APP = false`
 2. Testar TODAS as funcionalidades com `USE_NEW_APP = true`
 3. Comparar resultados
 4. Validar que não há regressões
 
 **Checklist:**
+
 - [ ] Adicionar feature flag
 - [ ] Testar com app antigo (baseline)
 - [ ] Testar com app novo
@@ -984,11 +1011,13 @@ document.addEventListener('DOMContentLoaded', () => {
 **Objetivo:** Remover código legado após validação completa
 
 **SOMENTE APÓS:**
+
 - ✅ 2 semanas de uso em produção sem problemas
 - ✅ Todos os testes passando
 - ✅ Validação de usuários
 
 **Checklist:**
+
 - [ ] Mover `dashboard.js` para `legacy/` (não deletar)
 - [ ] Remover feature flags
 - [ ] Limpar bridges de compatibilidade
@@ -1183,6 +1212,7 @@ App (depende de tudo)
 **Passos:**
 
 1. **Atualizar FilterStateManager:**
+
 ```javascript
 // 3-managers/state/FilterStateManager.js
 this._activeFilters = {
@@ -1192,6 +1222,7 @@ this._activeFilters = {
 ```
 
 2. **Atualizar DataFilter:**
+
 ```javascript
 // 1-core/data-flow/DataFilter.js
 static filterBySubsecretaria(data, subsecretarias) {
@@ -1201,6 +1232,7 @@ static filterBySubsecretaria(data, subsecretarias) {
 ```
 
 3. **Atualizar UI:**
+
 ```javascript
 // HTML - adicionar checkboxes
 // JS - conectar ao FilterStateManager
@@ -1216,6 +1248,7 @@ document.querySelector('#filter-subsec-x').addEventListener('change', (e) => {
 ```
 
 4. **Testar:**
+
 - Selecionar filtro
 - Verificar que dados são filtrados
 - Verificar que tabela atualiza
@@ -1230,6 +1263,7 @@ document.querySelector('#filter-subsec-x').addEventListener('change', (e) => {
 **Passos:**
 
 1. **Criar controller:**
+
 ```javascript
 // 4-pages/ImpactPage.js
 class ImpactPage {
@@ -1251,6 +1285,7 @@ class ImpactPage {
 ```
 
 2. **Adicionar HTML:**
+
 ```html
 <div id="impactPage" class="page-content">
     <h1>Impacto Operacional</h1>
@@ -1259,6 +1294,7 @@ class ImpactPage {
 ```
 
 3. **Adicionar roteamento:**
+
 ```javascript
 // 5-app/Router.js
 this.routes['impact'] = () => {
@@ -1267,6 +1303,7 @@ this.routes['impact'] = () => {
 ```
 
 4. **Adicionar link na sidebar:**
+
 ```html
 <a href="#" class="nav-link" data-page="impact">
     <i class="bi bi-bar-chart"></i>
@@ -1337,12 +1374,14 @@ window.DEBUG = {
 ## 📊 Checklist Geral de Migração
 
 ### **Antes de Começar**
+
 - [ ] Criar branch de feature
 - [ ] Fazer backup completo do código
 - [ ] Documentar estado atual
 - [ ] Definir critérios de sucesso
 
 ### **Durante Migração**
+
 - [ ] Seguir ordem das fases
 - [ ] Testar CADA passo
 - [ ] Fazer commits pequenos
@@ -1350,6 +1389,7 @@ window.DEBUG = {
 - [ ] Documentar mudanças
 
 ### **Validação**
+
 - [ ] Todos os testes passando
 - [ ] Upload de arquivo funciona
 - [ ] Parsing correto
@@ -1362,6 +1402,7 @@ window.DEBUG = {
 - [ ] Funciona em todos os navegadores
 
 ### **Deploy**
+
 - [ ] Code review completo
 - [ ] Testes em staging
 - [ ] Validação com usuários
@@ -1372,17 +1413,17 @@ window.DEBUG = {
 
 ## 🎯 Estimativa de Tempo Total
 
-| Fase | Duração | Risco | Prioridade |
-|------|---------|-------|------------|
-| 1. Preparação | 30 min | 🟢 Zero | Alta |
-| 2. Utilitários | 2-3 horas | 🟡 Baixo | Média |
-| 3. Lógica Negócio | 1 hora | 🟢 Zero | Alta |
-| 4. Estado | 3-4 horas | 🟡 Médio | Alta |
-| 5. Carregamento | 1-2 dias | 🔴 Alto | **CRÍTICA** |
-| 6. Renderização | 4-6 horas | 🟡 Médio | Alta |
-| 7. App.js | 2-3 horas | 🟡 Médio | Alta |
-| 8. Switchover | 2-3 dias | 🔴 Crítico | **CRÍTICA** |
-| 9. Limpeza | 1 dia | 🟡 Médio | Baixa |
+| Fase                | Duração | Risco       | Prioridade         |
+| ------------------- | --------- | ----------- | ------------------ |
+| 1. Preparação     | 30 min    | 🟢 Zero     | Alta               |
+| 2. Utilitários     | 2-3 horas | 🟡 Baixo    | Média             |
+| 3. Lógica Negócio | 1 hora    | 🟢 Zero     | Alta               |
+| 4. Estado           | 3-4 horas | 🟡 Médio   | Alta               |
+| 5. Carregamento     | 1-2 dias  | 🔴 Alto     | **CRÍTICA** |
+| 6. Renderização   | 4-6 horas | 🟡 Médio   | Alta               |
+| 7. App.js           | 2-3 horas | 🟡 Médio   | Alta               |
+| 8. Switchover       | 2-3 dias  | 🔴 Crítico | **CRÍTICA** |
+| 9. Limpeza          | 1 dia     | 🟡 Médio   | Baixa              |
 
 **TOTAL:** 1-2 semanas de trabalho (com testes extensivos)
 

@@ -10,6 +10,7 @@
 /* Container principal */
 .container {
     padding: 1rem !important; /* Reduzido padding geral */
+    background: var(--card-bg, var(--bg-primary)) !important;
 }
 
 /* Sections e cards */

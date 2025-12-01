@@ -15,7 +15,7 @@
     --gradient-microsoft: linear-gradient(135deg, #00A4EF 0%, #0078D4 100%);
 
     /* Glassmorphism */
-    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-bg: var(--card-bg, var(--bg-primary));
     --glass-border: rgba(255, 255, 255, 0.18);
 
     /* Sombras modernas */

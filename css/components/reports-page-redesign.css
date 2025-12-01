@@ -10,13 +10,18 @@
    1. CONTAINER PRINCIPAL - Grid 2 Colunas
    ============================================================================ */
 
+
 .reports-container-redesign {
   display: grid;
   grid-template-columns: 380px 1fr;
-  gap: 20px;
-  padding: 20px;
+  gap: var(--gap-lg, 20px);
+  padding: var(--spacing-5, 20px);
   height: calc(100vh - 80px);
   overflow: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary, #0f172a);
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--border, #e2e8f0);
 }
 
 /* ============================================================================
@@ -26,14 +31,15 @@
 .reports-config-redesign {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 12px;
-  padding: 20px;
+  gap: var(--gap-sm, 12px);
+  background: var(--card-bg, var(--bg-primary));
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-lg, 12px);
+  padding: var(--spacing-5, 20px);
   overflow-y: auto;
   height: 100%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-sm, 0 1px 2px 0 rgb(0 0 0 / 0.08));
+  color: var(--text-primary, #0f172a);
 }
 
 /* Custom scrollbar para o painel de config */
@@ -65,33 +71,33 @@
   gap: 12px;
   padding: 14px 16px;
   background: linear-gradient(135deg,
-    rgba(59, 130, 246, 0.08) 0%,
-    rgba(37, 99, 235, 0.04) 100%
+    var(--primary-hover, #3b82f6) 0%,
+    var(--primary, #2563eb) 100%
   );
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 10px;
-  transition: all 0.2s ease;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.08);
+  border: 1px solid var(--primary, #2563eb);
+  border-radius: var(--radius-md, 8px);
+  transition: all var(--duration-normal, 250ms) var(--ease-in-out, ease);
+  margin-bottom: var(--spacing-5, 20px);
+  box-shadow: var(--shadow-sm, 0 1px 2px 0 rgb(0 0 0 / 0.08));
 }
 
 #reportsPage .filter-notice:hover {
   background: linear-gradient(135deg,
-    rgba(59, 130, 246, 0.1) 0%,
-    rgba(37, 99, 235, 0.05) 100%
+    var(--primary-hover, #3b82f6) 0%,
+    var(--primary, #2563eb) 100%
   );
-  box-shadow: 0 3px 8px rgba(59, 130, 246, 0.12);
+  box-shadow: var(--shadow, 0 1px 3px 0 rgb(0 0 0 / 0.12), 0 1px 2px -1px rgb(0 0 0 / 0.12));
 }
 
 #reportsPage .filter-notice-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: rgba(59, 130, 246, 1);
-  border-radius: 8px;
-  color: white;
+  width: var(--size-icon-xl, 32px);
+  height: var(--size-icon-xl, 32px);
+  background: var(--bg-secondary, #1e293b);
+  border-radius: var(--radius-md, 8px);
+  color: var(--text-inverse, #ffffff);
   font-size: 18px;
   flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
@@ -141,13 +147,14 @@
 #reportsPage .config-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px;
-  margin-bottom: 16px;
-  background: rgba(59, 130, 246, 0.02);
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  gap: var(--gap-md, 16px);
+  padding: var(--spacing-4, 16px);
+  margin-bottom: var(--spacing-4, 16px);
+  background: var(--card-bg, var(--bg-primary));
+  border: 1px solid var(--border, #374151);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow, 0 1px 3px 0 rgb(0 0 0 / 0.12), 0 1px 2px -1px rgb(0 0 0 / 0.12));
+  color: var(--text-primary, #f9fafb);
 }
 
 #reportsPage .config-section:last-child {
@@ -156,8 +163,8 @@
 
 /* Seção compacta (título do relatório) */
 #reportsPage .config-section-compact {
-  margin-bottom: 12px;
-  padding: 12px 16px;
+  margin-bottom: var(--spacing-3, 12px);
+  padding: var(--spacing-3, 12px) var(--spacing-4, 16px);
 }
 
 #reportsPage .config-section-compact::after {
@@ -171,9 +178,9 @@
   height: 1px;
   background: linear-gradient(90deg,
     transparent 0%,
-    var(--border-color, #e5e7eb) 50%,
+    var(--border, #e2e8f0) 50%,
     transparent 100%);
-  margin-top: 12px;
+  margin-top: var(--spacing-3, 12px);
 }
 
 #reportsPage .config-section:last-child::after {
@@ -187,20 +194,18 @@
 #reportsPage .section-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 12px 0;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--text-primary, #111827);
+  gap: var(--gap-xs, 8px);
+  margin: 0 0 var(--spacing-3, 12px) 0;
+  font-size: var(--font-size-lg, 1rem);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--text-primary, #0f172a);
   text-transform: none;
   letter-spacing: 0;
   line-height: 1.3;
 }
 
 #reportsPage .section-title i {
-  font-size: 1.125rem;
-  color: var(--primary-color, #3b82f6);
-  flex-shrink: 0;
+  font-size: var(--font-size-xl, 1.125rem);
 }
 
 /* ============================================================================
@@ -226,16 +231,16 @@
    ============================================================================ */
 
 #reportsPage .license-view-toggle-container {
-  margin-bottom: 16px;
-  padding: 14px 16px;
+  margin-bottom: var(--spacing-4, 16px);
+  padding: var(--spacing-3, 12px) var(--spacing-4, 16px);
 }
 
 #reportsPage .license-view-toggle-container .toggle-header {
-  margin-bottom: 10px;
+  margin-bottom: var(--spacing-2, 8px);
 }
 
 #reportsPage .license-view-toggle-container .toggle-switch-wrapper {
-  margin-bottom: 10px;
+  margin-bottom: var(--spacing-2, 8px);
 }
 
 /* ============================================================================
@@ -244,33 +249,33 @@
 
 .input-redesign {
   width: 100%;
-  min-height: 38px;
-  padding: 0 12px;
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: var(--text-primary, #1f2937);
-  background: var(--bg-secondary, #f9fafb);
-  border: 1px solid var(--border-color, #d1d5db);
-  border-radius: 8px;
-  transition: all 0.2s ease;
+  min-height: var(--size-input-md, 40px);
+  padding: 0 var(--spacing-3, 12px);
+  font-size: var(--font-size-md, 14px);
+  font-weight: var(--font-weight-normal, 400);
+  color: var(--text-primary, #0f172a);
+  background: #18181b;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  transition: all var(--duration-normal, 250ms) var(--ease-in-out, ease);
   font-family: inherit;
 }
 
 .input-redesign::placeholder {
-  color: var(--text-tertiary, #9ca3af);
+  color: var(--text-tertiary, #64748b);
   opacity: 0.7;
 }
 
 .input-redesign:hover {
-  border-color: rgba(59, 130, 246, 0.5);
+  border-color: var(--primary-hover, #3b82f6);
   background: var(--bg-primary, #ffffff);
 }
 
 .input-redesign:focus {
   outline: none;
-  border-color: rgba(59, 130, 246, 1);
+  border-color: var(--primary, #2563eb);
   background: var(--bg-primary, #ffffff);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 3px var(--primary, #2563eb);
 }
 
 /* ============================================================================
@@ -294,7 +299,7 @@
 }
 
 .btn-select-all:hover {
-  background: rgba(59, 130, 246, 1);
+  background: var(--primary, #2563eb);
   color: white;
   transform: scale(1.05);
 }
@@ -320,20 +325,20 @@
 .column-checkbox {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: var(--bg-secondary, #f9fafb);
-  border: 1px solid var(--border-color, #d1d5db);
-  border-radius: 8px;
+  gap: var(--gap-xs, 8px);
+  padding: var(--spacing-2, 8px) var(--spacing-3, 12px);
+  background: var(--bg-secondary, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--duration-normal, 250ms) var(--ease-in-out, ease);
   user-select: none;
 }
 
 .column-checkbox:hover {
   background: var(--bg-primary, #ffffff);
-  border-color: rgba(59, 130, 246, 0.5);
-  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.1);
+  border-color: var(--primary-hover, #3b82f6);
+  box-shadow: var(--shadow-sm, 0 1px 2px 0 rgb(0 0 0 / 0.08));
 }
 
 .column-checkbox input[type="checkbox"] {
@@ -356,8 +361,8 @@
 }
 
 .column-checkbox input[type="checkbox"]:checked {
-  background: rgba(59, 130, 246, 1);
-  border-color: rgba(59, 130, 246, 1);
+  background: var(--primary, #2563eb);
+  border-color: var(--primary, #2563eb);
 }
 
 .column-checkbox input[type="checkbox"]:checked::after {
@@ -410,13 +415,13 @@
 }
 
 .btn-export-xlsx {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, var(--success, #10b981) 0%, #059669 100%);
   color: white;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  box-shadow: var(--shadow-sm, 0 1px 2px 0 rgb(0 0 0 / 0.08));
 }
 
 .btn-export-xlsx:hover {
-  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+  box-shadow: var(--shadow, 0 1px 3px 0 rgb(0 0 0 / 0.12), 0 1px 2px -1px rgb(0 0 0 / 0.12));
   transform: translateY(-2px);
 }
 
@@ -425,13 +430,13 @@
 }
 
 .btn-export-pdf {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  background: linear-gradient(135deg, var(--danger, #ef4444) 0%, #dc2626 100%);
   color: white;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  box-shadow: var(--shadow-sm, 0 1px 2px 0 rgb(0 0 0 / 0.08));
 }
 
 .btn-export-pdf:hover {
-  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.4);
+  box-shadow: var(--shadow, 0 1px 3px 0 rgb(0 0 0 / 0.12), 0 1px 2px -1px rgb(0 0 0 / 0.12));
   transform: translateY(-2px);
 }
 
@@ -451,12 +456,13 @@
 .reports-preview-redesign {
   display: flex;
   flex-direction: column;
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 12px;
+  background: var(--card-bg, var(--bg-primary));
+  border: 1px solid #232326;
+  border-radius: 8px;
   overflow: hidden;
   height: 100%;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  color: #f8fafc;
 }
 
 /* ============================================================================
@@ -503,7 +509,7 @@
   align-items: center;
   gap: 5px;
   font-size: 0.75rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary, #cbd5e1);
   white-space: nowrap;
 }
 
@@ -516,12 +522,12 @@
   align-items: center;
   gap: 5px;
   padding: 5px 10px;
-  background: rgba(59, 130, 246, 0.08);
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: var(--bg-secondary, #1e293b);
+  border: 1px solid var(--primary, #2563eb);
   border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: rgba(37, 99, 235, 1);
+  color: var(--primary, #2563eb);
   white-space: nowrap;
 }
 
@@ -537,7 +543,7 @@
   flex: 1;
   overflow-y: auto;
   padding: 20px;
-  background: var(--bg-primary, #ffffff);
+  background: var(--card-bg, var(--bg-primary));
 }
 
 .preview-body-redesign::-webkit-scrollbar {
@@ -573,11 +579,8 @@
 }
 
 .preview-table-redesign thead {
-  background: linear-gradient(135deg,
-    rgba(59, 130, 246, 0.08) 0%,
-    rgba(37, 99, 235, 0.04) 100%
-  );
-  position: sticky;
+  background: var(--bg-secondary, #1e293b);
+  border-bottom: 1px solid var(--border, #374151);
   top: 0;
   z-index: 1;
 }
@@ -587,7 +590,7 @@
   text-align: left;
   font-size: 12px;
   font-weight: 700;
-  color: var(--text-primary, #1f2937);
+  color: var(--text-primary, #f9fafb);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 2px solid var(--border-color, #e5e7eb);
@@ -606,7 +609,7 @@
 }
 
 .preview-table-redesign tbody tr:hover {
-  background: rgba(59, 130, 246, 0.03);
+  background: var(--bg-secondary, #1e293b);
 }
 
 .preview-table-redesign tbody tr:last-child td {
@@ -750,8 +753,8 @@
 /* Botões de Ação de Relatório (Principais) */
 .reports-action-buttons {
   display: flex;
-  gap: 12px;
-  margin-top: 20px;
+  gap: var(--gap-sm, 12px);
+  margin-top: var(--spacing-5, 20px);
 }
 
 .btn-report-action {
@@ -759,35 +762,35 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 20px;
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: 8px;
+  gap: var(--gap-xs, 8px);
+  padding: var(--spacing-4, 16px) var(--spacing-5, 20px);
+  font-size: var(--font-size-md, 14px);
+  font-weight: var(--font-weight-semibold, 600);
+  border-radius: var(--radius-md, 8px);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--duration-normal, 250ms) var(--ease-in-out, ease);
   border: none;
-  color: white;
+  color: var(--text-inverse, #ffffff);
   font-family: inherit;
 }
 
 .btn-export-xlsx {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  background: linear-gradient(135deg, var(--success, #10b981) 0%, #059669 100%);
+  box-shadow: var(--shadow-sm, 0 1px 2px 0 rgb(0 0 0 / 0.08));
 }
 
 .btn-export-xlsx:hover {
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  box-shadow: var(--shadow, 0 1px 3px 0 rgb(0 0 0 / 0.12), 0 1px 2px -1px rgb(0 0 0 / 0.12));
   transform: translateY(-2px);
 }
 
 .btn-generate-pdf {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+  background: linear-gradient(135deg, var(--danger, #ef4444) 0%, #dc2626 100%);
+  box-shadow: var(--shadow-sm, 0 1px 2px 0 rgb(0 0 0 / 0.08));
 }
 
 .btn-generate-pdf:hover {
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  box-shadow: var(--shadow, 0 1px 3px 0 rgb(0 0 0 / 0.12), 0 1px 2px -1px rgb(0 0 0 / 0.12));
   transform: translateY(-2px);
 }
 
@@ -950,16 +953,6 @@
    21. DARK MODE
    ============================================================================ */
 
-[data-theme="dark"] .reports-container-redesign {
-  --card-bg: #1f2937;
-  --bg-primary: #111827;
-  --bg-secondary: #374151;
-  --border-color: #4b5563;
-  --text-primary: #f9fafb;
-  --text-secondary: #d1d5db;
-  --text-tertiary: #9ca3af;
-}
-
 [data-theme="dark"] .filter-notice {
   background: linear-gradient(135deg,
     rgba(59, 130, 246, 0.15) 0%,
@@ -976,5 +969,5 @@
 }
 
 [data-theme="dark"] .preview-table-redesign tbody tr:hover {
-  background: rgba(59, 130, 246, 0.08);
+  background: var(--bg-secondary, #1e293b);
 }

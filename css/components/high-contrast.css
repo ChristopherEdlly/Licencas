@@ -48,7 +48,7 @@
    ======================================== */
 
 .high-contrast-mode body {
-    background-color: var(--hc-background) !important;
+    background-color: var(--card-bg, var(--bg-primary)) !important;
     color: var(--hc-text) !important;
 }
 

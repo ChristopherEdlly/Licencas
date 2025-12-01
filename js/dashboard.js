@@ -5659,7 +5659,6 @@ class DashboardMultiPage {
             emptyRow.innerHTML = `
                 <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 1.5rem;">
-                        <img src="img/empty-state-table.svg" alt="Nenhum dado" style="max-width:120px; opacity:0.7; margin-bottom:0.5rem;" onerror="this.style.display='none'">
                         <div>
                             <h4 style="margin: 0; color: var(--text-secondary); font-weight:600;">Nenhum dado carregado</h4>
                             <p style="margin: 0.5rem 0 0 0; font-size: 0.95rem; color:var(--text-secondary);">Faça upload de um arquivo CSV ou Excel para começar</p>
