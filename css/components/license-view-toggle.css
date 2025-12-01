@@ -4,7 +4,7 @@
  */
 
 .license-view-toggle-container {
-    background: var(--card-bg, var(--bg-primary));
+    background: var(--card-bg, #ffffff);
     border: 1px solid var(--border-color, #e5e7eb);
     border-radius: 12px;
     padding: 1rem 1.25rem;

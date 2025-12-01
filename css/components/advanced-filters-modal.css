@@ -348,6 +348,50 @@
   line-height: 1.2;
 }
 
+/* Card especial de filtro (com badge) */
+.filter-type-card-special {
+  position: relative;
+  background: linear-gradient(135deg, var(--bg-secondary), rgba(59, 130, 246, 0.05));
+  border-color: var(--primary);
+}
+
+.filter-type-card-special:hover {
+  background: linear-gradient(135deg, var(--bg-hover), rgba(59, 130, 246, 0.1));
+}
+
+.filter-type-card-special .filter-type-icon {
+  background: linear-gradient(135deg, var(--primary), #6366f1);
+}
+
+.filter-type-card-special .filter-type-icon i {
+  color: white;
+}
+
+.filter-badge-new {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  padding: 2px 8px;
+  background: linear-gradient(135deg, #10b981, #34d399);
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 2px 16px rgba(16, 185, 129, 0.6);
+  }
+}
+
 /* Filter Type Select */
 #filterTypeSelect {
   width: 100%;

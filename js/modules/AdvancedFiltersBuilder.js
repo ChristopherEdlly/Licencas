@@ -14,6 +14,9 @@ class AdvancedFiltersBuilder {
     this.periodoInicioPicker = null;
     this.periodoFimPicker = null;
         
+        // Gerenciador de hierarquia de lotação
+        this.hierarchyManager = window.lotacaoHierarchyManager || new LotacaoHierarchyManager();
+        
         // Valores únicos extraídos dos dados
         this.uniqueValues = {
             cargos: [],
@@ -603,21 +606,71 @@ class AdvancedFiltersBuilder {
     /**
      * Formulário: Lotação
      */
+    /**
+     * Formulário: Lotação (usando hierarquia com filtro em cascata)
+     */
     renderLotacaoForm() {
-        // Verificar se há dados disponíveis
-        if (!this.uniqueValues.lotacoes || this.uniqueValues.lotacoes.length === 0) {
+        // Verificar se há filtros de subsecretaria ou superintendência ativos
+        const subsecretariaFilter = this.filters.find(f => f.type === 'subsecretaria' && f.values && f.values.length > 0);
+        const superintendenciaFilter = this.filters.find(f => f.type === 'superintendencia' && f.values && f.values.length > 0);
+        
+        // Obter lotações (gerências) da hierarquia
+        let lotacoesHierarquia = [];
+        
+        if (superintendenciaFilter && superintendenciaFilter.values.length > 0) {
+            // Filtrar lotações pelas superintendências selecionadas
+            superintendenciaFilter.values.forEach(super_name => {
+                const gerencias = this.hierarchyManager.getGerencias(super_name);
+                lotacoesHierarquia.push(...gerencias);
+            });
+        } else if (subsecretariaFilter && subsecretariaFilter.values.length > 0) {
+            // Filtrar lotações pelas subsecretarias selecionadas
+            subsecretariaFilter.values.forEach(subsec => {
+                const supers = this.hierarchyManager.getSuperintendencias(subsec);
+                supers.forEach(s => {
+                    const gerencias = this.hierarchyManager.getGerencias(s.name);
+                    lotacoesHierarquia.push(...gerencias);
+                });
+            });
+        } else {
+            // Obter todas as gerências
+            lotacoesHierarquia = this.hierarchyManager.getGerencias();
+        }
+        
+        // Combinar com dados únicos existentes
+        const lotacoesSet = new Set();
+        
+        // Adicionar da hierarquia
+        lotacoesHierarquia.forEach(g => lotacoesSet.add(g.name));
+        
+        // Adicionar dos dados únicos extraídos (se não houver filtro de cascata)
+        if (!subsecretariaFilter && !superintendenciaFilter && this.uniqueValues.lotacoes) {
+            this.uniqueValues.lotacoes.forEach(l => {
+                if (l && l !== 'nan') lotacoesSet.add(l);
+            });
+        }
+        
+        const lotacoes = Array.from(lotacoesSet).sort();
+        
+        if (lotacoes.length === 0) {
+            const hasFilter = subsecretariaFilter || superintendenciaFilter;
             return `
                 <div class="filter-popup-empty-state">
                     <div class="filter-popup-empty-state-icon">📭</div>
                     <div class="filter-popup-empty-state-title">Nenhuma lotação disponível</div>
-                    <div class="filter-popup-empty-state-text">Não existem lotações nos dados carregados para aplicar este filtro.</div>
+                    <div class="filter-popup-empty-state-text">
+                        ${hasFilter ? 
+                            'Não existem lotações nos filtros selecionados.' : 
+                            'Não existem lotações nos dados carregados para aplicar este filtro.'
+                        }
+                    </div>
                 </div>
             `;
         }
         
         const dualListHtml = this.createDualListBox(
             'lotacao',
-            this.uniqueValues.lotacoes,
+            lotacoes,
             [],
             'Lotações Disponíveis',
             'Lotações Selecionadas'
@@ -626,9 +679,28 @@ class AdvancedFiltersBuilder {
         // Configurar listeners após renderização
         setTimeout(() => this.setupDualListBoxListeners('lotacao'), 0);
         
+        // Mensagem informativa sobre cascata
+        let cascadeInfo = '';
+        if (superintendenciaFilter) {
+            cascadeInfo = `<div class="alert alert-info py-2 mb-2" style="font-size: 0.85rem;">
+                <i class="bi bi-funnel-fill me-1"></i>
+                Filtrado por superintendência(s): <strong>${superintendenciaFilter.values.length}</strong> selecionada(s)
+            </div>`;
+        } else if (subsecretariaFilter) {
+            cascadeInfo = `<div class="alert alert-info py-2 mb-2" style="font-size: 0.85rem;">
+                <i class="bi bi-funnel-fill me-1"></i>
+                Filtrado por subsecretaria(s): <strong>${subsecretariaFilter.values.length}</strong> selecionada(s)
+            </div>`;
+        } else {
+            cascadeInfo = `<p class="filter-hint text-muted small mb-2">
+                <i class="bi bi-info-circle"></i> Dica: Adicione filtros de Subsecretaria ou Superintendência primeiro para restringir as opções.
+            </p>`;
+        }
+        
         return `
             <div class="form-group">
                 <label>Selecione as Lotações</label>
+                ${cascadeInfo}
                 ${dualListHtml}
             </div>
         `;
@@ -637,21 +709,60 @@ class AdvancedFiltersBuilder {
     /**
      * Formulário: Superintendência
      */
+    /**
+     * Formulário: Superintendência (usando hierarquia com filtro em cascata)
+     */
     renderSuperintendenciaForm() {
-        // Verificar se há dados disponíveis
-        if (!this.uniqueValues.superintendencias || this.uniqueValues.superintendencias.length === 0) {
+        // Verificar se há filtro de subsecretaria ativo para aplicar cascata
+        const subsecretariaFilter = this.filters.find(f => f.type === 'subsecretaria' && f.values && f.values.length > 0);
+        
+        // Obter superintendências da hierarquia
+        let superintendenciasHierarquia = [];
+        
+        if (subsecretariaFilter && subsecretariaFilter.values.length > 0) {
+            // Filtrar superintendências pelas subsecretarias selecionadas
+            subsecretariaFilter.values.forEach(subsec => {
+                const supers = this.hierarchyManager.getSuperintendencias(subsec);
+                superintendenciasHierarquia.push(...supers);
+            });
+        } else {
+            // Obter todas as superintendências
+            superintendenciasHierarquia = this.hierarchyManager.getSuperintendencias();
+        }
+        
+        // Combinar com dados únicos existentes
+        const superintendenciasSet = new Set();
+        
+        // Adicionar da hierarquia
+        superintendenciasHierarquia.forEach(s => superintendenciasSet.add(s.name));
+        
+        // Adicionar dos dados únicos extraídos (se não houver filtro de subsecretaria)
+        if (!subsecretariaFilter && this.uniqueValues.superintendencias) {
+            this.uniqueValues.superintendencias.forEach(s => {
+                if (s && s !== 'nan') superintendenciasSet.add(s);
+            });
+        }
+        
+        const superintendencias = Array.from(superintendenciasSet).sort();
+        
+        if (superintendencias.length === 0) {
             return `
                 <div class="filter-popup-empty-state">
                     <div class="filter-popup-empty-state-icon">📭</div>
                     <div class="filter-popup-empty-state-title">Nenhuma superintendência disponível</div>
-                    <div class="filter-popup-empty-state-text">Não existem superintendências nos dados carregados para aplicar este filtro.</div>
+                    <div class="filter-popup-empty-state-text">
+                        ${subsecretariaFilter ? 
+                            'Não existem superintendências nas subsecretarias selecionadas.' : 
+                            'Não existem superintendências nos dados carregados para aplicar este filtro.'
+                        }
+                    </div>
                 </div>
             `;
         }
         
         const dualListHtml = this.createDualListBox(
             'superintendencia',
-            this.uniqueValues.superintendencias,
+            superintendencias,
             [],
             'Superintendências Disponíveis',
             'Superintendências Selecionadas'
@@ -660,9 +771,20 @@ class AdvancedFiltersBuilder {
         // Configurar listeners após renderização
         setTimeout(() => this.setupDualListBoxListeners('superintendencia'), 0);
         
+        // Mensagem informativa sobre cascata
+        const cascadeInfo = subsecretariaFilter ? 
+            `<div class="alert alert-info py-2 mb-2" style="font-size: 0.85rem;">
+                <i class="bi bi-funnel-fill me-1"></i>
+                Filtrado por subsecretaria(s): <strong>${subsecretariaFilter.values.length}</strong> selecionada(s)
+            </div>` : 
+            `<p class="filter-hint text-muted small mb-2">
+                <i class="bi bi-info-circle"></i> Dica: Adicione um filtro de Subsecretaria primeiro para restringir as opções.
+            </p>`;
+        
         return `
             <div class="form-group">
                 <label>Selecione as Superintendências</label>
+                ${cascadeInfo}
                 ${dualListHtml}
             </div>
         `;
@@ -671,9 +793,29 @@ class AdvancedFiltersBuilder {
     /**
      * Formulário: Subsecretaria
      */
+    /**
+     * Formulário: Subsecretaria (usando hierarquia)
+     */
     renderSubsecretariaForm() {
-        // Verificar se há dados disponíveis
-        if (!this.uniqueValues.subsecretarias || this.uniqueValues.subsecretarias.length === 0) {
+        // Obter subsecretarias da hierarquia
+        const subsecretariasHierarquia = this.hierarchyManager.getSubsecretarias();
+        
+        // Combinar com dados únicos existentes (para garantir que todos os dados apareçam)
+        const subsecretariasSet = new Set();
+        
+        // Adicionar da hierarquia
+        subsecretariasHierarquia.forEach(s => subsecretariasSet.add(s.name));
+        
+        // Adicionar dos dados únicos extraídos
+        if (this.uniqueValues.subsecretarias) {
+            this.uniqueValues.subsecretarias.forEach(s => {
+                if (s && s !== 'nan') subsecretariasSet.add(s);
+            });
+        }
+        
+        const subsecretarias = Array.from(subsecretariasSet).sort();
+        
+        if (subsecretarias.length === 0) {
             return `
                 <div class="filter-popup-empty-state">
                     <div class="filter-popup-empty-state-icon">📭</div>
@@ -685,7 +827,7 @@ class AdvancedFiltersBuilder {
         
         const dualListHtml = this.createDualListBox(
             'subsecretaria',
-            this.uniqueValues.subsecretarias,
+            subsecretarias,
             [],
             'Subsecretarias Disponíveis',
             'Subsecretarias Selecionadas'
@@ -697,6 +839,9 @@ class AdvancedFiltersBuilder {
         return `
             <div class="form-group">
                 <label>Selecione as Subsecretarias</label>
+                <p class="filter-hint text-muted small mb-2">
+                    <i class="bi bi-info-circle"></i> As superintendências e lotações serão filtradas com base nas subsecretarias selecionadas.
+                </p>
                 ${dualListHtml}
             </div>
         `;
@@ -1460,22 +1605,17 @@ class AdvancedFiltersBuilder {
                     : servidor.cargo === filter.value;
                 
             case 'lotacao':
-                // filter.value agora é um array de lotações
-                return Array.isArray(filter.value)
-                    ? filter.value.includes(servidor.lotacao)
-                    : servidor.lotacao === filter.value;
+                // Filtro por gerência/lotação específica
+                // A lotação do servidor pode ser qualquer nível da hierarquia
+                return this.checkHierarchyFilter(servidor, filter.value, 'gerencia');
                 
             case 'superintendencia':
-                // filter.value agora é um array de superintendências
-                return Array.isArray(filter.value)
-                    ? filter.value.includes(servidor.superintendencia)
-                    : servidor.superintendencia === filter.value;
+                // Filtro hierárquico: traz servidores da superintendência E todas suas gerências
+                return this.checkHierarchyFilter(servidor, filter.value, 'superintendencia');
                 
             case 'subsecretaria':
-                // filter.value agora é um array de subsecretarias
-                return Array.isArray(filter.value)
-                    ? filter.value.includes(servidor.subsecretaria)
-                    : servidor.subsecretaria === filter.value;
+                // Filtro hierárquico: traz servidores da subsecretaria E todas superintendências E gerências abaixo
+                return this.checkHierarchyFilter(servidor, filter.value, 'subsecretaria');
                 
             case 'urgencia':
                 // filter.value é array de níveis de urgência
@@ -1563,6 +1703,99 @@ class AdvancedFiltersBuilder {
                 'success'
             );
         }
+    }
+    
+    /**
+     * Verifica se um servidor pertence à hierarquia selecionada
+     * O campo 'lotacao' do servidor pode conter qualquer nível: subsecretaria, superintendência ou gerência
+     * @param {Object} servidor - Objeto do servidor com campo 'lotacao'
+     * @param {Array|string} filterValues - Valores selecionados no filtro
+     * @param {string} filterLevel - Nível do filtro: 'subsecretaria', 'superintendencia' ou 'gerencia'
+     * @returns {boolean} True se o servidor pertence à hierarquia
+     */
+    checkHierarchyFilter(servidor, filterValues, filterLevel) {
+        const values = Array.isArray(filterValues) ? filterValues : [filterValues];
+        const lotacao = servidor.lotacao;
+        
+        if (!lotacao) return false;
+        
+        // Buscar informações hierárquicas da lotação do servidor
+        const lotacaoInfo = this.hierarchyManager.findLotacao(lotacao);
+        
+        // Verificar para cada valor selecionado no filtro
+        return values.some(selectedValue => {
+            if (!selectedValue) return false;
+            
+            const normalizedSelected = selectedValue.toLowerCase().trim();
+            const normalizedLotacao = lotacao.toLowerCase().trim();
+            
+            // 1. Verificação direta: a lotação do servidor corresponde exatamente ao filtro
+            if (normalizedLotacao.includes(normalizedSelected) || normalizedSelected.includes(normalizedLotacao)) {
+                return true;
+            }
+            
+            // 2. Se não encontrou info hierárquica, tenta match por sigla
+            if (!lotacaoInfo) {
+                // Extrai sigla do valor selecionado e da lotação
+                const siglaSelected = this.extractSigla(selectedValue);
+                const siglaLotacao = this.extractSigla(lotacao);
+                return siglaSelected && siglaLotacao && siglaSelected === siglaLotacao;
+            }
+            
+            // 3. Verificação hierárquica baseada no nível do filtro
+            switch (filterLevel) {
+                case 'subsecretaria':
+                    // Filtro de subsecretaria: verificar se a lotação pertence a esta subsecretaria
+                    // (pode ser a própria subsecretaria, uma superintendência ou gerência dentro dela)
+                    if (lotacaoInfo.subsecretaria) {
+                        const normalizedSubsec = lotacaoInfo.subsecretaria.toLowerCase();
+                        if (normalizedSubsec.includes(normalizedSelected) || normalizedSelected.includes(normalizedSubsec)) {
+                            return true;
+                        }
+                    }
+                    break;
+                    
+                case 'superintendencia':
+                    // Filtro de superintendência: verificar se a lotação pertence a esta superintendência
+                    // (pode ser a própria superintendência ou uma gerência dentro dela)
+                    if (lotacaoInfo.superintendencia) {
+                        const normalizedSuper = lotacaoInfo.superintendencia.toLowerCase();
+                        if (normalizedSuper.includes(normalizedSelected) || normalizedSelected.includes(normalizedSuper)) {
+                            return true;
+                        }
+                    }
+                    // Também verifica se a própria lotação é uma superintendência selecionada
+                    if (lotacaoInfo.type === 'superintendencia') {
+                        const normalizedName = lotacaoInfo.name.toLowerCase();
+                        if (normalizedName.includes(normalizedSelected) || normalizedSelected.includes(normalizedName)) {
+                            return true;
+                        }
+                    }
+                    break;
+                    
+                case 'gerencia':
+                    // Filtro de gerência/lotação: verificação direta (já foi feita acima)
+                    // Verifica também pelo nome completo na hierarquia
+                    if (lotacaoInfo.name) {
+                        const normalizedName = lotacaoInfo.name.toLowerCase();
+                        if (normalizedName.includes(normalizedSelected) || normalizedSelected.includes(normalizedName)) {
+                            return true;
+                        }
+                    }
+                    break;
+            }
+            
+            return false;
+        });
+    }
+    
+    /**
+     * Extrai sigla de um nome (ex: "STE - Subsecretaria..." -> "STE")
+     */
+    extractSigla(name) {
+        if (!name) return null;
+        const match = name.match(/^([A-Z0-9/]+)\s*-/);
+        return match ? match[1].trim().toLowerCase() : null;
     }
     
     /**
