@@ -1430,7 +1430,10 @@ class DashboardMultiPage {
             
             // Detectar se é arquivo de LICENÇA PRÊMIO (cronograma)
             const isLicencaPremio = headersStr.includes('inicio de licença') || 
-                                   headersStr.includes('final de licença');
+                                   headersStr.includes('final de licença') ||
+                                   headersStr.includes('aquisitivo_inicio') ||
+                                   headersStr.includes('a_partir') ||
+                                   (headersStr.includes('gozo') && headersStr.includes('restando'));
 
             // Se for notificações, processar como tal e trocar de aba
             if (isNotificacoes) {
@@ -3355,11 +3358,10 @@ class DashboardMultiPage {
                 onClick: (event, elements) => {
                     if (elements.length > 0) {
                         const index = elements[0].index;
-                        const cargo = cargoData.labels[index];
-                        this.filterTableByCargo(cargo, index);
-                    } else {
-                        this.clearCargoFilter();
+                        const cargoName = cargoData.labels[index];
+                        this.filterByCargo(cargoName, index);
                     }
+                    // Não chama clearCargoFilter ao clicar em área vazia para evitar comportamento indesejado
                 },
                 onHover: (event, elements) => {
                     event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
@@ -4784,17 +4786,18 @@ class DashboardMultiPage {
         }
     }
 
-    // Função para filtrar por cargo nas tabelas de licenças prêmio
-    highlightCargo(cargoKey) {
-        // Para licenças prêmio, procurar por data-cargo ao invés de data-urgency
-        const cargoElement = document.querySelector(`[data-cargo="${cargoKey}"]`);
-        if (!cargoElement) return;
-
-        // Obter o nome real do cargo do elemento
-        const cargoName = cargoElement.querySelector('.legend-label')?.textContent?.trim();
+    /**
+     * Filtra a tabela por cargo (usado pelo gráfico e legenda)
+     * @param {string} cargoName - Nome do cargo
+     * @param {number} index - Índice do cargo no gráfico (para highlight visual)
+     */
+    filterByCargo(cargoName, index) {
         if (!cargoName) return;
-
-        // Integração completa com o sistema de filtros avançados
+        
+        // Encontrar o card da legenda correspondente
+        const cargoElement = document.querySelector(`[data-cargo="${cargoName}"]`);
+        
+        // Integração com o sistema de filtros avançados
         if (this.advancedFiltersBuilder) {
             // Verificar se já existe filtro de cargo com este valor (toggle)
             const existingFilter = this.advancedFiltersBuilder.filters.find(
@@ -4817,8 +4820,10 @@ class DashboardMultiPage {
                 // Remover destaque de todos os cards
                 document.querySelectorAll('.legend-card').forEach(card => card.classList.remove('active'));
                 
-                // Destacar o card clicado
-                cargoElement.classList.add('active');
+                // Destacar o card clicado (se existir)
+                if (cargoElement) {
+                    cargoElement.classList.add('active');
+                }
                 
                 // Remover todos os filtros de cargo existentes
                 this.advancedFiltersBuilder.filters = this.advancedFiltersBuilder.filters.filter(f => f.type !== 'cargo');
@@ -4826,6 +4831,16 @@ class DashboardMultiPage {
                 // Adicionar o novo filtro de cargo ao builder
                 this.advancedFiltersBuilder.addFilterProgrammatically('cargo', cargoName);
             }
+        }
+    }
+
+    // Função legada para compatibilidade
+    highlightCargo(cargoKey) {
+        // Tentar encontrar o elemento e extrair o nome do cargo
+        const cargoElement = document.querySelector(`[data-cargo="${cargoKey}"]`);
+        if (cargoElement) {
+            const cargoName = cargoElement.querySelector('.legend-label')?.textContent?.trim() || cargoKey;
+            this.filterByCargo(cargoName, -1);
         }
     }
 
@@ -4945,19 +4960,20 @@ class DashboardMultiPage {
     // MÉTODOS DESCONTINUADOS - Agora usa highlightCargo() com AdvancedFiltersBuilder
     filterTableByCargo(cargo, chartIndex) {
         console.warn('⚠️ filterTableByCargo está descontinuado. Use highlightCargo() ao invés.');
-        // Redirecionar para o novo sistema
-        if (cargo) {
-            this.highlightCargo(cargo);
+        // Redirecionar para o novo sistema usando chartIndex para encontrar o legend card correto
+        if (cargo && chartIndex !== undefined) {
+            const cargoKey = `cargo-${chartIndex}`;
+            this.highlightCargo(cargoKey);
         }
     }
 
     clearCargoFilter() {
         console.warn('⚠️ clearCargoFilter está descontinuado.');
-        // Limpar filtros usando o novo sistema
+        // Limpar filtros usando o novo sistema (SILENCIOSO - sem toast)
         if (this.advancedFiltersBuilder) {
             this.advancedFiltersBuilder.filters = this.advancedFiltersBuilder.filters.filter(f => f.type !== 'cargo');
             this.advancedFiltersBuilder.renderActiveFilters();
-            this.advancedFiltersBuilder.applyFilters();
+            this.advancedFiltersBuilder.applyFilters(true); // silent = true
         }
         
         // Clear legend active states
@@ -5635,7 +5651,7 @@ class DashboardMultiPage {
             `;
 
             legendCard.addEventListener('click', () => {
-                this.filterTableByCargo(cargo, index);
+                this.filterByCargo(cargo, index);
             });
 
             legendContainer.appendChild(legendCard);
@@ -5796,11 +5812,31 @@ class DashboardMultiPage {
             const periodoLicencaCompleto = formatarPeriodoLicenca(servidor);
 
             if (isLicencaPremio) {
+                // Calcular saldo de licenças - buscar TODOS os registros do mesmo servidor
+                const todosRegistrosServidor = this.allServidores.filter(s => s.nome === servidor.nome);
+                const saldoInfo = this.calcularSaldoServidorCompleto(todosRegistrosServidor);
+                
+                // Debug - mostrar primeiro servidor
+                if (servidor.nome === this.filteredServidores[0]?.nome) {
+                    console.log('🔍 Debug Saldo:', {
+                        nome: servidor.nome,
+                        totalRegistros: todosRegistrosServidor.length,
+                        saldoInfo,
+                        primeiroRegistro: todosRegistrosServidor[0],
+                        temLicencas: todosRegistrosServidor[0]?.licencas?.length,
+                        temDadosOriginais: !!todosRegistrosServidor[0]?.dadosOriginais
+                    });
+                }
+                
+                const saldoClass = saldoInfo.dias > 0 ? 'saldo-positivo' : 'saldo-zerado';
+                const saldoTexto = saldoInfo.dias > 0 ? `${saldoInfo.dias} dias` : '0';
+                
                 // Formato para tabela de licenças prêmio
                 row.innerHTML = `
                     <td><strong>${nomeEscapado}</strong></td>
                     <td><span class="cargo-badge">${cargoEscapado}</span></td>
                     <td>${periodoLicencaCompleto}</td>
+                    <td><span class="saldo-badge ${saldoClass}">${saldoTexto}</span></td>
                     <td class="actions">
                         <button class="btn-icon" data-servidor-nome="${nomeEscapado}" title="Ver detalhes">
                             <i class="bi bi-eye"></i>
@@ -5808,20 +5844,24 @@ class DashboardMultiPage {
                     </td>
                 `;
             } else {
-                // Formato para tabela original
+                // Formato para tabela original - usar visibilidade de colunas
                 const nivelUrgencia = servidor.nivelUrgencia || '';
-                row.innerHTML = `
-                    <td><strong>${nomeEscapado}</strong></td>
-                    <td>${servidor.idade}</td>
-                    <td><span class="lotacao-badge">${lotacaoEscapada}</span></td>
-                    <td>${periodoLicencaCompleto}</td>
-                    <td><span class="urgency-badge urgency-${nivelUrgencia.toLowerCase()}">${nivelUrgencia || '--'}</span></td>
-                    <td class="actions">
+                const showIdade = this._columnVisibility?.idade !== false;
+                const showUrgencia = this._columnVisibility?.urgencia !== false;
+                
+                let rowHtml = `<td><strong>${nomeEscapado}</strong></td>`;
+                rowHtml += `<td><span class="cargo-badge">${cargoEscapado}</span></td>`;
+                if (showIdade) rowHtml += `<td>${servidor.idade || '--'}</td>`;
+                rowHtml += `<td><span class="lotacao-badge">${lotacaoEscapada}</span></td>`;
+                rowHtml += `<td>${periodoLicencaCompleto}</td>`;
+                if (showUrgencia) rowHtml += `<td><span class="urgency-badge urgency-${nivelUrgencia.toLowerCase()}">${nivelUrgencia || '--'}</span></td>`;
+                rowHtml += `<td class="actions">
                         <button class="btn-icon" data-servidor-nome="${nomeEscapado}" title="Ver detalhes">
                             <i class="bi bi-eye"></i>
                         </button>
-                    </td>
-                `;
+                    </td>`;
+                
+                row.innerHTML = rowHtml;
             }
 
             tbody.appendChild(row);
@@ -5880,22 +5920,35 @@ class DashboardMultiPage {
         const tableHead = document.querySelector('#servidoresTable thead tr');
         if (!tableHead) return;
 
+        // Detectar colunas com dados disponíveis
+        const hasIdade = this.allServidores.some(s => s.idade && s.idade !== '--' && s.idade !== '' && s.idade !== null && s.idade !== undefined);
+        const hasUrgencia = this.allServidores.some(s => s.nivelUrgencia && s.nivelUrgencia !== '--' && s.nivelUrgencia !== '' && s.nivelUrgencia !== null);
+        
+        // Guardar estado das colunas disponíveis
+        this._columnVisibility = {
+            idade: hasIdade,
+            urgencia: hasUrgencia
+        };
+
         if (isLicencaPremio) {
             tableHead.innerHTML = `
                 <th>Nome</th>
                 <th>Cargo</th>
                 <th>Período de Licença</th>
+                <th>Saldo</th>
                 <th>Ações</th>
             `;
         } else {
-            tableHead.innerHTML = `
-                <th>Nome</th>
-                <th>Idade</th>
-                <th>Lotação</th>
-                <th>Próxima Licença</th>
-                <th>Urgência</th>
-                <th>Ações</th>
-            `;
+            // Construir headers dinamicamente baseado nos dados disponíveis
+            let headers = '<th>Nome</th>';
+            headers += '<th>Cargo</th>';
+            if (hasIdade) headers += '<th>Idade</th>';
+            headers += '<th>Lotação</th>';
+            headers += '<th>Próxima Licença</th>';
+            if (hasUrgencia) headers += '<th>Urgência</th>';
+            headers += '<th>Ações</th>';
+            
+            tableHead.innerHTML = headers;
         }
 
         // Inicializar headers ordenáveis com TableSortManager
@@ -6074,6 +6127,35 @@ class DashboardMultiPage {
     }
 
     showServidorDetails(nomeServidor) {
+        // Helper para formatar valores automaticamente (detecta datas)
+        const formatarValor = (value) => {
+            if (!value) return '';
+            const str = String(value);
+            
+            // Se já é objeto Date
+            if (value instanceof Date && !isNaN(value)) {
+                return this.formatDateBR(value);
+            }
+            
+            // Detectar formato ISO ou timestamp: YYYY-MM-DD HH:MM:SS ou YYYY-MM-DDTHH:MM:SS
+            const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})[\sT](\d{2}):(\d{2}):(\d{2})/);
+            if (isoMatch) {
+                const [, year, month, day] = isoMatch;
+                return `${day}/${month}/${year}`;
+            }
+            
+            // Detectar formato Date.toString(): "Thu Jul 14 2022 00:00:00 GMT..."
+            const dateToStringMatch = str.match(/^[A-Z][a-z]{2}\s+([A-Z][a-z]{2})\s+(\d{1,2})\s+(\d{4})/);
+            if (dateToStringMatch) {
+                const monthsMap = { Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06', Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12' };
+                const [, monthStr, day, year] = dateToStringMatch;
+                const month = monthsMap[monthStr] || '01';
+                return `${day.padStart(2, '0')}/${month}/${year}`;
+            }
+            
+            return str;
+        };
+
         // Mostrar cada registro da planilha como uma entrada independente, sem agrupar por nome
         const servidoresComMesmoNome = this.allServidores.filter(s => s.nome === nomeServidor);
         if (!servidoresComMesmoNome || servidoresComMesmoNome.length === 0) return;
@@ -6098,13 +6180,15 @@ class DashboardMultiPage {
 
         // Registros da Planilha (consolidar informações únicas)
         let originalDataContent = '<div class="planilha-summary">';
+        
+        // Guardar quantidade de períodos para usar depois
+        const numPeriodos = servidor.licencas.length;
 
         if (servidor.todosOsDadosOriginais && servidor.todosOsDadosOriginais.length > 0) {
             // Consolidar campos não pessoais extraídos da planilha
 
             // Consolidar informações únicas e períodos
             const dadosConsolidados = new Map();
-            const periodos = [];
 
             // Helper: normalize month/year text from CSV to canonical Portuguese capitalization
             const normalizeMonthYearText = (txt) => {
@@ -6192,18 +6276,27 @@ class DashboardMultiPage {
                 });
 
                 // Coletar períodos (incluir duplicates para que o modal mostre registros iguais)
-                const inicioRaw = dados['INICIO DE LICENÇA PREMIO'] || dados['INICIO DE LICENCA PREMIO'] || dados['INICIO'] || '';
-                const finalRaw = dados['FINAL DE LICENÇA PREMIO'] || dados['FINAL DE LICENCA PREMIO'] || dados['FINAL'] || '';
-                if (inicioRaw && finalRaw) {
-                    const inicio = normalizeMonthYearText(inicioRaw);
-                    const final = normalizeMonthYearText(finalRaw);
-                    const periodoStr = `${inicio} - ${final}`;
-                    periodos.push(periodoStr);
-                }
+                // Procurar por vários nomes possíveis de campos de início
+                let inicioRaw = '';
+                let finalRaw = '';
+                
+                Object.entries(dados).forEach(([key, value]) => {
+                    const keyUpper = key.toUpperCase();
+                    if (!inicioRaw && value) {
+                        if (keyUpper.includes('INICIO') || keyUpper.includes('A_PARTIR') || keyUpper === 'DE') {
+                            inicioRaw = value;
+                        }
+                    }
+                    if (!finalRaw && value) {
+                        if (keyUpper.includes('FINAL') || keyUpper.includes('FIM') || keyUpper.includes('TERMINO') || keyUpper === 'ATE') {
+                            finalRaw = value;
+                        }
+                    }
+                });
             });
 
             // Mostrar apenas se houver dados relevantes
-            if (dadosConsolidados.size > 0 || periodos.length > 0) {
+            if (dadosConsolidados.size > 0) {
                 // Analisar quais campos variam entre registros
                 const camposPorRegistro = [];
                 servidor.todosOsDadosOriginais.forEach((dados) => {
@@ -6253,7 +6346,7 @@ class DashboardMultiPage {
                     originalDataContent += `
                         <div class="info-item">
                             <span class="info-label">${this.escapeHtml(key)}</span>
-                            <span class="info-value">${this.escapeHtml(String(value))}</span>
+                            <span class="info-value">${this.escapeHtml(formatarValor(value))}</span>
                         </div>
                     `;
                 });
@@ -6296,7 +6389,7 @@ class DashboardMultiPage {
                         // Agrupar valores iguais com seus índices
                         const valoresAgrupados = new Map();
                         valores.forEach((val, idx) => {
-                            const valStr = String(val);
+                            const valStr = formatarValor(val);
                             if (!valoresAgrupados.has(valStr)) {
                                 valoresAgrupados.set(valStr, []);
                             }
@@ -6330,7 +6423,7 @@ class DashboardMultiPage {
                             periodosHTML += `
                                 <div class="periodo-badge">
                                     <span class="periodo-registro">Registro ${registroNum}</span>
-                                    <span class="periodo-data">${this.escapeHtml(String(valorInicio))}</span>
+                                    <span class="periodo-data">${this.escapeHtml(formatarValor(valorInicio))}</span>
                                     <span class="periodo-duracao">${mesesTexto}</span>
                                 </div>
                             `;
@@ -6347,24 +6440,69 @@ class DashboardMultiPage {
                 }
                 
                 originalDataContent += '</div>';
-
-                // Mostrar períodos solicitados de forma compacta
-                if (periodos.length > 0) {
+                
+                // Adicionar .periodos-solicitados DEPOIS de .planilha-info
+                if (numPeriodos > 0) {
                     originalDataContent += `
                         <div class="periodos-solicitados">
                             <div class="periodos-title">
-                                <i class="bi bi-calendar2-range"></i> Períodos (${periodos.length})
+                                <i class="bi bi-calendar2-range"></i> ${numPeriodos} ${numPeriodos === 1 ? 'Período de Licença' : 'Períodos de Licença'}
                             </div>
                             <div class="periodos-list">
+                                ${servidor.licencas.map((lic, idx) => {
+                                    const inicio = this.formatDateBR(lic.inicio);
+                                    const fim = this.formatDateBR(lic.fim);
+                                    const dias = Math.ceil((lic.fim - lic.inicio) / (1000 * 60 * 60 * 24)) + 1;
+                                    const meses = Math.floor(dias / 30);
+                                    return `<div class="periodo-tag">${inicio} - ${fim} <span class="periodo-duracao-tag">(${meses}m)</span></div>`;
+                                }).join('')}
+                            </div>
+                        </div>
                     `;
-                    periodos.forEach((periodo) => {
+                }
+                
+                // Seção de Balanço de Licenças (apenas para licença prêmio)
+                if (isLicencaPremio && servidoresComMesmoNome && servidoresComMesmoNome.length > 0) {
+                    const balancoInfo = this.calcularSaldoServidorCompleto(servidoresComMesmoNome);
+                    if (balancoInfo.diasGanhos > 0) {
+                        const percentualUsado = balancoInfo.diasGanhos > 0 
+                            ? Math.round((balancoInfo.diasUsados / balancoInfo.diasGanhos) * 100) 
+                            : 0;
+                        
                         originalDataContent += `
-                            <div class="periodo-tag">
-                                ${this.escapeHtml(periodo)}
+                            <div class="balanco-licencas">
+                                <div class="balanco-title">
+                                    <i class="bi bi-calculator"></i> Balanço de Licenças Prêmio
+                                </div>
+                                <div class="balanco-grid">
+                                    <div class="balanco-item">
+                                        <span class="balanco-label">Períodos Aquisitivos</span>
+                                        <span class="balanco-value">${balancoInfo.periodosTotal}</span>
+                                        <span class="balanco-detail">(5 anos cada)</span>
+                                    </div>
+                                    <div class="balanco-item">
+                                        <span class="balanco-label">Dias de Direito</span>
+                                        <span class="balanco-value balanco-ganho">${balancoInfo.diasGanhos}</span>
+                                        <span class="balanco-detail">(${balancoInfo.periodosTotal} × 90 dias)</span>
+                                    </div>
+                                    <div class="balanco-item">
+                                        <span class="balanco-label">Dias Usados</span>
+                                        <span class="balanco-value balanco-usado">${balancoInfo.diasUsados}</span>
+                                        <span class="balanco-detail">(${percentualUsado}% do total)</span>
+                                    </div>
+                                    <div class="balanco-item balanco-saldo">
+                                        <span class="balanco-label">Saldo Disponível</span>
+                                        <span class="balanco-value ${balancoInfo.dias > 0 ? 'balanco-positivo' : 'balanco-zerado'}">${balancoInfo.dias} dias</span>
+                                        <span class="balanco-detail">${balancoInfo.dias > 0 ? 'disponível para agendar' : 'totalmente utilizado'}</span>
+                                    </div>
+                                </div>
+                                <div class="balanco-progress">
+                                    <div class="balanco-progress-bar" style="width: ${percentualUsado}%"></div>
+                                </div>
+                                <div class="balanco-progress-label">${percentualUsado}% utilizado</div>
                             </div>
                         `;
-                    });
-                    originalDataContent += '</div></div>';
+                    }
                 }
             } else {
                 originalDataContent += `
@@ -6412,7 +6550,7 @@ class DashboardMultiPage {
         // Mostrar períodos interpretados de forma detalhada
         if (licencasParaExibir && licencasParaExibir.length > 0) {
                 // Criar cards visuais para cada período
-                interpretationContent += '<div class="periods-container" style="display: grid; grid-template-columns: 1fr; gap: 1rem;">';
+                interpretationContent += '<div class="periods-container">';
 
                 licencasParaExibir.forEach((licenca, index) => {
                     const inicio = this.formatDateBR(licenca.inicio);
@@ -6445,45 +6583,16 @@ class DashboardMultiPage {
                     }
                     
                     interpretationContent += `
-                        <div class="period-card" style="
-                            background: var(--bg-primary);
-                            border: 1px solid var(--border);
-                            padding: 1rem;
-                            border-radius: 8px;
-                            transition: all 0.2s ease;
-                        ">
-                            <!-- Header único com info resumida -->
-                            <div style="
-                                display: flex;
-                                justify-content: space-between;
-                                align-items: center;
-                                margin-bottom: 1rem;
-                                padding-bottom: 0.75rem;
-                                border-bottom: 1px solid var(--border);
-                            ">
-                                <div style="font-weight: 600; color: var(--text-primary); font-size: 1rem;">
-                                    <i class="bi bi-calendar-check" style="color: var(--primary);"></i> Período ${index + 1}
+                        <div class="period-card-modal">
+                            <div class="period-card-header">
+                                <div class="period-card-title">
+                                    <i class="bi bi-calendar-check"></i> Período ${index + 1}
                                 </div>
-                                <span style="
-                                    background-color: rgba(37, 99, 235, 0.1);
-                                    color: white;
-                                    border: 1px solid rgba(37, 99, 235, 0.2);
-                                    padding: 0.25rem 0.75rem;
-                                    border-radius: 12px;
-                                    font-size: 0.8rem;
-                                    font-weight: 600;
-                                ">
+                                <span class="period-card-duration">
                                     ${meses} ${meses === 1 ? 'mês' : 'meses'} (${dias} dias)
                                 </span>
                             </div>
-
-                            <!-- Timeline detalhada de 30 em 30 dias -->
-                            <div style="
-                                display: flex;
-                                flex-wrap: wrap;
-                                gap: 0.75rem;
-                                padding: 0.5rem 0;
-                            ">
+                            <div class="marcos-timeline">
                                 ${marcos.map((marco, idx) => {
                                     const isFirst = idx === 0;
                                     const isLast = idx === marcos.length - 1;
@@ -6495,186 +6604,38 @@ class DashboardMultiPage {
                                         diasAcumulados += marcos[i].dias;
                                     }
                                     
-                                    // Definir cores e estilos baseados na posição
-                                    let accentColor, accentGlow, gradientFrom, gradientTo, icon, label;
-                                    
+                                    // Definir classe e ícone baseados na posição
+                                    let tipoClasse, icon, label;
                                     if (isFirst) {
-                                        accentColor = '#3b82f6';
-                                        accentGlow = 'rgba(59, 130, 246, 0.3)';
-                                        gradientFrom = 'rgba(59, 130, 246, 0.15)';
-                                        gradientTo = 'rgba(99, 102, 241, 0.05)';
+                                        tipoClasse = 'marco-inicio';
                                         icon = '🚀';
                                         label = 'INÍCIO';
                                     } else if (isLast) {
-                                        accentColor = '#10b981';
-                                        accentGlow = 'rgba(16, 185, 129, 0.3)';
-                                        gradientFrom = 'rgba(16, 185, 129, 0.15)';
-                                        gradientTo = 'rgba(5, 150, 105, 0.05)';
+                                        tipoClasse = 'marco-fim';
                                         icon = '🏁';
                                         label = 'FIM';
                                     } else {
-                                        accentColor = '#8b5cf6';
-                                        accentGlow = 'rgba(139, 92, 246, 0.25)';
-                                        gradientFrom = 'rgba(139, 92, 246, 0.12)';
-                                        gradientTo = 'rgba(124, 58, 237, 0.05)';
+                                        tipoClasse = 'marco-meio';
                                         icon = '⚡';
-                                        label = `BLOCO ${idx + 1}`;
+                                        label = 'BLOCO ' + (idx + 1);
                                     }
                                     
                                     return `
-                                        <div style="
-                                            flex: 1 1 155px;
-                                            min-width: 155px;
-                                            max-width: 200px;
-                                            background: linear-gradient(135deg, ${gradientFrom} 0%, ${gradientTo} 50%, rgba(15, 23, 42, 0.3) 100%);
-                                            backdrop-filter: blur(10px);
-                                            border: 1.5px solid rgba(51, 65, 85, 0.5);
-                                            border-radius: 10px;
-                                            padding: 0.675rem;
-                                            position: relative;
-                                            overflow: hidden;
-                                            transition: all 0.3s ease;
-                                            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-                                        " onmouseover="this.style.borderColor='${accentColor}'; this.style.transform='translateY(-4px) scale(1.02)'; this.style.boxShadow='0 8px 20px ${accentGlow}'" onmouseout="this.style.borderColor='rgba(51, 65, 85, 0.5)'; this.style.transform=''; this.style.boxShadow='0 2px 8px rgba(0, 0, 0, 0.2)'">
-                                            
-                                            <!-- Brilho decorativo superior -->
-                                            <div style="
-                                                position: absolute;
-                                                top: 0;
-                                                left: 0;
-                                                right: 0;
-                                                height: 3px;
-                                                background: linear-gradient(90deg, transparent 0%, ${accentColor} 50%, transparent 100%);
-                                                opacity: 0.8;
-                                            "></div>
-                                            
-                                            <!-- Header com ícone e badge -->
-                                            <div style="
-                                                display: flex;
-                                                align-items: center;
-                                                justify-content: space-between;
-                                                margin-bottom: 0.75rem;
-                                            ">
-                                                <div style="
-                                                    display: flex;
-                                                    align-items: center;
-                                                ">
-                                                    <span style="
-                                                        font-size: 1.5rem;
-                                                        filter: drop-shadow(0 0 8px ${accentGlow});
-                                                    ">${icon}</span>
-                                                    <div style="
-                                                        font-size: 0.7rem;
-                                                        color: ${accentColor};
-                                                        font-weight: 800;
-                                                        text-transform: uppercase;
-                                                        letter-spacing: 0.8px;
-                                                        text-shadow: 0 0 10px ${accentGlow};
-                                                    ">${label}</div>
+                                        <div class="marco-card ${tipoClasse}">
+                                            <div class="marco-header">
+                                                <div class="marco-info">
+                                                    <span class="marco-icon">${icon}</span>
+                                                    <span class="marco-label">${label}</span>
                                                 </div>
-                                                <div style="
-                                                    background: linear-gradient(135deg, ${accentColor} 0%, ${accentColor}dd 100%);
-                                                    color: white;
-                                                    padding: 0.3rem 0.65rem;
-                                                    border-radius: 6px;
-                                                    font-size: 0.85rem;
-                                                    font-weight: 900;
-                                                    box-shadow: 0 2px 8px ${accentGlow}, 0 0 20px ${accentGlow};
-                                                    border: 1px solid ${accentColor}aa;
-                                                ">${diasAcumulados}<span style="font-size: 0.7rem; opacity: 0.9;">d</span></div>
+                                                <div class="marco-dias-badge">${diasAcumulados}<span>d</span></div>
                                             </div>
-                                            
-                                            <!-- Box de datas com design destacado -->
-                                            <div style="
-                                                background: linear-gradient(135deg, rgba(15, 23, 42, 0.6) 0%, rgba(30, 41, 59, 0.4) 100%);
-                                                border-radius: 8px;
-                                                padding: 0.75rem 0.5rem;
-                                                margin-bottom: 0.625rem;
-                                                border: 1px solid ${accentColor}40;
-                                                position: relative;
-                                                overflow: hidden;
-                                            ">
-                                                <!-- Brilho de fundo -->
-                                                <div style="
-                                                    position: absolute;
-                                                    top: 50%;
-                                                    left: 50%;
-                                                    transform: translate(-50%, -50%);
-                                                    width: 60px;
-                                                    height: 60px;
-                                                    background: radial-gradient(circle, ${accentGlow} 0%, transparent 70%);
-                                                    pointer-events: none;
-                                                "></div>
-                                                
-                                                <div style="
-                                                    display: flex;
-                                                    flex-direction: column;
-                                                    align-items: center;
-                                                    gap: 0.5rem;
-                                                    font-family: 'Courier New', monospace;
-                                                    position: relative;
-                                                    z-index: 1;
-                                                ">
-                                                    <div style="
-                                                        white-space: nowrap;
-                                                        overflow: hidden;
-                                                        text-overflow: ellipsis;
-                                                        max-width: 100%;
-                                                        font-size: 0.8rem;
-                                                        color: #f1f5f9;
-                                                        font-weight: 800;
-                                                        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
-                                                    ">${marco.inicio}</div>
-                                                    
-                                                    <div style="
-                                                        color: ${accentColor};
-                                                        font-size: 1.25rem;
-                                                        font-weight: 900;
-                                                        text-shadow: 0 0 12px ${accentGlow}, 0 0 24px ${accentGlow};
-                                                        line-height: 1;
-                                                    ">↓</div>
-                                                    
-                                                    <div style="
-                                                        white-space: nowrap;
-                                                        overflow: hidden;
-                                                        text-overflow: ellipsis;
-                                                        max-width: 100%;
-                                                        font-size: 0.8rem;
-                                                        color: #f1f5f9;
-                                                        font-weight: 800;
-                                                        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
-                                                    ">${marco.fim}</div>
-                                                </div>
+                                            <div class="marco-datas">
+                                                <div class="marco-data-inicio">${marco.inicio}</div>
+                                                <div class="marco-seta">↓</div>
+                                                <div class="marco-data-fim">${marco.fim}</div>
                                             </div>
-                                            
-                                            <!-- Barra de progresso com efeito neon -->
-                                            <div style="
-                                                height: 4px;
-                                                background: rgba(30, 41, 59, 0.6);
-                                                border-radius: 3px;
-                                                overflow: hidden;
-                                                position: relative;
-                                                box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
-                                            ">
-                                                <div style="
-                                                    width: ${progress}%;
-                                                    height: 100%;
-                                                    background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #10b981 100%);
-                                                    box-shadow: 0 0 10px ${accentGlow}, 0 0 20px ${accentGlow};
-                                                    border-radius: 3px;
-                                                    transition: width 0.6s ease;
-                                                    position: relative;
-                                                ">
-                                                    <!-- Brilho animado -->
-                                                    <div style="
-                                                        position: absolute;
-                                                        top: 0;
-                                                        left: 0;
-                                                        right: 0;
-                                                        height: 100%;
-                                                        background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
-                                                    "></div>
-                                                </div>
+                                            <div class="marco-progress">
+                                                <div class="marco-progress-bar" style="width: ${progress}%"></div>
                                             </div>
                                         </div>
                                     `;
@@ -6689,7 +6650,7 @@ class DashboardMultiPage {
             // Nenhuma licença encontrada
             interpretationContent += `
                 <div class="info-label">Status:</div>
-                <div class="info-value warning" style="color: #d97706;">
+                <div class="info-value warning">
                     <i class="bi bi-exclamation-triangle"></i>
                     ${isLicencaPremio ? 'Nenhuma licença processada pelo sistema' : 'Nenhuma licença identificada no cronograma'}
                 </div>
@@ -6703,28 +6664,7 @@ class DashboardMultiPage {
             }
         }
 
-        // Informações adicionais (tempo de contribuição, serviço, próxima licença)
-        if (servidor.tempoContribuicao) {
-            interpretationContent += `
-                <div class="info-label">Tempo de Contribuição:</div>
-                <div class="info-value">${this.escapeHtml(servidor.tempoContribuicao)}</div>
-            `;
-        }
-
-        if (servidor.tempoServico) {
-            interpretationContent += `
-                <div class="info-label">Tempo de Serviço:</div>
-                <div class="info-value">${this.escapeHtml(servidor.tempoServico)}</div>
-            `;
-        }
-
-        if (servidor.proximaLicenca) {
-            interpretationContent += `
-                <div class="info-label">Próxima Licença:</div>
-                <div class="info-value highlight">${this.escapeHtml(servidor.proximaLicenca)}</div>
-            `;
-        }
-
+        // Fechar o container de períodos
         interpretationContent += '</div>';
 
         // Preencher conteúdos do modal
@@ -6914,6 +6854,168 @@ class DashboardMultiPage {
                 (mesesRestantes > 0 ? `1 ano e ${mesesRestantes} meses` : '1 ano') :
                 (mesesRestantes > 0 ? `${anos} anos e ${mesesRestantes} meses` : `${anos} anos`);
         }
+    }
+
+    /**
+     * Calcula o saldo de licenças de um servidor
+     * @param {Object} servidor - Objeto do servidor com suas licenças
+     * @returns {Object} { dias: number, periodosUsados: number, periodosTotal: number }
+     */
+    calcularSaldoServidor(servidor) {
+        // Tentar obter dados originais da planilha (têm AQUISITIVO_INICIO, GOZO, RESTANDO)
+        let dadosParaCalculo = [];
+        
+        // Primeiro tentar usar dadosOriginais (dados brutos da planilha)
+        if (servidor.dadosOriginais) {
+            dadosParaCalculo = [servidor.dadosOriginais];
+        } else if (servidor.todosOsDadosOriginais && servidor.todosOsDadosOriginais.length > 0) {
+            dadosParaCalculo = servidor.todosOsDadosOriginais;
+        } else if (servidor.licencas && servidor.licencas.length > 0) {
+            // Verificar se as licenças têm os campos necessários
+            const temDadosAquisitivos = servidor.licencas.some(l => 
+                l.AQUISITIVO_INICIO || l.aquisitivoInicio || l.gozo || l.GOZO
+            );
+            if (temDadosAquisitivos) {
+                dadosParaCalculo = servidor.licencas;
+            }
+        }
+        
+        if (dadosParaCalculo.length === 0) {
+            return { dias: 0, diasGanhos: 0, diasUsados: 0, periodosTotal: 0 };
+        }
+
+        // Agrupar por período aquisitivo
+        const periodosMap = new Map();
+        
+        dadosParaCalculo.forEach(dados => {
+            // Tentar vários nomes de campos possíveis
+            const aquisitivoInicio = dados.AQUISITIVO_INICIO || dados.aquisitivoInicio || dados['Aquisitivo Inicio'];
+            const aquisitivoFim = dados.AQUISITIVO_FIM || dados.aquisitivoFim || dados['Aquisitivo Fim'];
+            const gozo = this._parseNumero(dados.GOZO || dados.gozo || dados['Gozo'] || 0);
+            const restando = this._parseRestando(dados.RESTANDO || dados.restando || dados['Restando'] || '0');
+            
+            // Ignorar registros sem período aquisitivo ou com data nula (1899)
+            if (!aquisitivoInicio || String(aquisitivoInicio).includes('1899')) return;
+            
+            const chave = `${aquisitivoInicio}-${aquisitivoFim}`;
+            if (!periodosMap.has(chave)) {
+                periodosMap.set(chave, { usado: 0, restando: restando });
+            }
+            const p = periodosMap.get(chave);
+            p.usado += gozo;
+            p.restando = restando; // Atualiza com último valor
+        });
+
+        // Pegar o restando do último período
+        const periodos = Array.from(periodosMap.values());
+        const ultimoPeriodo = periodos[periodos.length - 1];
+        
+        return {
+            dias: ultimoPeriodo ? ultimoPeriodo.restando : 0,
+            diasGanhos: periodos.length * 90,
+            diasUsados: periodos.reduce((sum, p) => sum + p.usado, 0),
+            periodosTotal: periodos.length
+        };
+    }
+    
+    /**
+     * Calcula saldo de licenças usando TODOS os registros de um servidor
+     * @param {Array} registros - Array de todos os registros do servidor
+     * @returns {Object} { dias, diasGanhos, diasUsados, periodosTotal }
+     */
+    calcularSaldoServidorCompleto(registros) {
+        if (!registros || registros.length === 0) {
+            return { dias: 0, diasGanhos: 0, diasUsados: 0, periodosTotal: 0 };
+        }
+        
+        // Agrupar por período aquisitivo
+        const periodosMap = new Map();
+        
+        registros.forEach(registro => {
+            // Os dados podem estar em vários lugares:
+            // 1. registro.dadosOriginais (nível servidor)
+            // 2. registro.licencas[].dadosOriginais (nível licença)
+            // 3. registro.licencas[] com campos aquisitivoInicio, gozo, etc
+            
+            // Coletar todas as fontes de dados
+            const fontesTodas = [];
+            
+            // Fonte 1: dadosOriginais do registro
+            if (registro.dadosOriginais) {
+                fontesTodas.push(registro.dadosOriginais);
+            }
+            
+            // Fonte 2: licenças do registro
+            if (registro.licencas && Array.isArray(registro.licencas)) {
+                registro.licencas.forEach(lic => {
+                    // Dados originais da licença
+                    if (lic.dadosOriginais) {
+                        fontesTodas.push(lic.dadosOriginais);
+                    } else {
+                        // A própria licença pode ter os campos
+                        fontesTodas.push(lic);
+                    }
+                });
+            }
+            
+            // Se não tem fontes, usar o próprio registro
+            if (fontesTodas.length === 0) {
+                fontesTodas.push(registro);
+            }
+            
+            // Processar cada fonte de dados
+            fontesTodas.forEach(dados => {
+                const aquisitivoInicio = dados.AQUISITIVO_INICIO || dados.aquisitivoInicio;
+                const aquisitivoFim = dados.AQUISITIVO_FIM || dados.aquisitivoFim;
+                const gozo = this._parseNumero(dados.GOZO || dados.gozo || dados.diasGozo || 0);
+                const restando = this._parseRestando(dados.RESTANDO || dados.restando || '0');
+                
+                // Ignorar registros sem período aquisitivo ou com data nula (1899)
+                if (!aquisitivoInicio) return;
+                const aquisitivoStr = String(aquisitivoInicio);
+                if (aquisitivoStr.includes('1899') || aquisitivoStr.includes('29/12/1899')) return;
+                
+                const chave = `${aquisitivoInicio}-${aquisitivoFim}`;
+                if (!periodosMap.has(chave)) {
+                    periodosMap.set(chave, { usado: 0, restando: restando });
+                }
+                const p = periodosMap.get(chave);
+                p.usado += gozo;
+                p.restando = restando; // Atualiza com último valor
+            });
+        });
+
+        // Pegar o restando do último período
+        const periodos = Array.from(periodosMap.values());
+        const ultimoPeriodo = periodos[periodos.length - 1];
+        
+        return {
+            dias: ultimoPeriodo ? ultimoPeriodo.restando : 0,
+            diasGanhos: periodos.length * 90,
+            diasUsados: periodos.reduce((sum, p) => sum + p.usado, 0),
+            periodosTotal: periodos.length
+        };
+    }
+    
+    /**
+     * Parse de número de string
+     * @private
+     */
+    _parseNumero(valor) {
+        if (!valor) return 0;
+        const num = parseInt(String(valor).replace(/\D/g, ''), 10);
+        return isNaN(num) ? 0 : num;
+    }
+    
+    /**
+     * Parse do campo RESTANDO
+     * @private
+     */
+    _parseRestando(valor) {
+        if (!valor) return 0;
+        const str = String(valor).trim();
+        const match = str.match(/(\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
     }
 
     // Formatar data em português brasileiro

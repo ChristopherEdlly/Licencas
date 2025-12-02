@@ -367,6 +367,34 @@
   color: white;
 }
 
+/* Card de Hierarquia (destaque) */
+.filter-type-card-highlight {
+  position: relative;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(99, 102, 241, 0.08));
+  border: 2px solid var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.filter-type-card-highlight:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(99, 102, 241, 0.15));
+  border-color: #4f46e5;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.filter-type-card-highlight .filter-type-icon {
+  background: linear-gradient(135deg, var(--primary), #6366f1);
+}
+
+.filter-type-card-highlight .filter-type-icon i {
+  color: white;
+}
+
+.filter-type-card-highlight .filter-type-label {
+  font-weight: 600;
+  color: var(--primary);
+}
+
 .filter-badge-new {
   position: absolute;
   top: -6px;

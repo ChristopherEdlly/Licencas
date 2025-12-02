@@ -24,6 +24,7 @@
     <link href="css/components/license-view-toggle.css" rel="stylesheet">
     <link href="css/components/columns-selector.css" rel="stylesheet">
     <link href="css/components/hierarchy-tree.css" rel="stylesheet">
+    <link href="css/components/hierarchy-filter-modal.css" rel="stylesheet">
     <!-- Modelo Layout - Deve ser o ÚLTIMO CSS para sobrescrever tudo -->
     <link href="css/components/sidebar-modelo.css" rel="stylesheet">
     <link href="css/components/modelo-layout.css" rel="stylesheet">
@@ -1280,25 +1281,11 @@
                                 <div class="filter-type-label">Cargo</div>
                             </button>
 
-                            <button type="button" class="filter-type-card" data-filter-type="lotacao">
-                                <div class="filter-type-icon">
-                                    <i class="bi bi-building"></i>
-                                </div>
-                                <div class="filter-type-label">Lotação</div>
-                            </button>
-
-                            <button type="button" class="filter-type-card" data-filter-type="superintendencia">
+                            <button type="button" class="filter-type-card filter-type-card-highlight" data-filter-type="hierarquia">
                                 <div class="filter-type-icon">
                                     <i class="bi bi-diagram-3"></i>
                                 </div>
-                                <div class="filter-type-label">Superintendência</div>
-                            </button>
-
-                            <button type="button" class="filter-type-card" data-filter-type="subsecretaria">
-                                <div class="filter-type-icon">
-                                    <i class="bi bi-diagram-2"></i>
-                                </div>
-                                <div class="filter-type-label">Subsecretaria</div>
+                                <div class="filter-type-label">Lotação</div>
                             </button>
 
                             <button type="button" class="filter-type-card" data-filter-type="urgencia">
@@ -1367,13 +1354,9 @@
                     </button>
                 </div>
                 <div class="modal-footer-right">
-                    <button class="btn btn-secondary" id="cancelFiltersModalBtn">
-                        <i class="bi bi-x-circle"></i>
-                        Fechar
-                    </button>
-                    <button class="btn btn-primary" id="applyFiltersBtn">
+                    <button class="btn btn-primary" id="cancelFiltersModalBtn">
                         <i class="bi bi-check-circle"></i>
-                        Aplicar Filtros
+                        Fechar
                     </button>
                 </div>
             </div>
@@ -1473,6 +1456,7 @@
     <script src="js/data/lotacaoHierarchy.js"></script>
     <script src="js/modules/LotacaoHierarchyManager.js"></script>
     <script src="js/components/HierarchyTreeFilter.js"></script>
+    <script src="js/components/HierarchyFilterModal.js"></script>
 
     <!-- Dashboard Principal -->
     <script src="js/dashboard.js"></script>

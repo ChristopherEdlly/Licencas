@@ -376,6 +376,9 @@ class ReportsManager {
             return;
         }
 
+        // Lista de colunas que devem ser removidas do config por falta de dados
+        const columnsToRemove = [];
+
         document.querySelectorAll('.column-checkbox').forEach(checkbox => {
             const column = checkbox.getAttribute('data-column');
             if (!column) return;
@@ -408,6 +411,9 @@ class ReportsManager {
                 input.disabled = true;
                 input.checked = false; // Desmarcar automaticamente
                 checkbox.classList.add('disabled');
+                
+                // Marcar para remover do reportConfig
+                columnsToRemove.push(column);
 
                 // Adicionar texto "(sem dados)" se não existir
                 if (!checkbox.querySelector('.status-text')) {
@@ -443,6 +449,13 @@ class ReportsManager {
             // Adicionar tooltip com informação detalhada
             icon.title = `${Math.round(percentage)}% dos registros têm dados (${count}/${total})`;
         });
+
+        // Remover colunas sem dados do reportConfig
+        if (columnsToRemove.length > 0) {
+            this.reportConfig.columns = this.reportConfig.columns.filter(
+                col => !columnsToRemove.includes(col)
+            );
+        }
 
         console.log('✅ Indicadores de disponibilidade de colunas atualizados');
     }
@@ -727,6 +740,52 @@ class ReportsManager {
         return Math.max(1, Math.round(days / 30));
     }
 
+    /**
+     * Calcular estilos de coluna para PDF baseado no conteúdo
+     */
+    getColumnStyles(columns, pageWidth, margin) {
+        const availableWidth = pageWidth - (margin * 2);
+        const columnStyles = {};
+        
+        // Pesos relativos para cada tipo de coluna
+        const columnWeights = {
+            nome: 3,           // Nome pode ser longo
+            cpf: 1.5,
+            matricula: 1.2,
+            cargo: 2,
+            lotacao: 2.5,
+            superintendencia: 2,
+            subsecretaria: 2,
+            idade: 0.8,
+            urgencia: 1.2,
+            periodoLicenca: 2.5,
+            dataInicio: 1.2,
+            dataFim: 1.2,
+            diasLicenca: 1,
+            mesesLicenca: 1
+        };
+        
+        // Calcular peso total das colunas selecionadas
+        let totalWeight = 0;
+        columns.forEach(col => {
+            totalWeight += columnWeights[col] || 1.5;
+        });
+        
+        // Atribuir largura proporcional a cada coluna
+        columns.forEach((col, index) => {
+            const weight = columnWeights[col] || 1.5;
+            const widthPercent = weight / totalWeight;
+            const width = availableWidth * widthPercent;
+            
+            columnStyles[index] = {
+                cellWidth: Math.max(15, width), // Mínimo de 15mm
+                overflow: 'linebreak'
+            };
+        });
+        
+        return columnStyles;
+    }
+
     normalizeUrgency(value) {
         if (!value) return '';
         const normalized = value
@@ -834,7 +893,7 @@ class ReportsManager {
         // Filtro de urgência
         if (this.reportConfig.urgencyFilter) {
             const filterCode = this.normalizeUrgency(this.reportConfig.urgencyFilter);
-            data = data.filter(s => this.normalizeUrgency(s.urgencia) === filterCode);
+            data = data.filter(s => this.normalizeUrgency(s.nivelUrgencia || s.urgencia) === filterCode);
         }
 
         // Filtro de cargo
@@ -925,7 +984,8 @@ class ReportsManager {
         const cargos = new Set();
 
         data.forEach(servidor => {
-            const urgencyCode = this.normalizeUrgency(servidor.urgencia);
+            const urgenciaValue = servidor.nivelUrgencia || servidor.urgencia;
+            const urgencyCode = this.normalizeUrgency(urgenciaValue);
             if (urgencyCounts.hasOwnProperty(urgencyCode)) {
                 urgencyCounts[urgencyCode]++;
             }
@@ -1132,7 +1192,7 @@ class ReportsManager {
                 const classes = [];
 
                 if (col === 'urgencia') {
-                    const code = this.normalizeUrgency(servidor.urgencia);
+                    const code = this.normalizeUrgency(servidor.nivelUrgencia || servidor.urgencia);
                     if (code) {
                         classes.push(`urgency-${code}`);
                     }
@@ -1230,13 +1290,14 @@ class ReportsManager {
                 return raw ? idadeCalculada : `${idadeCalculada} anos`;
             }
             case 'urgencia': {
-                const code = this.normalizeUrgency(servidor.urgencia);
+                const urgenciaValue = servidor.nivelUrgencia || servidor.urgencia;
+                const code = this.normalizeUrgency(urgenciaValue);
                 if (code) {
                     return this.formatUrgencyLabel(code);
                 }
-                const original = servidor.urgencia ? servidor.urgencia.toString().trim() : '';
+                const original = urgenciaValue ? urgenciaValue.toString().trim() : '';
                 if (!original || /^0\s*anos?$/i.test(original)) {
-                    return 'Sem informação';
+                    return '';
                 }
                 return original;
             }
@@ -1469,8 +1530,7 @@ class ReportsManager {
                     fontSize: 7,
                     cellPadding: 2,
                     overflow: 'linebreak',
-                    cellWidth: 'auto',
-                    minCellWidth: 20,
+                    cellWidth: 'wrap',
                 },
                 headStyles: {
                     fillColor: [59, 130, 246],
@@ -1482,15 +1542,11 @@ class ReportsManager {
                     fillColor: [245, 247, 250]
                 },
                 margin: { left: margin, right: margin },
-                tableWidth: 'wrap',
+                tableWidth: 'auto',
                 theme: 'grid',
+                columnStyles: this.getColumnStyles(columns, pageWidth, margin),
                 didDrawPage: function (data) {
-                    // Garante que a tabela não ultrapasse a largura da página
-                    const doc = data.doc;
-                    const pageWidth = doc.internal.pageSize.getWidth();
-                    if (data.table && data.table.width > (pageWidth - margin * 2)) {
-                        data.table.width = pageWidth - margin * 2;
-                    }
+                    // Rodapé será adicionado depois
                 }
             });
 

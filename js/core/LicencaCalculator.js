@@ -348,6 +348,169 @@ class LicencaCalculator {
             problemas: problemas
         };
     }
+
+    /**
+     * Calcula o balanço de licenças prêmio de um servidor
+     * Baseado nos períodos aquisitivos (5 anos = 90 dias de direito)
+     * @param {Array<Object>} licencas - Array de registros de licença do servidor
+     * @returns {Object} Balanço completo de licenças
+     */
+    calcularBalancoLicencas(licencas) {
+        if (!licencas || licencas.length === 0) {
+            return {
+                temDados: false,
+                periodosAquisitivos: [],
+                diasGanhos: 0,
+                diasUsados: 0,
+                diasRestantes: 0,
+                dataAdmissao: null
+            };
+        }
+
+        // Filtrar registros válidos (ignorar datas 1899-12-30 que são marcadores de vazio)
+        const registrosValidos = licencas.filter(l => {
+            const aquisitivoInicio = l.aquisitivoInicio || l.AQUISITIVO_INICIO;
+            if (!aquisitivoInicio) return false;
+            const dataStr = String(aquisitivoInicio);
+            return !dataStr.includes('1899-12-30') && !dataStr.includes('1899/12/30');
+        });
+
+        if (registrosValidos.length === 0) {
+            return {
+                temDados: false,
+                periodosAquisitivos: [],
+                diasGanhos: 0,
+                diasUsados: 0,
+                diasRestantes: 0,
+                dataAdmissao: null
+            };
+        }
+
+        // Agrupar por período aquisitivo único
+        const periodosMap = new Map();
+        let dataAdmissaoMaisAntiga = null;
+
+        registrosValidos.forEach(registro => {
+            const aquisitivoInicio = this._parseData(registro.aquisitivoInicio || registro.AQUISITIVO_INICIO);
+            const aquisitivoFim = this._parseData(registro.aquisitivoFim || registro.AQUISITIVO_FIM);
+            const gozo = this._parseGozo(registro.gozo || registro.GOZO);
+            const restando = this._parseRestando(registro.restando || registro.RESTANDO);
+            
+            if (!aquisitivoInicio) return;
+
+            // Atualizar data de admissão mais antiga
+            if (!dataAdmissaoMaisAntiga || aquisitivoInicio < dataAdmissaoMaisAntiga) {
+                dataAdmissaoMaisAntiga = aquisitivoInicio;
+            }
+
+            // Chave única para o período aquisitivo
+            const chave = `${aquisitivoInicio.getTime()}-${aquisitivoFim ? aquisitivoFim.getTime() : 'null'}`;
+            
+            if (!periodosMap.has(chave)) {
+                periodosMap.set(chave, {
+                    inicio: aquisitivoInicio,
+                    fim: aquisitivoFim,
+                    direito: 90, // 5 anos = 90 dias
+                    gozos: [],
+                    totalUsado: 0,
+                    ultimoRestando: restando
+                });
+            }
+
+            const periodo = periodosMap.get(chave);
+            periodo.gozos.push(gozo);
+            periodo.totalUsado += gozo;
+            periodo.ultimoRestando = restando; // Atualiza com o último valor
+        });
+
+        // Converter map para array e calcular totais
+        const periodosAquisitivos = Array.from(periodosMap.values())
+            .sort((a, b) => a.inicio - b.inicio);
+
+        const diasGanhos = periodosAquisitivos.length * 90;
+        const diasUsados = periodosAquisitivos.reduce((sum, p) => sum + p.totalUsado, 0);
+        
+        // Pegar o restando do último período (mais recente)
+        const ultimoPeriodo = periodosAquisitivos[periodosAquisitivos.length - 1];
+        const diasRestantes = ultimoPeriodo ? ultimoPeriodo.ultimoRestando : 0;
+
+        return {
+            temDados: true,
+            periodosAquisitivos: periodosAquisitivos,
+            diasGanhos: diasGanhos,
+            diasUsados: diasUsados,
+            diasRestantes: diasRestantes,
+            dataAdmissao: dataAdmissaoMaisAntiga,
+            tempoServico: dataAdmissaoMaisAntiga ? this._calcularAnosServico(dataAdmissaoMaisAntiga) : 0
+        };
+    }
+
+    /**
+     * Parse de data flexível
+     * @private
+     */
+    _parseData(valor) {
+        if (!valor) return null;
+        if (valor instanceof Date) return valor;
+        
+        const str = String(valor).trim();
+        if (!str || str === '--') return null;
+
+        // Tentar parse direto
+        let data = new Date(str);
+        if (!isNaN(data.getTime())) return data;
+
+        // Tentar formato DD/MM/YYYY
+        const partes = str.split(/[\/\-]/);
+        if (partes.length === 3) {
+            const [p1, p2, p3] = partes.map(p => parseInt(p.replace(/\D/g, ''), 10));
+            // Se p1 > 12, assume DD/MM/YYYY
+            if (p1 > 12) {
+                data = new Date(p3, p2 - 1, p1);
+            } else if (p3 > 31) {
+                // YYYY-MM-DD ou similar
+                data = new Date(p1, p2 - 1, p3);
+            }
+            if (!isNaN(data.getTime())) return data;
+        }
+
+        return null;
+    }
+
+    /**
+     * Parse do campo GOZO (dias usados)
+     * @private
+     */
+    _parseGozo(valor) {
+        if (!valor) return 0;
+        const num = parseInt(String(valor).replace(/\D/g, ''), 10);
+        return isNaN(num) ? 0 : num;
+    }
+
+    /**
+     * Parse do campo RESTANDO (dias restantes)
+     * Formatos: "0(DIAS)", "30(DIAS)", "(0) DIAS", "0(ZERO)", "30"
+     * @private
+     */
+    _parseRestando(valor) {
+        if (!valor) return 0;
+        const str = String(valor).trim();
+        // Extrair primeiro número encontrado
+        const match = str.match(/(\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
+    }
+
+    /**
+     * Calcula anos de serviço desde a data de admissão
+     * @private
+     */
+    _calcularAnosServico(dataAdmissao) {
+        if (!dataAdmissao) return 0;
+        const hoje = new Date();
+        const diffMs = hoje - dataAdmissao;
+        const diffAnos = diffMs / (1000 * 60 * 60 * 24 * 365.25);
+        return Math.floor(diffAnos);
+    }
 }
 
 // Exportar para uso global

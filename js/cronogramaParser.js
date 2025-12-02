@@ -315,7 +315,7 @@ class CronogramaParser {
                 unidade: dadosServidor.unidade,
                 licencas: dadosServidor.licencas,
                 proximaLicenca: dadosServidor.licencas[0]?.inicio || null,
-                tipoTabela: 'novo_formato',
+                tipoTabela: 'licenca-premio', // Novo formato também é licença prêmio
                 idade: null,
                 sexo: '',
                 admissao: null,

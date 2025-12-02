@@ -48,7 +48,7 @@ class ExportManager {
             const mainSheet = XLSX.utils.aoa_to_sheet(mainData);
             
             // Aplicar estilos e larguras de coluna
-            this.applySheetFormatting(mainSheet, isLicencaPremio);
+            this.applySheetFormatting(mainSheet, isLicencaPremio, false, data);
             
             XLSX.utils.book_append_sheet(wb, mainSheet, 'Servidores');
 
@@ -169,6 +169,11 @@ class ExportManager {
     prepareServidoresData(servidores, isLicencaPremio) {
         const data = [];
 
+        // Detectar colunas com dados disponíveis
+        const hasIdade = servidores.some(s => s.idade && s.idade !== '--' && s.idade !== '' && s.idade !== null && s.idade !== undefined);
+        const hasUrgencia = servidores.some(s => s.nivelUrgencia && s.nivelUrgencia !== '--' && s.nivelUrgencia !== '' && s.nivelUrgencia !== null);
+        const hasAposentadoria = servidores.some(s => s.dataAposentadoriaCompulsoria);
+
         // Cabeçalho
         if (isLicencaPremio) {
             data.push([
@@ -180,18 +185,13 @@ class ExportManager {
                 'Dias de Licença'
             ]);
         } else {
-            data.push([
-                'Nome',
-                'Idade',
-                'Lotação',
-                'Cargo',
-                'Período de Licença',
-                'Data Início',
-                'Data Fim',
-                'Dias de Licença',
-                'Nível de Urgência',
-                'Aposentadoria Prevista'
-            ]);
+            // Construir cabeçalho dinamicamente
+            const headers = ['Nome'];
+            if (hasIdade) headers.push('Idade');
+            headers.push('Lotação', 'Cargo', 'Período de Licença', 'Data Início', 'Data Fim', 'Dias de Licença');
+            if (hasUrgencia) headers.push('Nível de Urgência');
+            if (hasAposentadoria) headers.push('Aposentadoria Prevista');
+            data.push(headers);
         }
 
         // Dados
@@ -216,21 +216,24 @@ class ExportManager {
                     diasLicenca
                 ]);
             } else {
-                const aposentadoria = servidor.dataAposentadoriaCompulsoria ? 
-                    new Date(servidor.dataAposentadoriaCompulsoria).toLocaleDateString('pt-BR') : '--';
-
-                data.push([
-                    servidor.nome,
-                    servidor.idade,
+                // Construir linha dinamicamente
+                const row = [servidor.nome];
+                if (hasIdade) row.push(servidor.idade || '--');
+                row.push(
                     servidor.lotacao || '--',
                     servidor.cargo || '--',
                     periodoLicenca,
                     dataInicio,
                     dataFim,
-                    diasLicenca,
-                    servidor.nivelUrgencia || '--',
-                    aposentadoria
-                ]);
+                    diasLicenca
+                );
+                if (hasUrgencia) row.push(servidor.nivelUrgencia || '--');
+                if (hasAposentadoria) {
+                    const aposentadoria = servidor.dataAposentadoriaCompulsoria ? 
+                        new Date(servidor.dataAposentadoriaCompulsoria).toLocaleDateString('pt-BR') : '--';
+                    row.push(aposentadoria);
+                }
+                data.push(row);
             }
         });
 
@@ -436,7 +439,7 @@ class ExportManager {
     /**
      * Aplicar formatação ao sheet
      */
-    applySheetFormatting(sheet, isLicencaPremio, isNotificacoes = false) {
+    applySheetFormatting(sheet, isLicencaPremio, isNotificacoes = false, servidores = null) {
         const range = XLSX.utils.decode_range(sheet['!ref']);
         
         // Definir larguras de coluna
@@ -464,18 +467,23 @@ class ExportManager {
                 { wch: 10 }  // Dias
             );
         } else {
+            // Detectar colunas disponíveis
+            const hasIdade = servidores?.some(s => s.idade && s.idade !== '--' && s.idade !== '' && s.idade !== null && s.idade !== undefined);
+            const hasUrgencia = servidores?.some(s => s.nivelUrgencia && s.nivelUrgencia !== '--' && s.nivelUrgencia !== '' && s.nivelUrgencia !== null);
+            const hasAposentadoria = servidores?.some(s => s.dataAposentadoriaCompulsoria);
+            
+            colWidths.push({ wch: 35 }); // Nome
+            if (hasIdade) colWidths.push({ wch: 8 }); // Idade
             colWidths.push(
-                { wch: 35 }, // Nome
-                { wch: 8 },  // Idade
                 { wch: 25 }, // Lotação
                 { wch: 20 }, // Cargo
                 { wch: 25 }, // Período
                 { wch: 12 }, // Data Início
                 { wch: 12 }, // Data Fim
-                { wch: 10 }, // Dias
-                { wch: 15 }, // Urgência
-                { wch: 15 }  // Aposentadoria
+                { wch: 10 }  // Dias
             );
+            if (hasUrgencia) colWidths.push({ wch: 15 }); // Urgência
+            if (hasAposentadoria) colWidths.push({ wch: 15 }); // Aposentadoria
         }
 
         sheet['!cols'] = colWidths;

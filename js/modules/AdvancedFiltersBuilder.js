@@ -116,7 +116,6 @@ class AdvancedFiltersBuilder {
         // Botões do modal principal
         const closeBtn = document.getElementById('closeFiltersModal');
         const cancelModalBtn = document.getElementById('cancelFiltersModalBtn');
-        const applyBtn = document.getElementById('applyFiltersBtn');
         const clearAllBtn = document.getElementById('clearAllFiltersModalBtn');
 
         if (closeBtn) {
@@ -125,10 +124,6 @@ class AdvancedFiltersBuilder {
 
         if (cancelModalBtn) {
             cancelModalBtn.addEventListener('click', () => this.closeModal());
-        }
-
-        if (applyBtn) {
-            applyBtn.addEventListener('click', () => this.applyFilters());
         }
 
         if (clearAllBtn) {
@@ -174,9 +169,125 @@ class AdvancedFiltersBuilder {
     }
 
     /**
+     * Abre o modal especial de filtro hierárquico
+     */
+    openHierarchyFilterModal(editingFilterId = null) {
+        // Cria o modal se não existir
+        if (!this.hierarchyFilterModal) {
+            this.hierarchyFilterModal = new HierarchyFilterModal({
+                onApply: (selection) => this.handleHierarchyFilterApply(selection, editingFilterId),
+                onClose: () => {}
+            });
+        }
+        
+        // Se estiver editando, carrega a seleção existente
+        let initialSelection = null;
+        if (editingFilterId) {
+            const filter = this.filters.find(f => f.id === editingFilterId);
+            if (filter && filter.type === 'hierarquia') {
+                initialSelection = filter.value;
+            }
+        }
+        
+        // Atualiza o callback com o ID correto
+        this.hierarchyFilterModal.onApply = (selection) => this.handleHierarchyFilterApply(selection, editingFilterId);
+        
+        // Abre o modal
+        this.hierarchyFilterModal.open(initialSelection);
+    }
+    
+    /**
+     * Manipula a aplicação do filtro hierárquico
+     */
+    handleHierarchyFilterApply(selection, editingFilterId = null) {
+        // Verifica se há alguma seleção
+        const hasSelection = selection.subsecretarias.length > 0 || 
+                            selection.superintendencias.length > 0 || 
+                            selection.lotacoes.length > 0;
+        
+        if (!hasSelection) {
+            // Se não há seleção e está editando, remove o filtro
+            if (editingFilterId) {
+                this.removeFilter(editingFilterId);
+            } else {
+                // Se não está editando, remove qualquer filtro de hierarquia existente
+                const existingFilter = this.filters.find(f => f.type === 'hierarquia');
+                if (existingFilter) {
+                    this.removeFilter(existingFilter.id);
+                }
+            }
+            // Fecha o modal
+            this.hierarchyFilterModal?.close();
+            return;
+        }
+        
+        // Verifica se já existe um filtro de hierarquia (só pode ter um)
+        const existingHierarchyFilter = this.filters.find(f => f.type === 'hierarquia');
+        const targetFilterId = editingFilterId || (existingHierarchyFilter ? existingHierarchyFilter.id : null);
+        const isUpdate = !!targetFilterId;
+        
+        if (targetFilterId) {
+            // Atualiza filtro existente
+            const filter = this.filters.find(f => f.id === targetFilterId);
+            if (filter) {
+                filter.value = selection;
+                filter.displayText = this.buildHierarchyFilterLabel(selection);
+            }
+        } else {
+            // Cria novo filtro (só se não existir nenhum)
+            const newFilter = {
+                id: ++this.filterIdCounter,
+                type: 'hierarquia',
+                icon: '<i class="bi bi-diagram-3"></i>',
+                label: 'Lotação',
+                value: selection,
+                displayText: this.buildHierarchyFilterLabel(selection)
+            };
+            this.filters.push(newFilter);
+        }
+        
+        // Atualiza a UI
+        this.renderActiveFilters();
+        this.updateResultsPreview();
+        
+        // Fecha o modal de hierarquia
+        this.hierarchyFilterModal?.close();
+    }
+    
+    /**
+     * Constrói o label para o filtro hierárquico
+     */
+    buildHierarchyFilterLabel(selection) {
+        const parts = [];
+        
+        if (selection.subsecretarias.length > 0) {
+            const count = selection.subsecretarias.length;
+            parts.push(`${count} Subsec.`);
+        }
+        
+        if (selection.superintendencias.length > 0) {
+            const count = selection.superintendencias.length;
+            parts.push(`${count} Super.`);
+        }
+        
+        if (selection.lotacoes.length > 0) {
+            const count = selection.lotacoes.length;
+            parts.push(`${count} Gerência${count > 1 ? 's' : ''}`);
+        }
+        
+        return parts.join(' • ') || 'Lotação';
+    }
+
+    /**
      * Abre o popup de configuração de filtro
      */
     openFilterConfigPopup(filterType, editingFilterId = null) {
+        // Se for filtro de hierarquia, abre o modal especial
+        if (filterType === 'hierarquia') {
+            this.openHierarchyFilterModal(editingFilterId);
+            return;
+        }
+        
         this.currentFilterType = filterType;
         this.currentEditingId = editingFilterId;
 
@@ -187,9 +298,6 @@ class AdvancedFiltersBuilder {
         const titles = {
             idade: 'Filtro por Idade',
             cargo: 'Filtro por Cargo',
-            lotacao: 'Filtro por Lotação',
-            superintendencia: 'Filtro por Superintendência',
-            subsecretaria: 'Filtro por Subsecretaria',
             urgencia: 'Filtro por Nível de Urgência',
             servidor: 'Filtro por Servidor',
             periodo: 'Filtro por Período de Gozo',
@@ -455,10 +563,19 @@ class AdvancedFiltersBuilder {
     }
     
     /**
-     * Fecha o modal
+     * Fecha o modal e aplica os filtros
      */
     closeModal() {
         if (!this.modal) return;
+        
+        // Aplicar filtros ao fechar (já são aplicados em tempo real no preview)
+        const filtered = this.applyFiltersToData(this.dashboard.allServidores);
+        this.dashboard.filteredServidores = filtered;
+        
+        // Atualizar UI do dashboard
+        if (this.dashboard.updateTable) this.dashboard.updateTable();
+        if (this.dashboard.updateStats) this.dashboard.updateStats();
+        if (this.dashboard.updateCharts) this.dashboard.updateCharts();
         
         this.modal.classList.remove('active');
         
@@ -1675,6 +1792,10 @@ class AdvancedFiltersBuilder {
                 // Filtro por meses acumulados de licença
                 const meses = servidor.mesesLicenca || servidor.mesesCalculados || 0;
                 return meses >= filter.value.min && meses <= filter.value.max;
+            
+            case 'hierarquia':
+                // Filtro hierárquico unificado
+                return this.checkUnifiedHierarchyFilter(servidor, filter.value);
                 
             default:
                 return true;
@@ -1790,6 +1911,71 @@ class AdvancedFiltersBuilder {
     }
     
     /**
+     * Verifica se servidor passa no filtro hierárquico unificado
+     * O filtro contém subsecretarias, superintendencias e lotacoes selecionadas
+     * Um servidor passa se sua lotação pertence a QUALQUER um dos itens selecionados
+     */
+    checkUnifiedHierarchyFilter(servidor, filterValue) {
+        if (!filterValue) return true;
+        
+        const { subsecretarias = [], superintendencias = [], lotacoes = [] } = filterValue;
+        
+        // Se não há nenhuma seleção, passa todos
+        if (subsecretarias.length === 0 && superintendencias.length === 0 && lotacoes.length === 0) {
+            return true;
+        }
+        
+        const lotacao = servidor.lotacao;
+        if (!lotacao) return false;
+        
+        // Buscar informações hierárquicas da lotação do servidor
+        const lotacaoInfo = this.hierarchyManager.findLotacao(lotacao);
+        const normalizedLotacao = lotacao.toLowerCase().trim();
+        
+        // Verificar se a lotação está diretamente selecionada
+        if (lotacoes.some(l => {
+            const normalized = l.toLowerCase().trim();
+            return normalizedLotacao.includes(normalized) || normalized.includes(normalizedLotacao);
+        })) {
+            return true;
+        }
+        
+        // Se temos info hierárquica, verificar nos níveis superiores
+        if (lotacaoInfo) {
+            // Verificar se a superintendência do servidor está selecionada
+            if (lotacaoInfo.superintendencia && superintendencias.some(s => {
+                const normalized = s.toLowerCase().trim();
+                const normalizedSuper = lotacaoInfo.superintendencia.toLowerCase();
+                return normalizedSuper.includes(normalized) || normalized.includes(normalizedSuper);
+            })) {
+                return true;
+            }
+            
+            // Verificar se a subsecretaria do servidor está selecionada
+            if (lotacaoInfo.subsecretaria && subsecretarias.some(sub => {
+                const normalized = sub.toLowerCase().trim();
+                const normalizedSubsec = lotacaoInfo.subsecretaria.toLowerCase();
+                return normalizedSubsec.includes(normalized) || normalized.includes(normalizedSubsec);
+            })) {
+                return true;
+            }
+        }
+        
+        // Fallback: tentar match por sigla
+        const siglaLotacao = this.extractSigla(lotacao);
+        if (siglaLotacao) {
+            // Verificar em todas as listas
+            const allSelected = [...subsecretarias, ...superintendencias, ...lotacoes];
+            return allSelected.some(selected => {
+                const siglaSelected = this.extractSigla(selected);
+                return siglaSelected && siglaSelected === siglaLotacao;
+            });
+        }
+        
+        return false;
+    }
+    
+    /**
      * Extrai sigla de um nome (ex: "STE - Subsecretaria..." -> "STE")
      */
     extractSigla(name) {
@@ -1812,7 +1998,8 @@ class AdvancedFiltersBuilder {
             status: 'Status',
             servidor: 'Servidor',
             periodo: 'Período de Gozo',
-            meses: 'Meses Acumulados'
+            meses: 'Meses Acumulados',
+            hierarquia: 'Hierarquia'
         };
         return labels[type] || type;
     }
@@ -1831,7 +2018,8 @@ class AdvancedFiltersBuilder {
             status: '📊',
             servidor: '👤',
             periodo: '📅',
-            meses: '⏱️'
+            meses: '⏱️',
+            hierarquia: '🗂️'
         };
         return icons[type] || '🔹';
     }
