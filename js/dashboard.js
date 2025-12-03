@@ -6274,25 +6274,8 @@ class DashboardMultiPage {
                 
                 originalDataContent += '</div>';
                 
-                // Adicionar script para gerenciar acordeom
-                setTimeout(() => {
-                    document.querySelectorAll('.acordeom-header').forEach((header) => {
-                        header.addEventListener('click', function() {
-                            const item = this.closest('.acordeom-item');
-                            const isActive = item.classList.contains('active');
-                            
-                            // Fechar todos
-                            document.querySelectorAll('.acordeom-item').forEach(el => {
-                                el.classList.remove('active');
-                            });
-                            
-                            // Abrir se não estava ativo
-                            if (!isActive) {
-                                item.classList.add('active');
-                            }
-                        });
-                    });
-                }, 100);
+                // Inicializar listeners do acordeom após renderização
+                this._inicializarAcordeomListeners();
             } else {
                 originalDataContent = '<div class="no-data"><span>Nenhum período aquisitivo encontrado</span></div>';
             }
@@ -6864,6 +6847,34 @@ class DashboardMultiPage {
         if (urgenciaLower.includes('alto') || urgenciaLower.includes('alta')) return 'high';
         if (urgenciaLower.includes('moderado') || urgenciaLower.includes('moderada')) return 'moderate';
         return 'low';
+    }
+
+    _inicializarAcordeomListeners() {
+        // Usar setTimeout para garantir que o DOM foi renderizado
+        setTimeout(() => {
+            document.querySelectorAll('.acordeom-header').forEach((header) => {
+                // Remover listeners antigos se existirem
+                const newHeader = header.cloneNode(true);
+                header.replaceWith(newHeader);
+                
+                // Adicionar novo listener
+                newHeader.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const item = newHeader.closest('.acordeom-item');
+                    const isActive = item.classList.contains('active');
+                    
+                    // Fechar todos
+                    document.querySelectorAll('.acordeom-item').forEach(el => {
+                        el.classList.remove('active');
+                    });
+                    
+                    // Abrir se não estava ativo
+                    if (!isActive) {
+                        item.classList.add('active');
+                    }
+                });
+            });
+        }, 50);
     }
 
     extrairMesesDoPeríodo(licenca) {
