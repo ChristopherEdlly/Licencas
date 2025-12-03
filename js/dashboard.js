@@ -6155,10 +6155,10 @@ class DashboardMultiPage {
 
         // Informações pessoais removidas: agora consolidadas em 'Registros da Planilha'
 
-        // ===== SEÇÃO 1: REGISTROS DA PLANILHA (ACORDEOM COM PERÍODOS AQUISITIVOS) =====
+        // ===== SEÇÃO 1: REGISTROS DA PLANILHA =====
         let originalDataContent = '';
         
-        // Para Licença Prêmio: renderizar acordeom com períodos aquisitivos
+        // Para Licença Prêmio: renderizar acordeom COM PERÍODOS AQUISITIVOS NO TOPO
         if (isLicencaPremio) {
             // Agrupar licencas por período aquisitivo
             const periodosAquisitivosMap = new Map();
@@ -6196,7 +6196,7 @@ class DashboardMultiPage {
                 });
             }
             
-            // Renderizar acordeom
+            // Renderizar acordeom no topo
             if (periodosAquisitivosMap.size > 0) {
                 originalDataContent = '<div class="acordeom-periodos">';
                 
@@ -6279,14 +6279,22 @@ class DashboardMultiPage {
             } else {
                 originalDataContent = '<div class="no-data"><span>Nenhum período aquisitivo encontrado</span></div>';
             }
-        } else {
-            // Para outros tipos de tabela: manter renderização original
+        }
         
+        // Agora adicionar dados consolidados (CPF, RG, Cargo, Lotação, etc) APÓS o acordeom
         // Guardar quantidade de períodos para usar depois
         const numPeriodos = servidor.licencas.length;
 
+        // Para Licença Prêmio: se temos acordeom, adicionar separador antes dos dados consolidados
+        if (isLicencaPremio && originalDataContent && originalDataContent.length > 0) {
+            originalDataContent += '<div style="margin: 1rem 0; padding: 1rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);"></div>';
+        }
+
         if (servidor.todosOsDadosOriginais && servidor.todosOsDadosOriginais.length > 0) {
             // Consolidar campos não pessoais extraídos da planilha
+            
+            // Adicionar wrapper para dados consolidados
+            originalDataContent += '<div class="planilha-summary">';
 
             // Consolidar informações únicas e períodos
             const dadosConsolidados = new Map();
@@ -6542,25 +6550,10 @@ class DashboardMultiPage {
                 
                 originalDataContent += '</div>';
                 
-                // Adicionar .periodos-solicitados DEPOIS de .planilha-info
-                if (numPeriodos > 0) {
-                    originalDataContent += `
-                        <div class="periodos-solicitados">
-                            <div class="periodos-title">
-                                <i class="bi bi-calendar2-range"></i> ${numPeriodos} ${numPeriodos === 1 ? 'Período de Licença' : 'Períodos de Licença'}
-                            </div>
-                            <div class="periodos-list">
-                                ${servidor.licencas.map((lic, idx) => {
-                                    const inicio = this.formatDateBR(lic.inicio);
-                                    const fim = this.formatDateBR(lic.fim);
-                                    const dias = Math.ceil((lic.fim - lic.inicio) / (1000 * 60 * 60 * 24)) + 1;
-                                    const meses = Math.floor(dias / 30);
-                                    return `<div class="periodo-tag">${inicio} - ${fim} <span class="periodo-duracao-tag">(${meses}m)</span></div>`;
-                                }).join('')}
-                            </div>
-                        </div>
-                    `;
-                }
+                
+                originalDataContent += '</div>';
+                
+                // NÃO ADICIONAR periodos-solicitados aqui, será adicionado no topo da Seção 3
             } else {
                 originalDataContent += `
                     <div class="no-data">
@@ -6579,11 +6572,31 @@ class DashboardMultiPage {
         } // Fechamento do else para não-licença-prêmio
 
         // ===== SEÇÃO 3: INTERPRETAÇÃO DO SISTEMA =====
-        // Mostrar períodos de licença primeiro (foram movidos para cá)
         let interpretationContent = '';
         const issues = [];
         
-        // Adicionar aviso se cronograma não foi interpretado
+        // ADICIONAR NO TOPO: Períodos de Licença Resumo (movido de Seção 1)
+        if (numPeriodos > 0) {
+            interpretationContent = `
+                <div class="periodos-solicitados">
+                    <div class="periodos-title">
+                        <i class="bi bi-calendar2-range"></i> ${numPeriodos} ${numPeriodos === 1 ? 'Período de Licença' : 'Períodos de Licença'}
+                    </div>
+                    <div class="periodos-list">
+                        ${servidor.licencas.map((lic, idx) => {
+                            const inicio = this.formatDateBR(lic.inicio);
+                            const fim = this.formatDateBR(lic.fim);
+                            const dias = Math.ceil((lic.fim - lic.inicio) / (1000 * 60 * 60 * 24)) + 1;
+                            const meses = Math.floor(dias / 30);
+                            return `<div class="periodo-tag">${inicio} - ${fim} <span class="periodo-duracao-tag">(${meses}m)</span></div>`;
+                        }).join('')}
+                    </div>
+                </div>
+                <div style="margin: 1rem 0; padding: 1rem 0; border-top: 1px solid var(--border);"></div>
+            `;
+        }
+        
+        // Agora adicionar aviso e períodos interpretados
         if (servidor.avisoInterpretacao) {
             interpretationContent += `
                 <div class="alert alert-warning" style="margin-bottom: 1rem; padding: 0.75rem; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;">
@@ -6594,7 +6607,7 @@ class DashboardMultiPage {
         }
 
         // Unificado: usar sempre a versão visual detalhada para ambos os tipos de planilha
-        interpretationContent = '<div class="info-grid">';
+        interpretationContent += '<div class="info-grid">';
 
         // Sempre mostrar cada registro da planilha como um período independente
         const licencasParaExibir = registrosOriginais.flatMap(r =>
