@@ -6158,138 +6158,6 @@ class DashboardMultiPage {
         // ===== SEÇÃO 1: REGISTROS DA PLANILHA =====
         let originalDataContent = '';
         
-        // Para Licença Prêmio: renderizar acordeom COM PERÍODOS AQUISITIVOS NO TOPO
-        if (isLicencaPremio) {
-            // Agrupar licencas por período aquisitivo
-            const periodosAquisitivosMap = new Map();
-            
-            if (servidor.licencas && servidor.licencas.length > 0) {
-                servidor.licencas.forEach((licenca) => {
-                    // Tentar extrair período aquisitivo dos dados
-                    const aquisitivoInicio = licenca.AQUISITIVO_INICIO || licenca.aquisitivoInicio;
-                    const aquisitivoFim = licenca.AQUISITIVO_FIM || licenca.aquisitivoFim;
-                    
-                    if (aquisitivoInicio && aquisitivoFim) {
-                        const periodoKey = `${aquisitivoInicio}-${aquisitivoFim}`;
-                        
-                        if (!periodosAquisitivosMap.has(periodoKey)) {
-                            periodosAquisitivosMap.set(periodoKey, {
-                                inicio: aquisitivoInicio,
-                                fim: aquisitivoFim,
-                                licencas: [],
-                                diasGozados: 0,
-                                diasRestando: 0
-                            });
-                        }
-                        
-                        const periodo = periodosAquisitivosMap.get(periodoKey);
-                        periodo.licencas.push(licenca);
-                        
-                        // Somar gozo
-                        const gozo = licenca.GOZO || licenca.gozo || 0;
-                        periodo.diasGozados += parseInt(gozo) || 0;
-                        
-                        // Pegar últimoRestando
-                        const restando = licenca.RESTANDO || licenca.restando || 0;
-                        periodo.diasRestando = parseInt(restando) || 0;
-                    }
-                });
-            }
-            
-            // Renderizar acordeom no topo
-            if (periodosAquisitivosMap.size > 0) {
-                originalDataContent = '<div class="acordeom-periodos">';
-                
-                let periodoIndex = 0;
-                periodosAquisitivosMap.forEach((periodo, periodoKey) => {
-                    const diasDireito = 90;
-                    const diasUsados = periodo.diasGozados;
-                    const diasRestantes = periodo.diasRestando;
-                    const percentualUsado = Math.round((diasUsados / diasDireito) * 100);
-                    const isFirst = periodoIndex === 0;
-                    
-                    originalDataContent += `
-                        <div class="acordeom-item ${isFirst ? 'active' : ''}">
-                            <div class="acordeom-header">
-                                <div class="acordeom-title">
-                                    <i class="bi bi-calendar-event"></i>
-                                    <div style="flex: 1;">
-                                        <div class="acordeom-periodo">📅 Período ${periodo.inicio} a ${periodo.fim}</div>
-                                        <div class="acordeom-stats">${diasUsados} / ${diasDireito} dias (${percentualUsado}%) • Saldo: ${diasRestantes} dias</div>
-                                        <div class="acordeom-progress-container">
-                                            <div class="acordeom-progress">
-                                                <div class="acordeom-progress-bar" style="width: ${percentualUsado}%"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <i class="bi bi-chevron-down acordeom-icon"></i>
-                            </div>
-                            <div class="acordeom-content">
-                                <div class="acordeom-body">
-                                    <div class="periodo-aquisitivo-info">
-                                        <div class="info-field-period">
-                                            <span class="info-label-period">Período Aquisitivo</span>
-                                            <span class="info-value-period">${periodo.inicio} a ${periodo.fim}</span>
-                                        </div>
-                                        <div class="info-field-period">
-                                            <span class="info-label-period">Direito</span>
-                                            <span class="info-value-period">${diasDireito} dias</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="gozo-history-period">
-                                        <div class="gozo-history-title-period">Histórico de Gozo</div>
-                                        ${periodo.licencas.map((lic, idx) => {
-                                            const dataInicio = lic.A_PARTIR || lic.aPartir || lic.inicio;
-                                            const dataFim = lic.TERMINO || lic.termino || lic.fim;
-                                            const diasGozo = lic.GOZO || lic.gozo || 0;
-                                            const saldoPos = idx === periodo.licencas.length - 1 ? diasRestantes : (lic.RESTANDO || 0);
-                                            const ehUltimo = idx === periodo.licencas.length - 1;
-                                            
-                                            return `
-                                                <div class="gozo-item-period">
-                                                    <div class="gozo-dates-period">${dataInicio} a ${dataFim}</div>
-                                                    <div class="gozo-stats-period">
-                                                        <span class="gozo-days-period"><i class="bi bi-hourglass-split"></i> ${diasGozo} dias</span>
-                                                        <span class="gozo-saldo-period ${saldoPos === 0 ? 'zero' : ''}"><i class="bi bi-cash-coin"></i> Saldo: ${saldoPos} dias</span>
-                                                    </div>
-                                                </div>
-                                            `;
-                                        }).join('')}
-                                        <div class="gozo-summary-period">
-                                            <strong>Total Utilizado:</strong> ${diasUsados} dias | <strong>Saldo Restante:</strong> ${diasRestantes} dias 
-                                            <span class="badge-period ${diasRestantes > 0 ? 'badge-period-parcial' : 'badge-period-completo'}">
-                                                ${diasRestantes > 0 ? 'Parcial' : 'Totalmente Utilizado'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    
-                    periodoIndex++;
-                });
-                
-                originalDataContent += '</div>';
-                
-                // Inicializar listeners do acordeom após renderização
-                this._inicializarAcordeomListeners();
-            } else {
-                originalDataContent = '<div class="no-data"><span>Nenhum período aquisitivo encontrado</span></div>';
-            }
-        }
-        
-        // Agora adicionar dados consolidados (CPF, RG, Cargo, Lotação, etc) APÓS o acordeom
-        // Guardar quantidade de períodos para usar depois
-        const numPeriodos = servidor.licencas.length;
-
-        // Para Licença Prêmio: se temos acordeom, adicionar separador antes dos dados consolidados
-        if (isLicencaPremio && originalDataContent && originalDataContent.length > 0) {
-            originalDataContent += '<div style="margin: 1rem 0; padding: 1rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);"></div>';
-        }
-
         if (servidor.todosOsDadosOriginais && servidor.todosOsDadosOriginais.length > 0) {
             // Consolidar campos não pessoais extraídos da planilha
             
@@ -6569,7 +6437,6 @@ class DashboardMultiPage {
             `;
         }
         originalDataContent += '</div>';
-        } // Fechamento do else para não-licença-prêmio
 
         // ===== SEÇÃO 3: INTERPRETAÇÃO DO SISTEMA =====
         let interpretationContent = '';
@@ -6711,7 +6578,7 @@ class DashboardMultiPage {
                                             </div>
                                         </div>
                                     `;
-                                }).join('')}
+                                   }).join('')}
                             </div>
                         </div>
                     `;
