@@ -1193,33 +1193,41 @@
             <div class="modal-body" id="modalBody">
                 <!-- Conteúdo será inserido dinamicamente -->
                 <div class="modal-sections">
-                    <!-- Seção de Informações Pessoais removida (dados já estão em Registros da Planilha) -->
-
-                    <!-- Seção: Dados Originais -->
+                    <!-- Seção 1: Registros da Planilha (com Acordeom) -->
                     <div class="modal-section" id="originalDataSection">
                         <div class="section-header">
-                            <i class="bi bi-table section-icon"></i>
+                            <i class="bi bi-file-earmark-spreadsheet section-icon"></i>
                             <h4 class="section-title">Registros da Planilha</h4>
                             <span class="section-badge">Dados importados</span>
                         </div>
                         <div class="section-content" id="originalDataContent">
-                            <!-- Conteúdo dinâmico -->
+                            <!-- Conteúdo dinâmico: Acordeom com períodos -->
                         </div>
                     </div>
 
-                    <!-- Seção: Interpretação do Sistema -->
+                    <!-- Seção 2: Resumo dos Períodos Aquisitivos (NOVA) -->
+                    <div class="modal-section" id="balancoSection">
+                        <div class="section-header">
+                            <i class="bi bi-graph-up section-icon"></i>
+                            <h4 class="section-title">Resumo dos Períodos Aquisitivos</h4>
+                            <span class="section-badge">Análise</span>
+                        </div>
+                        <div class="section-content" id="balancoContent">
+                            <!-- Conteúdo dinâmico: Balanço e análise -->
+                        </div>
+                    </div>
+
+                    <!-- Seção 3: Interpretação do Sistema -->
                     <div class="modal-section" id="interpretationSection">
                         <div class="section-header">
-                            <i class="bi bi-cpu section-icon"></i>
+                            <i class="bi bi-lightbulb section-icon"></i>
                             <h4 class="section-title">Interpretação do Sistema</h4>
                             <span class="section-badge interpretation">Processado</span>
                         </div>
                         <div class="section-content" id="interpretationContent">
-                            <!-- Conteúdo dinâmico -->
+                            <!-- Conteúdo dinâmico: Períodos de licença e análise -->
                         </div>
                     </div>
-
-                    <!-- Seção de problemas removida conforme solicitado -->
                 </div>
             </div>
         </div>

@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview - Aba de Registros de Licenças</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+            color: #fff;
+        }
+
+        .header p {
+            color: #a0a0a0;
+            font-size: 14px;
+        }
+
+        .modal-card {
+            background: #0f3460;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            border: 1px solid #1a4d7a;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #0f3460 0%, #1a4d7a 100%);
+            padding: 25px;
+            border-bottom: 2px solid #2a6ba5;
+        }
+
+        .modal-header h2 {
+            font-size: 24px;
+            margin-bottom: 5px;
+            color: #fff;
+        }
+
+        .modal-header p {
+            color: #7fb3d5;
+            font-size: 13px;
+        }
+
+        .modal-body {
+            padding: 25px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        /* Scrollbar customizado */
+        .modal-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .modal-body::-webkit-scrollbar-track {
+            background: #1a3a4a;
+            border-radius: 10px;
+        }
+
+        .modal-body::-webkit-scrollbar-thumb {
+            background: #2a6ba5;
+            border-radius: 10px;
+        }
+
+        .modal-body::-webkit-scrollbar-thumb:hover {
+            background: #3a8bc5;
+        }
+
+        /* Accordion Styles */
+        .accordion-item {
+            background: #1a4d7a;
+            border: 1px solid #2a6ba5;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .accordion-item:hover {
+            border-color: #3a8bc5;
+            box-shadow: 0 4px 12px rgba(58, 139, 197, 0.2);
+        }
+
+        .accordion-header {
+            padding: 16px;
+            background: #1a4d7a;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.3s ease;
+        }
+
+        .accordion-header:hover {
+            background: #2a5a8a;
+        }
+
+        .accordion-header.active {
+            background: #2a6ba5;
+        }
+
+        .accordion-title {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .accordion-period {
+            font-size: 15px;
+            color: #fff;
+        }
+
+        .accordion-stats {
+            font-size: 12px;
+            color: #7fb3d5;
+            margin-top: 4px;
+        }
+
+        .accordion-icon {
+            font-size: 18px;
+            transition: transform 0.3s ease;
+            color: #3a8bc5;
+        }
+
+        .accordion-item.active .accordion-icon {
+            transform: rotate(180deg);
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin-top: 8px;
+            display: none;
+        }
+
+        .accordion-header:hover .progress-container,
+        .accordion-header.active .progress-container {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 150px;
+            height: 4px;
+            background: #0a2030;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #51cf66 0%, #ffaa00 50%, #ff6b6b 100%);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .accordion-item.active .accordion-content {
+            max-height: 500px;
+        }
+
+        .accordion-body {
+            padding: 16px;
+            border-top: 1px solid #2a6ba5;
+            background: #0f3460;
+        }
+
+        /* Info Section */
+        .info-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #2a5a8a;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .info-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #7fb3d5;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-value {
+            font-size: 14px;
+            color: #fff;
+            font-weight: 500;
+        }
+
+        /* Histórico de Gozo */
+        .gozo-history {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #2a5a8a;
+        }
+
+        .gozo-history-title {
+            font-size: 12px;
+            color: #7fb3d5;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .gozo-item {
+            background: #0a2030;
+            border-left: 3px solid #3a8bc5;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .gozo-dates {
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .gozo-stats {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+        }
+
+        .gozo-stats span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .gozo-days {
+            color: #5eb3ff;
+        }
+
+        .gozo-saldo {
+            color: #ffaa00;
+        }
+
+        .gozo-saldo.zero {
+            color: #ff6b6b;
+        }
+
+        .gozo-summary {
+            background: #1a4d7a;
+            border-left: 3px solid #ffaa00;
+            padding: 10px 12px;
+            margin-top: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #7fb3d5;
+        }
+
+        .gozo-summary strong {
+            color: #fff;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-completo {
+            background: #ff6b6b;
+            color: #fff;
+        }
+
+        .badge-parcial {
+            background: #ffaa00;
+            color: #000;
+        }
+
+        .badge-livre {
+            background: #51cf66;
+            color: #000;
+        }
+
+        /* Footer */
+        .modal-footer {
+            padding: 16px 25px;
+            border-top: 1px solid #2a6ba5;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary {
+            background: #2a5a8a;
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: #3a6ba5;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3a8bc5 0%, #2a6ba5 100%);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #4a9bd5 0%, #3a7bb5 100%);
+            box-shadow: 0 4px 12px rgba(58, 139, 197, 0.3);
+        }
+
+        /* Responsivo */
+        @media (max-width: 600px) {
+            .info-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-card {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Preview - Aba de Registros</h1>
+            <p>Visualização dos Períodos Aquisitivos com Histórico de Gozo</p>
+        </div>
+
+        <div class="modal-card">
+            <!-- Header -->
+            <div class="modal-header">
+                <h2>ACACIA CHAVES DA SILVA COSTA</h2>
+                <p>Cargo: OFICIAL ADMINISTRATIVO | Lotação: GECAP</p>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body">
+                <!-- Período 1 -->
+                <div class="accordion-item active">
+                    <div class="accordion-header active">
+                        <div class="accordion-title">
+                            <i class="bi bi-calendar-event"></i>
+                            <div style="flex: 1;">
+                                <div class="accordion-period">📅 Período 2003-2008</div>
+                                <div class="accordion-stats">30 / 90 dias (33%) • Saldo: 30 dias</div>
+                                <div class="progress-container">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 33%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <i class="bi bi-chevron-down accordion-icon"></i>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="accordion-body">
+                            <div class="info-row">
+                                <div class="info-field">
+                                    <span class="info-label">Data de Aquisição</span>
+                                    <span class="info-value">16/11/1998 a 14/11/2003</span>
+                                </div>
+                                <div class="info-field">
+                                    <span class="info-label">Direito</span>
+                                    <span class="info-value">90 dias</span>
+                                </div>
+                            </div>
+
+                            <div class="gozo-history">
+                                <div class="gozo-history-title">Histórico de Gozo</div>
+                                
+                                <div class="gozo-item">
+                                    <div class="gozo-dates">26/11/2018 a 25/12/2018</div>
+                                    <div class="gozo-stats">
+                                        <span class="gozo-days"><i class="bi bi-hourglass-split"></i> 30 dias</span>
+                                        <span class="gozo-saldo"><i class="bi bi-cash-coin"></i> Saldo: 0(DIAS)</span>
+                                    </div>
+                                </div>
+
+                                <div class="gozo-summary">
+                                    <strong>Total Utilizado:</strong> 30 dias | <strong>Saldo Restante:</strong> 30 dias <span class="badge badge-parcial">Parcial</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Período 2 -->
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <div class="accordion-title">
+                            <i class="bi bi-calendar-event"></i>
+                            <div style="flex: 1;">
+                                <div class="accordion-period">📅 Período 2008-2013</div>
+                                <div class="accordion-stats">90 / 90 dias (100%) • Saldo: 0 dias</div>
+                                <div class="progress-container">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 100%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <i class="bi bi-chevron-down accordion-icon"></i>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="accordion-body">
+                            <div class="info-row">
+                                <div class="info-field">
+                                    <span class="info-label">Data de Aquisição</span>
+                                    <span class="info-value">13/11/2008 a 12/11/2013</span>
+                                </div>
+                                <div class="info-field">
+                                    <span class="info-label">Direito</span>
+                                    <span class="info-value">90 dias</span>
+                                </div>
+                            </div>
+
+                            <div class="gozo-history">
+                                <div class="gozo-history-title">Histórico de Gozo</div>
+                                
+                                <div class="gozo-item">
+                                    <div class="gozo-dates">30/11/2020 a 28/01/2021</div>
+                                    <div class="gozo-stats">
+                                        <span class="gozo-days"><i class="bi bi-hourglass-split"></i> 60 dias</span>
+                                        <span class="gozo-saldo"><i class="bi bi-cash-coin"></i> Saldo: 30(DIAS)</span>
+                                    </div>
+                                </div>
+
+                                <div class="gozo-item">
+                                    <div class="gozo-dates">28/11/2022 a 27/12/2022</div>
+                                    <div class="gozo-stats">
+                                        <span class="gozo-days"><i class="bi bi-hourglass-split"></i> 30 dias</span>
+                                        <span class="gozo-saldo zero"><i class="bi bi-cash-coin"></i> Saldo: 0(DIAS)</span>
+                                    </div>
+                                </div>
+
+                                <div class="gozo-summary">
+                                    <strong>Total Utilizado:</strong> 90 dias | <strong>Saldo Restante:</strong> 0 dias <span class="badge badge-completo">Totalmente Utilizado</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Período 3 -->
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <div class="accordion-title">
+                            <i class="bi bi-calendar-event"></i>
+                            <div style="flex: 1;">
+                                <div class="accordion-period">📅 Período 2013-2018</div>
+                                <div class="accordion-stats">90 / 90 dias (100%) • Saldo: 0 dias</div>
+                                <div class="progress-container">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 100%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <i class="bi bi-chevron-down accordion-icon"></i>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="accordion-body">
+                            <div class="info-row">
+                                <div class="info-field">
+                                    <span class="info-label">Data de Aquisição</span>
+                                    <span class="info-value">13/11/2013 a 12/11/2018</span>
+                                </div>
+                                <div class="info-field">
+                                    <span class="info-label">Direito</span>
+                                    <span class="info-value">90 dias</span>
+                                </div>
+                            </div>
+
+                            <div class="gozo-history">
+                                <div class="gozo-history-title">Histórico de Gozo</div>
+                                
+                                <div class="gozo-item">
+                                    <div class="gozo-dates">28/12/2022 a 26/01/2023</div>
+                                    <div class="gozo-stats">
+                                        <span class="gozo-days"><i class="bi bi-hourglass-split"></i> 30 dias</span>
+                                        <span class="gozo-saldo"><i class="bi bi-cash-coin"></i> Saldo: 60(DIAS)</span>
+                                    </div>
+                                </div>
+
+                                <div class="gozo-item">
+                                    <div class="gozo-dates">02/01/2024 a 31/01/2024</div>
+                                    <div class="gozo-stats">
+                                        <span class="gozo-days"><i class="bi bi-hourglass-split"></i> 30 dias</span>
+                                        <span class="gozo-saldo"><i class="bi bi-cash-coin"></i> Saldo: 30(DIAS)</span>
+                                    </div>
+                                </div>
+
+                                <div class="gozo-item">
+                                    <div class="gozo-dates">26/12/2024 a 24/01/2025</div>
+                                    <div class="gozo-stats">
+                                        <span class="gozo-days"><i class="bi bi-hourglass-split"></i> 30 dias</span>
+                                        <span class="gozo-saldo zero"><i class="bi bi-cash-coin"></i> Saldo: 0(DIAS)</span>
+                                    </div>
+                                </div>
+
+                                <div class="gozo-summary">
+                                    <strong>Total Utilizado:</strong> 90 dias | <strong>Saldo Restante:</strong> 0 dias <span class="badge badge-completo">Totalmente Utilizado</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Período 4 -->
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <div class="accordion-title">
+                            <i class="bi bi-calendar-event"></i>
+                            <div style="flex: 1;">
+                                <div class="accordion-period">📅 Período 2018-2023</div>
+                                <div class="accordion-stats">90 / 90 dias (100%) • Saldo: 0 dias</div>
+                                <div class="progress-container">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 100%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <i class="bi bi-chevron-down accordion-icon"></i>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="accordion-body">
+                            <div class="info-row">
+                                <div class="info-field">
+                                    <span class="info-label">Data de Aquisição</span>
+                                    <span class="info-value">17/11/2018 a 16/11/2023</span>
+                                </div>
+                                <div class="info-field">
+                                    <span class="info-label">Direito</span>
+                                    <span class="info-value">90 dias</span>
+                                </div>
+                            </div>
+
+                            <div class="gozo-history">
+                                <div class="gozo-history-title">Histórico de Gozo</div>
+                                
+                                <div class="gozo-item">
+                                    <div class="gozo-dates">11/06/2025 a 10/07/2025</div>
+                                    <div class="gozo-stats">
+                                        <span class="gozo-days"><i class="bi bi-hourglass-split"></i> 30 dias</span>
+                                        <span class="gozo-saldo"><i class="bi bi-cash-coin"></i> Saldo: 60(DIAS)</span>
+                                    </div>
+                                </div>
+
+                                <div class="gozo-item">
+                                    <div class="gozo-dates">01/11/2025 a 30/12/2025</div>
+                                    <div class="gozo-stats">
+                                        <span class="gozo-days"><i class="bi bi-hourglass-split"></i> 60 dias</span>
+                                        <span class="gozo-saldo zero"><i class="bi bi-cash-coin"></i> Saldo: 0(DIAS)</span>
+                                    </div>
+                                </div>
+
+                                <div class="gozo-summary">
+                                    <strong>Total Utilizado:</strong> 90 dias | <strong>Saldo Restante:</strong> 0 dias <span class="badge badge-completo">Totalmente Utilizado</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer">
+                <button class="btn btn-secondary">Cancelar</button>
+                <button class="btn btn-primary">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Accordion functionality
+        document.querySelectorAll('.accordion-header').forEach(header => {
+            header.addEventListener('click', function() {
+                const item = this.closest('.accordion-item');
+                const isActive = item.classList.contains('active');
+                
+                // Fechar todos os accordions
+                document.querySelectorAll('.accordion-item').forEach(el => {
+                    el.classList.remove('active');
+                });
+                
+                // Abrir o clicado se não estava ativo
+                if (!isActive) {
+                    item.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

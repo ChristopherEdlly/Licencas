@@ -5836,6 +5836,228 @@ input[type="number"]::-webkit-outer-spin-button {
     margin-left: 0.25rem;
 }
 
+/* ==================== ACORDEOM DE PERÍODOS AQUISITIVOS ==================== */
+.acordeom-periodos {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.acordeom-item {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.acordeom-item:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.acordeom-header {
+    padding: 1rem;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.3s ease;
+}
+
+.acordeom-header:hover {
+    background: var(--bg-tertiary);
+}
+
+.acordeom-item.active .acordeom-header {
+    background: var(--bg-tertiary);
+}
+
+.acordeom-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+}
+
+.acordeom-periodo {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.acordeom-stats {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+}
+
+.acordeom-progress-container {
+    width: 120px;
+    margin-top: 0.5rem;
+}
+
+.acordeom-progress {
+    width: 100%;
+    height: 4px;
+    background: var(--bg-tertiary);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 0.25rem;
+}
+
+.acordeom-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981 0%, #f59e0b 50%, #ef4444 100%);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.acordeom-icon {
+    font-size: 1.2rem;
+    transition: transform 0.3s ease;
+    color: var(--primary);
+}
+
+.acordeom-item.active .acordeom-icon {
+    transform: rotate(180deg);
+}
+
+.acordeom-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.acordeom-item.active .acordeom-content {
+    max-height: 800px;
+}
+
+.acordeom-body {
+    padding: 1rem;
+    border-top: 1px solid var(--border);
+    background: var(--bg-primary);
+}
+
+.periodo-aquisitivo-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.periodo-aquisitivo-info:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.info-field-period {
+    display: flex;
+    flex-direction: column;
+}
+
+.info-label-period {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.info-value-period {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.gozo-history-period {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+}
+
+.gozo-history-title-period {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.gozo-item-period {
+    background: var(--bg-tertiary);
+    border-left: 3px solid var(--primary);
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.gozo-dates-period {
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.gozo-stats-period {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.gozo-days-period {
+    color: #3b82f6;
+}
+
+.gozo-saldo-period {
+    color: #f59e0b;
+}
+
+.gozo-saldo-period.zero {
+    color: var(--text-muted);
+}
+
+.gozo-summary-period {
+    background: var(--bg-secondary);
+    border-left: 3px solid #f59e0b;
+    padding: 0.5rem 0.75rem;
+    margin-top: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.gozo-summary-period strong {
+    color: var(--text-primary);
+}
+
+.badge-period {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-left: 0.5rem;
+}
+
+.badge-period-completo {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.badge-period-parcial {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+}
+
 /* ==================== BALANÇO DE LICENÇAS ==================== */
 .balanco-licencas {
     margin-top: 1rem;

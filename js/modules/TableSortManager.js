@@ -192,6 +192,14 @@ class TableSortManager {
             if (th) {
                 th.classList.add('sort-active');
                 th.classList.add(`sort-${this.currentDirection}`);
+                
+                // Atualizar ícone baseado na direção
+                const icon = th.querySelector('.sort-icon i');
+                if (icon) {
+                    icon.className = this.currentDirection === 'asc' 
+                        ? 'bi bi-sort-alpha-down' 
+                        : 'bi bi-sort-alpha-up';
+                }
             }
         }
     }
@@ -206,14 +214,34 @@ class TableSortManager {
         const thead = table.querySelector('thead tr');
         if (!thead) return;
 
-        // Configuração das colunas ordenáveis
-        const sortableColumns = [
-            { index: 0, key: 'nome', label: 'Nome' },
-            { index: 1, key: 'idade', label: 'Idade' },
-            { index: 2, key: 'lotacao', label: 'Lotação' },
-            { index: 3, key: 'proximaLicenca', label: 'Próxima Licença' },
-            { index: 4, key: 'urgencia', label: 'Urgência' }
-        ];
+        // Detectar tipo de tabela baseado nos headers
+        const headers = Array.from(thead.children).map(th => th.textContent.trim().toLowerCase());
+        const isLicencaPremio = headers.includes('saldo');
+
+        // Configuração das colunas ordenáveis baseada no tipo de tabela
+        let sortableColumns;
+        
+        if (isLicencaPremio) {
+            // Formato licença prêmio: Nome, Cargo, Lotação, Próxima Licença, Saldo, Ações
+            sortableColumns = [
+                { index: 0, key: 'nome', label: 'Nome' },
+                { index: 3, key: 'proximaLicenca', label: 'Próxima Licença' }
+                // Cargo, Lotação, Saldo e Ações não são ordenáveis
+            ];
+        } else {
+            // Formato original (índices podem variar com colunas opcionais)
+            sortableColumns = [
+                { index: 0, key: 'nome', label: 'Nome' }
+            ];
+            
+            // Adicionar outras colunas baseado nos headers existentes
+            headers.forEach((h, idx) => {
+                if (h.includes('idade')) sortableColumns.push({ index: idx, key: 'idade', label: 'Idade' });
+                if (h.includes('lotação')) sortableColumns.push({ index: idx, key: 'lotacao', label: 'Lotação' });
+                if (h.includes('próxima licença')) sortableColumns.push({ index: idx, key: 'proximaLicenca', label: 'Próxima Licença' });
+                if (h.includes('urgência')) sortableColumns.push({ index: idx, key: 'urgencia', label: 'Urgência' });
+            });
+        }
 
         sortableColumns.forEach(col => {
             const th = thead.children[col.index];

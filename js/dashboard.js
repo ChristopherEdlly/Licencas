@@ -5743,90 +5743,65 @@ class DashboardMultiPage {
                 proximaLicencaTexto = dataLicenca.toLocaleDateString('pt-BR');
             }
 
-            // Formatar período completo de licença - corrigido para períodos múltiplos
-            const formatarPeriodoLicenca = (servidor) => {
-                // Primeiro tentar usar os campos já processados
-                if (servidor.proximaLicencaInicio && servidor.proximaLicencaFim) {
-                    const inicio = new Date(servidor.proximaLicencaInicio);
-                    const fim = new Date(servidor.proximaLicencaFim);
-
-                    if (!isNaN(inicio.getTime()) && !isNaN(fim.getTime())) {
-                        const mesesAbrev = [
-                            'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
-                            'jul', 'ago', 'set', 'out', 'nov', 'dez'
-                        ];
-
-                        const diaInicio = inicio.getDate();
-                        const mesInicio = mesesAbrev[inicio.getMonth()];
-                        const anoInicio = inicio.getFullYear();
-
-                        const diaFim = fim.getDate();
-                        const mesFim = mesesAbrev[fim.getMonth()];
-                        const anoFim = fim.getFullYear();
-
-                        // Se é o mesmo ano
-                        if (anoInicio === anoFim) {
-                            return `${diaInicio}/${mesInicio} - ${diaFim}/${mesFim}/${anoInicio}`;
-                        }
-
-                        // Se atravessa anos
-                        return `${diaInicio}/${mesInicio}/${anoInicio} - ${diaFim}/${mesFim}/${anoFim}`;
-                    }
-                }
-
-                // Fallback: usar array de licenças - pegar PRIMEIRA e ÚLTIMA para período completo
-                if (servidor.licencas && servidor.licencas.length > 0) {
-                    const primeiraLicenca = servidor.licencas[0];
-                    const ultimaLicenca = servidor.licencas[servidor.licencas.length - 1];
-
-                    if (primeiraLicenca.inicio && ultimaLicenca.fim) {
-                        const inicio = new Date(primeiraLicenca.inicio);
-                        const fim = new Date(ultimaLicenca.fim);
-
-                        if (!isNaN(inicio.getTime()) && !isNaN(fim.getTime())) {
-                            const mesesAbrev = [
-                                'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
-                                'jul', 'ago', 'set', 'out', 'nov', 'dez'
-                            ];
-
-                            const diaInicio = inicio.getDate();
-                            const mesInicio = mesesAbrev[inicio.getMonth()];
-                            const anoInicio = inicio.getFullYear();
-
-                            const diaFim = fim.getDate();
-                            const mesFim = mesesAbrev[fim.getMonth()];
-                            const anoFim = fim.getFullYear();
-
-                            if (anoInicio === anoFim) {
-                                return `${diaInicio}/${mesInicio} - ${diaFim}/${mesFim}/${anoInicio}`;
+            // Formatar próxima licença - mostrar data de início e duração em meses
+            const formatarProximaLicenca = (servidor) => {
+                const agora = new Date();
+                agora.setHours(0, 0, 0, 0); // Comparar apenas data, não hora
+                
+                // Buscar TODOS os registros deste servidor para encontrar licenças futuras
+                const todosRegistros = this.allServidores.filter(s => s.nome === servidor.nome);
+                const todasLicencas = [];
+                
+                todosRegistros.forEach(reg => {
+                    if (reg.licencas && Array.isArray(reg.licencas)) {
+                        reg.licencas.forEach(lic => {
+                            if (lic.inicio) {
+                                todasLicencas.push(lic);
                             }
-
-                            return `${diaInicio}/${mesInicio}/${anoInicio} - ${diaFim}/${mesFim}/${anoFim}`;
-                        }
+                        });
                     }
+                });
+                
+                // Filtrar licenças futuras (início >= hoje)
+                const licencasFuturas = todasLicencas.filter(lic => {
+                    const dataInicio = new Date(lic.inicio);
+                    dataInicio.setHours(0, 0, 0, 0);
+                    return dataInicio >= agora;
+                }).sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
+                
+                if (licencasFuturas.length > 0) {
+                    const proxima = licencasFuturas[0];
+                    const inicio = new Date(proxima.inicio);
+                    const fim = proxima.fim ? new Date(proxima.fim) : null;
+                    
+                    // Formatar data
+                    const dataFormatada = inicio.toLocaleDateString('pt-BR');
+                    
+                    // Calcular duração em meses
+                    let duracao = '';
+                    if (fim) {
+                        const diffDias = Math.ceil((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
+                        const meses = Math.round(diffDias / 30);
+                        duracao = meses > 0 ? ` (${meses}m)` : ` (${diffDias}d)`;
+                    } else if (proxima.meses) {
+                        duracao = ` (${proxima.meses}m)`;
+                    } else if (proxima.diasGozo) {
+                        const meses = Math.round(proxima.diasGozo / 30);
+                        duracao = meses > 0 ? ` (${meses}m)` : ` (${proxima.diasGozo}d)`;
+                    }
+                    
+                    return `${dataFormatada}${duracao}`;
                 }
-
-                return '--';
+                
+                return 'Não agendada';
             };
 
-            const periodoLicencaCompleto = formatarPeriodoLicenca(servidor);
+            const proximaLicencaFormatada = formatarProximaLicenca(servidor);
 
             if (isLicencaPremio) {
                 // Calcular saldo de licenças - buscar TODOS os registros do mesmo servidor
                 const todosRegistrosServidor = this.allServidores.filter(s => s.nome === servidor.nome);
                 const saldoInfo = this.calcularSaldoServidorCompleto(todosRegistrosServidor);
-                
-                // Debug - mostrar primeiro servidor
-                if (servidor.nome === this.filteredServidores[0]?.nome) {
-                    console.log('🔍 Debug Saldo:', {
-                        nome: servidor.nome,
-                        totalRegistros: todosRegistrosServidor.length,
-                        saldoInfo,
-                        primeiroRegistro: todosRegistrosServidor[0],
-                        temLicencas: todosRegistrosServidor[0]?.licencas?.length,
-                        temDadosOriginais: !!todosRegistrosServidor[0]?.dadosOriginais
-                    });
-                }
                 
                 const saldoClass = saldoInfo.dias > 0 ? 'saldo-positivo' : 'saldo-zerado';
                 const saldoTexto = saldoInfo.dias > 0 ? `${saldoInfo.dias} dias` : '0';
@@ -5835,7 +5810,8 @@ class DashboardMultiPage {
                 row.innerHTML = `
                     <td><strong>${nomeEscapado}</strong></td>
                     <td><span class="cargo-badge">${cargoEscapado}</span></td>
-                    <td>${periodoLicencaCompleto}</td>
+                    <td><span class="lotacao-badge">${lotacaoEscapada}</span></td>
+                    <td>${proximaLicencaFormatada}</td>
                     <td><span class="saldo-badge ${saldoClass}">${saldoTexto}</span></td>
                     <td class="actions">
                         <button class="btn-icon" data-servidor-nome="${nomeEscapado}" title="Ver detalhes">
@@ -5934,7 +5910,8 @@ class DashboardMultiPage {
             tableHead.innerHTML = `
                 <th>Nome</th>
                 <th>Cargo</th>
-                <th>Período de Licença</th>
+                <th>Lotação</th>
+                <th>Próxima Licença</th>
                 <th>Saldo</th>
                 <th>Ações</th>
             `;
@@ -6178,8 +6155,149 @@ class DashboardMultiPage {
 
         // Informações pessoais removidas: agora consolidadas em 'Registros da Planilha'
 
-        // Registros da Planilha (consolidar informações únicas)
-        let originalDataContent = '<div class="planilha-summary">';
+        // ===== SEÇÃO 1: REGISTROS DA PLANILHA (ACORDEOM COM PERÍODOS AQUISITIVOS) =====
+        let originalDataContent = '';
+        
+        // Para Licença Prêmio: renderizar acordeom com períodos aquisitivos
+        if (isLicencaPremio) {
+            // Agrupar licencas por período aquisitivo
+            const periodosAquisitivosMap = new Map();
+            
+            if (servidor.licencas && servidor.licencas.length > 0) {
+                servidor.licencas.forEach((licenca) => {
+                    // Tentar extrair período aquisitivo dos dados
+                    const aquisitivoInicio = licenca.AQUISITIVO_INICIO || licenca.aquisitivoInicio;
+                    const aquisitivoFim = licenca.AQUISITIVO_FIM || licenca.aquisitivoFim;
+                    
+                    if (aquisitivoInicio && aquisitivoFim) {
+                        const periodoKey = `${aquisitivoInicio}-${aquisitivoFim}`;
+                        
+                        if (!periodosAquisitivosMap.has(periodoKey)) {
+                            periodosAquisitivosMap.set(periodoKey, {
+                                inicio: aquisitivoInicio,
+                                fim: aquisitivoFim,
+                                licencas: [],
+                                diasGozados: 0,
+                                diasRestando: 0
+                            });
+                        }
+                        
+                        const periodo = periodosAquisitivosMap.get(periodoKey);
+                        periodo.licencas.push(licenca);
+                        
+                        // Somar gozo
+                        const gozo = licenca.GOZO || licenca.gozo || 0;
+                        periodo.diasGozados += parseInt(gozo) || 0;
+                        
+                        // Pegar últimoRestando
+                        const restando = licenca.RESTANDO || licenca.restando || 0;
+                        periodo.diasRestando = parseInt(restando) || 0;
+                    }
+                });
+            }
+            
+            // Renderizar acordeom
+            if (periodosAquisitivosMap.size > 0) {
+                originalDataContent = '<div class="acordeom-periodos">';
+                
+                let periodoIndex = 0;
+                periodosAquisitivosMap.forEach((periodo, periodoKey) => {
+                    const diasDireito = 90;
+                    const diasUsados = periodo.diasGozados;
+                    const diasRestantes = periodo.diasRestando;
+                    const percentualUsado = Math.round((diasUsados / diasDireito) * 100);
+                    const isFirst = periodoIndex === 0;
+                    
+                    originalDataContent += `
+                        <div class="acordeom-item ${isFirst ? 'active' : ''}">
+                            <div class="acordeom-header">
+                                <div class="acordeom-title">
+                                    <i class="bi bi-calendar-event"></i>
+                                    <div style="flex: 1;">
+                                        <div class="acordeom-periodo">📅 Período ${this.formatDateBR(new Date(periodo.inicio))} a ${this.formatDateBR(new Date(periodo.fim))}</div>
+                                        <div class="acordeom-stats">${diasUsados} / ${diasDireito} dias (${percentualUsado}%) • Saldo: ${diasRestantes} dias</div>
+                                        <div class="acordeom-progress-container">
+                                            <div class="acordeom-progress">
+                                                <div class="acordeom-progress-bar" style="width: ${percentualUsado}%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <i class="bi bi-chevron-down acordeom-icon"></i>
+                            </div>
+                            <div class="acordeom-content">
+                                <div class="acordeom-body">
+                                    <div class="periodo-aquisitivo-info">
+                                        <div class="info-field-period">
+                                            <span class="info-label-period">Período Aquisitivo</span>
+                                            <span class="info-value-period">${this.formatDateBR(new Date(periodo.inicio))} a ${this.formatDateBR(new Date(periodo.fim))}</span>
+                                        </div>
+                                        <div class="info-field-period">
+                                            <span class="info-label-period">Direito</span>
+                                            <span class="info-value-period">${diasDireito} dias</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="gozo-history-period">
+                                        <div class="gozo-history-title-period">Histórico de Gozo</div>
+                                        ${periodo.licencas.map((lic, idx) => {
+                                            const dataInicio = lic.A_PARTIR || lic.aPartir || lic.inicio;
+                                            const dataFim = lic.TERMINO || lic.termino || lic.fim;
+                                            const diasGozo = lic.GOZO || lic.gozo || 0;
+                                            const saldoPos = idx === periodo.licencas.length - 1 ? diasRestantes : (lic.RESTANDO || 0);
+                                            const ehUltimo = idx === periodo.licencas.length - 1;
+                                            
+                                            return `
+                                                <div class="gozo-item-period">
+                                                    <div class="gozo-dates-period">${this.formatDateBR(new Date(dataInicio))} a ${this.formatDateBR(new Date(dataFim))}</div>
+                                                    <div class="gozo-stats-period">
+                                                        <span class="gozo-days-period"><i class="bi bi-hourglass-split"></i> ${diasGozo} dias</span>
+                                                        <span class="gozo-saldo-period ${saldoPos === 0 ? 'zero' : ''}"><i class="bi bi-cash-coin"></i> Saldo: ${saldoPos} dias</span>
+                                                    </div>
+                                                </div>
+                                            `;
+                                        }).join('')}
+                                        <div class="gozo-summary-period">
+                                            <strong>Total Utilizado:</strong> ${diasUsados} dias | <strong>Saldo Restante:</strong> ${diasRestantes} dias 
+                                            <span class="badge-period ${diasRestantes > 0 ? 'badge-period-parcial' : 'badge-period-completo'}">
+                                                ${diasRestantes > 0 ? 'Parcial' : 'Totalmente Utilizado'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    periodoIndex++;
+                });
+                
+                originalDataContent += '</div>';
+                
+                // Adicionar script para gerenciar acordeom
+                setTimeout(() => {
+                    document.querySelectorAll('.acordeom-header').forEach((header) => {
+                        header.addEventListener('click', function() {
+                            const item = this.closest('.acordeom-item');
+                            const isActive = item.classList.contains('active');
+                            
+                            // Fechar todos
+                            document.querySelectorAll('.acordeom-item').forEach(el => {
+                                el.classList.remove('active');
+                            });
+                            
+                            // Abrir se não estava ativo
+                            if (!isActive) {
+                                item.classList.add('active');
+                            }
+                        });
+                    });
+                }, 100);
+            } else {
+                originalDataContent = '<div class="no-data"><span>Nenhum período aquisitivo encontrado</span></div>';
+            }
+        } else {
+            // Para outros tipos de tabela: manter renderização original
         
         // Guardar quantidade de períodos para usar depois
         const numPeriodos = servidor.licencas.length;
@@ -6460,50 +6578,6 @@ class DashboardMultiPage {
                         </div>
                     `;
                 }
-                
-                // Seção de Balanço de Licenças (apenas para licença prêmio)
-                if (isLicencaPremio && servidoresComMesmoNome && servidoresComMesmoNome.length > 0) {
-                    const balancoInfo = this.calcularSaldoServidorCompleto(servidoresComMesmoNome);
-                    if (balancoInfo.diasGanhos > 0) {
-                        const percentualUsado = balancoInfo.diasGanhos > 0 
-                            ? Math.round((balancoInfo.diasUsados / balancoInfo.diasGanhos) * 100) 
-                            : 0;
-                        
-                        originalDataContent += `
-                            <div class="balanco-licencas">
-                                <div class="balanco-title">
-                                    <i class="bi bi-calculator"></i> Balanço de Licenças Prêmio
-                                </div>
-                                <div class="balanco-grid">
-                                    <div class="balanco-item">
-                                        <span class="balanco-label">Períodos Aquisitivos</span>
-                                        <span class="balanco-value">${balancoInfo.periodosTotal}</span>
-                                        <span class="balanco-detail">(5 anos cada)</span>
-                                    </div>
-                                    <div class="balanco-item">
-                                        <span class="balanco-label">Dias de Direito</span>
-                                        <span class="balanco-value balanco-ganho">${balancoInfo.diasGanhos}</span>
-                                        <span class="balanco-detail">(${balancoInfo.periodosTotal} × 90 dias)</span>
-                                    </div>
-                                    <div class="balanco-item">
-                                        <span class="balanco-label">Dias Usados</span>
-                                        <span class="balanco-value balanco-usado">${balancoInfo.diasUsados}</span>
-                                        <span class="balanco-detail">(${percentualUsado}% do total)</span>
-                                    </div>
-                                    <div class="balanco-item balanco-saldo">
-                                        <span class="balanco-label">Saldo Disponível</span>
-                                        <span class="balanco-value ${balancoInfo.dias > 0 ? 'balanco-positivo' : 'balanco-zerado'}">${balancoInfo.dias} dias</span>
-                                        <span class="balanco-detail">${balancoInfo.dias > 0 ? 'disponível para agendar' : 'totalmente utilizado'}</span>
-                                    </div>
-                                </div>
-                                <div class="balanco-progress">
-                                    <div class="balanco-progress-bar" style="width: ${percentualUsado}%"></div>
-                                </div>
-                                <div class="balanco-progress-label">${percentualUsado}% utilizado</div>
-                            </div>
-                        `;
-                    }
-                }
             } else {
                 originalDataContent += `
                     <div class="no-data">
@@ -6519,8 +6593,10 @@ class DashboardMultiPage {
             `;
         }
         originalDataContent += '</div>';
+        } // Fechamento do else para não-licença-prêmio
 
-        // Interpretação do Sistema
+        // ===== SEÇÃO 3: INTERPRETAÇÃO DO SISTEMA =====
+        // Mostrar períodos de licença primeiro (foram movidos para cá)
         let interpretationContent = '';
         const issues = [];
         
@@ -6669,17 +6745,67 @@ class DashboardMultiPage {
 
         // Preencher conteúdos do modal
         const originalDataElement = document.getElementById('originalDataContent');
+        const balancoElement = document.getElementById('balancoContent');
         const interpretationElement = document.getElementById('interpretationContent');
 
-        if (!originalDataElement || !interpretationElement) {
+        if (!originalDataElement || !interpretationElement || !balancoElement) {
             console.error('Elementos do modal não encontrados:', {
                 originalDataContent: !!originalDataElement,
+                balancoContent: !!balancoElement,
                 interpretationContent: !!interpretationElement
             });
             return;
         }
 
+        // Renderizar as 3 seções separadamente
         originalDataElement.innerHTML = originalDataContent;
+        
+        // Seção 2: Balanço (extraído da Seção 1 anterior)
+        let balancoContent = '';
+        if (isLicencaPremio && servidoresComMesmoNome && servidoresComMesmoNome.length > 0) {
+            const balancoInfo = this.calcularSaldoServidorCompleto(servidoresComMesmoNome);
+            if (balancoInfo.diasGanhos > 0) {
+                const percentualUsado = balancoInfo.diasGanhos > 0 
+                    ? Math.round((balancoInfo.diasUsados / balancoInfo.diasGanhos) * 100) 
+                    : 0;
+                
+                balancoContent = `
+                    <div class="balanco-licencas">
+                        <div class="balanco-title">
+                            <i class="bi bi-calculator"></i> Balanço de Licenças Prêmio
+                        </div>
+                        <div class="balanco-grid">
+                            <div class="balanco-item">
+                                <span class="balanco-label">Períodos Aquisitivos</span>
+                                <span class="balanco-value">${balancoInfo.periodosTotal}</span>
+                                <span class="balanco-detail">(5 anos cada)</span>
+                            </div>
+                            <div class="balanco-item">
+                                <span class="balanco-label">Dias de Direito</span>
+                                <span class="balanco-value balanco-ganho">${balancoInfo.diasGanhos}</span>
+                                <span class="balanco-detail">(${balancoInfo.periodosTotal} × 90 dias)</span>
+                            </div>
+                            <div class="balanco-item">
+                                <span class="balanco-label">Dias Usados</span>
+                                <span class="balanco-value balanco-usado">${balancoInfo.diasUsados}</span>
+                                <span class="balanco-detail">(${percentualUsado}% do total)</span>
+                            </div>
+                            <div class="balanco-item balanco-saldo">
+                                <span class="balanco-label">Saldo Disponível</span>
+                                <span class="balanco-value ${balancoInfo.dias > 0 ? 'balanco-positivo' : 'balanco-zerado'}">${balancoInfo.dias} dias</span>
+                                <span class="balanco-detail">${balancoInfo.dias > 0 ? 'disponível para agendar' : 'totalmente utilizado'}</span>
+                            </div>
+                        </div>
+                        <div class="balanco-progress">
+                            <div class="balanco-progress-bar" style="width: ${percentualUsado}%"></div>
+                        </div>
+                        <div class="balanco-progress-label">${percentualUsado}% utilizado</div>
+                    </div>
+                `;
+            }
+        }
+        balancoElement.innerHTML = balancoContent;
+        
         interpretationElement.innerHTML = interpretationContent;
 
         // Atualizar badge do header de interpretação com quantidade de períodos
@@ -6928,37 +7054,33 @@ class DashboardMultiPage {
             return { dias: 0, diasGanhos: 0, diasUsados: 0, periodosTotal: 0 };
         }
         
-        // Agrupar por período aquisitivo
-        const periodosMap = new Map();
+        // Agrupar por período aquisitivo (cada período = 5 anos = 90 dias de direito)
+        const periodosAquisitivosMap = new Map();
         
         registros.forEach(registro => {
-            // Os dados podem estar em vários lugares:
-            // 1. registro.dadosOriginais (nível servidor)
-            // 2. registro.licencas[].dadosOriginais (nível licença)
-            // 3. registro.licencas[] com campos aquisitivoInicio, gozo, etc
-            
-            // Coletar todas as fontes de dados
+            // Coletar dados APENAS das licenças, não do registro raiz
+            // (para evitar duplicação)
             const fontesTodas = [];
             
-            // Fonte 1: dadosOriginais do registro
-            if (registro.dadosOriginais) {
-                fontesTodas.push(registro.dadosOriginais);
-            }
-            
-            // Fonte 2: licenças do registro
+            // Processar licenças do registro
             if (registro.licencas && Array.isArray(registro.licencas)) {
                 registro.licencas.forEach(lic => {
-                    // Dados originais da licença
+                    // Preferir dados originais da licença
                     if (lic.dadosOriginais) {
                         fontesTodas.push(lic.dadosOriginais);
                     } else {
-                        // A própria licença pode ter os campos
+                        // Fallback: usar a própria licença
                         fontesTodas.push(lic);
                     }
                 });
             }
             
-            // Se não tem fontes, usar o próprio registro
+            // Se não encontrou licenças, usar dadosOriginais do registro
+            if (fontesTodas.length === 0 && registro.dadosOriginais) {
+                fontesTodas.push(registro.dadosOriginais);
+            }
+            
+            // Se ainda não tem dados, usar o próprio registro
             if (fontesTodas.length === 0) {
                 fontesTodas.push(registro);
             }
@@ -6975,24 +7097,33 @@ class DashboardMultiPage {
                 const aquisitivoStr = String(aquisitivoInicio);
                 if (aquisitivoStr.includes('1899') || aquisitivoStr.includes('29/12/1899')) return;
                 
-                const chave = `${aquisitivoInicio}-${aquisitivoFim}`;
-                if (!periodosMap.has(chave)) {
-                    periodosMap.set(chave, { usado: 0, restando: restando });
+                // Criar chave do período aquisitivo (cada período = 5 anos = 90 dias)
+                const chavePeriodo = `${aquisitivoInicio}-${aquisitivoFim}`;
+                
+                if (!periodosAquisitivosMap.has(chavePeriodo)) {
+                    periodosAquisitivosMap.set(chavePeriodo, {
+                        diasUsados: 0,
+                        restando: 0,
+                        ultimoRestando: restando // Rastrear o último RESTANDO deste período
+                    });
                 }
-                const p = periodosMap.get(chave);
-                p.usado += gozo;
-                p.restando = restando; // Atualiza com último valor
+                
+                const periodo = periodosAquisitivosMap.get(chavePeriodo);
+                periodo.diasUsados += gozo; // Somar todos os GOZO deste período aquisitivo
+                periodo.ultimoRestando = restando; // Atualizar com o último RESTANDO
             });
         });
 
-        // Pegar o restando do último período
-        const periodos = Array.from(periodosMap.values());
-        const ultimoPeriodo = periodos[periodos.length - 1];
+        // Converter map para array ordenado
+        const periodos = Array.from(periodosAquisitivosMap.values());
+        
+        // O saldo disponível é o RESTANDO do ÚLTIMO período aquisitivo
+        const ultimoPeriodo = periodos.length > 0 ? periodos[periodos.length - 1] : null;
         
         return {
-            dias: ultimoPeriodo ? ultimoPeriodo.restando : 0,
-            diasGanhos: periodos.length * 90,
-            diasUsados: periodos.reduce((sum, p) => sum + p.usado, 0),
+            dias: ultimoPeriodo ? ultimoPeriodo.ultimoRestando : 0,
+            diasGanhos: periodos.length * 90, // Cada período aquisitivo = 90 dias
+            diasUsados: periodos.reduce((sum, p) => sum + p.diasUsados, 0),
             periodosTotal: periodos.length
         };
     }
