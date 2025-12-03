@@ -6214,7 +6214,7 @@ class DashboardMultiPage {
                                 <div class="acordeom-title">
                                     <i class="bi bi-calendar-event"></i>
                                     <div style="flex: 1;">
-                                        <div class="acordeom-periodo">📅 Período ${this.formatDateBR(new Date(periodo.inicio))} a ${this.formatDateBR(new Date(periodo.fim))}</div>
+                                        <div class="acordeom-periodo">📅 Período ${periodo.inicio} a ${periodo.fim}</div>
                                         <div class="acordeom-stats">${diasUsados} / ${diasDireito} dias (${percentualUsado}%) • Saldo: ${diasRestantes} dias</div>
                                         <div class="acordeom-progress-container">
                                             <div class="acordeom-progress">
@@ -6230,7 +6230,7 @@ class DashboardMultiPage {
                                     <div class="periodo-aquisitivo-info">
                                         <div class="info-field-period">
                                             <span class="info-label-period">Período Aquisitivo</span>
-                                            <span class="info-value-period">${this.formatDateBR(new Date(periodo.inicio))} a ${this.formatDateBR(new Date(periodo.fim))}</span>
+                                            <span class="info-value-period">${periodo.inicio} a ${periodo.fim}</span>
                                         </div>
                                         <div class="info-field-period">
                                             <span class="info-label-period">Direito</span>
@@ -6249,7 +6249,7 @@ class DashboardMultiPage {
                                             
                                             return `
                                                 <div class="gozo-item-period">
-                                                    <div class="gozo-dates-period">${this.formatDateBR(new Date(dataInicio))} a ${this.formatDateBR(new Date(dataFim))}</div>
+                                                    <div class="gozo-dates-period">${dataInicio} a ${dataFim}</div>
                                                     <div class="gozo-stats-period">
                                                         <span class="gozo-days-period"><i class="bi bi-hourglass-split"></i> ${diasGozo} dias</span>
                                                         <span class="gozo-saldo-period ${saldoPos === 0 ? 'zero' : ''}"><i class="bi bi-cash-coin"></i> Saldo: ${saldoPos} dias</span>
