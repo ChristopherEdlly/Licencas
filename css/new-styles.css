@@ -4269,15 +4269,15 @@ body.sidebar-collapsed .sidebar .nav-link.active {
 
 /* ==================== MODAL APRIMORADO ==================== */
 .modal-enhanced {
-    max-width: 800px;
-    max-height: 85vh;
+    max-width: 850px;
+    max-height: 80vh;
     width: 90vw;
 }
 
 .modal-enhanced .modal-body {
-    padding: 1rem;
+    padding: 0.5rem;
     overflow-y: auto;
-    max-height: calc(85vh - 60px);
+    max-height: calc(80vh - 50px);
 }
 
 .modal-title-section {
@@ -4301,7 +4301,7 @@ body.sidebar-collapsed .sidebar .nav-link.active {
 .modal-sections {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.5rem;
     padding: 0;
 }
 
@@ -4322,7 +4322,7 @@ body.sidebar-collapsed .sidebar .nav-link.active {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.625rem 0.875rem;
+    padding: 0.5rem 0.75rem;
     background: var(--bg-tertiary);
     border-bottom: 1px solid var(--border);
 }
@@ -4360,7 +4360,7 @@ body.sidebar-collapsed .sidebar .nav-link.active {
 }
 
 .section-content {
-    padding: 0.75rem;
+    padding: 0.5rem;
 }
 
 .warning-section .section-header {
@@ -5517,7 +5517,65 @@ input[type="number"]::-webkit-outer-spin-button {
     }
 }
 
-/* ==================== REGISTROS DA PLANILHA - MINIMALISTA ==================== */
+/* ==================== REGISTROS DA PLANILHA - Classes movidas para servidor-details-modal.css ==================== */
+/* As classes .dados-servidor-grid, .dado-item, .dado-label, .dado-valor agora estão em 
+   css/components/servidor-details-modal.css para isolamento do modal de detalhes */
+
+/* Versão compacta antiga (manter compatibilidade) */
+.planilha-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.data-grid-compact {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.data-item-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-secondary);
+    border-left: 3px solid var(--primary);
+    border-radius: 4px;
+}
+
+.data-label-compact {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.data-value-compact {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.registros-summary {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.registros-count {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: var(--primary);
+    color: white;
+    border-radius: 3px;
+    font-weight: 600;
+}
+
 .planilha-summary {
     display: flex;
     flex-direction: column;
@@ -5787,16 +5845,17 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .periodos-solicitados {
     margin-top: 0;
-    padding: 0.875rem;
+    padding: 0.6rem 0.75rem;
     background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
-    border-radius: 10px;
+    border-radius: 8px;
     border: 1px solid var(--border);
+    margin-bottom: 0.5rem;
 }
 
 .periodos-title {
-    font-size: 1rem;
+    font-size: 0.9rem;
     color: var(--text-primary);
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -5805,35 +5864,36 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .periodos-title i {
     color: var(--primary);
+    font-size: 1rem;
 }
 
 .periodos-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.35rem;
 }
 
 .periodo-tag {
     background: var(--bg-primary);
     color: var(--text-primary);
-    padding: 0.375rem 0.625rem;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    border: 1px solid var(--border);
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    border-left: 2px solid var(--primary);
     font-weight: 500;
     white-space: nowrap;
     transition: all 0.2s ease;
 }
 
 .periodo-tag:hover {
-    border-color: var(--primary);
-    transform: translateY(-1px);
+    border-left-color: var(--primary);
+    background: var(--bg-tertiary);
 }
 
 .periodo-duracao-tag {
     color: var(--text-secondary);
-    font-size: 0.7rem;
-    margin-left: 0.25rem;
+    font-size: 0.65rem;
+    margin-left: 0.2rem;
 }
 
 /* ==================== ACORDEOM DE PERÍODOS AQUISITIVOS ==================== */
@@ -6081,11 +6141,92 @@ input[type="number"]::-webkit-outer-spin-button {
     color: var(--primary);
 }
 
+/* ==================== PERÍODOS AQUISITIVOS RESUMO (SEÇÃO 2) ==================== */
+.periodos-aquisitivos-resumo {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.periodos-resumo-title {
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.periodos-resumo-title i {
+    color: var(--primary);
+}
+
+/* ==================== SEÇÃO 2: LAYOUT MELHORADO ==================== */
+.balanco-header-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--primary);
+}
+
+.balanco-header-title {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    font-size: 1.15rem;
+}
+
+.balanco-header-title i {
+    font-size: 1.5rem;
+    color: var(--primary);
+    margin-top: 0.25rem;
+    flex-shrink: 0;
+}
+
+.balanco-header-title h3 {
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem 0;
+    font-weight: 600;
+}
+
+.balanco-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 0;
+    font-weight: 400;
+}
+
+/* ==================== BALANÇO CONSOLIDADO - REDESENHO ==================== */
+.balanco-consolidated-section {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.balanco-consolidated-title {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.balanco-consolidated-title i {
+    color: var(--primary);
+}
+
 .balanco-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 0.75rem;
-    margin-bottom: 1rem;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
 }
 
 @media (max-width: 768px) {
@@ -6096,13 +6237,13 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .balanco-item {
     background: var(--bg-primary);
-    padding: 0.75rem;
-    border-radius: 8px;
+    padding: 0.4rem;
+    border-radius: 6px;
     border: 1px solid var(--border);
     text-align: center;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.1rem;
 }
 
 .balanco-item.balanco-saldo {
@@ -6111,7 +6252,7 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .balanco-label {
-    font-size: 0.7rem;
+    font-size: 0.6rem;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -6119,17 +6260,53 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .balanco-value {
-    font-size: 1.5rem;
+    font-size: 1.1rem;
     font-weight: 700;
     color: var(--text-primary);
 }
 
 .balanco-value.balanco-ganho {
-    color: #3b82f6;
+    color: #10b981;
 }
 
 .balanco-value.balanco-usado {
-    color: #f59e0b;
+    color: #f97316;
+}
+
+.balanco-value.balanco-positivo {
+    color: #10b981;
+}
+
+.balanco-value.balanco-zerado {
+    color: #ef4444;
+}
+
+.balanco-detail {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+}
+
+.balanco-progress {
+    position: relative;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-bottom: 0.25rem;
+    overflow: hidden;
+}
+
+.balanco-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--success) 0%, var(--warning) 50%, var(--danger) 100%);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.balanco-progress-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-align: right;
+    font-weight: 500;
 }
 
 .balanco-value.balanco-positivo {
@@ -6164,6 +6341,298 @@ input[type="number"]::-webkit-outer-spin-button {
     font-size: 0.7rem;
     color: var(--text-secondary);
     text-align: center;
+}
+
+/* ==================== DETALHES POR PERÍODO ==================== */
+.periodos-detalhes-section {
+    background: var(--bg-primary);
+    border-radius: 10px;
+    padding: 0;
+    overflow: hidden;
+}
+
+.periodos-detalhes-title {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    border-bottom: 1px solid var(--border);
+}
+
+.periodos-detalhes-title i {
+    color: var(--primary);
+    font-size: 1rem;
+}
+
+/* ==================== DETALHES POR PERÍODO (SEÇÃO 2) - ACCORDION STYLE ==================== */
+.periodos-detalhes-section {
+    background: var(--bg-primary);
+    border-radius: 10px;
+    padding: 0;
+    overflow: hidden;
+}
+
+.periodos-detalhes-title {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    border-bottom: 1px solid var(--border);
+}
+
+.periodos-detalhes-title i {
+    color: var(--primary);
+    font-size: 1rem;
+}
+
+/* ==================== ACCORDION ITEM ==================== */
+.accordion-item {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.accordion-item:hover {
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.accordion-item.active {
+    border-color: var(--primary);
+    background: var(--bg-secondary);
+}
+
+/* ==================== ACCORDION HEADER - COMPACTO ==================== */
+.accordion-header {
+    padding: 10px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.accordion-header:hover {
+    background: var(--bg-tertiary);
+}
+
+.accordion-header.active {
+    background: var(--bg-tertiary);
+    border-bottom: 2px solid var(--primary);
+}
+
+.accordion-header.active .accordion-title,
+.accordion-header.active .accordion-period,
+.accordion-header.active .accordion-stats {
+    color: var(--text-primary);
+}
+
+.accordion-title {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.accordion-period {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.accordion-stats {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.accordion-icon {
+    font-size: 16px;
+    transition: transform 0.3s ease;
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+.accordion-header.active .accordion-icon {
+    color: var(--primary);
+    transform: rotate(180deg);
+}
+
+/* ==================== PROGRESS BAR - NO HEADER ==================== */
+.progress-container {
+    margin-top: 4px;
+    display: block;
+    width: 100px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--success) 0%, var(--warning) 50%, var(--danger) 100%);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+/* ==================== ACCORDION CONTENT ==================== */
+.accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.accordion-item.active .accordion-content {
+    max-height: 500px;
+}
+
+.accordion-body {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-primary);
+}
+
+/* ==================== INFO ROW ==================== */
+.info-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.info-row:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.info-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.info-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-value {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* ==================== GOZO HISTORY ==================== */
+.gozo-history {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+}
+
+.gozo-history-title {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.gozo-item {
+    background: var(--bg-secondary);
+    border-left: 3px solid var(--primary);
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.gozo-dates {
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.gozo-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+}
+
+.gozo-stats span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.gozo-days {
+    color: var(--primary);
+}
+
+.gozo-saldo {
+    color: var(--warning);
+}
+
+.gozo-saldo.zero {
+    color: var(--danger);
+    font-weight: 600;
+}
+
+/* ==================== GOZO SUMMARY ==================== */
+.gozo-summary {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: var(--bg-secondary);
+    border-left: 3px solid var(--warning);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* ==================== BADGES ==================== */
+.badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.badge-completo {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--danger);
+}
+
+.badge-parcial {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
 }
 
 .no-data {
@@ -6292,17 +6761,17 @@ input[type="number"]::-webkit-outer-spin-button {
 .periods-container {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.5rem;
 }
 
 /* Card de período no modal */
 .period-card-modal {
     background: var(--bg-primary);
     border: 1px solid var(--border);
-    padding: 0.875rem;
-    border-radius: 10px;
+    padding: 0.6rem;
+    border-radius: 8px;
     transition: all 0.2s ease;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.3rem;
 }
 
 .period-card-modal:last-child {
@@ -6311,7 +6780,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .period-card-modal:hover {
     border-color: var(--primary);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 /* Header do período */
@@ -6319,30 +6788,31 @@ input[type="number"]::-webkit-outer-spin-button {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.625rem;
+    margin-bottom: 0.4rem;
+    padding-bottom: 0.4rem;
     border-bottom: 1px solid var(--border);
 }
 
 .period-card-title {
     font-weight: 600;
     color: var(--text-primary);
-    font-size: 1rem;
+    font-size: 0.9rem;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
 }
 
 .period-card-title i {
     color: var(--primary);
+    font-size: 0.9rem;
 }
 
 .period-card-duration {
     background: var(--primary);
     color: white;
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-    font-size: 0.8rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.7rem;
     font-weight: 600;
 }
 
@@ -6350,27 +6820,27 @@ input[type="number"]::-webkit-outer-spin-button {
 .marcos-timeline {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
-    padding: 0.5rem 0;
+    gap: 0.4rem;
+    padding: 0.3rem 0;
 }
 
 /* Card individual de marco */
 .marco-card {
     background: var(--bg-secondary);
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
-    padding: 0.675rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.4rem;
     position: relative;
     overflow: hidden;
     transition: all 0.3s ease;
-    width: 160px;
+    width: 140px;
     flex-shrink: 0;
 }
 
 .marco-card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-2px);
     border-color: var(--primary);
-    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.15);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
 }
 
 /* Barra superior decorativa */
@@ -6380,7 +6850,7 @@ input[type="number"]::-webkit-outer-spin-button {
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
+    height: 2px;
     background: var(--primary);
     opacity: 0.6;
     transition: opacity 0.2s ease;

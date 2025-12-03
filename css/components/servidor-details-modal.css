@@ -1,0 +1,898 @@
+/* ============================================================================
+   MODAL DE DETALHES DO SERVIDOR - REDESIGN UI/UX
+   Arquivo isolado - usa apenas variáveis globais do tema
+   ============================================================================ */
+
+/* ==================== CONTAINER DO MODAL ==================== */
+#detailsModal .modal-content {
+    max-width: 720px;
+    width: 95vw;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+#detailsModal .modal-header {
+    padding: 1rem 1.25rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#detailsModal .modal-title-section h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#detailsModal .btn-close {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#detailsModal .btn-close:hover {
+    background: var(--bg-tertiary);
+    color: var(--danger);
+}
+
+#detailsModal .btn-close i {
+    font-size: 1.5rem;
+}
+
+#detailsModal .modal-body {
+    padding: 1.25rem;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: var(--bg-primary);
+}
+
+/* ==================== HERO CARD DO SERVIDOR ==================== */
+#detailsModal .servidor-hero-card {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+/* Header do Hero: Nome + Saldo */
+#detailsModal .hero-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+#detailsModal .hero-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+#detailsModal .hero-cargo {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+#detailsModal .hero-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.35rem 0;
+    line-height: 1.2;
+}
+
+#detailsModal .hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+#detailsModal .hero-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+#detailsModal .hero-meta-item i {
+    color: var(--primary);
+    font-size: 0.85rem;
+}
+
+/* Saldo Destaque */
+#detailsModal .hero-saldo {
+    background: var(--bg-primary);
+    border: 2px solid var(--primary);
+    border-radius: 10px;
+    padding: 0.75rem 1.25rem;
+    text-align: center;
+    min-width: 140px;
+}
+
+#detailsModal .hero-saldo-label {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.2rem;
+}
+
+#detailsModal .hero-saldo-value {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+#detailsModal .hero-saldo-value.positivo {
+    color: var(--success);
+}
+
+#detailsModal .hero-saldo-value.zerado {
+    color: var(--danger);
+}
+
+#detailsModal .hero-saldo-unit {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.15rem;
+}
+
+/* Grid de Estatísticas */
+#detailsModal .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+@media (max-width: 480px) {
+    #detailsModal .hero-stats {
+        grid-template-columns: 1fr;
+    }
+}
+
+#detailsModal .hero-stat {
+    background: var(--bg-primary);
+    border-radius: 8px;
+    padding: 0.75rem;
+    text-align: center;
+    border: 1px solid var(--border);
+}
+
+#detailsModal .hero-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+#detailsModal .hero-stat-value.stat-periodos {
+    color: var(--primary);
+}
+
+#detailsModal .hero-stat-value.stat-direito {
+    color: var(--success);
+}
+
+#detailsModal .hero-stat-value.stat-usado {
+    color: var(--warning);
+}
+
+#detailsModal .hero-stat-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-top: 0.25rem;
+}
+
+/* Barra de Progresso Principal */
+#detailsModal .hero-progress {
+    margin-top: 1rem;
+}
+
+#detailsModal .hero-progress-bar {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+#detailsModal .hero-progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+#detailsModal .hero-progress-fill.baixo {
+    background: var(--success);
+}
+
+#detailsModal .hero-progress-fill.medio {
+    background: var(--warning);
+}
+
+#detailsModal .hero-progress-fill.alto {
+    background: var(--danger);
+}
+
+#detailsModal .hero-progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-top: 0.35rem;
+}
+
+/* ==================== SEÇÃO DE PERÍODOS ==================== */
+#detailsModal .periodos-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#detailsModal .periodos-section-header {
+    padding: 0.75rem 1rem;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border);
+}
+
+#detailsModal .periodos-section-header h4 {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#detailsModal .periodos-section-header h4 i {
+    color: var(--primary);
+}
+
+#detailsModal .periodos-section-content {
+    padding: 0;
+}
+
+/* ==================== ACORDEOM DE PERÍODOS ==================== */
+#detailsModal .periodo-accordion {
+    border-bottom: 1px solid var(--border);
+}
+
+#detailsModal .periodo-accordion:last-child {
+    border-bottom: none;
+}
+
+#detailsModal .periodo-accordion-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.875rem 1rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    background: var(--bg-secondary);
+}
+
+#detailsModal .periodo-accordion-header:hover {
+    background: var(--bg-tertiary);
+}
+
+#detailsModal .periodo-accordion.active .periodo-accordion-header {
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border);
+}
+
+/* Indicador de período */
+#detailsModal .periodo-indicator {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+#detailsModal .periodo-indicator.completo {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
+}
+
+#detailsModal .periodo-indicator.parcial {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+}
+
+/* Info do período */
+#detailsModal .periodo-info {
+    flex: 1;
+    min-width: 0;
+}
+
+#detailsModal .periodo-dates {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.2rem;
+}
+
+#detailsModal .periodo-summary {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* Progress mini */
+#detailsModal .periodo-progress-mini {
+    width: 100px;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+#detailsModal .periodo-progress-mini-fill {
+    height: 100%;
+    border-radius: 3px;
+}
+
+#detailsModal .periodo-progress-mini-fill.baixo {
+    background: var(--success);
+}
+
+#detailsModal .periodo-progress-mini-fill.medio {
+    background: var(--warning);
+}
+
+#detailsModal .periodo-progress-mini-fill.alto {
+    background: var(--danger);
+}
+
+/* Saldo do período */
+#detailsModal .periodo-saldo-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+#detailsModal .periodo-saldo-badge.positivo {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+}
+
+#detailsModal .periodo-saldo-badge.zerado {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
+}
+
+/* Ícone de expansão */
+#detailsModal .periodo-expand-icon {
+    color: var(--text-secondary);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+
+#detailsModal .periodo-accordion.active .periodo-expand-icon {
+    transform: rotate(180deg);
+}
+
+/* Conteúdo expandido */
+#detailsModal .periodo-accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+    background: var(--bg-primary);
+}
+
+#detailsModal .periodo-accordion.active .periodo-accordion-content {
+    max-height: 600px;
+}
+
+#detailsModal .periodo-accordion-body {
+    padding: 1rem;
+}
+
+/* Header explicativo dos gozos */
+#detailsModal .periodo-gozos-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    border-left: 3px solid var(--primary);
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+#detailsModal .periodo-gozos-header i {
+    color: var(--primary);
+    font-size: 1rem;
+}
+
+/* Timeline de gozos */
+#detailsModal .gozos-timeline {
+    position: relative;
+    padding-left: 1.5rem;
+}
+
+#detailsModal .gozos-timeline::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+}
+
+#detailsModal .gozo-timeline-item {
+    position: relative;
+    padding: 0.5rem 0 0.75rem 0;
+}
+
+#detailsModal .gozo-timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -1.5rem;
+    top: 0.75rem;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--primary);
+    border: 2px solid var(--bg-primary);
+    z-index: 1;
+}
+
+#detailsModal .gozo-timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+#detailsModal .gozo-content {
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    padding: 0.65rem 0.75rem;
+    border-left: 3px solid var(--primary);
+}
+
+#detailsModal .gozo-dates {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+#detailsModal .gozo-info {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.75rem;
+}
+
+#detailsModal .gozo-dias {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+#detailsModal .gozo-saldo-restante {
+    color: var(--text-secondary);
+}
+
+#detailsModal .gozo-saldo-restante.zero {
+    color: var(--danger);
+    font-weight: 600;
+}
+
+/* Resumo do período */
+#detailsModal .periodo-resumo {
+    margin-top: 0.75rem;
+    padding: 0.65rem 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+}
+
+#detailsModal .periodo-resumo-item {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+#detailsModal .periodo-resumo-label {
+    color: var(--text-secondary);
+}
+
+#detailsModal .periodo-resumo-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* ==================== ESTADO VAZIO ==================== */
+#detailsModal .empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+}
+
+#detailsModal .empty-state i {
+    font-size: 2.5rem;
+    opacity: 0.5;
+    margin-bottom: 0.75rem;
+}
+
+#detailsModal .empty-state p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* ==================== ALERTA ==================== */
+#detailsModal .alert-warning {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 8px;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    font-size: 0.85rem;
+    color: var(--warning);
+}
+
+#detailsModal .alert-warning i {
+    margin-top: 0.1rem;
+}
+
+/* ==================== SEÇÃO DE LICENÇAS GOZADAS ==================== */
+#detailsModal .licencas-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+}
+
+#detailsModal .licencas-section-header {
+    padding: 0.75rem 1rem;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#detailsModal .licencas-section-header h4 {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#detailsModal .licencas-section-header h4 i {
+    color: var(--primary);
+}
+
+#detailsModal .licencas-count {
+    font-size: 0.7rem;
+    background: var(--primary);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+#detailsModal .licencas-section-content {
+    padding: 0.75rem;
+    display: block !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* Card de Licença Individual - Sempre Expandido */
+#detailsModal .licenca-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: visible;
+}
+
+#detailsModal .licenca-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+#detailsModal .licenca-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0.75rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    border-radius: 8px 8px 0 0;
+}
+
+#detailsModal .licenca-card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#detailsModal .licenca-card-title i {
+    color: var(--primary);
+    font-size: 1rem;
+}
+
+#detailsModal .licenca-total-info {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+#detailsModal .licenca-total-info .total-meses {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+#detailsModal .licenca-card-badge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-weight: 600;
+}
+
+#detailsModal .licenca-card-badge.dias-badge {
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--primary);
+}
+
+#detailsModal .licenca-card-body {
+    padding: 0.75rem !important;
+    background: var(--bg-primary);
+    display: block !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+#detailsModal .licenca-card-footer {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--border);
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Timeline de blocos dentro do card */
+#detailsModal .licenca-blocos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+#detailsModal .licenca-blocos:empty::after {
+    content: 'Carregando blocos...';
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+#detailsModal .licenca-bloco {
+    min-width: 120px;
+    max-width: 150px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid var(--border);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+#detailsModal .licenca-bloco:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+}
+
+#detailsModal .licenca-bloco.bloco-inicio {
+    border-color: var(--success);
+}
+
+#detailsModal .licenca-bloco.bloco-fim {
+    border-color: var(--danger);
+}
+
+#detailsModal .licenca-bloco.bloco-meio {
+    border-color: var(--primary);
+}
+
+#detailsModal .bloco-header {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.5rem;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border);
+}
+
+#detailsModal .bloco-icon {
+    font-size: 0.9rem;
+    color: var(--primary);
+}
+
+#detailsModal .licenca-bloco.bloco-inicio .bloco-icon {
+    color: var(--success);
+}
+
+#detailsModal .licenca-bloco.bloco-fim .bloco-icon {
+    color: var(--danger);
+}
+
+#detailsModal .bloco-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--text-primary);
+}
+
+#detailsModal .bloco-dias {
+    margin-left: auto;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: white;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    background: var(--primary);
+}
+
+#detailsModal .licenca-bloco.bloco-inicio .bloco-dias {
+    background: var(--success);
+}
+
+#detailsModal .licenca-bloco.bloco-fim .bloco-dias {
+    background: var(--danger);
+}
+
+#detailsModal .bloco-datas {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
+#detailsModal .bloco-data-row {
+    color: var(--text-primary);
+}
+
+#detailsModal .bloco-data-row.fim {
+    color: var(--text-secondary);
+}
+
+/* Referência ao período aquisitivo - estilos complementares */
+#detailsModal .licenca-aquisitivo {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+#detailsModal .licenca-aquisitivo i {
+    color: var(--primary);
+}
+
+#detailsModal .licenca-saldo-pos {
+    font-weight: 600;
+    color: var(--success);
+}
+
+#detailsModal .licenca-saldo-pos.zero {
+    color: var(--danger);
+}
+
+/* Conector entre blocos */
+#detailsModal .bloco-connector {
+    display: flex;
+    align-items: center;
+    color: var(--text-tertiary);
+    font-size: 1rem;
+    padding: 0 0.25rem;
+}
+
+/* ==================== EMPTY STATE MINI ==================== */
+#detailsModal .empty-state-mini {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    border: 1px dashed var(--border);
+}
+
+#detailsModal .empty-state-mini i {
+    font-size: 1rem;
+    color: var(--text-tertiary);
+}
+
+/* ==================== BADGES ==================== */
+#detailsModal .licenca-card-badge.dias-badge {
+    background: var(--primary);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+/* ==================== SCROLLBAR ==================== */
+#detailsModal .modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+#detailsModal .modal-body::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+#detailsModal .modal-body::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+#detailsModal .modal-body::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+/* ==================== RESPONSIVO ==================== */
+@media (max-width: 600px) {
+    #detailsModal .hero-header {
+        flex-direction: column;
+    }
+    
+    #detailsModal .hero-saldo {
+        width: 100%;
+    }
+    
+    #detailsModal .periodo-accordion-header {
+        flex-wrap: wrap;
+    }
+    
+    #detailsModal .periodo-progress-mini {
+        display: none;
+    }
+}

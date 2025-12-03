@@ -6104,620 +6104,529 @@ class DashboardMultiPage {
     }
 
     showServidorDetails(nomeServidor) {
-        // Helper para formatar valores automaticamente (detecta datas)
-        const formatarValor = (value) => {
-            if (!value) return '';
-            const str = String(value);
-            
-            // Se já é objeto Date
-            if (value instanceof Date && !isNaN(value)) {
-                return this.formatDateBR(value);
-            }
-            
-            // Detectar formato ISO ou timestamp: YYYY-MM-DD HH:MM:SS ou YYYY-MM-DDTHH:MM:SS
-            const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})[\sT](\d{2}):(\d{2}):(\d{2})/);
-            if (isoMatch) {
-                const [, year, month, day] = isoMatch;
-                return `${day}/${month}/${year}`;
-            }
-            
-            // Detectar formato Date.toString(): "Thu Jul 14 2022 00:00:00 GMT..."
-            const dateToStringMatch = str.match(/^[A-Z][a-z]{2}\s+([A-Z][a-z]{2})\s+(\d{1,2})\s+(\d{4})/);
-            if (dateToStringMatch) {
-                const monthsMap = { Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06', Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12' };
-                const [, monthStr, day, year] = dateToStringMatch;
-                const month = monthsMap[monthStr] || '01';
-                return `${day.padStart(2, '0')}/${month}/${year}`;
-            }
-            
-            return str;
-        };
-
-        // Mostrar cada registro da planilha como uma entrada independente, sem agrupar por nome
+        // Buscar todos os registros do servidor
         const servidoresComMesmoNome = this.allServidores.filter(s => s.nome === nomeServidor);
         if (!servidoresComMesmoNome || servidoresComMesmoNome.length === 0) return;
 
-        // Cada registro vira um card/registro no modal, sem agregação
-        const registrosOriginais = servidoresComMesmoNome.map(s => ({
-            ...s,
-            licencas: Array.isArray(s.licencas) ? s.licencas : []
-        }));
-
-        // Para compatibilidade com o restante do modal, usar o primeiro registro como base
+        // Consolidar dados do servidor
         const servidor = { ...servidoresComMesmoNome[0] };
         servidor.todosOsDadosOriginais = servidoresComMesmoNome.map(s => s.dadosOriginais);
-        servidor.licencasBrutas = servidoresComMesmoNome.flatMap(s => Array.isArray(s.licencas) ? s.licencas : []);
         servidor.licencas = servidoresComMesmoNome.flatMap(s => Array.isArray(s.licencas) ? s.licencas : []);
-        // Não agrupar períodos, não deduplicar
-        const periodosAgrupados = null;
-        servidor.licencasAgendadas = servidor.licencas.length;
         const isLicencaPremio = servidor.tipoTabela === 'licenca-premio';
 
-        // Informações pessoais removidas: agora consolidadas em 'Registros da Planilha'
-
-        // ===== SEÇÃO 1: REGISTROS DA PLANILHA =====
-        let originalDataContent = '';
+        // Extrair dados do primeiro registro
+        const primeiroRegistro = servidor.todosOsDadosOriginais?.[0] || {};
         
-        if (servidor.todosOsDadosOriginais && servidor.todosOsDadosOriginais.length > 0) {
-            // Consolidar campos não pessoais extraídos da planilha
+        // Helper para buscar campo
+        const buscarCampo = (keys, exclude = []) => {
+            const entrada = Object.entries(primeiroRegistro).find(([k]) => {
+                const keyUpper = k.toUpperCase();
+                const match = keys.some(key => keyUpper === key || keyUpper.includes(key));
+                if (match && exclude.length) {
+                    return !exclude.some(ex => keyUpper.includes(ex));
+                }
+                return match;
+            });
+            return entrada?.[1] || '';
+        };
+
+        const cargo = buscarCampo(['CARGO']);
+        const lotacao = buscarCampo(['LOTACAO', 'LOTAÇÃO']);
+        const unidade = buscarCampo(['UNIDADE']);
+        const numero = buscarCampo(['NUMERO', 'NÚMERO']);
+        const cpf = buscarCampo(['CPF']);
+        const rg = buscarCampo(['RG'], ['CARGO']);
+
+        // Calcular balanço
+        const balancoInfo = isLicencaPremio 
+            ? this.calcularSaldoServidorCompleto(servidoresComMesmoNome)
+            : { dias: 0, diasGanhos: 0, diasUsados: 0, periodosTotal: 0 };
+        
+        const percentualUsado = balancoInfo.diasGanhos > 0 
+            ? Math.round((balancoInfo.diasUsados / balancoInfo.diasGanhos) * 100) 
+            : 0;
+        const progressClass = percentualUsado < 50 ? 'baixo' : percentualUsado < 80 ? 'medio' : 'alto';
+
+        // ==================== HERO CARD ====================
+        let heroHTML = `
+            <div class="hero-header">
+                <div class="hero-info">
+                    ${cargo ? `<div class="hero-cargo">${this.escapeHtml(cargo)}</div>` : ''}
+                    <h2 class="hero-name">${this.escapeHtml(servidor.nome)}</h2>
+                    <div class="hero-meta">
+                        ${lotacao ? `<span class="hero-meta-item"><i class="bi bi-building"></i> ${this.escapeHtml(lotacao)}</span>` : ''}
+                        ${unidade ? `<span class="hero-meta-item"><i class="bi bi-geo-alt"></i> ${this.escapeHtml(unidade)}</span>` : ''}
+                        ${numero ? `<span class="hero-meta-item"><i class="bi bi-hash"></i> ${this.escapeHtml(numero)}</span>` : ''}
+                    </div>
+                </div>
+                <div class="hero-saldo">
+                    <div class="hero-saldo-label">Saldo Disponível</div>
+                    <div class="hero-saldo-value ${balancoInfo.dias > 0 ? 'positivo' : 'zerado'}">${balancoInfo.dias}</div>
+                    <div class="hero-saldo-unit">dias</div>
+                </div>
+            </div>
+        `;
+
+        if (isLicencaPremio && balancoInfo.diasGanhos > 0) {
+            heroHTML += `
+                <div class="hero-stats">
+                    <div class="hero-stat">
+                        <div class="hero-stat-value stat-periodos">${balancoInfo.periodosTotal}</div>
+                        <div class="hero-stat-label">Períodos (5 anos)</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-value stat-direito">${balancoInfo.diasGanhos}</div>
+                        <div class="hero-stat-label">Dias de Direito</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-value stat-usado">${balancoInfo.diasUsados}</div>
+                        <div class="hero-stat-label">Dias Utilizados</div>
+                    </div>
+                </div>
+                <div class="hero-progress">
+                    <div class="hero-progress-bar">
+                        <div class="hero-progress-fill ${progressClass}" style="width: ${percentualUsado}%"></div>
+                    </div>
+                    <div class="hero-progress-label">
+                        <span>${percentualUsado}% utilizado</span>
+                        <span>${balancoInfo.dias} dias restantes</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==================== LICENÇAS GOZADAS (visualização rápida) ====================
+        let licencasHTML = '';
+        let licencaIndex = 0;
+        
+        // Iterar sobre todas as licenças gozadas
+        servidor.licencas.forEach((licenca) => {
+            const dataInicio = licenca.A_PARTIR || licenca.aPartir || licenca.inicio;
+            const dataFim = licenca.TERMINO || licenca.termino || licenca.fim;
+            const diasGozo = parseInt(licenca.GOZO || licenca.gozo || 0);
+            const saldoRestante = parseInt(licenca.RESTANDO || licenca.restando || 0);
+            const aquisitivoInicio = licenca.AQUISITIVO_INICIO || licenca.aquisitivoInicio;
+            const aquisitivoFim = licenca.AQUISITIVO_FIM || licenca.aquisitivoFim;
             
-            // Adicionar wrapper para dados consolidados
-            originalDataContent += '<div class="planilha-summary">';
-
-            // Consolidar informações únicas e períodos
-            const dadosConsolidados = new Map();
-
-            // Helper: normalize month/year text from CSV to canonical Portuguese capitalization
-            const normalizeMonthYearText = (txt) => {
-                if (!txt) return '';
-                const raw = txt.toString().trim();
-
-                // Normalize separators and remove extra text like parentheses
-                const cleaned = raw.replace(/[()]/g, '').replace(/\s*-\s*/g, ' / ').replace(/\s*\/\s*/g, '/').replace(/\s+/g, ' ').trim();
-
-                // Month name maps (Portuguese and English) to Portuguese canonical
-                const monthsMap = {
-                    // Portuguese
-                    'jan': 'Janeiro', 'janeiro': 'Janeiro',
-                    'fev': 'Fevereiro', 'fevereiro': 'Fevereiro',
-                    'mar': 'Março', 'marco': 'Março', 'março': 'Março',
-                    'abr': 'Abril', 'abril': 'Abril',
-                    'mai': 'Maio', 'maio': 'Maio',
-                    'jun': 'Junho', 'junho': 'Junho',
-                    'jul': 'Julho', 'julho': 'Julho',
-                    'ago': 'Agosto', 'agosto': 'Agosto',
-                    'set': 'Setembro', 'setembro': 'Setembro',
-                    'out': 'Outubro', 'outubro': 'Outubro',
-                    'nov': 'Novembro', 'novembro': 'Novembro',
-                    'dez': 'Dezembro', 'dezembro': 'Dezembro',
-                    // English variants
-                    'jan': 'Janeiro', 'january': 'Janeiro',
-                    'feb': 'Fevereiro', 'february': 'Fevereiro',
-                    'mar': 'Março', 'march': 'Março',
-                    'apr': 'Abril', 'april': 'Abril',
-                    'may': 'Maio',
-                    'jun': 'Junho', 'june': 'Junho',
-                    'jul': 'Julho', 'july': 'Julho',
-                    'aug': 'Agosto', 'august': 'Agosto',
-                    'sep': 'Setembro', 'sept': 'Setembro', 'september': 'Setembro',
-                    'oct': 'Outubro', 'october': 'Outubro',
-                    'nov': 'Novembro', 'november': 'Novembro',
-                    'dec': 'Dezembro', 'december': 'Dezembro'
-                };
-
-                // Try patterns: "Month / YYYY", "Month YYYY", "MM/YYYY", "MM-YYYY", "Month / YY"
-                // 1) month name + year
-                let m = cleaned.match(/^([a-zçãéíóú\.]+)\s*[\/\s]\s*(\d{2,4})$/i);
-                if (m) {
-                    const monthPart = m[1].replace('.', '').toLowerCase();
-                    let yearPart = parseInt(m[2]);
-                    if (yearPart < 100) yearPart = yearPart > 50 ? 1900 + yearPart : 2000 + yearPart;
-                    const key = monthPart.substring(0, monthPart.length > 3 ? monthPart.length : 3);
-                    const monthName = monthsMap[monthPart] || monthsMap[monthPart.substring(0, 3)] || (monthPart.charAt(0).toUpperCase() + monthPart.slice(1));
-                    return `${monthName} / ${yearPart}`;
-                }
-
-                // 2) formato numérico de mês MM/AAAA ou M/AAAA
-                m = cleaned.match(/^(\d{1,2})[\/\-](\d{2,4})$/);
-                if (m) {
-                    let mm = parseInt(m[1]);
-                    let yy = parseInt(m[2]);
-                    if (yy < 100) yy = yy > 50 ? 1900 + yy : 2000 + yy;
-                    const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-                    if (mm >= 1 && mm <= 12) return `${monthNames[mm - 1]} / ${yy}`;
-                }
-
-                // 3) Retorna apenas nome do mês sem ano
-                m = cleaned.match(/^([a-zçãéíóú\.]+)$/i);
-                if (m) {
-                    const monthPart = m[1].replace('.', '').toLowerCase();
-                    const monthName = monthsMap[monthPart] || monthsMap[monthPart.substring(0, 3)] || (monthPart.charAt(0).toUpperCase() + monthPart.slice(1));
-                    return monthName;
-                }
-
-                // Retorno padrão: capitalizar primeira letra
-                return raw.charAt(0).toUpperCase() + raw.slice(1);
+            if (!dataInicio || !dataFim) return;
+            
+            licencaIndex++;
+            
+            // Helper para formatar data
+            const formatDate = (date) => {
+                if (!date) return '-';
+                if (typeof date === 'string') return date;
+                if (date instanceof Date) return date.toLocaleDateString('pt-BR');
+                return String(date);
             };
-
-            servidor.todosOsDadosOriginais.forEach((dados) => {
-                // Coletar TODOS os dados da planilha (exceto apenas o nome do servidor)
-                Object.entries(dados).forEach(([key, value]) => {
-                    const keyUpper = key.toUpperCase();
-                    // Pular apenas o nome do servidor (já está no título do modal) e campos técnicos internos
-                    if (!keyUpper.includes('SERVIDOR') &&
-                        !keyUpper.includes('NOME') &&
-                        !key.startsWith('_') && // Filtrar campos técnicos como _colIndexMap
-                        value && value !== '' && value !== 'undefined' && value !== 'null') {
-                        dadosConsolidados.set(key, value);
-                    }
-                });
-
-                // Coletar períodos (incluir duplicates para que o modal mostre registros iguais)
-                // Procurar por vários nomes possíveis de campos de início
-                let inicioRaw = '';
-                let finalRaw = '';
-                
-                Object.entries(dados).forEach(([key, value]) => {
-                    const keyUpper = key.toUpperCase();
-                    if (!inicioRaw && value) {
-                        if (keyUpper.includes('INICIO') || keyUpper.includes('A_PARTIR') || keyUpper === 'DE') {
-                            inicioRaw = value;
-                        }
-                    }
-                    if (!finalRaw && value) {
-                        if (keyUpper.includes('FINAL') || keyUpper.includes('FIM') || keyUpper.includes('TERMINO') || keyUpper === 'ATE') {
-                            finalRaw = value;
-                        }
-                    }
-                });
-            });
-
-            // Mostrar apenas se houver dados relevantes
-            if (dadosConsolidados.size > 0) {
-                // Analisar quais campos variam entre registros
-                const camposPorRegistro = [];
-                servidor.todosOsDadosOriginais.forEach((dados) => {
-                    const registro = {};
-                    Object.entries(dados).forEach(([key, value]) => {
-                        const keyUpper = key.toUpperCase();
-                        if (!keyUpper.includes('SERVIDOR') &&
-                            !keyUpper.includes('NOME') &&
-                            !key.startsWith('_') && // Filtrar campos técnicos como _colIndexMap
-                            value && value !== '' && value !== 'undefined' && value !== 'null') {
-                            registro[key] = value;
-                        }
-                    });
-                    if (Object.keys(registro).length > 0) {
-                        camposPorRegistro.push(registro);
-                    }
-                });
-
-                // Identificar campos únicos vs múltiplos
-                const camposUnicos = new Map(); // campos iguais em todos
-                const camposMultiplos = new Map(); // campos diferentes
-                
-                if (camposPorRegistro.length > 0) {
-                    const todasChaves = new Set();
-                    camposPorRegistro.forEach(reg => {
-                        Object.keys(reg).forEach(k => todasChaves.add(k));
-                    });
-                    
-                    todasChaves.forEach(chave => {
-                        const valores = camposPorRegistro.map(r => r[chave]).filter(v => v);
-                        const valoresUnicos = new Set(valores.map(v => String(v)));
-                        
-                        if (valoresUnicos.size === 1) {
-                            // Campo único (igual em todos os registros)
-                            camposUnicos.set(chave, valores[0]);
-                        } else if (valoresUnicos.size > 1) {
-                            // Campo múltiplo (diferente entre registros)
-                            camposMultiplos.set(chave, valores);
-                        }
-                    });
+            
+            // Helper para extrair ano
+            const extractYear = (date) => {
+                if (!date) return '?';
+                if (typeof date === 'string') {
+                    const match = date.match(/(\d{4})/);
+                    return match ? match[1] : '';
                 }
-                
-                originalDataContent += '<div class="planilha-info">';
-                
-                // Renderizar campos únicos primeiro
-                camposUnicos.forEach((value, key) => {
-                    originalDataContent += `
-                        <div class="info-item">
-                            <span class="info-label">${this.escapeHtml(key)}</span>
-                            <span class="info-value">${this.escapeHtml(formatarValor(value))}</span>
-                        </div>
-                    `;
-                });
-                
-                // Renderizar campos múltiplos - um info-item por campo
-                if (camposMultiplos.size > 0) {
-                    const numRegistros = camposPorRegistro.length;
-                    
-                    // Identificar INICIO e MESES para renderizar no final
-                    const campoInicio = Array.from(camposMultiplos.entries()).find(([key]) => {
-                        const keyUpper = key.toUpperCase();
-                        return keyUpper.includes('INICIO');
-                    });
-                    
-                    const campoMeses = Array.from(camposMultiplos.entries()).find(([key]) => {
-                        const keyUpper = key.toUpperCase();
-                        return keyUpper.includes('MESES') || keyUpper.includes('QUANTIDADE');
-                    });
-                    
-                    // Remover INICIO e MESES da lista temporariamente (renderizar depois)
-                    if (campoInicio) camposMultiplos.delete(campoInicio[0]);
-                    if (campoMeses) camposMultiplos.delete(campoMeses[0]);
-                    
-                    // Renderizar outros campos múltiplos PRIMEIRO
-                    camposMultiplos.forEach((valores, key) => {
-                        // Simplificar nome e adicionar ícone
-                        let label = key;
-                        let icone = '';
-                        
-                        const keyUpper = key.toUpperCase();
-                        if (keyUpper.includes('FINAL') || keyUpper.includes('FIM')) {
-                            label = 'Final';
-                            icone = '🔴';
-                        } else if (keyUpper.includes('CPF')) {
-                            icone = '🆔';
-                        } else if (keyUpper.includes('LOTAC')) {
-                            icone = '🏢';
-                        }
-                        
-                        // Agrupar valores iguais com seus índices
-                        const valoresAgrupados = new Map();
-                        valores.forEach((val, idx) => {
-                            const valStr = formatarValor(val);
-                            if (!valoresAgrupados.has(valStr)) {
-                                valoresAgrupados.set(valStr, []);
-                            }
-                            valoresAgrupados.get(valStr).push(idx + 1);
-                        });
-                        
-                        // Renderizar apenas valores únicos com seus índices inline
-                        const valoresHTML = Array.from(valoresAgrupados.entries()).map(([val, indices]) => {
-                            const indicesStr = indices.map(i => `[${i}]`).join('');
-                            return `<strong>${indicesStr}</strong> ${this.escapeHtml(val)}`;
-                        }).join(' <span class="sep">|</span> ');
-                        
-                        originalDataContent += `
-                            <div class="info-item info-item-multi">
-                                <span class="info-label">${icone} ${this.escapeHtml(label)}</span>
-                                <span class="info-value info-value-inline">${valoresHTML}</span>
-                            </div>
-                        `;
-                    });
-                    
-                    // Renderizar INICIO por último (badges visuais)
-                    if (campoInicio && campoMeses) {
-                        const [keyInicio, valoresInicio] = campoInicio;
-                        const [keyMeses, valoresMeses] = campoMeses;
-                        
-                        let periodosHTML = '<div class="periodos-badges">';
-                        valoresInicio.forEach((valorInicio, idx) => {
-                            const valorMeses = valoresMeses[idx];
-                            const mesesTexto = valorMeses == 1 ? '1 mês' : `${valorMeses} meses`;
-                            const registroNum = idx + 1;
-                            periodosHTML += `
-                                <div class="periodo-badge">
-                                    <span class="periodo-registro">Registro ${registroNum}</span>
-                                    <span class="periodo-data">${this.escapeHtml(formatarValor(valorInicio))}</span>
-                                    <span class="periodo-duracao">${mesesTexto}</span>
-                                </div>
-                            `;
-                        });
-                        periodosHTML += '</div>';
-                        
-                        originalDataContent += `
-                            <div class="info-item info-item-periodos">
-                                <span class="info-label">Períodos de Licença</span>
-                                <div class="info-value">${periodosHTML}</div>
-                            </div>
-                        `;
+                return date instanceof Date ? date.getFullYear() : '';
+            };
+            
+            // Calcular blocos de 30 dias
+            const parseDate = (d) => {
+                if (!d) return null;
+                if (d instanceof Date) return d;
+                if (typeof d === 'string') {
+                    // Tentar DD/MM/YYYY
+                    let match = d.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+                    if (match) {
+                        return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
                     }
+                    // Tentar YYYY-MM-DD
+                    match = d.match(/(\d{4})-(\d{2})-(\d{2})/);
+                    if (match) {
+                        return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+                    }
+                    // Tentar parse genérico
+                    const parsed = new Date(d);
+                    if (!isNaN(parsed)) return parsed;
                 }
+                return null;
+            };
+            
+            const inicio = parseDate(dataInicio);
+            const fim = parseDate(dataFim);
+            
+            let blocos = [];
+            let totalDiasCalculado = 0;
+            if (inicio && fim && !isNaN(inicio) && !isNaN(fim)) {
+                totalDiasCalculado = Math.ceil((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
+                let dataAtual = new Date(inicio);
+                let diasRestantes = totalDiasCalculado;
+                let blocoNum = 1;
                 
-                originalDataContent += '</div>';
-                
-                
-                originalDataContent += '</div>';
-                
-                // NÃO ADICIONAR periodos-solicitados aqui, será adicionado no topo da Seção 3
-            } else {
-                originalDataContent += `
-                    <div class="no-data">
-                        <span>Dados processados automaticamente</span>
-                    </div>
-                `;
-            }
-        } else {
-            originalDataContent += `
-                <div class="no-data">
-                    <span>Nenhum registro encontrado</span>
-                </div>
-            `;
-        }
-        originalDataContent += '</div>';
-
-        // ===== SEÇÃO 3: INTERPRETAÇÃO DO SISTEMA =====
-        let interpretationContent = '';
-        const issues = [];
-        
-        // ADICIONAR NO TOPO: Períodos de Licença Resumo (movido de Seção 1)
-        if (numPeriodos > 0) {
-            interpretationContent = `
-                <div class="periodos-solicitados">
-                    <div class="periodos-title">
-                        <i class="bi bi-calendar2-range"></i> ${numPeriodos} ${numPeriodos === 1 ? 'Período de Licença' : 'Períodos de Licença'}
-                    </div>
-                    <div class="periodos-list">
-                        ${servidor.licencas.map((lic, idx) => {
-                            const inicio = this.formatDateBR(lic.inicio);
-                            const fim = this.formatDateBR(lic.fim);
-                            const dias = Math.ceil((lic.fim - lic.inicio) / (1000 * 60 * 60 * 24)) + 1;
-                            const meses = Math.floor(dias / 30);
-                            return `<div class="periodo-tag">${inicio} - ${fim} <span class="periodo-duracao-tag">(${meses}m)</span></div>`;
-                        }).join('')}
-                    </div>
-                </div>
-                <div style="margin: 1rem 0; padding: 1rem 0; border-top: 1px solid var(--border);"></div>
-            `;
-        }
-        
-        // Agora adicionar aviso e períodos interpretados
-        if (servidor.avisoInterpretacao) {
-            interpretationContent += `
-                <div class="alert alert-warning" style="margin-bottom: 1rem; padding: 0.75rem; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;">
-                    <i class="bi bi-exclamation-triangle" style="color: #856404;"></i>
-                    <strong style="color: #856404;">Aviso:</strong> ${servidor.avisoInterpretacao}
-                </div>
-            `;
-        }
-
-        // Unificado: usar sempre a versão visual detalhada para ambos os tipos de planilha
-        interpretationContent += '<div class="info-grid">';
-
-        // Sempre mostrar cada registro da planilha como um período independente
-        const licencasParaExibir = registrosOriginais.flatMap(r =>
-            (Array.isArray(r.licencas) && r.licencas.length > 0)
-                ? r.licencas.map(l => ({
-                    ...l,
-                    _registro: r // Referência ao registro original para mostrar campos extras se necessário
-                }))
-                : []
-        );
-
-        // Mostrar períodos interpretados de forma detalhada
-        if (licencasParaExibir && licencasParaExibir.length > 0) {
-                // Criar cards visuais para cada período
-                interpretationContent += '<div class="periods-container">';
-
-                licencasParaExibir.forEach((licenca, index) => {
-                    const inicio = this.formatDateBR(licenca.inicio);
-                    const fim = this.formatDateBR(licenca.fim);
-                    const dias = Math.ceil((licenca.fim - licenca.inicio) / (1000 * 60 * 60 * 24)) + 1;
-                    const meses = Math.floor(dias / 30);
+                while (diasRestantes > 0) {
+                    const diasNoBloco = Math.min(30, diasRestantes);
+                    const dataFimBloco = new Date(dataAtual);
+                    dataFimBloco.setDate(dataFimBloco.getDate() + diasNoBloco - 1);
                     
-                    // Calcular os marcos de 30 em 30 dias
-                    const marcos = [];
-                    let dataAtual = new Date(licenca.inicio);
-                    let diasRestantes = dias;
-                    let marcoNum = 1;
+                    let tipoBloco = 'bloco-meio';
+                    let labelBloco = `Bloco ${blocoNum}`;
                     
-                    while (diasRestantes > 0) {
-                        const diasNoMarco = Math.min(30, diasRestantes);
-                        const dataFimMarco = new Date(dataAtual);
-                        dataFimMarco.setDate(dataFimMarco.getDate() + diasNoMarco - 1);
-                        
-                        marcos.push({
-                            num: marcoNum,
-                            inicio: this.formatDateBR(dataAtual),
-                            fim: this.formatDateBR(dataFimMarco),
-                            dias: diasNoMarco
-                        });
-                        
-                        dataAtual = new Date(dataFimMarco);
-                        dataAtual.setDate(dataAtual.getDate() + 1);
-                        diasRestantes -= diasNoMarco;
-                        marcoNum++;
+                    if (blocoNum === 1) {
+                        tipoBloco = 'bloco-inicio';
+                        labelBloco = 'Início';
+                    } else if (diasRestantes <= 30) {
+                        tipoBloco = 'bloco-fim';
+                        labelBloco = 'Fim';
                     }
                     
-                    interpretationContent += `
-                        <div class="period-card-modal">
-                            <div class="period-card-header">
-                                <div class="period-card-title">
-                                    <i class="bi bi-calendar-check"></i> Período ${index + 1}
-                                </div>
-                                <span class="period-card-duration">
-                                    ${meses} ${meses === 1 ? 'mês' : 'meses'} (${dias} dias)
-                                </span>
-                            </div>
-                            <div class="marcos-timeline">
-                                ${marcos.map((marco, idx) => {
-                                    const isFirst = idx === 0;
-                                    const isLast = idx === marcos.length - 1;
-                                    const progress = ((idx + 1) / marcos.length) * 100;
-                                    
-                                    // Calcular dias acumulados até este bloco
-                                    let diasAcumulados = 0;
-                                    for (let i = 0; i <= idx; i++) {
-                                        diasAcumulados += marcos[i].dias;
-                                    }
-                                    
-                                    // Definir classe e ícone baseados na posição
-                                    let tipoClasse, icon, label;
-                                    if (isFirst) {
-                                        tipoClasse = 'marco-inicio';
-                                        icon = '🚀';
-                                        label = 'INÍCIO';
-                                    } else if (isLast) {
-                                        tipoClasse = 'marco-fim';
-                                        icon = '🏁';
-                                        label = 'FIM';
-                                    } else {
-                                        tipoClasse = 'marco-meio';
-                                        icon = '⚡';
-                                        label = 'BLOCO ' + (idx + 1);
-                                    }
-                                    
-                                    return `
-                                        <div class="marco-card ${tipoClasse}">
-                                            <div class="marco-header">
-                                                <div class="marco-info">
-                                                    <span class="marco-icon">${icon}</span>
-                                                    <span class="marco-label">${label}</span>
-                                                </div>
-                                                <div class="marco-dias-badge">${diasAcumulados}<span>d</span></div>
-                                            </div>
-                                            <div class="marco-datas">
-                                                <div class="marco-data-inicio">${marco.inicio}</div>
-                                                <div class="marco-seta">↓</div>
-                                                <div class="marco-data-fim">${marco.fim}</div>
-                                            </div>
-                                            <div class="marco-progress">
-                                                <div class="marco-progress-bar" style="width: ${progress}%"></div>
-                                            </div>
-                                        </div>
-                                    `;
-                                   }).join('')}
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                interpretationContent += '</div>';
-        } else {
-            // Nenhuma licença encontrada
-            interpretationContent += `
-                <div class="info-label">Status:</div>
-                <div class="info-value warning">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    ${isLicencaPremio ? 'Nenhuma licença processada pelo sistema' : 'Nenhuma licença identificada no cronograma'}
-                </div>
-            `;
-
-            if (isLicencaPremio) {
-                issues.push({
-                    title: 'Nenhuma licença identificada',
-                    description: 'O sistema não conseguiu interpretar ou encontrar informações de licenças nos dados fornecidos.'
-                });
+                    blocos.push({
+                        tipo: tipoBloco,
+                        label: labelBloco,
+                        dias: diasNoBloco,
+                        inicio: dataAtual.toLocaleDateString('pt-BR'),
+                        fim: dataFimBloco.toLocaleDateString('pt-BR')
+                    });
+                    
+                    dataAtual = new Date(dataFimBloco);
+                    dataAtual.setDate(dataAtual.getDate() + 1);
+                    diasRestantes -= diasNoBloco;
+                    blocoNum++;
+                }
             }
-        }
-
-        // Fechar o container de períodos
-        interpretationContent += '</div>';
-
-        // Preencher conteúdos do modal
-        const originalDataElement = document.getElementById('originalDataContent');
-        const balancoElement = document.getElementById('balancoContent');
-        const interpretationElement = document.getElementById('interpretationContent');
-
-        if (!originalDataElement || !interpretationElement || !balancoElement) {
-            console.error('Elementos do modal não encontrados:', {
-                originalDataContent: !!originalDataElement,
-                balancoContent: !!balancoElement,
-                interpretationContent: !!interpretationElement
-            });
-            return;
-        }
-
-        // Renderizar as 3 seções separadamente
-        originalDataElement.innerHTML = originalDataContent;
-        
-        // Seção 2: Balanço (extraído da Seção 1 anterior)
-        let balancoContent = '';
-        if (isLicencaPremio && servidoresComMesmoNome && servidoresComMesmoNome.length > 0) {
-            const balancoInfo = this.calcularSaldoServidorCompleto(servidoresComMesmoNome);
-            if (balancoInfo.diasGanhos > 0) {
-                const percentualUsado = balancoInfo.diasGanhos > 0 
-                    ? Math.round((balancoInfo.diasUsados / balancoInfo.diasGanhos) * 100) 
-                    : 0;
-                
-                balancoContent = `
-                    <div class="balanco-licencas">
-                        <div class="balanco-title">
-                            <i class="bi bi-calculator"></i> Balanço de Licenças Prêmio
-                        </div>
-                        <div class="balanco-grid">
-                            <div class="balanco-item">
-                                <span class="balanco-label">Períodos Aquisitivos</span>
-                                <span class="balanco-value">${balancoInfo.periodosTotal}</span>
-                                <span class="balanco-detail">(5 anos cada)</span>
-                            </div>
-                            <div class="balanco-item">
-                                <span class="balanco-label">Dias de Direito</span>
-                                <span class="balanco-value balanco-ganho">${balancoInfo.diasGanhos}</span>
-                                <span class="balanco-detail">(${balancoInfo.periodosTotal} × 90 dias)</span>
-                            </div>
-                            <div class="balanco-item">
-                                <span class="balanco-label">Dias Usados</span>
-                                <span class="balanco-value balanco-usado">${balancoInfo.diasUsados}</span>
-                                <span class="balanco-detail">(${percentualUsado}% do total)</span>
-                            </div>
-                            <div class="balanco-item balanco-saldo">
-                                <span class="balanco-label">Saldo Disponível</span>
-                                <span class="balanco-value ${balancoInfo.dias > 0 ? 'balanco-positivo' : 'balanco-zerado'}">${balancoInfo.dias} dias</span>
-                                <span class="balanco-detail">${balancoInfo.dias > 0 ? 'disponível para agendar' : 'totalmente utilizado'}</span>
-                            </div>
-                        </div>
-                        <div class="balanco-progress">
-                            <div class="balanco-progress-bar" style="width: ${percentualUsado}%"></div>
-                        </div>
-                        <div class="balanco-progress-label">${percentualUsado}% utilizado</div>
+            
+            const periodoAquisitivo = aquisitivoInicio && aquisitivoFim 
+                ? `${extractYear(aquisitivoInicio)} - ${extractYear(aquisitivoFim)}`
+                : 'N/A';
+            
+            const totalMeses = blocos.length;
+            const diasExibir = diasGozo > 0 ? diasGozo : totalDiasCalculado;
+            
+            // Gerar HTML dos blocos primeiro para debug
+            const blocosHTML = blocos.map((bloco, idx) => `
+                <div class="licenca-bloco ${bloco.tipo}" style="min-width:120px; border:2px solid #3b82f6; border-radius:8px; overflow:hidden; background:#1e293b;">
+                    <div class="bloco-header" style="display:flex; align-items:center; gap:0.35rem; padding:0.4rem 0.5rem; background:#334155; border-bottom:1px solid #475569;">
+                        <i class="bi bi-calendar3 bloco-icon" style="color:#3b82f6;"></i>
+                        <span class="bloco-label" style="font-size:0.7rem; font-weight:700; text-transform:uppercase;">${bloco.label}</span>
+                        <span class="bloco-dias" style="margin-left:auto; font-size:0.65rem; font-weight:700; color:white; background:#3b82f6; padding:0.15rem 0.4rem; border-radius:3px;">${bloco.dias}d</span>
                     </div>
-                `;
-            }
-        }
-        balancoElement.innerHTML = balancoContent;
-        
-        interpretationElement.innerHTML = interpretationContent;
-
-        // Atualizar badge do header de interpretação com quantidade de períodos
-        const interpretationBadge = document.querySelector('#interpretationSection .section-badge');
-        if (interpretationBadge && servidor.licencas) {
-            interpretationBadge.textContent = `${servidor.licencas.length} ${servidor.licencas.length === 1 ? 'período' : 'períodos'}`;
-        }
-
-        // Secção de problemas identificados
-        const issuesSection = document.getElementById('issuesSection');
-        const issuesContent = document.getElementById('issuesContent');
-
-        if (issuesSection && issuesContent) {
-            if (issues.length > 0) {
-                const issuesHtml = issues.map(issue => `
-                <div class="issue-highlight">
-                    <div class="issue-title">${this.escapeHtml(issue.title)}</div>
-                    <div class="issue-description">${this.escapeHtml(issue.description)}</div>
+                    <div class="bloco-datas" style="padding:0.5rem; font-size:0.8rem; line-height:1.5;">
+                        <div style="color:#e2e8f0;">${bloco.inicio}</div>
+                        <div style="color:#94a3b8;">${bloco.fim}</div>
+                    </div>
                 </div>
             `).join('');
-                issuesContent.innerHTML = issuesHtml;
+            
+            licencasHTML += `
+                <div class="licenca-card expanded" data-licenca-index="${licencaIndex}" style="background:#0f172a; border:1px solid #334155; border-radius:8px; margin-bottom:0.5rem;">
+                    <div class="licenca-card-header" style="display:flex; justify-content:space-between; align-items:center; padding:0.6rem 0.75rem; background:#1e293b; border-bottom:1px solid #334155;">
+                        <div class="licenca-card-title" style="display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; font-weight:600; color:#e2e8f0;">
+                            <i class="bi bi-calendar2-check" style="color:#3b82f6;"></i>
+                            <span>Período ${licencaIndex}</span>
+                        </div>
+                        <div class="licenca-total-info" style="font-size:0.75rem; color:#3b82f6; font-weight:600;">
+                            <span class="total-meses">${totalMeses} ${totalMeses === 1 ? 'mês' : 'meses'} (${diasExibir} dias)</span>
+                        </div>
+                    </div>
+                    <div class="licenca-card-body" style="padding:0.75rem !important; display:block !important; height:auto !important; max-height:none !important; overflow:visible !important;">
+                        <div class="licenca-blocos" style="display:flex !important; flex-wrap:wrap !important; gap:0.6rem !important;">
+                            ${blocosHTML}
+                        </div>
+                    </div>
+                    <div class="licenca-card-footer" style="padding:0.5rem 0.75rem; background:#1e293b; border-top:1px solid #334155; font-size:0.7rem; color:#94a3b8; display:flex; justify-content:space-between; align-items:center;">
+                        <span class="licenca-aquisitivo">
+                            <i class="bi bi-calendar-range" style="color:#3b82f6;"></i> Período Aquisitivo: ${periodoAquisitivo}
+                        </span>
+                        <span class="licenca-saldo-pos ${saldoRestante === 0 ? 'zero' : ''}" style="font-weight:600; color:${saldoRestante === 0 ? '#ef4444' : '#22c55e'};">
+                            Saldo após: ${saldoRestante} dias
+                        </span>
+                    </div>
+                </div>
+            `;
+        });
+
+        // ==================== PERÍODOS AQUISITIVOS ====================
+        let periodosHTML = '';
+        
+        // Agrupar licenças por período aquisitivo
+        const periodosMap = new Map();
+        servidor.licencas.forEach(licenca => {
+            const aquisitivoInicio = licenca.AQUISITIVO_INICIO || licenca.aquisitivoInicio;
+            const aquisitivoFim = licenca.AQUISITIVO_FIM || licenca.aquisitivoFim;
+            
+            if (aquisitivoInicio && aquisitivoFim) {
+                const periodoKey = `${aquisitivoInicio}-${aquisitivoFim}`;
+                
+                if (!periodosMap.has(periodoKey)) {
+                    periodosMap.set(periodoKey, {
+                        inicio: aquisitivoInicio,
+                        fim: aquisitivoFim,
+                        gozos: [],
+                        diasGozados: 0,
+                        diasRestando: 0
+                    });
+                }
+                
+                const periodo = periodosMap.get(periodoKey);
+                periodo.gozos.push(licenca);
+                
+                // Calcular dias do gozo - se GOZO estiver vazio, calcular pelas datas
+                let gozo = parseInt(licenca.GOZO || licenca.gozo || 0);
+                if (gozo === 0) {
+                    const parseDate = (d) => {
+                        if (!d) return null;
+                        if (d instanceof Date) return d;
+                        if (typeof d === 'string') {
+                            let match = d.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+                            if (match) {
+                                return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
+                            }
+                            match = d.match(/(\d{4})-(\d{2})-(\d{2})/);
+                            if (match) {
+                                return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+                            }
+                            const parsed = new Date(d);
+                            if (!isNaN(parsed)) return parsed;
+                        }
+                        return null;
+                    };
+                    const dataInicioRaw = licenca.A_PARTIR || licenca.aPartir || licenca.inicio;
+                    const dataFimRaw = licenca.TERMINO || licenca.termino || licenca.fim;
+                    const inicio = parseDate(dataInicioRaw);
+                    const fim = parseDate(dataFimRaw);
+                    if (inicio && fim && !isNaN(inicio) && !isNaN(fim)) {
+                        gozo = Math.ceil((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
+                    }
+                }
+                periodo.diasGozados += gozo;
+                // Guardar o último saldo reportado, mas recalcularemos depois se necessário
+                const saldoReportado = parseInt(licenca.RESTANDO || licenca.restando || 0);
+                if (saldoReportado > 0) {
+                    periodo.diasRestando = saldoReportado;
+                }
+            }
+        });
+
+        // Recalcular saldo restante se não foi reportado corretamente
+        periodosMap.forEach((periodo) => {
+            if (periodo.diasRestando === 0 && periodo.diasGozados < 90) {
+                periodo.diasRestando = Math.max(0, 90 - periodo.diasGozados);
+            }
+        });
+
+        if (periodosMap.size > 0) {
+            let periodoIndex = 0;
+            
+            periodosMap.forEach((periodo, key) => {
+                const diasDireito = 90;
+                const percentual = Math.min(100, Math.round((periodo.diasGozados / diasDireito) * 100));
+                const progressClassPeriodo = percentual < 50 ? 'baixo' : percentual < 80 ? 'medio' : 'alto';
+                const isFirst = periodoIndex === 0;
+                
+                // Extrair anos do período
+                const extractYear = (date) => {
+                    if (!date) return '?';
+                    if (typeof date === 'string') {
+                        const match = date.match(/(\d{4})/);
+                        return match ? match[1] : date.substring(0, 4);
+                    }
+                    return date instanceof Date ? date.getFullYear() : String(date).substring(0, 4);
+                };
+                const anoInicio = extractYear(periodo.inicio);
+                const anoFim = extractYear(periodo.fim);
+                const periodoLabel = `${anoInicio} - ${anoFim}`;
+                const numeroOrdinal = periodoIndex + 1;
+                
+                periodosHTML += `
+                    <div class="periodo-accordion ${isFirst ? 'active' : ''}">
+                        <div class="periodo-accordion-header">
+                            <div class="periodo-indicator ${periodo.diasRestando > 0 ? 'parcial' : 'completo'}">
+                                ${numeroOrdinal}º
+                            </div>
+                            <div class="periodo-info">
+                                <div class="periodo-dates">Período Aquisitivo: ${periodoLabel}</div>
+                                <div class="periodo-summary">${periodo.diasGozados}/${diasDireito} dias utilizados</div>
+                            </div>
+                            <div class="periodo-progress-mini">
+                                <div class="periodo-progress-mini-fill ${progressClassPeriodo}" style="width: ${percentual}%"></div>
+                            </div>
+                            <span class="periodo-saldo-badge ${periodo.diasRestando > 0 ? 'positivo' : 'zerado'}">
+                                ${periodo.diasRestando > 0 ? `${periodo.diasRestando}d restantes` : 'Completo'}
+                            </span>
+                            <i class="bi bi-chevron-down periodo-expand-icon"></i>
+                        </div>
+                        <div class="periodo-accordion-content">
+                            <div class="periodo-accordion-body">
+                                <div class="periodo-gozos-header">
+                                    <i class="bi bi-calendar-event"></i>
+                                    <span>Licenças gozadas</span>
+                                </div>
+                                <div class="gozos-timeline">
+                `;
+                
+                // Renderizar cada gozo
+                periodo.gozos.forEach((gozo, gozoIdx) => {
+                    const formatDate = (date) => {
+                        if (!date) return '-';
+                        if (typeof date === 'string') return date;
+                        if (date instanceof Date) return date.toLocaleDateString('pt-BR');
+                        return String(date);
+                    };
+                    
+                    // Parser de data para calcular dias
+                    const parseDate = (d) => {
+                        if (!d) return null;
+                        if (d instanceof Date) return d;
+                        if (typeof d === 'string') {
+                            let match = d.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+                            if (match) {
+                                return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
+                            }
+                            match = d.match(/(\d{4})-(\d{2})-(\d{2})/);
+                            if (match) {
+                                return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+                            }
+                            const parsed = new Date(d);
+                            if (!isNaN(parsed)) return parsed;
+                        }
+                        return null;
+                    };
+                    
+                    const dataInicioRaw = gozo.A_PARTIR || gozo.aPartir || gozo.inicio;
+                    const dataFimRaw = gozo.TERMINO || gozo.termino || gozo.fim;
+                    const dataInicio = formatDate(dataInicioRaw);
+                    const dataFim = formatDate(dataFimRaw);
+                    
+                    // Calcular dias se não vier do campo GOZO
+                    let diasGozo = parseInt(gozo.GOZO || gozo.gozo || 0);
+                    if (diasGozo === 0) {
+                        const inicio = parseDate(dataInicioRaw);
+                        const fim = parseDate(dataFimRaw);
+                        if (inicio && fim && !isNaN(inicio) && !isNaN(fim)) {
+                            diasGozo = Math.ceil((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
+                        }
+                    }
+                    
+                    const saldoPos = parseInt(gozo.RESTANDO || gozo.restando || 0);
+                    
+                    periodosHTML += `
+                        <div class="gozo-timeline-item">
+                            <div class="gozo-content">
+                                <div class="gozo-dates">${dataInicio} → ${dataFim}</div>
+                                <div class="gozo-info">
+                                    <span class="gozo-dias"><i class="bi bi-calendar-check"></i> ${diasGozo} dias</span>
+                                    <span class="gozo-saldo-restante ${saldoPos === 0 ? 'zero' : ''}">
+                                        Saldo após: ${saldoPos} dias
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                periodosHTML += `
+                                </div>
+                                <div class="periodo-resumo">
+                                    <div class="periodo-resumo-item">
+                                        <span class="periodo-resumo-label">Total utilizado:</span>
+                                        <span class="periodo-resumo-value">${periodo.diasGozados} dias</span>
+                                    </div>
+                                    <div class="periodo-resumo-item">
+                                        <span class="periodo-resumo-label">Saldo restante:</span>
+                                        <span class="periodo-resumo-value">${periodo.diasRestando} dias</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                periodoIndex++;
+            });
+        } else {
+            periodosHTML = `
+                <div class="empty-state">
+                    <i class="bi bi-calendar-x"></i>
+                    <p>Nenhum período aquisitivo encontrado</p>
+                </div>
+            `;
+        }
+
+        // ==================== PREENCHER O MODAL ====================
+        const heroElement = document.getElementById('servidorHeroCard');
+        const licencasContentElement = document.getElementById('licencasContent');
+        const licencasCountElement = document.getElementById('licencasCount');
+        const periodosElement = document.getElementById('periodosContent');
+        const modalTitle = document.getElementById('modalTitle');
+
+        if (!heroElement || !periodosElement) {
+            console.error('Elementos do modal não encontrados');
+            return;
+        }
+
+        heroElement.innerHTML = heroHTML;
+        
+        // Preencher seção de licenças gozadas
+        if (licencasContentElement) {
+            if (licencasHTML) {
+                licencasContentElement.innerHTML = licencasHTML;
             } else {
-                issuesContent.innerHTML = '';
+                licencasContentElement.innerHTML = `
+                    <div class="empty-state-mini">
+                        <i class="bi bi-calendar-x"></i>
+                        <span>Nenhuma licença gozada</span>
+                    </div>
+                `;
             }
         }
-
-    // Atualizar título do modal - nome do servidor + badge de urgência
-        const modalTitle = document.getElementById('modalTitle');
-        if (!modalTitle) {
-            console.error('Elemento de título do modal não encontrado');
-            return;
+        if (licencasCountElement) {
+            licencasCountElement.textContent = `${licencaIndex} ${licencaIndex === 1 ? 'período' : 'períodos'}`;
         }
         
-        // Criar HTML do título com badge de urgência se existir
-        let titleHTML = `<span>${servidor.nome}</span>`;
-        if (servidor.nivelUrgencia) {
-            const urgencyClass = this.getUrgencyClass(servidor.nivelUrgencia);
-            const urgencyClassFull = `urgency-badge ${urgencyClass}`;
-            titleHTML += ` <span class="${urgencyClassFull}" style="margin-left: 0.5rem; font-size: 0.7rem;">${this.escapeHtml(servidor.nivelUrgencia)}</span>`;
+        periodosElement.innerHTML = periodosHTML;
+        
+        // Título do modal
+        if (modalTitle) {
+            let titleHTML = `<span>${servidor.nome}</span>`;
+            if (servidor.nivelUrgencia) {
+                const urgencyClass = this.getUrgencyClass(servidor.nivelUrgencia);
+                titleHTML += ` <span class="urgency-badge ${urgencyClass}" style="margin-left: 0.5rem; font-size: 0.7rem;">${this.escapeHtml(servidor.nivelUrgencia)}</span>`;
+            }
+            modalTitle.innerHTML = titleHTML;
         }
-        modalTitle.innerHTML = titleHTML;
 
-    // Exibir modal
+        // Inicializar acordeom
+        this._inicializarPeriodosAcordeom();
+
+        // Exibir modal
         const detailsModal = document.getElementById('modal') || document.getElementById('detailsModal');
-        if (!detailsModal) {
-            console.error('Modal de detalhes não encontrado');
-            return;
+        if (detailsModal) {
+            this._openModalElement(detailsModal);
         }
-        this._openModalElement(detailsModal);
+    }
+
+    _inicializarPeriodosAcordeom() {
+        setTimeout(() => {
+            document.querySelectorAll('.periodo-accordion-header').forEach((header) => {
+                const newHeader = header.cloneNode(true);
+                header.replaceWith(newHeader);
+                
+                newHeader.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const item = newHeader.closest('.periodo-accordion');
+                    const isActive = item.classList.contains('active');
+                    
+                    // Fechar todos
+                    document.querySelectorAll('.periodo-accordion').forEach(el => {
+                        el.classList.remove('active');
+                    });
+                    
+                    // Abrir se não estava ativo
+                    if (!isActive) {
+                        item.classList.add('active');
+                    }
+                });
+            });
+        }, 50);
     }
 
     getUrgencyClass(urgencia) {
@@ -6732,7 +6641,7 @@ class DashboardMultiPage {
     _inicializarAcordeomListeners() {
         // Usar setTimeout para garantir que o DOM foi renderizado
         setTimeout(() => {
-            document.querySelectorAll('.acordeom-header').forEach((header) => {
+            document.querySelectorAll('.accordion-header').forEach((header) => {
                 // Remover listeners antigos se existirem
                 const newHeader = header.cloneNode(true);
                 header.replaceWith(newHeader);
@@ -6740,17 +6649,20 @@ class DashboardMultiPage {
                 // Adicionar novo listener
                 newHeader.addEventListener('click', (e) => {
                     e.preventDefault();
-                    const item = newHeader.closest('.acordeom-item');
+                    const item = newHeader.closest('.accordion-item');
                     const isActive = item.classList.contains('active');
                     
                     // Fechar todos
-                    document.querySelectorAll('.acordeom-item').forEach(el => {
+                    document.querySelectorAll('.accordion-item').forEach(el => {
                         el.classList.remove('active');
+                        const hdr = el.querySelector('.accordion-header');
+                        if (hdr) hdr.classList.remove('active');
                     });
                     
                     // Abrir se não estava ativo
                     if (!isActive) {
                         item.classList.add('active');
+                        newHeader.classList.add('active');
                     }
                 });
             });

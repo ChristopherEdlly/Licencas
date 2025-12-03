@@ -25,6 +25,7 @@
     <link href="css/components/columns-selector.css" rel="stylesheet">
     <link href="css/components/hierarchy-tree.css" rel="stylesheet">
     <link href="css/components/hierarchy-filter-modal.css" rel="stylesheet">
+    <link href="css/components/servidor-details-modal.css" rel="stylesheet">
     <!-- Modelo Layout - Deve ser o ÚLTIMO CSS para sobrescrever tudo -->
     <link href="css/components/sidebar-modelo.css" rel="stylesheet">
     <link href="css/components/modelo-layout.css" rel="stylesheet">
@@ -1191,42 +1192,29 @@
                 </button>
             </div>
             <div class="modal-body" id="modalBody">
-                <!-- Conteúdo será inserido dinamicamente -->
-                <div class="modal-sections">
-                    <!-- Seção 1: Registros da Planilha (com Acordeom) -->
-                    <div class="modal-section" id="originalDataSection">
-                        <div class="section-header">
-                            <i class="bi bi-file-earmark-spreadsheet section-icon"></i>
-                            <h4 class="section-title">Registros da Planilha</h4>
-                            <span class="section-badge">Dados importados</span>
-                        </div>
-                        <div class="section-content" id="originalDataContent">
-                            <!-- Conteúdo dinâmico: Acordeom com períodos -->
-                        </div>
+                <!-- Hero Card: Servidor + Saldo -->
+                <div class="servidor-hero-card" id="servidorHeroCard">
+                    <!-- Conteúdo dinâmico: dados do servidor e saldo -->
+                </div>
+                
+                <!-- Seção: Períodos Aquisitivos (detalhamento) -->
+                <div class="periodos-section" id="periodosSection">
+                    <div class="periodos-section-header">
+                        <h4><i class="bi bi-calendar-range"></i> Períodos Aquisitivos</h4>
                     </div>
-
-                    <!-- Seção 2: Resumo dos Períodos Aquisitivos (NOVA) -->
-                    <div class="modal-section" id="balancoSection">
-                        <div class="section-header">
-                            <i class="bi bi-graph-up section-icon"></i>
-                            <h4 class="section-title">Resumo dos Períodos Aquisitivos</h4>
-                            <span class="section-badge">Análise</span>
-                        </div>
-                        <div class="section-content" id="balancoContent">
-                            <!-- Conteúdo dinâmico: Balanço e análise -->
-                        </div>
+                    <div class="periodos-section-content" id="periodosContent">
+                        <!-- Conteúdo dinâmico: acordeom de períodos -->
                     </div>
+                </div>
 
-                    <!-- Seção 3: Interpretação do Sistema -->
-                    <div class="modal-section" id="interpretationSection">
-                        <div class="section-header">
-                            <i class="bi bi-lightbulb section-icon"></i>
-                            <h4 class="section-title">Interpretação do Sistema</h4>
-                            <span class="section-badge interpretation">Processado</span>
-                        </div>
-                        <div class="section-content" id="interpretationContent">
-                            <!-- Conteúdo dinâmico: Períodos de licença e análise -->
-                        </div>
+                <!-- Seção: Detalhes das Licenças Gozadas (no final) -->
+                <div class="licencas-section" id="licencasSection">
+                    <div class="licencas-section-header">
+                        <h4><i class="bi bi-calendar-check"></i> Detalhes das Licenças Gozadas</h4>
+                        <span class="licencas-count" id="licencasCount">0 períodos</span>
+                    </div>
+                    <div class="licencas-section-content" id="licencasContent">
+                        <!-- Conteúdo dinâmico: cards de licenças -->
                     </div>
                 </div>
             </div>
