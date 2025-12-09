@@ -271,16 +271,23 @@
 }
 
 #detailsModal .periodos-section-content {
-    padding: 0;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 /* ==================== ACORDEOM DE PERÍODOS ==================== */
 #detailsModal .periodo-accordion {
-    border-bottom: 1px solid var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    background: var(--bg-secondary);
 }
 
 #detailsModal .periodo-accordion:last-child {
-    border-bottom: none;
+    border-bottom: 1px solid var(--border);
 }
 
 #detailsModal .periodo-accordion-header {
@@ -299,7 +306,11 @@
 
 #detailsModal .periodo-accordion.active .periodo-accordion-header {
     background: var(--bg-tertiary);
-    border-bottom: 1px solid var(--border);
+    border-bottom: none;
+}
+
+#detailsModal .periodo-accordion.active {
+    border-color: var(--border);
 }
 
 /* Indicador de período */
@@ -405,7 +416,7 @@
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.25s ease;
-    background: var(--bg-primary);
+    background: var(--bg-tertiary);
 }
 
 #detailsModal .periodo-accordion.active .periodo-accordion-content {
@@ -414,6 +425,7 @@
 
 #detailsModal .periodo-accordion-body {
     padding: 1rem;
+    background: var(--bg-tertiary);
 }
 
 /* Header explicativo dos gozos */
@@ -421,14 +433,14 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.6rem 0.75rem;
-    margin-bottom: 0.75rem;
-    background: var(--bg-tertiary);
-    border-radius: 6px;
-    border-left: 3px solid var(--primary);
-    font-size: 0.8rem;
-    color: var(--text-primary);
+    padding: 0;
+    margin-bottom: 0.5rem;
+    background: transparent;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
     font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 #detailsModal .periodo-gozos-header i {
@@ -466,7 +478,7 @@
     height: 12px;
     border-radius: 50%;
     background: var(--primary);
-    border: 2px solid var(--bg-primary);
+    border: 2px solid var(--bg-tertiary);
     z-index: 1;
 }
 
@@ -478,7 +490,7 @@
     background: var(--bg-secondary);
     border-radius: 6px;
     padding: 0.65rem 0.75rem;
-    border-left: 3px solid var(--primary);
+    border: 1px solid var(--border);
 }
 
 #detailsModal .gozo-dates {
@@ -512,8 +524,9 @@
 #detailsModal .periodo-resumo {
     margin-top: 0.75rem;
     padding: 0.65rem 0.75rem;
-    background: var(--bg-tertiary);
+    background: var(--bg-secondary);
     border-radius: 6px;
+    border: 1px solid var(--border);
     display: flex;
     justify-content: space-between;
     align-items: center;

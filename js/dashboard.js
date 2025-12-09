@@ -6336,9 +6336,6 @@ class DashboardMultiPage {
                         <span class="licenca-aquisitivo">
                             <i class="bi bi-calendar-range" style="color:#3b82f6;"></i> Período Aquisitivo: ${periodoAquisitivo}
                         </span>
-                        <span class="licenca-saldo-pos ${saldoRestante === 0 ? 'zero' : ''}" style="font-weight:600; color:${saldoRestante === 0 ? '#ef4444' : '#22c55e'};">
-                            Saldo após: ${saldoRestante} dias
-                        </span>
                     </div>
                 </div>
             `;
@@ -6514,9 +6511,6 @@ class DashboardMultiPage {
                                 <div class="gozo-dates">${dataInicio} → ${dataFim}</div>
                                 <div class="gozo-info">
                                     <span class="gozo-dias"><i class="bi bi-calendar-check"></i> ${diasGozo} dias</span>
-                                    <span class="gozo-saldo-restante ${saldoPos === 0 ? 'zero' : ''}">
-                                        Saldo após: ${saldoPos} dias
-                                    </span>
                                 </div>
                             </div>
                         </div>
