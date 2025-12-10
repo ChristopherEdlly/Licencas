@@ -1,0 +1,737 @@
+/**
+ * App - Orquestrador principal da aplicação
+ *
+ * Responsabilidades:
+ * - Inicializar todos os managers (State, UI, Features)
+ * - Configurar EventBus e Router
+ * - Gerenciar pipeline de dados (load → parse → transform → store)
+ * - Coordenar comunicação entre módulos
+ * - Fornecer backward compatibility com código legado
+ *
+ * @module 5-app/App
+ */
+
+class App {
+    /**
+     * Construtor do App
+     */
+    constructor() {
+        // Feature flags (migração gradual)
+        this.featureFlags = {
+            USE_EVENT_BUS: true,
+            USE_ROUTER: true,
+            USE_NEW_PIPELINE: false,
+            DEBUG_MODE: false
+        };
+
+        // Estado da aplicação
+        this.isInitialized = false;
+        this.isLoading = false;
+
+        // Core modules
+        this.eventBus = null;
+        this.router = null;
+
+        // State Managers
+        this.dataStateManager = null;
+        this.filterStateManager = null;
+        this.uiStateManager = null;
+
+        // UI Managers
+        this.tableManager = null;
+        this.chartManager = null;
+        this.modalManager = null;
+        this.sidebarManager = null;
+
+        // Feature Managers
+        this.searchManager = null;
+        this.filterManager = null;
+        this.calendarManager = null;
+        this.timelineManager = null;
+        this.reportsManager = null;
+        this.keyboardManager = null;
+
+        // Page Controllers
+        this.pages = {
+            home: null,
+            calendar: null,
+            timeline: null,
+            reports: null,
+            settings: null,
+            tips: null
+        };
+
+        // Services
+        this.fileService = null;
+        this.cacheService = null;
+        this.exportService = null;
+        this.notificationService = null;
+
+        console.log('✅ App instanciado');
+    }
+
+    // ==================== INICIALIZAÇÃO ====================
+
+    /**
+     * Inicializa a aplicação
+     * @returns {Promise<void>}
+     */
+    async init() {
+        if (this.isInitialized) {
+            console.warn('⚠️ App já foi inicializado');
+            return;
+        }
+
+        console.log('🚀 Inicializando aplicação...');
+
+        try {
+            // 1. Carregar feature flags
+            this._loadFeatureFlags();
+
+            // 2. Inicializar EventBus
+            this._initEventBus();
+
+            // 3. Inicializar State Managers
+            this._initStateManagers();
+
+            // 4. Inicializar Services
+            this._initServices();
+
+            // 5. Inicializar UI Managers
+            this._initUIManagers();
+
+            // 6. Inicializar Feature Managers
+            this._initFeatureManagers();
+
+            // 7. Inicializar Page Controllers
+            this._initPageControllers();
+
+            // 8. Inicializar Router
+            this._initRouter();
+
+            // 9. Setup event listeners globais
+            this._setupGlobalEventListeners();
+
+            // 10. Restaurar cache (se existir)
+            await this._restoreCache();
+
+            this.isInitialized = true;
+            console.log('✅ Aplicação inicializada com sucesso');
+
+            // Emitir evento de inicialização
+            if (this.eventBus) {
+                this.eventBus.emit('app:initialized');
+            }
+
+        } catch (error) {
+            console.error('❌ Erro ao inicializar aplicação:', error);
+            this._handleInitError(error);
+        }
+    }
+
+    // ==================== INICIALIZAÇÃO DE MÓDULOS ====================
+
+    /**
+     * Carrega feature flags do localStorage
+     * @private
+     */
+    _loadFeatureFlags() {
+        try {
+            const saved = localStorage.getItem('featureFlags');
+            if (saved) {
+                this.featureFlags = { ...this.featureFlags, ...JSON.parse(saved) };
+            }
+
+            // Aplicar flags globais
+            if (typeof window !== 'undefined') {
+                window.FEATURE_FLAGS = this.featureFlags;
+            }
+
+            console.log('🚩 Feature flags carregadas:', this.featureFlags);
+        } catch (error) {
+            console.warn('⚠️ Erro ao carregar feature flags:', error);
+        }
+    }
+
+    /**
+     * Inicializa EventBus
+     * @private
+     */
+    _initEventBus() {
+        if (!this.featureFlags.USE_EVENT_BUS) {
+            console.log('⏭️ EventBus desabilitado por feature flag');
+            return;
+        }
+
+        if (typeof EventBus !== 'undefined') {
+            this.eventBus = EventBus.getInstance();
+            this.eventBus.setDebugMode(this.featureFlags.DEBUG_MODE);
+            console.log('✅ EventBus inicializado');
+        } else {
+            console.warn('⚠️ EventBus não disponível');
+        }
+    }
+
+    /**
+     * Inicializa State Managers
+     * @private
+     */
+    _initStateManagers() {
+        // DataStateManager (Singleton global)
+        if (typeof window !== 'undefined' && window.dataStateManager) {
+            this.dataStateManager = window.dataStateManager;
+            console.log('✅ DataStateManager conectado');
+        } else {
+            console.error('❌ DataStateManager não disponível');
+        }
+
+        // FilterStateManager (Singleton global)
+        if (typeof window !== 'undefined' && window.filterStateManager) {
+            this.filterStateManager = window.filterStateManager;
+            console.log('✅ FilterStateManager conectado');
+        } else {
+            console.warn('⚠️ FilterStateManager não disponível');
+        }
+
+        // UIStateManager (Singleton global)
+        if (typeof window !== 'undefined' && window.uiStateManager) {
+            this.uiStateManager = window.uiStateManager;
+            console.log('✅ UIStateManager conectado');
+        } else {
+            console.warn('⚠️ UIStateManager não disponível');
+        }
+    }
+
+    /**
+     * Inicializa Services
+     * @private
+     */
+    _initServices() {
+        // FileService
+        if (typeof FileService !== 'undefined') {
+            this.fileService = FileService;
+            console.log('✅ FileService disponível');
+        }
+
+        // CacheService
+        if (typeof CacheService !== 'undefined') {
+            this.cacheService = CacheService;
+            console.log('✅ CacheService disponível');
+        }
+
+        // ExportService
+        if (typeof ExportService !== 'undefined') {
+            this.exportService = ExportService;
+            console.log('✅ ExportService disponível');
+        }
+
+        // NotificationService
+        if (typeof NotificationService !== 'undefined') {
+            this.notificationService = NotificationService;
+            console.log('✅ NotificationService disponível');
+        }
+    }
+
+    /**
+     * Inicializa UI Managers
+     * @private
+     */
+    _initUIManagers() {
+        // TableManager
+        if (typeof TableManager !== 'undefined') {
+            this.tableManager = new TableManager(this);
+            console.log('✅ TableManager inicializado');
+        }
+
+        // ChartManager
+        if (typeof ChartManager !== 'undefined') {
+            this.chartManager = new ChartManager(this);
+            console.log('✅ ChartManager inicializado');
+        }
+
+        // ModalManager
+        if (typeof ModalManager !== 'undefined') {
+            this.modalManager = new ModalManager(this);
+            console.log('✅ ModalManager inicializado');
+        }
+
+        // SidebarManager
+        if (typeof SidebarManager !== 'undefined') {
+            this.sidebarManager = new SidebarManager(this);
+            console.log('✅ SidebarManager inicializado');
+        }
+    }
+
+    /**
+     * Inicializa Feature Managers
+     * @private
+     */
+    _initFeatureManagers() {
+        // SearchManager
+        if (typeof SearchManager !== 'undefined') {
+            this.searchManager = new SearchManager(this);
+            console.log('✅ SearchManager inicializado');
+        }
+
+        // FilterManager
+        if (typeof FilterManager !== 'undefined') {
+            this.filterManager = new FilterManager(this);
+            console.log('✅ FilterManager inicializado');
+        }
+
+        // CalendarManager
+        if (typeof CalendarManager !== 'undefined') {
+            this.calendarManager = new CalendarManager(this);
+            console.log('✅ CalendarManager inicializado');
+        }
+
+        // TimelineManager
+        if (typeof TimelineManager !== 'undefined') {
+            this.timelineManager = new TimelineManager(this);
+            console.log('✅ TimelineManager inicializado');
+        }
+
+        // ReportsManager
+        if (typeof ReportsManager !== 'undefined') {
+            this.reportsManager = new ReportsManager(this);
+            console.log('✅ ReportsManager inicializado');
+        }
+
+        // KeyboardManager
+        if (typeof KeyboardManager !== 'undefined') {
+            this.keyboardManager = new KeyboardManager(this);
+            console.log('✅ KeyboardManager inicializado');
+        }
+    }
+
+    /**
+     * Inicializa Page Controllers
+     * @private
+     */
+    _initPageControllers() {
+        // HomePage
+        if (typeof HomePage !== 'undefined') {
+            this.pages.home = new HomePage(this);
+            this.pages.home.init();
+            console.log('✅ HomePage inicializado');
+        }
+
+        // CalendarPage
+        if (typeof CalendarPage !== 'undefined') {
+            this.pages.calendar = new CalendarPage(this);
+            this.pages.calendar.init();
+            console.log('✅ CalendarPage inicializado');
+        }
+
+        // TimelinePage
+        if (typeof TimelinePage !== 'undefined') {
+            this.pages.timeline = new TimelinePage(this);
+            this.pages.timeline.init();
+            console.log('✅ TimelinePage inicializado');
+        }
+
+        // ReportsPage
+        if (typeof ReportsPage !== 'undefined') {
+            this.pages.reports = new ReportsPage(this);
+            this.pages.reports.init();
+            console.log('✅ ReportsPage inicializado');
+        }
+
+        // SettingsPage
+        if (typeof SettingsPage !== 'undefined') {
+            this.pages.settings = new SettingsPage(this);
+            this.pages.settings.init();
+            console.log('✅ SettingsPage inicializado');
+        }
+
+        // TipsPage
+        if (typeof TipsPage !== 'undefined') {
+            this.pages.tips = new TipsPage(this);
+            this.pages.tips.init();
+            console.log('✅ TipsPage inicializado');
+        }
+    }
+
+    /**
+     * Inicializa Router e registra rotas
+     * @private
+     */
+    _initRouter() {
+        if (!this.featureFlags.USE_ROUTER) {
+            console.log('⏭️ Router desabilitado por feature flag');
+            return;
+        }
+
+        if (typeof Router !== 'undefined') {
+            this.router = Router.getInstance();
+            this.router.init(this.eventBus);
+
+            // Registrar rotas
+            this._registerRoutes();
+
+            console.log('✅ Router inicializado');
+        } else {
+            console.warn('⚠️ Router não disponível');
+        }
+    }
+
+    /**
+     * Registra todas as rotas da aplicação
+     * @private
+     */
+    _registerRoutes() {
+        if (!this.router) return;
+
+        // Rota padrão
+        this.router.setDefaultRoute('/');
+
+        // Registrar rotas
+        const routes = [
+            { path: '/', controller: this.pages.home },
+            { path: '/home', controller: this.pages.home },
+            { path: '/calendar', controller: this.pages.calendar },
+            { path: '/timeline', controller: this.pages.timeline },
+            { path: '/reports', controller: this.pages.reports },
+            { path: '/settings', controller: this.pages.settings },
+            { path: '/tips', controller: this.pages.tips }
+        ];
+
+        routes.forEach(route => {
+            if (route.controller) {
+                this.router.register(route.path, route.controller);
+            }
+        });
+
+        console.log('✅ Rotas registradas');
+    }
+
+    /**
+     * Setup de event listeners globais
+     * @private
+     */
+    _setupGlobalEventListeners() {
+        if (!this.eventBus) return;
+
+        // Listener para erros globais
+        this.eventBus.on('error:occurred', (error) => {
+            console.error('❌ Erro global:', error);
+            if (this.notificationService) {
+                this.notificationService.error('Ocorreu um erro. Por favor, tente novamente.');
+            }
+        });
+
+        // Listener para mudanças de tema
+        this.eventBus.on('ui:theme-changed', (theme) => {
+            console.log('🎨 Tema alterado:', theme);
+        });
+
+        console.log('✅ Event listeners globais configurados');
+    }
+
+    // ==================== CARREGAMENTO DE DADOS ====================
+
+    /**
+     * Carrega arquivo e processa dados
+     * @param {File} file - Arquivo CSV/Excel
+     * @returns {Promise<void>}
+     */
+    async loadFile(file) {
+        if (!file) {
+            throw new Error('Arquivo não fornecido');
+        }
+
+        console.log('📂 Carregando arquivo:', file.name);
+
+        try {
+            this.isLoading = true;
+
+            // Emitir evento de início
+            if (this.eventBus) {
+                this.eventBus.emit('ui:loading-started', { file: file.name });
+            }
+
+            // 1. Validar arquivo
+            const validation = this.fileService?.validateFile(file);
+            if (validation && !validation.valid) {
+                throw new Error(validation.error);
+            }
+
+            // 2. Carregar dados
+            const rawData = await this._loadFileData(file);
+
+            // 3. Parsear dados
+            const parsedData = await this._parseData(rawData);
+
+            // 4. Transformar dados
+            const transformedData = await this._transformData(parsedData);
+
+            // 5. Armazenar no DataStateManager
+            if (this.dataStateManager) {
+                this.dataStateManager.setAllServidores(transformedData);
+                this.dataStateManager.setFilteredServidores(transformedData);
+            }
+
+            // 6. Salvar no cache
+            if (this.cacheService) {
+                await this.cacheService.saveToCache(file.name, transformedData);
+            }
+
+            // Emitir evento de sucesso
+            if (this.eventBus) {
+                this.eventBus.emit('data:loaded', {
+                    fileName: file.name,
+                    count: transformedData.length
+                });
+            }
+
+            // Notificar usuário
+            if (this.notificationService) {
+                this.notificationService.success(
+                    `Arquivo carregado: ${transformedData.length} registros`
+                );
+            }
+
+            console.log(`✅ Arquivo carregado: ${transformedData.length} registros`);
+
+        } catch (error) {
+            console.error('❌ Erro ao carregar arquivo:', error);
+
+            // Emitir evento de erro
+            if (this.eventBus) {
+                this.eventBus.emit('error:occurred', error);
+            }
+
+            // Notificar usuário
+            if (this.notificationService) {
+                this.notificationService.error(`Erro ao carregar arquivo: ${error.message}`);
+            }
+
+            throw error;
+
+        } finally {
+            this.isLoading = false;
+
+            // Emitir evento de fim
+            if (this.eventBus) {
+                this.eventBus.emit('ui:loading-completed');
+            }
+        }
+    }
+
+    /**
+     * Carrega dados do arquivo
+     * @private
+     * @param {File} file - Arquivo
+     * @returns {Promise<string>}
+     */
+    async _loadFileData(file) {
+        if (this.fileService) {
+            return await this.fileService.readFile(file);
+        }
+
+        // Fallback: ler arquivo manualmente
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(e);
+            reader.readAsText(file);
+        });
+    }
+
+    /**
+     * Parseia dados CSV
+     * @private
+     * @param {string} rawData - Dados brutos
+     * @returns {Promise<Array>}
+     */
+    async _parseData(rawData) {
+        if (typeof DataParser !== 'undefined') {
+            return DataParser.parseCSV(rawData);
+        }
+
+        // Fallback: usar parser legado se disponível
+        if (typeof window !== 'undefined' && window.cronogramaParser) {
+            return window.cronogramaParser.parse(rawData);
+        }
+
+        throw new Error('Parser não disponível');
+    }
+
+    /**
+     * Transforma dados (enriquecimento)
+     * @private
+     * @param {Array} parsedData - Dados parseados
+     * @returns {Promise<Array>}
+     */
+    async _transformData(parsedData) {
+        if (typeof DataTransformer !== 'undefined') {
+            return DataTransformer.transformAll(parsedData);
+        }
+
+        // Fallback: retornar dados sem transformação
+        console.warn('⚠️ DataTransformer não disponível, dados não serão enriquecidos');
+        return parsedData;
+    }
+
+    /**
+     * Restaura dados do cache
+     * @private
+     * @returns {Promise<void>}
+     */
+    async _restoreCache() {
+        if (!this.cacheService) {
+            return;
+        }
+
+        try {
+            const cached = await this.cacheService.getLatestCache();
+            if (cached && cached.data) {
+                console.log('💾 Restaurando dados do cache...');
+
+                if (this.dataStateManager) {
+                    this.dataStateManager.setAllServidores(cached.data);
+                    this.dataStateManager.setFilteredServidores(cached.data);
+                }
+
+                if (this.notificationService) {
+                    this.notificationService.info('Dados anteriores restaurados do cache');
+                }
+
+                console.log(`✅ Cache restaurado: ${cached.data.length} registros`);
+            }
+        } catch (error) {
+            console.warn('⚠️ Erro ao restaurar cache:', error);
+        }
+    }
+
+    // ==================== FILTROS E BUSCA ====================
+
+    /**
+     * Aplica filtros aos dados
+     */
+    applyFilters() {
+        if (!this.dataStateManager || !this.filterStateManager) {
+            console.warn('⚠️ Managers não disponíveis para aplicar filtros');
+            return;
+        }
+
+        const allData = this.dataStateManager.getAllServidores();
+        const filters = this.filterStateManager.getActiveFilters();
+
+        // Aplicar filtros usando FilterManager ou DataFilter
+        let filtered = allData;
+
+        if (this.filterManager && typeof this.filterManager.applyFilters === 'function') {
+            filtered = this.filterManager.applyFilters(allData, filters);
+        } else if (typeof DataFilter !== 'undefined') {
+            filtered = DataFilter.applyFilters(allData, filters);
+        }
+
+        // Atualizar dados filtrados
+        this.dataStateManager.setFilteredServidores(filtered);
+
+        // Emitir evento
+        if (this.eventBus) {
+            this.eventBus.emit('filter:applied', {
+                filters,
+                resultCount: filtered.length
+            });
+        }
+
+        console.log(`🔍 Filtros aplicados: ${filtered.length} resultados`);
+    }
+
+    // ==================== TRATAMENTO DE ERROS ====================
+
+    /**
+     * Trata erro de inicialização
+     * @private
+     * @param {Error} error - Erro ocorrido
+     */
+    _handleInitError(error) {
+        console.error('❌ Erro crítico na inicialização:', error);
+
+        // Tentar notificar usuário
+        if (this.notificationService) {
+            this.notificationService.error(
+                'Erro ao inicializar aplicação. Por favor, recarregue a página.'
+            );
+        } else {
+            alert('Erro ao inicializar aplicação. Por favor, recarregue a página.');
+        }
+    }
+
+    // ==================== UTILITÁRIOS ====================
+
+    /**
+     * Retorna informações de debug
+     * @returns {Object}
+     */
+    getDebugInfo() {
+        return {
+            isInitialized: this.isInitialized,
+            isLoading: this.isLoading,
+            featureFlags: this.featureFlags,
+            managers: {
+                eventBus: !!this.eventBus,
+                router: !!this.router,
+                dataState: !!this.dataStateManager,
+                filterState: !!this.filterStateManager,
+                uiState: !!this.uiStateManager,
+                table: !!this.tableManager,
+                chart: !!this.chartManager,
+                modal: !!this.modalManager,
+                sidebar: !!this.sidebarManager,
+                search: !!this.searchManager,
+                filter: !!this.filterManager,
+                calendar: !!this.calendarManager,
+                timeline: !!this.timelineManager,
+                reports: !!this.reportsManager,
+                keyboard: !!this.keyboardManager
+            },
+            pages: {
+                home: !!this.pages.home,
+                calendar: !!this.pages.calendar,
+                timeline: !!this.pages.timeline,
+                reports: !!this.pages.reports,
+                settings: !!this.pages.settings,
+                tips: !!this.pages.tips
+            },
+            services: {
+                file: !!this.fileService,
+                cache: !!this.cacheService,
+                export: !!this.exportService,
+                notification: !!this.notificationService
+            }
+        };
+    }
+}
+
+// ==================== EXPORTAÇÃO E BACKWARD COMPATIBILITY ====================
+
+// Criar instância global
+if (typeof window !== 'undefined') {
+    window.app = new App();
+
+    // Backward compatibility: alias para dashboard
+    window.dashboard = window.app;
+
+    // Auto-inicialização
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            await window.app.init();
+        } catch (error) {
+            console.error('❌ Erro ao inicializar App:', error);
+        }
+    });
+}
+
+// Expor classe também
+if (typeof window !== 'undefined') {
+    window.App = App;
+}
+
+// Exportar para Node.js (testes)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = App;
+}

@@ -382,10 +382,10 @@ Completo:
 ✅ 3-managers/state (3/3)
 ✅ 3-managers/ui (4/4)
 ✅ 3-managers/features (6/6)
+✅ 4-pages (6/6)
+✅ 5-app (3/3)
 
 Restante:
-⏳ 4-pages (0/6)
-⏳ 5-app (0/3)
 ⏳ Integração final
 ```
 
@@ -393,20 +393,7 @@ Restante:
 
 ## 🔄 Próximos Passos
 
-### **Fase 1: Page Controllers** (1-2 dias)
-
-1. Criar 6 page controllers
-2. Migrar lógica das páginas atuais
-3. Testar navegação
-
-### **Fase 2: App Principal** (2-3 dias)
-
-1. Criar EventBus
-2. Criar Router
-3. Criar App.js (orquestrador)
-4. Feature flags para migração gradual
-
-### **Fase 3: Integração** (2-3 dias)
+### **Integração** (2-3 dias)
 
 1. Atualizar index.html
 2. Bridges de compatibilidade
@@ -423,7 +410,6 @@ Restante:
 
 - ✅ [ARQUITETURA-JS.md](ARQUITETURA-JS.md) - Arquitetura completa
 - ✅ [PROGRESSO-REESTRUTURACAO.md](PROGRESSO-REESTRUTURACAO.md) - Este documento
-- ⏳ API-REFERENCE.md - Referência da API (a criar)
 
 ### **Testes**
 

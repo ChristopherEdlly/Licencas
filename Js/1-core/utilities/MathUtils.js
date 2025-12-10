@@ -9,7 +9,7 @@
  * - Validações numéricas
  */
 
-const MathUtils = (function() {
+const MathUtils = (function () {
     'use strict';
 
     // ============================================================
@@ -43,14 +43,14 @@ const MathUtils = (function() {
      */
     function median(numbers) {
         if (!Array.isArray(numbers) || numbers.length === 0) return 0;
-        
+
         const sorted = [...numbers].sort((a, b) => a - b);
         const middle = Math.floor(sorted.length / 2);
-        
+
         if (sorted.length % 2 === 0) {
             return (sorted[middle - 1] + sorted[middle]) / 2;
         }
-        
+
         return sorted[middle];
     }
 
@@ -61,11 +61,11 @@ const MathUtils = (function() {
      */
     function mode(numbers) {
         if (!Array.isArray(numbers) || numbers.length === 0) return null;
-        
+
         const frequency = {};
         let maxFreq = 0;
         let modeValue = null;
-        
+
         for (const num of numbers) {
             frequency[num] = (frequency[num] || 0) + 1;
             if (frequency[num] > maxFreq) {
@@ -73,7 +73,7 @@ const MathUtils = (function() {
                 modeValue = num;
             }
         }
-        
+
         return maxFreq > 1 ? modeValue : null;
     }
 
@@ -84,11 +84,11 @@ const MathUtils = (function() {
      */
     function standardDeviation(numbers) {
         if (!Array.isArray(numbers) || numbers.length === 0) return 0;
-        
+
         const avg = average(numbers);
         const squaredDiffs = numbers.map(num => Math.pow(num - avg, 2));
         const variance = average(squaredDiffs);
-        
+
         return Math.sqrt(variance);
     }
 
@@ -396,7 +396,7 @@ const MathUtils = (function() {
     function factorial(n) {
         if (n < 0) return 0;
         if (n === 0 || n === 1) return 1;
-        
+
         let result = 1;
         for (let i = 2; i <= n; i++) {
             result *= i;
@@ -413,16 +413,16 @@ const MathUtils = (function() {
     function combination(n, r) {
         if (r > n || r < 0) return 0;
         if (r === 0 || r === n) return 1;
-        
+
         // Otimização: C(n,r) = C(n, n-r)
         r = Math.min(r, n - r);
-        
+
         let result = 1;
         for (let i = 0; i < r; i++) {
             result *= (n - i);
             result /= (i + 1);
         }
-        
+
         return Math.round(result);
     }
 
@@ -434,12 +434,12 @@ const MathUtils = (function() {
      */
     function permutation(n, r) {
         if (r > n || r < 0) return 0;
-        
+
         let result = 1;
         for (let i = 0; i < r; i++) {
             result *= (n - i);
         }
-        
+
         return result;
     }
 
@@ -452,13 +452,13 @@ const MathUtils = (function() {
     function gcd(a, b) {
         a = Math.abs(a);
         b = Math.abs(b);
-        
+
         while (b !== 0) {
             const temp = b;
             b = a % b;
             a = temp;
         }
-        
+
         return a;
     }
 
@@ -482,13 +482,13 @@ const MathUtils = (function() {
         if (n <= 1) return false;
         if (n <= 3) return true;
         if (n % 2 === 0 || n % 3 === 0) return false;
-        
+
         for (let i = 5; i * i <= n; i += 6) {
             if (n % i === 0 || n % (i + 2) === 0) {
                 return false;
             }
         }
-        
+
         return true;
     }
 
@@ -518,41 +518,41 @@ const MathUtils = (function() {
         min,
         max,
         range,
-        
+
         // Arredondamentos
         round,
         ceil,
         floor,
         truncate,
-        
+
         // Proporções
         percentage,
         percentageOf,
         percentageChange,
         ratio,
-        
+
         // Intervalos
         clamp,
         inRange,
         normalize,
         denormalize,
-        
+
         // Interpolações
         lerp,
         inverseLerp,
         remap,
-        
+
         // Validações
         isValidNumber,
         isInteger,
         isPositive,
         isNegative,
         approximatelyEqual,
-        
+
         // Conversões
         degreesToRadians,
         radiansToDegrees,
-        
+
         // Funções úteis
         factorial,
         combination,
@@ -567,4 +567,9 @@ const MathUtils = (function() {
 // Exportação para Node.js e Browser
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = MathUtils;
+}
+
+// Export para browser (global)
+if (typeof window !== 'undefined') {
+    window.MathUtils = MathUtils;
 }

@@ -9,7 +9,7 @@
  * - Formatos de texto
  */
 
-const ValidationUtils = (function() {
+const ValidationUtils = (function () {
     'use strict';
 
     // ============================================================
@@ -67,7 +67,7 @@ const ValidationUtils = (function() {
      */
     function isValidDate(date) {
         if (!date) return false;
-        
+
         if (date instanceof Date) {
             return !isNaN(date.getTime());
         }
@@ -164,7 +164,7 @@ const ValidationUtils = (function() {
 
         // Regex para validar formato "mes/ano a mes/ano" ou "mes/ano"
         const regex = /^(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\/\d{4}(\s+a\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\/\d{4})?$/i;
-        
+
         return regex.test(periodo.trim());
     }
 
@@ -175,9 +175,9 @@ const ValidationUtils = (function() {
      */
     function isValidDiasLicenca(dias) {
         if (dias === null || dias === undefined) return false;
-        
+
         const num = typeof dias === 'string' ? parseFloat(dias) : dias;
-        
+
         return !isNaN(num) && num >= 0 && num <= 9999;
     }
 
@@ -192,7 +192,7 @@ const ValidationUtils = (function() {
      */
     function isRequired(value) {
         if (value === null || value === undefined) return false;
-        
+
         if (typeof value === 'string') {
             return value.trim().length > 0;
         }
@@ -244,7 +244,7 @@ const ValidationUtils = (function() {
      */
     function isValidEmail(email) {
         if (!email || typeof email !== 'string') return false;
-        
+
         const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return regex.test(email);
     }
@@ -256,10 +256,10 @@ const ValidationUtils = (function() {
      */
     function isValidPhone(phone) {
         if (!phone || typeof phone !== 'string') return false;
-        
+
         // Remove formatação
         const digitsOnly = phone.replace(/[^\d]/g, '');
-        
+
         // Aceita 10 dígitos (fixo) ou 11 dígitos (celular)
         return digitsOnly.length === 10 || digitsOnly.length === 11;
     }
@@ -271,10 +271,10 @@ const ValidationUtils = (function() {
      */
     function isValidMatricula(matricula) {
         if (!matricula) return false;
-        
+
         const str = String(matricula).trim();
         const regex = /^\d{1,10}$/;
-        
+
         return regex.test(str);
     }
 
@@ -285,15 +285,15 @@ const ValidationUtils = (function() {
      */
     function isValidName(name) {
         if (!name || typeof name !== 'string') return false;
-        
+
         const trimmed = name.trim();
-        
+
         // Pelo menos 2 caracteres
         if (trimmed.length < 2) return false;
-        
+
         // Apenas letras, espaços e acentos
         const regex = /^[a-záàâãéèêíïóôõöúçñA-ZÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s]+$/;
-        
+
         return regex.test(trimmed);
     }
 
@@ -441,34 +441,34 @@ const ValidationUtils = (function() {
     return {
         // CPF
         isValidCPF,
-        
+
         // Datas
         isValidDate,
         isFutureDate,
         isPastDate,
         isDateInRange,
         isValidDateRange,
-        
+
         // Licenças
         isValidLicencaPeriodo,
         isValidDiasLicenca,
-        
+
         // Campos obrigatórios
         isRequired,
         validateRequiredFields,
-        
+
         // Formatos
         isValidEmail,
         isValidPhone,
         isValidMatricula,
         isValidName,
-        
+
         // Números
         isNumeric,
         isValidNumber,
         isInRange,
         isInteger,
-        
+
         // Validação complexa
         validateServidorRecord,
         validateLicencaRecord
@@ -478,4 +478,9 @@ const ValidationUtils = (function() {
 // Exportação para Node.js e Browser
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = ValidationUtils;
+}
+
+// Export para browser (global)
+if (typeof window !== 'undefined') {
+    window.ValidationUtils = ValidationUtils;
 }

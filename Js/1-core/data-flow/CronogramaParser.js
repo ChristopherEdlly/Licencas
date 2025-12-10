@@ -9,10 +9,6 @@
  * @module 1-core/data-flow/CronogramaParser
  */
 
-// Import condicional para Node.js
-const DateUtils = typeof require !== 'undefined'
-    ? require('../utilities/DateUtils.js')
-    : window.DateUtils;
 
 class CronogramaParser {
     constructor() {

@@ -4,10 +4,16 @@
  * Dependências: DateUtils (para parsing de datas)
  */
 
-// Import condicional para Node.js
-const DateUtils = typeof require !== 'undefined' 
-    ? require('../utilities/DateUtils.js')
-    : window.DateUtils;
+// Helper para obter DateUtils (Node.js ou Browser)
+function getDateUtils() {
+    if (typeof require !== 'undefined') {
+        return require('../utilities/DateUtils.js');
+    }
+    if (typeof window !== 'undefined' && window.DateUtils) {
+        return window.DateUtils;
+    }
+    throw new Error('DateUtils não disponível');
+}
 
 class DataParser {
     /**
@@ -17,7 +23,7 @@ class DataParser {
      */
     static parseCSV(csvString) {
         console.log('[DataParser] Iniciando parse do CSV...');
-        
+
         if (!csvString || typeof csvString !== 'string') {
             console.error('[DataParser] CSV inválido');
             return [];
@@ -25,7 +31,7 @@ class DataParser {
 
         // Split por linhas (suporta \n e \r\n)
         const lines = csvString.split(/\r?\n/).filter(line => line.trim());
-        
+
         if (lines.length === 0) {
             console.error('[DataParser] CSV vazio');
             return [];
@@ -40,7 +46,7 @@ class DataParser {
         const data = [];
         for (let i = 1; i < lines.length; i++) {
             const values = this._parseCSVLine(lines[i]);
-            
+
             // Pular linhas vazias
             if (values.length === 0 || values.every(v => !v)) {
                 continue;
@@ -103,37 +109,37 @@ class DataParser {
      */
     static mapHeaders(headers) {
         console.log('[DataParser] Mapeando headers...');
-        
+
         const headerMap = {};
         const mappings = {
             // Nome do servidor
             nome: ['nome', 'nome servidor', 'servidor', 'nome_servidor'],
-            
+
             // Matrícula
             matricula: ['matricula', 'matrícula', 'mat', 'matricula siape', 'siape'],
-            
+
             // Cargo
             cargo: ['cargo', 'cargo efetivo', 'cargo_efetivo'],
-            
+
             // Lotação
             lotacao: ['lotacao', 'lotação', 'unidade', 'setor', 'orgao', 'órgão'],
-            
+
             // Data de nascimento
             dataNascimento: ['data nascimento', 'data_nascimento', 'nascimento', 'dt_nascimento', 'data nasc'],
-            
+
             // Data de admissão
             dataAdmissao: ['data admissao', 'data admissão', 'data_admissao', 'admissao', 'admissão', 'dt_admissao'],
-            
+
             // Sexo
             sexo: ['sexo', 'genero', 'gênero'],
-            
+
             // Licenças prêmio
             licencasPremio: ['licencas premio', 'licenças prêmio', 'licenca premio', 'licença prêmio', 'lp']
         };
 
         headers.forEach((header, index) => {
             const normalized = header.toLowerCase().trim();
-            
+
             // Tentar encontrar mapeamento
             for (const [key, variations] of Object.entries(mappings)) {
                 if (variations.includes(normalized)) {
@@ -158,10 +164,10 @@ class DataParser {
      */
     static normalizeData(data, headerMap) {
         console.log('[DataParser] Normalizando dados...');
-        
+
         return data.map(row => {
             const normalized = {};
-            
+
             for (const [originalHeader, value] of Object.entries(row)) {
                 const normalizedKey = headerMap[originalHeader] || originalHeader;
                 normalized[normalizedKey] = value;
@@ -180,10 +186,10 @@ class DataParser {
         console.log('\n' + '='.repeat(60));
         console.log('[DataParser] 📊 Iniciando pipeline de parsing');
         console.log('='.repeat(60));
-        
+
         // 1. Parse básico do CSV
         const rawData = this.parseCSV(csvString);
-        
+
         if (rawData.length === 0) {
             console.error('[DataParser] ❌ Falha no parse - dados vazios');
             return [];
@@ -223,12 +229,13 @@ class DataParser {
             // Formato: "jan/2025 a dez/2025" ou "01/2025 - 12/2025"
             // Usar .+ (greedy) ao invés de .+? (non-greedy) para capturar a data completa
             const match = periodo.match(/(.+)\s+(?:a|até)\s+(.+)|(.+)\s*-\s*(.+)/);
-            
+
             if (match) {
                 // match[1] e match[2] para "a/até", match[3] e match[4] para "-"
                 const inicioStr = (match[1] || match[3]).trim();
                 const fimStr = (match[2] || match[4]).trim();
-                
+
+                const DateUtils = getDateUtils();
                 const inicio = DateUtils.parseBrazilianDate(inicioStr);
                 const fim = DateUtils.parseBrazilianDate(fimStr);
 

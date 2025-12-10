@@ -11,11 +11,11 @@
  * Dependências: DateUtils
  */
 
-// Compatibilidade Node.js / Browser
-const DateUtils = typeof require !== 'undefined' ? require('../utilities/DateUtils.js') : window.DateUtils;
-
-const DataAggregator = (function() {
+const DataAggregator = (function () {
     'use strict';
+
+    // Dependências (compatibilidade Node.js / Browser)
+    const DateUtils = (typeof window !== 'undefined' && window.DateUtils) || (typeof require !== 'undefined' && require('../utilities/DateUtils.js'));
 
     // ============================================================
     // ESTATÍSTICAS GERAIS
@@ -271,7 +271,7 @@ const DataAggregator = (function() {
 
         for (const item of data) {
             const key = item[field] || 'não-definido';
-            
+
             if (!grouped[key]) {
                 grouped[key] = {
                     count: 0,
@@ -396,7 +396,7 @@ const DataAggregator = (function() {
 
         for (const [key, value] of Object.entries(grouped)) {
             labels.push(key);
-            
+
             if (typeof value === 'object') {
                 values.push(value[valueField] || 0);
             } else {
@@ -480,9 +480,9 @@ const DataAggregator = (function() {
         for (let i = 0; i < bins; i++) {
             const rangeStart = min + (i * binSize);
             const rangeEnd = rangeStart + binSize;
-            
+
             const count = values.filter(v => v >= rangeStart && v < rangeEnd).length;
-            
+
             distribution.push({
                 range: `${rangeStart.toFixed(0)}-${rangeEnd.toFixed(0)}`,
                 rangeStart,
@@ -505,14 +505,14 @@ const DataAggregator = (function() {
         }
 
         const sorted = Object.entries(timeGrouped).sort((a, b) => a[0].localeCompare(b[0]));
-        
+
         if (sorted.length < 2) {
             return { trend: 'stable', change: 0 };
         }
 
         const firstValue = typeof sorted[0][1] === 'object' ? sorted[0][1].count : sorted[0][1];
-        const lastValue = typeof sorted[sorted.length - 1][1] === 'object' 
-            ? sorted[sorted.length - 1][1].count 
+        const lastValue = typeof sorted[sorted.length - 1][1] === 'object'
+            ? sorted[sorted.length - 1][1].count
             : sorted[sorted.length - 1][1];
 
         const change = lastValue - firstValue;
@@ -566,38 +566,38 @@ const DataAggregator = (function() {
         calculateBasicStats,
         countByUrgency,
         countByStatus,
-        
+
         // Agrupamento simples
         groupBy,
         groupByUrgency,
         groupByCargo,
         groupByLotacao,
         groupByStatus,
-        
+
         // Agrupamento temporal
         groupByMonth,
         groupByYear,
         groupByQuarter,
         groupByWeek,
-        
+
         // Agrupamento com estatísticas
         groupWithStats,
-        
+
         // Top N
         topN,
         topCargosByCount,
         topLotacoesByCount,
-        
+
         // Dados para gráficos
         toPieChartData,
         toBarChartData,
         toLineChartData,
-        
+
         // Análises avançadas
         calculatePercentiles,
         calculateDistribution,
         calculateTrend,
-        
+
         // Comparações
         comparePeriods
     };
@@ -606,4 +606,8 @@ const DataAggregator = (function() {
 // Exportação para Node.js e Browser
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = DataAggregator;
+}
+
+if (typeof window !== 'undefined') {
+    window.DataAggregator = DataAggregator;
 }

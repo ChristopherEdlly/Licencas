@@ -11,12 +11,12 @@
  * Dependências: DateUtils, ValidationUtils
  */
 
-// Compatibilidade Node.js / Browser
-const DateUtils = typeof require !== 'undefined' ? require('../utilities/DateUtils.js') : window.DateUtils;
-const ValidationUtils = typeof require !== 'undefined' ? require('../utilities/ValidationUtils.js') : window.ValidationUtils;
-
-const DataFilter = (function() {
+const DataFilter = (function () {
     'use strict';
+
+    // Dependências (compatibilidade Node.js / Browser)
+    const DateUtils = (typeof window !== 'undefined' && window.DateUtils) || (typeof require !== 'undefined' && require('../utilities/DateUtils.js'));
+    const ValidationUtils = (typeof window !== 'undefined' && window.ValidationUtils) || (typeof require !== 'undefined' && require('../utilities/ValidationUtils.js'));
 
     // ============================================================
     // FILTRAGEM POR TEXTO
@@ -29,7 +29,7 @@ const DataFilter = (function() {
      */
     function normalizeText(text) {
         if (!text || typeof text !== 'string') return '';
-        
+
         return text
             .toLowerCase()
             .normalize('NFD')
@@ -44,10 +44,10 @@ const DataFilter = (function() {
      */
     function textContains(text, searchTerm) {
         if (!searchTerm || !text) return true;
-        
+
         const normalizedText = normalizeText(text);
         const normalizedSearch = normalizeText(searchTerm);
-        
+
         return normalizedText.includes(normalizedSearch);
     }
 
@@ -80,13 +80,13 @@ const DataFilter = (function() {
      */
     function filterByMultipleTerms(data, searchTerms, fields) {
         if (!Array.isArray(data) || !Array.isArray(searchTerms)) return data;
-        
+
         let result = data;
-        
+
         for (const term of searchTerms) {
             result = filterByText(result, term, fields);
         }
-        
+
         return result;
     }
 
@@ -545,33 +545,33 @@ const DataFilter = (function() {
         textContains,
         filterByText,
         filterByMultipleTerms,
-        
+
         // Urgência
         filterByUrgency,
         filterByMinUrgency,
-        
+
         // Datas
         filterByStartDate,
         filterByEndDate,
         filterByDaysUntilStart,
-        
+
         // Valores específicos
         filterByField,
         filterByCargo,
         filterByLotacao,
         filterByStatus,
-        
+
         // Valores numéricos
         filterByRange,
         filterByDias,
         filterBySaldo,
-        
+
         // Condições booleanas
         filterByCondition,
         filterWithSaldo,
         filterExpired,
         filterActive,
-        
+
         // Pipeline
         applyFilters,
         countByFilters
@@ -581,4 +581,8 @@ const DataFilter = (function() {
 // Exportação para Node.js e Browser
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = DataFilter;
+}
+
+if (typeof window !== 'undefined') {
+    window.DataFilter = DataFilter;
 }

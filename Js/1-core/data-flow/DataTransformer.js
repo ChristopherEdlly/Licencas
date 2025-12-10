@@ -14,7 +14,7 @@
 const DateUtils = typeof require !== 'undefined' ? require('../utilities/DateUtils.js') : window.DateUtils;
 const FormatUtils = typeof require !== 'undefined' ? require('../utilities/FormatUtils.js') : window.FormatUtils;
 
-const DataTransformer = (function() {
+const DataTransformer = (function () {
     'use strict';
 
     // ============================================================
@@ -209,7 +209,7 @@ const DataTransformer = (function() {
             enriched.totalDias = enriched.licencas.reduce((sum, lic) => sum + (lic.dias || 0), 0);
             enriched.totalGozados = enriched.licencas.reduce((sum, lic) => sum + (lic.diasGozados || 0), 0);
             enriched.totalSaldo = enriched.licencas.reduce((sum, lic) => sum + (lic.saldo || 0), 0);
-            
+
             enriched.totalDiasFormatado = FormatUtils.formatDays(enriched.totalDias);
             enriched.totalSaldoFormatado = FormatUtils.formatDays(enriched.totalSaldo);
         }
@@ -454,28 +454,28 @@ const DataTransformer = (function() {
         enrichLicenca,
         enrichServidor,
         enrichServidoresWithLicencas,
-        
+
         // Parsing
         parsePeriodoDates,
-        
+
         // Cálculos
         calculateUrgencia,
         calculateStatus,
-        
+
         // Agregação
         groupLicencasByServidor,
-        
+
         // Normalização
         normalizeNumericFields,
         normalizeLicenca,
         pickFields,
         omitFields,
-        
+
         // Transformações em lote
         transformBatch,
         enrichLicencasBatch,
         enrichServidoresBatch,
-        
+
         // Ordenação
         createSorter,
         sortByUrgencia
@@ -485,4 +485,9 @@ const DataTransformer = (function() {
 // Exportação para Node.js e Browser
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = DataTransformer;
+}
+
+// Export para browser (global)
+if (typeof window !== 'undefined') {
+    window.DataTransformer = DataTransformer;
 }
