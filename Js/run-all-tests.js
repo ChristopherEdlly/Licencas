@@ -39,6 +39,10 @@ const tests = [
         path: 'js/1-core/data-flow/__tests__/DataFilter.test.js'
     },
     {
+        name: 'DataFilter (Advanced - Períodos & Ranges)',
+        path: 'js/1-core/data-flow/__tests__/DataFilter.enhanced.test.js'
+    },
+    {
         name: 'DataAggregator',
         path: 'js/1-core/data-flow/__tests__/DataAggregator.test.js'
     },
@@ -62,6 +66,10 @@ const tests = [
         name: 'DataLoader',
         path: 'js/1-core/data-flow/__tests__/DataLoader.test.js'
     },
+    {
+        name: 'CronogramaParser',
+        path: 'js/1-core/data-flow/__tests__/CronogramaParser.test.js'
+    },
     // 2-services
     {
         name: 'FileService',
@@ -81,6 +89,12 @@ const tests = [
     {
         name: 'Feature Managers (Filter, Calendar, Timeline, Reports, Keyboard)',
         path: 'js/3-managers/features/__tests__/FeatureManagers.test.js'
+    },
+
+    // 3-managers - Integration Tests
+    {
+        name: 'Integration Tests (Data Flow Between Managers)',
+        path: 'js/3-managers/__tests__/Integration.test.js'
     }
 ];
 

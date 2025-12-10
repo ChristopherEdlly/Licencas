@@ -6,6 +6,39 @@
  * sem bugs ou erros, testando os cenários reais de uso.
  */
 
+// ==================== MOCK DE AMBIENTE BROWSER ====================
+// Node.js não tem document, localStorage, CustomEvent - vamos criar mocks simples
+
+global.document = {
+    dispatchEvent: function(event) {
+        // Mock simples - não faz nada mas não gera erro
+    },
+    addEventListener: function() {},
+    removeEventListener: function() {}
+};
+
+global.CustomEvent = class CustomEvent {
+    constructor(type, options) {
+        this.type = type;
+        this.detail = options?.detail;
+    }
+};
+
+// Mock do localStorage
+const localStorageMock = (() => {
+    let store = {};
+    return {
+        getItem: (key) => store[key] || null,
+        setItem: (key, value) => { store[key] = value.toString(); },
+        removeItem: (key) => { delete store[key]; },
+        clear: () => { store = {}; }
+    };
+})();
+
+global.localStorage = localStorageMock;
+
+// ==================== IMPORTAÇÕES ====================
+
 // Importar State Managers
 const DataStateManager = require('../state/DataStateManager.js');
 const FilterStateManager = require('../state/FilterStateManager.js');
@@ -149,7 +182,8 @@ test('FLUXO 6: DataStateManager notifica mudanças', () => {
     let notificationReceived = false;
     let notificationData = null;
 
-    const unsubscribe = dataManager.subscribe('data-loaded', (data) => {
+    // DataStateManager emite 'all-data-changed' ao chamar setAllServidores
+    const unsubscribe = dataManager.subscribe('all-data-changed', (data) => {
         notificationReceived = true;
         notificationData = data;
     });
@@ -210,6 +244,9 @@ test('FLUXO 12: ReportsManager agrupa por lotação', () => {
 });
 
 test('FLUXO 13: CENÁRIO COMPLETO - Todo o pipeline', () => {
+    // 0. Limpar estado anterior
+    filterStateManager.clearAllFilters();
+
     // 1. Carregar
     dataManager.setAllServidores(mockServidores);
     assertEquals(dataManager.getAllServidores().length, 3);

@@ -1,0 +1,411 @@
+/**
+ * HomePage - Controller da página inicial (Visão Geral / Cronograma)
+ *
+ * Responsabilidades:
+ * - Gerenciar visualização do cronograma de licenças
+ * - Coordenar TableManager (tabela de servidores)
+ * - Coordenar ChartManager (gráficos de urgência e cargos)
+ * - Responder a eventos de filtros e busca
+ * - Atualizar contadores e estatísticas
+ *
+ * @class HomePage
+ */
+class HomePage {
+    /**
+     * @param {Object} app - Referência ao App principal
+     */
+    constructor(app) {
+        this.app = app;
+
+        // Estado da página
+        this.isActive = false;
+        this.isInitialized = false;
+
+        // Referências aos managers (serão inicializados no init)
+        this.dataStateManager = null;
+        this.tableManager = null;
+        this.chartManager = null;
+        this.filterStateManager = null;
+        this.searchManager = null;
+
+        // Elementos do DOM (lazy loading)
+        this.elements = {
+            page: null,
+            cronogramaView: null,
+            totalServidores: null,
+            tableBody: null,
+            urgencyChart: null,
+            cargoChart: null,
+            urgencyTotal: null,
+            cargoTotal: null
+        };
+
+        // Event listeners registrados (para cleanup)
+        this.eventListeners = [];
+
+        console.log('✅ HomePage instanciado');
+    }
+
+    /**
+     * Inicializa a página e seus managers
+     * Deve ser chamado apenas uma vez
+     */
+    init() {
+        if (this.isInitialized) {
+            console.warn('⚠️ HomePage já foi inicializado');
+            return;
+        }
+
+        console.log('🔧 Inicializando HomePage...');
+
+        // 1. Cache de elementos do DOM
+        this._cacheElements();
+
+        // 2. Obter referências aos managers do App
+        this._initManagers();
+
+        // 3. Setup de event listeners
+        this._setupEventListeners();
+
+        this.isInitialized = true;
+        console.log('✅ HomePage inicializado');
+    }
+
+    /**
+     * Faz cache dos elementos do DOM
+     * @private
+     */
+    _cacheElements() {
+        this.elements.page = document.getElementById('homePage');
+        this.elements.cronogramaView = document.getElementById('cronogramaView');
+        this.elements.totalServidores = document.getElementById('totalServidores');
+        this.elements.tableBody = document.getElementById('tableBody');
+        this.elements.urgencyChart = document.getElementById('urgencyChart');
+        this.elements.cargoChart = document.getElementById('cargoChart');
+        this.elements.urgencyTotal = document.getElementById('urgencyTotal');
+        this.elements.cargoTotal = document.getElementById('cargoTotal');
+
+        // Validar elementos críticos
+        if (!this.elements.page) {
+            console.error('❌ Elemento #homePage não encontrado no DOM');
+        }
+        if (!this.elements.tableBody) {
+            console.error('❌ Elemento #tableBody não encontrado no DOM');
+        }
+    }
+
+    /**
+     * Inicializa referências aos managers do App
+     * @private
+     */
+    _initManagers() {
+        // Managers de estado
+        this.dataStateManager = this.app.dataStateManager;
+        this.filterStateManager = this.app.filterStateManager;
+
+        // Managers de UI
+        this.tableManager = this.app.tableManager;
+        this.chartManager = this.app.chartManager;
+
+        // Managers de features
+        this.searchManager = this.app.searchManager;
+
+        // Validar managers críticos
+        if (!this.dataStateManager) {
+            console.error('❌ DataStateManager não disponível');
+        }
+        if (!this.tableManager) {
+            console.error('❌ TableManager não disponível');
+        }
+        if (!this.chartManager) {
+            console.error('❌ ChartManager não disponível');
+        }
+    }
+
+    /**
+     * Setup de event listeners
+     * @private
+     */
+    _setupEventListeners() {
+        // Listener para mudanças no DataStateManager (Observer Pattern)
+        if (this.dataStateManager) {
+            const dataChangeHandler = () => {
+                if (this.isActive) {
+                    this.render();
+                }
+            };
+
+            // Subscrever ao evento 'dataChanged'
+            document.addEventListener('dataStateChanged', dataChangeHandler);
+
+            // Guardar referência para cleanup posterior
+            this.eventListeners.push({
+                element: document,
+                event: 'dataStateChanged',
+                handler: dataChangeHandler
+            });
+        }
+
+        // Listener para mudanças nos filtros
+        if (this.filterStateManager) {
+            const filterChangeHandler = () => {
+                if (this.isActive) {
+                    this.render();
+                }
+            };
+
+            document.addEventListener('filtersChanged', filterChangeHandler);
+
+            this.eventListeners.push({
+                element: document,
+                event: 'filtersChanged',
+                handler: filterChangeHandler
+            });
+        }
+
+        console.log('✅ Event listeners configurados');
+    }
+
+    /**
+     * Renderiza a página com os dados atuais
+     * Chamado quando a página é ativada ou quando dados mudam
+     */
+    render() {
+        if (!this.isInitialized) {
+            console.warn('⚠️ HomePage não foi inicializado. Chamando init()...');
+            this.init();
+        }
+
+        console.log('🎨 Renderizando HomePage...');
+
+        // 1. Obter dados filtrados do DataStateManager
+        const servidores = this._getFilteredData();
+
+        // 2. Atualizar contador no header
+        this._updateServerCount(servidores.length);
+
+        // 3. Renderizar tabela
+        this._renderTable(servidores);
+
+        // 4. Renderizar gráficos
+        this._renderCharts(servidores);
+
+        console.log(`✅ HomePage renderizado com ${servidores.length} servidores`);
+    }
+
+    /**
+     * Obtém dados filtrados do DataStateManager
+     * @private
+     * @returns {Array} Array de servidores filtrados
+     */
+    _getFilteredData() {
+        if (!this.dataStateManager) {
+            return [];
+        }
+
+        // Obter dados filtrados (já aplicados pelo FilterStateManager)
+        return this.dataStateManager.getFilteredData() || [];
+    }
+
+    /**
+     * Atualiza contador de servidores no header
+     * @private
+     * @param {number} count - Quantidade de servidores
+     */
+    _updateServerCount(count) {
+        if (this.elements.totalServidores) {
+            this.elements.totalServidores.textContent = count;
+        }
+    }
+
+    /**
+     * Renderiza a tabela de servidores
+     * @private
+     * @param {Array} servidores - Array de servidores
+     */
+    _renderTable(servidores) {
+        if (!this.tableManager || !this.elements.tableBody) {
+            console.warn('⚠️ TableManager ou tableBody não disponível');
+            return;
+        }
+
+        // Delegar renderização para o TableManager
+        // (TableManager já sabe como renderizar a tabela corretamente)
+        this.tableManager.render(servidores, this.elements.tableBody);
+    }
+
+    /**
+     * Renderiza os gráficos (urgência e cargos)
+     * @private
+     * @param {Array} servidores - Array de servidores
+     */
+    _renderCharts(servidores) {
+        if (!this.chartManager) {
+            console.warn('⚠️ ChartManager não disponível');
+            return;
+        }
+
+        // 1. Gráfico de Urgência (barras horizontais)
+        this._renderUrgencyChart(servidores);
+
+        // 2. Gráfico de Cargos (pizza/rosca)
+        this._renderCargoChart(servidores);
+    }
+
+    /**
+     * Renderiza gráfico de urgência
+     * @private
+     * @param {Array} servidores - Array de servidores
+     */
+    _renderUrgencyChart(servidores) {
+        if (!this.elements.urgencyChart) {
+            return;
+        }
+
+        // Contar urgências
+        const urgencyCounts = this._countUrgencies(servidores);
+
+        // Atualizar total no header do gráfico
+        if (this.elements.urgencyTotal) {
+            this.elements.urgencyTotal.textContent = servidores.length;
+        }
+
+        // Delegar renderização para ChartManager
+        this.chartManager.renderUrgencyChart(
+            this.elements.urgencyChart,
+            urgencyCounts
+        );
+    }
+
+    /**
+     * Renderiza gráfico de cargos
+     * @private
+     * @param {Array} servidores - Array de servidores
+     */
+    _renderCargoChart(servidores) {
+        if (!this.elements.cargoChart) {
+            return;
+        }
+
+        // Contar cargos
+        const cargoCounts = this._countCargos(servidores);
+
+        // Atualizar total no header do gráfico
+        if (this.elements.cargoTotal) {
+            this.elements.cargoTotal.textContent = servidores.length;
+        }
+
+        // Delegar renderização para ChartManager
+        this.chartManager.renderCargoChart(
+            this.elements.cargoChart,
+            cargoCounts
+        );
+    }
+
+    /**
+     * Conta servidores por urgência
+     * @private
+     * @param {Array} servidores - Array de servidores
+     * @returns {Object} Objeto com contagens por urgência
+     */
+    _countUrgencies(servidores) {
+        const counts = {
+            critica: 0,
+            alta: 0,
+            moderada: 0,
+            baixa: 0
+        };
+
+        servidores.forEach(servidor => {
+            const urgencia = (servidor.urgencia || '').toLowerCase();
+            if (counts.hasOwnProperty(urgencia)) {
+                counts[urgencia]++;
+            }
+        });
+
+        return counts;
+    }
+
+    /**
+     * Conta servidores por cargo
+     * @private
+     * @param {Array} servidores - Array de servidores
+     * @returns {Object} Objeto com contagens por cargo
+     */
+    _countCargos(servidores) {
+        const counts = {};
+
+        servidores.forEach(servidor => {
+            const cargo = servidor.cargo || 'Não informado';
+            counts[cargo] = (counts[cargo] || 0) + 1;
+        });
+
+        return counts;
+    }
+
+    /**
+     * Ativa a página (torna visível)
+     * Chamado pelo Router quando usuário navega para Home
+     */
+    show() {
+        if (!this.isInitialized) {
+            this.init();
+        }
+
+        console.log('👁️ Mostrando HomePage');
+
+        // Tornar página visível
+        if (this.elements.page) {
+            this.elements.page.classList.add('active');
+        }
+
+        this.isActive = true;
+
+        // Renderizar com dados atuais
+        this.render();
+    }
+
+    /**
+     * Desativa a página (esconde)
+     * Chamado pelo Router quando usuário navega para outra página
+     */
+    hide() {
+        console.log('🙈 Escondendo HomePage');
+
+        // Esconder página
+        if (this.elements.page) {
+            this.elements.page.classList.remove('active');
+        }
+
+        this.isActive = false;
+    }
+
+    /**
+     * Cleanup - Remove event listeners
+     * Chamado quando a página é destruída (se necessário)
+     */
+    destroy() {
+        console.log('🧹 Destruindo HomePage...');
+
+        // Remover todos os event listeners registrados
+        this.eventListeners.forEach(({ element, event, handler }) => {
+            element.removeEventListener(event, handler);
+        });
+
+        this.eventListeners = [];
+        this.isInitialized = false;
+        this.isActive = false;
+
+        console.log('✅ HomePage destruído');
+    }
+}
+
+// Exportar para uso no App
+if (typeof window !== 'undefined') {
+    window.HomePage = HomePage;
+}
+
+// Exportar para Node.js (testes)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = HomePage;
+}

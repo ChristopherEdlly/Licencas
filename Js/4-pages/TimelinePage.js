@@ -1,0 +1,588 @@
+/**
+ * TimelinePage - Controller da página de timeline
+ *
+ * Responsabilidades:
+ * - Gerenciar visualização da timeline de licenças
+ * - Coordenar TimelineManager (renderização do gráfico)
+ * - Controlar modos de visualização (diário/mensal/anual)
+ * - Gerenciar filtros de período
+ * - Responder a eventos de filtros e busca
+ *
+ * @class TimelinePage
+ */
+class TimelinePage {
+    /**
+     * @param {Object} app - Referência ao App principal
+     */
+    constructor(app) {
+        this.app = app;
+
+        // Estado da página
+        this.isActive = false;
+        this.isInitialized = false;
+
+        // Estado da timeline
+        this.currentView = 'monthly'; // 'daily', 'monthly', 'yearly'
+        this.currentPeriod = {
+            daily: null,       // Date ou null
+            monthly: {         // { start: Date, end: Date } ou null
+                start: null,
+                end: null
+            },
+            yearly: {          // { start: year, end: year } ou null
+                start: null,
+                end: null
+            }
+        };
+
+        // Referências aos managers (serão inicializados no init)
+        this.dataStateManager = null;
+        this.timelineManager = null;
+        this.exportManager = null;
+
+        // Elementos do DOM (lazy loading)
+        this.elements = {
+            page: null,
+            timelineView: null,
+            timelineChart: null,
+            timelineDailyGroup: null,
+            timelineDailyMonth: null,
+            timelinePeriodRangeGroupMonthly: null,
+            timelinePeriodStartMonth: null,
+            timelinePeriodEndMonth: null,
+            timelinePeriodRangeGroupYearly: null,
+            timelinePeriodStartYear: null,
+            timelinePeriodEndYear: null,
+            showPeriodStatsBtn: null,
+            exportTimelineBtn: null
+        };
+
+        // Event listeners registrados (para cleanup)
+        this.eventListeners = [];
+
+        console.log('✅ TimelinePage instanciado');
+    }
+
+    /**
+     * Inicializa a página e seus managers
+     * Deve ser chamado apenas uma vez
+     */
+    init() {
+        if (this.isInitialized) {
+            console.warn('⚠️ TimelinePage já foi inicializado');
+            return;
+        }
+
+        console.log('🔧 Inicializando TimelinePage...');
+
+        // 1. Cache de elementos do DOM
+        this._cacheElements();
+
+        // 2. Obter referências aos managers do App
+        this._initManagers();
+
+        // 3. Setup de event listeners
+        this._setupEventListeners();
+
+        // 4. Setup de controles (modo de visualização)
+        this._setupViewControls();
+
+        this.isInitialized = true;
+        console.log('✅ TimelinePage inicializado');
+    }
+
+    /**
+     * Faz cache dos elementos do DOM
+     * @private
+     */
+    _cacheElements() {
+        this.elements.page = document.getElementById('timelinePage');
+        this.elements.timelineView = document.getElementById('timelineView');
+        this.elements.timelineChart = document.getElementById('timelineChart');
+        this.elements.timelineDailyGroup = document.getElementById('timelineDailyGroup');
+        this.elements.timelineDailyMonth = document.getElementById('timelineDailyMonth');
+        this.elements.timelinePeriodRangeGroupMonthly = document.getElementById('timelinePeriodRangeGroupMonthly');
+        this.elements.timelinePeriodStartMonth = document.getElementById('timelinePeriodStartMonth');
+        this.elements.timelinePeriodEndMonth = document.getElementById('timelinePeriodEndMonth');
+        this.elements.timelinePeriodRangeGroupYearly = document.getElementById('timelinePeriodRangeGroupYearly');
+        this.elements.timelinePeriodStartYear = document.getElementById('timelinePeriodStartYear');
+        this.elements.timelinePeriodEndYear = document.getElementById('timelinePeriodEndYear');
+        this.elements.showPeriodStatsBtn = document.getElementById('showPeriodStatsBtn');
+        this.elements.exportTimelineBtn = document.getElementById('exportTimelineBtn');
+
+        // Validar elementos críticos
+        if (!this.elements.page) {
+            console.error('❌ Elemento #timelinePage não encontrado no DOM');
+        }
+        if (!this.elements.timelineChart) {
+            console.error('❌ Elemento #timelineChart não encontrado no DOM');
+        }
+    }
+
+    /**
+     * Inicializa referências aos managers do App
+     * @private
+     */
+    _initManagers() {
+        // Managers de estado
+        this.dataStateManager = this.app.dataStateManager;
+
+        // Managers de UI
+        this.timelineManager = this.app.timelineManager;
+
+        // Managers de features
+        this.exportManager = this.app.exportManager;
+
+        // Validar managers críticos
+        if (!this.dataStateManager) {
+            console.error('❌ DataStateManager não disponível');
+        }
+        if (!this.timelineManager) {
+            console.error('❌ TimelineManager não disponível');
+        }
+    }
+
+    /**
+     * Setup de event listeners
+     * @private
+     */
+    _setupEventListeners() {
+        // Listener para mudanças no DataStateManager (Observer Pattern)
+        if (this.dataStateManager) {
+            const dataChangeHandler = () => {
+                if (this.isActive) {
+                    this.render();
+                }
+            };
+
+            document.addEventListener('dataStateChanged', dataChangeHandler);
+
+            this.eventListeners.push({
+                element: document,
+                event: 'dataStateChanged',
+                handler: dataChangeHandler
+            });
+        }
+
+        // Listener para mudanças nos filtros
+        const filterChangeHandler = () => {
+            if (this.isActive) {
+                this.render();
+            }
+        };
+
+        document.addEventListener('filtersChanged', filterChangeHandler);
+
+        this.eventListeners.push({
+            element: document,
+            event: 'filtersChanged',
+            handler: filterChangeHandler
+        });
+
+        // Listener para botão de exportar
+        if (this.elements.exportTimelineBtn) {
+            const exportHandler = () => {
+                this._handleExport();
+            };
+
+            this.elements.exportTimelineBtn.addEventListener('click', exportHandler);
+
+            this.eventListeners.push({
+                element: this.elements.exportTimelineBtn,
+                event: 'click',
+                handler: exportHandler
+            });
+        }
+
+        console.log('✅ Event listeners configurados');
+    }
+
+    /**
+     * Setup de controles de visualização
+     * @private
+     */
+    _setupViewControls() {
+        // Listener para mudança de modo de visualização
+        if (this.elements.timelineView) {
+            const viewChangeHandler = (e) => {
+                this.currentView = e.target.value;
+                this._updateViewControls();
+                this.render();
+            };
+
+            this.elements.timelineView.addEventListener('change', viewChangeHandler);
+
+            this.eventListeners.push({
+                element: this.elements.timelineView,
+                event: 'change',
+                handler: viewChangeHandler
+            });
+        }
+
+        // Listeners para filtros de período (diário)
+        if (this.elements.timelineDailyMonth) {
+            const dailyChangeHandler = (e) => {
+                const value = e.target.value; // "2025-01"
+                if (value) {
+                    const [year, month] = value.split('-').map(Number);
+                    this.currentPeriod.daily = new Date(year, month - 1, 1);
+                } else {
+                    this.currentPeriod.daily = null;
+                }
+                this.render();
+            };
+
+            this.elements.timelineDailyMonth.addEventListener('change', dailyChangeHandler);
+
+            this.eventListeners.push({
+                element: this.elements.timelineDailyMonth,
+                event: 'change',
+                handler: dailyChangeHandler
+            });
+        }
+
+        // Listeners para filtros de período (mensal)
+        if (this.elements.timelinePeriodStartMonth) {
+            const monthlyStartHandler = (e) => {
+                const value = e.target.value; // "2025-01"
+                if (value) {
+                    const [year, month] = value.split('-').map(Number);
+                    this.currentPeriod.monthly.start = new Date(year, month - 1, 1);
+                } else {
+                    this.currentPeriod.monthly.start = null;
+                }
+                this.render();
+            };
+
+            this.elements.timelinePeriodStartMonth.addEventListener('change', monthlyStartHandler);
+
+            this.eventListeners.push({
+                element: this.elements.timelinePeriodStartMonth,
+                event: 'change',
+                handler: monthlyStartHandler
+            });
+        }
+
+        if (this.elements.timelinePeriodEndMonth) {
+            const monthlyEndHandler = (e) => {
+                const value = e.target.value; // "2025-12"
+                if (value) {
+                    const [year, month] = value.split('-').map(Number);
+                    this.currentPeriod.monthly.end = new Date(year, month - 1, 1);
+                } else {
+                    this.currentPeriod.monthly.end = null;
+                }
+                this.render();
+            };
+
+            this.elements.timelinePeriodEndMonth.addEventListener('change', monthlyEndHandler);
+
+            this.eventListeners.push({
+                element: this.elements.timelinePeriodEndMonth,
+                event: 'change',
+                handler: monthlyEndHandler
+            });
+        }
+
+        // Listeners para filtros de período (anual)
+        if (this.elements.timelinePeriodStartYear) {
+            const yearlyStartHandler = (e) => {
+                const value = parseInt(e.target.value, 10);
+                this.currentPeriod.yearly.start = isNaN(value) ? null : value;
+                this.render();
+            };
+
+            this.elements.timelinePeriodStartYear.addEventListener('change', yearlyStartHandler);
+
+            this.eventListeners.push({
+                element: this.elements.timelinePeriodStartYear,
+                event: 'change',
+                handler: yearlyStartHandler
+            });
+        }
+
+        if (this.elements.timelinePeriodEndYear) {
+            const yearlyEndHandler = (e) => {
+                const value = parseInt(e.target.value, 10);
+                this.currentPeriod.yearly.end = isNaN(value) ? null : value;
+                this.render();
+            };
+
+            this.elements.timelinePeriodEndYear.addEventListener('change', yearlyEndHandler);
+
+            this.eventListeners.push({
+                element: this.elements.timelinePeriodEndYear,
+                event: 'change',
+                handler: yearlyEndHandler
+            });
+        }
+
+        console.log('✅ Controles de visualização configurados');
+    }
+
+    /**
+     * Atualiza visibilidade dos controles baseado no modo atual
+     * @private
+     */
+    _updateViewControls() {
+        // Esconder todos os grupos de controles
+        if (this.elements.timelineDailyGroup) {
+            this.elements.timelineDailyGroup.style.display = 'none';
+        }
+        if (this.elements.timelinePeriodRangeGroupMonthly) {
+            this.elements.timelinePeriodRangeGroupMonthly.style.display = 'none';
+        }
+        if (this.elements.timelinePeriodRangeGroupYearly) {
+            this.elements.timelinePeriodRangeGroupYearly.style.display = 'none';
+        }
+
+        // Mostrar grupo relevante baseado no modo
+        switch (this.currentView) {
+            case 'daily':
+                if (this.elements.timelineDailyGroup) {
+                    this.elements.timelineDailyGroup.style.display = 'block';
+                }
+                break;
+            case 'monthly':
+                if (this.elements.timelinePeriodRangeGroupMonthly) {
+                    this.elements.timelinePeriodRangeGroupMonthly.style.display = 'block';
+                }
+                break;
+            case 'yearly':
+                if (this.elements.timelinePeriodRangeGroupYearly) {
+                    this.elements.timelinePeriodRangeGroupYearly.style.display = 'block';
+                }
+                break;
+        }
+    }
+
+    /**
+     * Renderiza a página com os dados atuais
+     * Chamado quando a página é ativada ou quando dados mudam
+     */
+    render() {
+        if (!this.isInitialized) {
+            console.warn('⚠️ TimelinePage não foi inicializado. Chamando init()...');
+            this.init();
+        }
+
+        console.log(`🎨 Renderizando TimelinePage (modo: ${this.currentView})...`);
+
+        // 1. Obter dados filtrados do DataStateManager
+        const servidores = this._getFilteredData();
+
+        // 2. Renderizar timeline
+        this._renderTimeline(servidores);
+
+        console.log(`✅ TimelinePage renderizado com ${servidores.length} servidores`);
+    }
+
+    /**
+     * Obtém dados filtrados do DataStateManager
+     * @private
+     * @returns {Array} Array de servidores filtrados
+     */
+    _getFilteredData() {
+        if (!this.dataStateManager) {
+            return [];
+        }
+
+        // Obter dados filtrados (já aplicados pelo FilterStateManager)
+        return this.dataStateManager.getFilteredData() || [];
+    }
+
+    /**
+     * Renderiza o gráfico de timeline
+     * @private
+     * @param {Array} servidores - Array de servidores
+     */
+    _renderTimeline(servidores) {
+        if (!this.timelineManager || !this.elements.timelineChart) {
+            console.warn('⚠️ TimelineManager ou timelineChart não disponível');
+            return;
+        }
+
+        // Preparar configuração baseada no modo atual
+        const config = {
+            view: this.currentView,
+            period: this._getCurrentPeriod()
+        };
+
+        // Delegar renderização para o TimelineManager
+        this.timelineManager.renderTimeline(
+            this.elements.timelineChart,
+            servidores,
+            config
+        );
+    }
+
+    /**
+     * Obtém período atual baseado no modo de visualização
+     * @private
+     * @returns {Object|null} Configuração de período
+     */
+    _getCurrentPeriod() {
+        switch (this.currentView) {
+            case 'daily':
+                return this.currentPeriod.daily;
+            case 'monthly':
+                return this.currentPeriod.monthly;
+            case 'yearly':
+                return this.currentPeriod.yearly;
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Manipula exportação da timeline
+     * @private
+     */
+    _handleExport() {
+        if (!this.exportManager) {
+            console.warn('⚠️ ExportManager não disponível');
+            return;
+        }
+
+        // Obter dados filtrados
+        const servidores = this._getFilteredData();
+
+        // Exportar via ExportManager
+        // (ExportManager decide formato baseado em preferências do usuário)
+        this.exportManager.exportTimeline(
+            servidores,
+            {
+                view: this.currentView,
+                period: this._getCurrentPeriod()
+            }
+        );
+    }
+
+    /**
+     * Ativa a página (torna visível)
+     * Chamado pelo Router quando usuário navega para Timeline
+     */
+    show() {
+        if (!this.isInitialized) {
+            this.init();
+        }
+
+        console.log('👁️ Mostrando TimelinePage');
+
+        // Tornar página visível
+        if (this.elements.page) {
+            this.elements.page.classList.add('active');
+        }
+
+        this.isActive = true;
+
+        // Atualizar controles de visualização
+        this._updateViewControls();
+
+        // Renderizar com dados atuais
+        this.render();
+    }
+
+    /**
+     * Desativa a página (esconde)
+     * Chamado pelo Router quando usuário navega para outra página
+     */
+    hide() {
+        console.log('🙈 Escondendo TimelinePage');
+
+        // Esconder página
+        if (this.elements.page) {
+            this.elements.page.classList.remove('active');
+        }
+
+        this.isActive = false;
+    }
+
+    /**
+     * Altera modo de visualização
+     * @param {string} view - 'daily', 'monthly' ou 'yearly'
+     */
+    setView(view) {
+        if (['daily', 'monthly', 'yearly'].includes(view)) {
+            this.currentView = view;
+
+            // Atualizar select
+            if (this.elements.timelineView) {
+                this.elements.timelineView.value = view;
+            }
+
+            this._updateViewControls();
+
+            if (this.isActive) {
+                this.render();
+            }
+        }
+    }
+
+    /**
+     * Define período para visualização diária
+     * @param {Date} date - Data para visualizar
+     */
+    setDailyPeriod(date) {
+        this.currentPeriod.daily = date;
+
+        if (this.isActive && this.currentView === 'daily') {
+            this.render();
+        }
+    }
+
+    /**
+     * Define período para visualização mensal
+     * @param {Date} start - Data inicial
+     * @param {Date} end - Data final
+     */
+    setMonthlyPeriod(start, end) {
+        this.currentPeriod.monthly = { start, end };
+
+        if (this.isActive && this.currentView === 'monthly') {
+            this.render();
+        }
+    }
+
+    /**
+     * Define período para visualização anual
+     * @param {number} startYear - Ano inicial
+     * @param {number} endYear - Ano final
+     */
+    setYearlyPeriod(startYear, endYear) {
+        this.currentPeriod.yearly = { start: startYear, end: endYear };
+
+        if (this.isActive && this.currentView === 'yearly') {
+            this.render();
+        }
+    }
+
+    /**
+     * Cleanup - Remove event listeners
+     * Chamado quando a página é destruída (se necessário)
+     */
+    destroy() {
+        console.log('🧹 Destruindo TimelinePage...');
+
+        // Remover todos os event listeners registrados
+        this.eventListeners.forEach(({ element, event, handler }) => {
+            element.removeEventListener(event, handler);
+        });
+
+        this.eventListeners = [];
+        this.isInitialized = false;
+        this.isActive = false;
+
+        console.log('✅ TimelinePage destruído');
+    }
+}
+
+// Exportar para uso no App
+if (typeof window !== 'undefined') {
+    window.TimelinePage = TimelinePage;
+}
+
+// Exportar para Node.js (testes)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = TimelinePage;
+}

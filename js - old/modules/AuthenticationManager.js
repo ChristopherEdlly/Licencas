@@ -255,7 +255,7 @@ class AuthenticationManager {
             return;
         }
 
-        const isDevelopmentMode = false;
+        const isDevelopmentMode = true;
 
         if (isDevelopmentMode) {
             // Esconder overlay completamente em modo desenvolvimento

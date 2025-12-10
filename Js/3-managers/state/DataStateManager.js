@@ -367,3 +367,8 @@ if (typeof window !== 'undefined') {
 if (typeof window !== 'undefined') {
     window.DataStateManager = DataStateManager;
 }
+
+// Exportar para Node.js (testes)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = DataStateManager;
+}
