@@ -30,6 +30,39 @@ class DataStateManager {
         console.log('✅ DataStateManager criado');
     }
 
+    // ==================== AÇÕES DE FILTRO ====================
+
+    /**
+     * Aplica filtros aos dados carregados
+     * @param {Object} filters - Objeto com critérios de filtro
+     */
+    applyFilters(filters) {
+        if (!filters || Object.keys(filters).length === 0) {
+            this.clearFilters();
+            return;
+        }
+
+        if (typeof window !== 'undefined' && window.DataFilter) {
+            try {
+                const filtered = window.DataFilter.applyFilters(this._allServidores, filters);
+                this.setFilteredServidores(filtered);
+                console.log('🔍 Filtros aplicados via DataStateManager');
+            } catch (error) {
+                console.error('❌ Erro ao aplicar filtros:', error);
+            }
+        } else {
+            console.warn('⚠️ DataFilter não disponível para aplicar filtros');
+        }
+    }
+
+    /**
+     * Limpa filtros e restaura dados originais
+     */
+    clearFilters() {
+        this.setFilteredServidores(this._allServidores);
+        console.log('🔄 Filtros limpos via DataStateManager');
+    }
+
     // ==================== GETTERS ====================
 
     /**
@@ -46,6 +79,14 @@ class DataStateManager {
      */
     getFilteredServidores() {
         return this._filteredServidores;
+    }
+
+    /**
+     * Alias para getFilteredServidores() (compatibilidade)
+     * @returns {Array<Object>}
+     */
+    getFilteredData() {
+        return this.getFilteredServidores();
     }
 
     /**

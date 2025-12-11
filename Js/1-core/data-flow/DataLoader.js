@@ -73,7 +73,7 @@ const DataLoader = (function () {
                 throw new Error('Fonte CSV inválida');
             }
 
-            const dados = DataParser.parseCSV(csvContent);
+            const dados = DataParser.parse ? DataParser.parse(csvContent) : DataParser.parseCSV(csvContent);
 
             if (!dados || dados.length === 0) {
                 throw new Error('CSV vazio ou inválido');

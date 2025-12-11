@@ -14,40 +14,10 @@
 
     console.log('🌉 Carregando Compatibility Bridge...');
 
-    // ==================== FEATURE FLAGS ====================
-
-    /**
-     * Feature flags para controlar a migração gradual
-     */
-    window.FEATURE_FLAGS = window.FEATURE_FLAGS || {
-        // Core
-        USE_NEW_APP: false,           // Usar novo App.js ao invés de dashboard.js
-        USE_EVENT_BUS: true,          // Usar EventBus para comunicação
-        USE_ROUTER: true,             // Usar Router para navegação
-        USE_NEW_PIPELINE: false,      // Usar novo pipeline de dados
-
-        // Features
-        USE_NEW_SEARCH: false,        // Usar novo SearchManager
-        USE_NEW_FILTERS: false,       // Usar novo FilterManager
-        USE_NEW_CALENDAR: false,      // Usar novo CalendarManager
-        USE_NEW_TIMELINE: false,      // Usar novo TimelineManager
-        USE_NEW_REPORTS: false,       // Usar novo ReportsManager
-
-        // Debug
-        DEBUG_MODE: false,            // Modo debug (logs extras)
-        VERBOSE_LOGGING: false        // Logs verbosos
-    };
-
-    // Carregar flags do localStorage (se existirem)
-    try {
-        const savedFlags = localStorage.getItem('featureFlags');
-        if (savedFlags) {
-            const parsedFlags = JSON.parse(savedFlags);
-            Object.assign(window.FEATURE_FLAGS, parsedFlags);
-            console.log('✅ Feature flags carregadas do localStorage');
-        }
-    } catch (error) {
-        console.warn('⚠️ Erro ao carregar feature flags:', error);
+    // Feature Flags agora são gerenciadas em js/0-config/Config.js
+    // Mantendo referência para garantir acesso se necessário, mas não redefinindo
+    if (!window.FEATURE_FLAGS) {
+        console.warn('⚠️ FEATURE_FLAGS não encontrado! Verifique se Config.js foi carregado.');
     }
 
     // ==================== ALIASES ====================
@@ -90,54 +60,91 @@
 
     /**
      * Criar ponte de eventos entre sistema legado e novo
+     * NOTA: Apenas UMA direção para evitar loop infinito
      */
     function setupEventBridge() {
-        // Eventos legados → Novo EventBus
-        if (window.eventBus) {
-            // Evento: dataLoaded
-            document.addEventListener('dataLoaded', (e) => {
-                if (window.FEATURE_FLAGS.VERBOSE_LOGGING) {
-                    console.log('🔄 Propagando evento dataLoaded para EventBus');
-                }
-                window.eventBus.emit('data:loaded', e.detail);
-            });
-
-            // Evento: filterApplied
-            document.addEventListener('filterApplied', (e) => {
-                if (window.FEATURE_FLAGS.VERBOSE_LOGGING) {
-                    console.log('🔄 Propagando evento filterApplied para EventBus');
-                }
-                window.eventBus.emit('filter:applied', e.detail);
-            });
-
-            // Evento: pageChanged
-            document.addEventListener('pageChanged', (e) => {
-                if (window.FEATURE_FLAGS.VERBOSE_LOGGING) {
-                    console.log('🔄 Propagando evento pageChanged para EventBus');
-                }
-                window.eventBus.emit('page:changed', e.detail);
-            });
-
-            console.log('✅ Ponte de eventos configurada');
+        if (!window.eventBus) {
+            return;
         }
 
-        // Novo EventBus → Eventos legados
-        if (window.eventBus) {
-            window.eventBus.on('data:loaded', (data) => {
-                const event = new CustomEvent('dataLoaded', { detail: data });
-                document.dispatchEvent(event);
-            });
+        // Flag para prevenir loops
+        let isProcessingEvent = false;
 
-            window.eventBus.on('filter:applied', (data) => {
-                const event = new CustomEvent('filterApplied', { detail: data });
-                document.dispatchEvent(event);
-            });
+        // Eventos legados → Novo EventBus (apenas quando originados do sistema legado)
+        document.addEventListener('dataLoaded', (e) => {
+            if (isProcessingEvent) return; // Prevenir loop
+            if (e.__fromEventBus) return; // Já foi processado pelo EventBus
 
-            window.eventBus.on('page:changed', (data) => {
-                const event = new CustomEvent('pageChanged', { detail: data });
-                document.dispatchEvent(event);
+            if (window.FEATURE_FLAGS.VERBOSE_LOGGING) {
+                console.log('🔄 Propagando evento dataLoaded para EventBus');
+            }
+            isProcessingEvent = true;
+            window.eventBus.emit('data:loaded', e.detail);
+            isProcessingEvent = false;
+        });
+
+        document.addEventListener('filterApplied', (e) => {
+            if (isProcessingEvent) return;
+            if (e.__fromEventBus) return;
+
+            if (window.FEATURE_FLAGS.VERBOSE_LOGGING) {
+                console.log('🔄 Propagando evento filterApplied para EventBus');
+            }
+            isProcessingEvent = true;
+            window.eventBus.emit('filter:applied', e.detail);
+            isProcessingEvent = false;
+        });
+
+        document.addEventListener('pageChanged', (e) => {
+            if (isProcessingEvent) return;
+            if (e.__fromEventBus) return;
+
+            if (window.FEATURE_FLAGS.VERBOSE_LOGGING) {
+                console.log('🔄 Propagando evento pageChanged para EventBus');
+            }
+            isProcessingEvent = true;
+            window.eventBus.emit('page:changed', e.detail);
+            isProcessingEvent = false;
+        });
+
+        // Novo EventBus → Eventos legados (marcados para evitar re-processamento)
+        window.eventBus.on('data:loaded', (data) => {
+            if (isProcessingEvent) return;
+
+            isProcessingEvent = true;
+            const event = new CustomEvent('dataLoaded', {
+                detail: data,
+                __fromEventBus: true // Marcador para evitar loop
             });
-        }
+            document.dispatchEvent(event);
+            isProcessingEvent = false;
+        });
+
+        window.eventBus.on('filter:applied', (data) => {
+            if (isProcessingEvent) return;
+
+            isProcessingEvent = true;
+            const event = new CustomEvent('filterApplied', {
+                detail: data,
+                __fromEventBus: true
+            });
+            document.dispatchEvent(event);
+            isProcessingEvent = false;
+        });
+
+        window.eventBus.on('page:changed', (data) => {
+            if (isProcessingEvent) return;
+
+            isProcessingEvent = true;
+            const event = new CustomEvent('pageChanged', {
+                detail: data,
+                __fromEventBus: true
+            });
+            document.dispatchEvent(event);
+            isProcessingEvent = false;
+        });
+
+        console.log('✅ Ponte de eventos configurada (com proteção anti-loop)');
     }
 
     // ==================== INITIALIZATION ====================

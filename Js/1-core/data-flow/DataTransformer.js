@@ -1,18 +1,15 @@
 /**
  * DataTransformer - Transformação e Enriquecimento de Dados
- * 
+ *
  * Responsável por:
  * - Enriquecer registros com dados calculados
  * - Adicionar status e urgências
  * - Calcular saldos e projeções
  * - Normalizar e padronizar dados
- * 
- * Dependências: DateUtils, FormatUtils
+ *
+ * Dependências globais: DateUtils, FormatUtils
+ * (Carregue os scripts de utilitários antes deste arquivo)
  */
-
-// Compatibilidade Node.js / Browser
-const DateUtils = typeof require !== 'undefined' ? require('../utilities/DateUtils.js') : window.DateUtils;
-const FormatUtils = typeof require !== 'undefined' ? require('../utilities/FormatUtils.js') : window.FormatUtils;
 
 const DataTransformer = (function () {
     'use strict';
@@ -126,7 +123,7 @@ const DataTransformer = (function () {
         // Urgências baseadas em dias restantes
         if (dias <= 30) return 'critica';
         if (dias <= 60) return 'alta';
-        if (dias <= 90) return 'media';
+        if (dias <= 90) return 'moderada';
         return 'baixa';
     }
 
@@ -203,6 +200,24 @@ const DataTransformer = (function () {
             enriched.telefoneFormatado = FormatUtils.formatPhone(enriched.telefone);
         }
 
+        // Tentar parsear licenças se houver string de licenças prêmio
+        if ((!enriched.licencas || !Array.isArray(enriched.licencas) || enriched.licencas.length === 0) && enriched.licencasPremio) {
+            if (typeof DataParser !== 'undefined' && typeof DataParser.parseLicencasPremio === 'function') {
+                const parsed = DataParser.parseLicencasPremio(enriched.licencasPremio);
+                if (parsed && parsed.length > 0) {
+                    enriched.licencas = parsed.map(p => ({
+                        dataInicio: p.inicio,
+                        dataFim: p.fim,
+                        periodo: p.raw,
+                        dias: DateUtils.diffInDays(p.inicio, p.fim) + 1
+                    }));
+
+                    // Enriquecer cada licença gerada
+                    enriched.licencas = enriched.licencas.map(l => enrichLicenca(l));
+                }
+            }
+        }
+
         // Calcula estatísticas de licenças (se disponível)
         if (enriched.licencas && Array.isArray(enriched.licencas)) {
             enriched.totalLicencas = enriched.licencas.length;
@@ -219,6 +234,28 @@ const DataTransformer = (function () {
             enriched.temLicencaUrgente = enriched.licencas.some(
                 lic => lic.urgencia === 'critica' || lic.urgencia === 'alta'
             );
+
+            // Determinar próxima licença para exibição (a primeira cronologicamente)
+            const licencasComData = enriched.licencas.filter(l => l.dataInicio);
+            if (licencasComData.length > 0) {
+                // Ordenar por data
+                licencasComData.sort((a, b) => {
+                    const dateA = a.dataInicio instanceof Date ? a.dataInicio : new Date(a.dataInicio);
+                    const dateB = b.dataInicio instanceof Date ? b.dataInicio : new Date(b.dataInicio);
+                    return dateA - dateB;
+                });
+
+                enriched.proximaLicenca = licencasComData[0].dataInicio;
+            }
+
+            // Agregar urgência do servidor (pior caso)
+            const urgencies = enriched.licencas.map(l => l.urgencia);
+            if (urgencies.includes('critica')) enriched.urgencia = 'critica';
+            else if (urgencies.includes('alta')) enriched.urgencia = 'alta';
+            else if (urgencies.includes('moderada')) enriched.urgencia = 'moderada';
+            else if (urgencies.includes('baixa')) enriched.urgencia = 'baixa';
+            else if (urgencies.includes('em-gozo')) enriched.urgencia = 'baixa'; // Em gozo = baixa prioridade para alerta
+            else enriched.urgencia = 'baixa';
         }
 
         return enriched;
@@ -431,7 +468,7 @@ const DataTransformer = (function () {
         const urgenciaOrder = {
             'critica': 1,
             'alta': 2,
-            'media': 3,
+            'moderada': 3,
             'baixa': 4,
             'em-gozo': 5,
             'expirada': 6,

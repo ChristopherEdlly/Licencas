@@ -70,8 +70,16 @@ class TimelineManager {
      * @param {Array<Object>} servidores - Dados dos servidores
      */
     loadData(servidores) {
-        if (!servidores || servidores.length === 0) {
+        if (!servidores || !Array.isArray(servidores)) {
+            console.warn('TimelineManager: servidores invalido/vazio, carregando vazio', servidores);
             this.timelineData = [];
+            this.render(); // Ensure clear render
+            return;
+        }
+
+        if (servidores.length === 0) {
+            this.timelineData = [];
+            this.render();
             return;
         }
 
@@ -104,7 +112,10 @@ class TimelineManager {
      * Renderiza timeline
      */
     render() {
-        if (!this.container) return;
+        if (!this.container) {
+            console.warn('TimelineManager: Tentativa de renderizar sem container definido');
+            return;
+        }
 
         this.container.innerHTML = '';
 
@@ -698,6 +709,25 @@ class TimelineManager {
         });
 
         return conflicts;
+    }
+
+    /**
+     * Renderiza timeline (método wrapper para compatibilidade)
+     * @param {Array<Object>} servidores - Dados dos servidores
+     * @param {HTMLElement|string} container - Container ou ID
+     * @param {string} viewMode - Modo de visualização (opcional)
+     */
+    renderTimeline(servidores, container, viewMode = 'month') {
+        // Configurar modo de visualização
+        if (viewMode) {
+            this.viewMode = viewMode;
+        }
+
+        // Carregar dados
+        this.loadData(servidores);
+
+        // Inicializar no container
+        this.init(container);
     }
 
     /**

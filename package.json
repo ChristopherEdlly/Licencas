@@ -1,0 +1,32 @@
+{
+  "name": "licencas-dashboard",
+  "version": "2.0.0",
+  "description": "Dashboard de Licenças Prêmio - Sistema de acompanhamento de licenças de servidores públicos",
+  "main": "index.html",
+  "scripts": {
+    "test": "node node_modules/@playwright/test/cli.js test",
+    "test:ui": "node node_modules/@playwright/test/cli.js test --ui",
+    "test:headed": "node node_modules/@playwright/test/cli.js test --headed",
+    "test:debug": "node node_modules/@playwright/test/cli.js test --debug",
+    "test:report": "node node_modules/@playwright/test/cli.js show-report",
+    "playwright:install": "node node_modules/@playwright/test/cli.js install",
+    "serve": "node node_modules/http-server/bin/http-server . -p 3000 -c-1",
+    "start": "npm run serve",
+    "install:all": "npm install && npm run playwright:install"
+  },
+  "keywords": [
+    "dashboard",
+    "licenças",
+    "servidores públicos",
+    "e2e",
+    "playwright"
+  ],
+  "author": "Claude Code Assistant",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  },
+  "dependencies": {
+    "http-server": "^14.1.1"
+  }
+}

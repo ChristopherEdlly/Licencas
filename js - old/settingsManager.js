@@ -54,8 +54,14 @@ class SettingsManager {
 
     /**
      * Salva configurações no localStorage
+     * @param {Object} newSettings - Novo objeto de configurações (opcional)
      */
-    saveSettings() {
+    saveSettings(newSettings) {
+        // Se passar objeto de configurações, atualizar this.settings
+        if (newSettings && typeof newSettings === 'object') {
+            this.settings = { ...this.settings, ...newSettings };
+        }
+
         try {
             localStorage.setItem(this.storageKey, JSON.stringify(this.settings));
             return true;
@@ -63,6 +69,14 @@ class SettingsManager {
             console.error('Erro ao salvar configurações:', e);
             return false;
         }
+    }
+
+    /**
+     * Obtém todas as configurações
+     * @returns {Object} Objeto com todas as configurações
+     */
+    getSettings() {
+        return { ...this.settings };
     }
 
     /**
@@ -207,14 +221,17 @@ class SettingsManager {
         // Tooltips
         const tooltipsEnabled = this.get('tooltipsEnabled');
         
-        if (tooltipsEnabled) {
-            document.body.classList.remove('tooltips-disabled');
-            // Restaurar todos os tooltips nativos
-            this.restoreNativeTooltips();
-        } else {
-            document.body.classList.add('tooltips-disabled');
-            // Desabilitar todos os tooltips nativos
-            this.disableNativeTooltips();
+        // Verificar se document.body existe (DOM pronto)
+        if (document.body) {
+            if (tooltipsEnabled) {
+                document.body.classList.remove('tooltips-disabled');
+                // Restaurar todos os tooltips nativos
+                this.restoreNativeTooltips();
+            } else {
+                document.body.classList.add('tooltips-disabled');
+                // Desabilitar todos os tooltips nativos
+                this.disableNativeTooltips();
+            }
         }
         
         // Aplicar também para custom tooltips se existirem E tiverem os métodos
@@ -226,11 +243,13 @@ class SettingsManager {
             }
         }
         
-        // Animações
-        if (this.get('animationsEnabled')) {
-            document.documentElement.style.setProperty('--transition-speed', '0.2s');
-        } else {
-            document.documentElement.style.setProperty('--transition-speed', '0s');
+        // Animações (verificar se DOM está pronto)
+        if (document.documentElement) {
+            if (this.get('animationsEnabled')) {
+                document.documentElement.style.setProperty('--transition-speed', '0.2s');
+            } else {
+                document.documentElement.style.setProperty('--transition-speed', '0s');
+            }
         }
         
         // Recalcular urgências se dashboard estiver disponível
@@ -322,11 +341,23 @@ class SettingsManager {
             }
         });
 
-        // Configurar o observer
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
+        // Configurar o observer (apenas se document.body existir)
+        if (document.body) {
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+        } else {
+            // Se DOM não estiver pronto, observar quando estiver
+            document.addEventListener('DOMContentLoaded', () => {
+                if (document.body) {
+                    observer.observe(document.body, {
+                        childList: true,
+                        subtree: true
+                    });
+                }
+            });
+        }
     }
 
     /**

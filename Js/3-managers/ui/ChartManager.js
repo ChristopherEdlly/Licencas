@@ -467,6 +467,79 @@ class ChartManager {
      * Retorna informações de debug
      * @returns {Object}
      */
+    /**
+     * Renderiza gráfico de urgência (wrapper para compatibilidade)
+     * Agrega dados e chama createUrgencyChart
+     * @param {Array<Object>} servidores - Array de servidores
+     * @param {string} canvasId - ID do canvas (padrão: 'urgencyChart')
+     */
+    renderUrgencyChart(servidores, canvasId = 'urgencyChart') {
+        if (!servidores || servidores.length === 0) {
+            console.warn('⚠️ Sem dados para renderizar gráfico de urgência');
+            return;
+        }
+
+        // Agregar dados por nível de urgência
+        const urgencyData = {
+            critica: 0,
+            alta: 0,
+            moderada: 0,
+            baixa: 0
+        };
+
+        servidores.forEach(servidor => {
+            // Helper para busca case-insensitive
+            const getKey = (obj, key) => {
+                const found = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+                return found ? obj[found] : undefined;
+            };
+
+            const urgenciaData = getKey(servidor, 'urgencia');
+            const nivelUrgenciaData = getKey(servidor, 'nivelUrgencia');
+
+            const urgencia = urgenciaData || nivelUrgenciaData || 'baixa';
+            const nivel = String(urgencia).toLowerCase().trim();
+
+            if (urgencyData.hasOwnProperty(nivel)) {
+                urgencyData[nivel]++;
+            } else {
+                urgencyData.baixa++; // Fallback para urgência desconhecida
+            }
+        });
+
+        // Criar gráfico usando método existente
+        return this.createUrgencyChart(canvasId, urgencyData);
+    }
+
+    /**
+     * Renderiza gráfico de cargos (wrapper para compatibilidade)
+     * @param {Array<Object>} servidores - Array de servidores
+     * @param {string} canvasId - ID do canvas (padrão: 'cargoChart')
+     */
+    renderCargoChart(servidores, canvasId = 'cargoChart') {
+        if (!servidores || servidores.length === 0) {
+            console.warn('⚠️ Sem dados para renderizar gráfico de cargos');
+            return;
+        }
+
+        // Agregar dados por cargo
+        const cargoData = {};
+
+        servidores.forEach(servidor => {
+            // Tenta encontrar a chave 'cargo' de forma case-insensitive
+            const cargoKey = Object.keys(servidor).find(k => k.toLowerCase() === 'cargo');
+            const cargo = cargoKey ? servidor[cargoKey] : 'Não informado';
+
+            // Ignorar valores vazios ou nulos se necessário, ou agrupar como "Não informado"
+            const cargoLabel = (cargo && cargo.trim() !== '') ? cargo.trim().toUpperCase() : 'NÃO INFORMADO';
+
+            cargoData[cargoLabel] = (cargoData[cargoLabel] || 0) + 1;
+        });
+
+        // Criar gráfico usando método existente
+        return this.createCargoChart(canvasId, cargoData);
+    }
+
     getDebugInfo() {
         return {
             activeCharts: Object.keys(this.charts).filter(k => this.charts[k] !== null),

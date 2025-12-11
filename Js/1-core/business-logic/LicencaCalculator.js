@@ -1,12 +1,10 @@
 /**
  * LicencaCalculator - Cálculos de licença-prêmio
  * Lógica de negócio para aquisição, gozo, conversão e saldo de licenças
+ *
+ * Dependências globais: DateUtils, MathUtils, ValidationUtils
+ * (Carregue os scripts de utilitários antes deste arquivo)
  */
-
-// Compatibilidade Node.js / Browser
-const DateUtils = (typeof window !== 'undefined' && window.DateUtils) || (typeof require !== 'undefined' && require('../utilities/DateUtils.js'));
-const MathUtils = (typeof window !== 'undefined' && window.MathUtils) || (typeof require !== 'undefined' && require('../utilities/MathUtils.js'));
-const ValidationUtils = (typeof window !== 'undefined' && window.ValidationUtils) || (typeof require !== 'undefined' && require('../utilities/ValidationUtils.js'));
 
 const LicencaCalculator = {
 

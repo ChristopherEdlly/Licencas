@@ -158,7 +158,7 @@ class SettingsPage {
         this.settingsManager = this.app.settingsManager || window.settingsManager;
 
         // Managers de autenticação
-        this.authenticationManager = this.app.authenticationManager || window.authenticationManager;
+        this.authenticationManager = this.app.authenticationManager || window.authenticationManager || this.app.authenticationService || window.AuthenticationService || window.authenticationService;
 
         // Managers de UI
         this.themeManager = this.app.themeManager || window.themeManager;

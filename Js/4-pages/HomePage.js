@@ -110,6 +110,11 @@ class HomePage {
         // Managers de features
         this.searchManager = this.app.searchManager;
 
+        // Inicializar TableManager com a tabela da HomePage
+        if (this.tableManager && typeof this.tableManager.init === 'function') {
+            this.tableManager.init('servidoresTable');
+        }
+
         // Validar managers críticos
         if (!this.dataStateManager) {
             console.error('❌ DataStateManager não disponível');
@@ -135,13 +140,13 @@ class HomePage {
                 }
             };
 
-            // Subscrever ao evento 'dataChanged'
-            document.addEventListener('dataStateChanged', dataChangeHandler);
+            // Subscrever ao evento 'filtered-data-changed'
+            document.addEventListener('filtered-data-changed', dataChangeHandler);
 
             // Guardar referência para cleanup posterior
             this.eventListeners.push({
                 element: document,
-                event: 'dataStateChanged',
+                event: 'filtered-data-changed',
                 handler: dataChangeHandler
             });
         }
@@ -154,11 +159,11 @@ class HomePage {
                 }
             };
 
-            document.addEventListener('filtersChanged', filterChangeHandler);
+            document.addEventListener('filters-changed', filterChangeHandler);
 
             this.eventListeners.push({
                 element: document,
-                event: 'filtersChanged',
+                event: 'filters-changed',
                 handler: filterChangeHandler
             });
         }
@@ -262,19 +267,15 @@ class HomePage {
             return;
         }
 
-        // Contar urgências
-        const urgencyCounts = this._countUrgencies(servidores);
-
         // Atualizar total no header do gráfico
         if (this.elements.urgencyTotal) {
             this.elements.urgencyTotal.textContent = servidores.length;
         }
 
         // Delegar renderização para ChartManager
-        this.chartManager.renderUrgencyChart(
-            this.elements.urgencyChart,
-            urgencyCounts
-        );
+        // ChartManager.renderUrgencyChart(servidores, canvasId)
+        const canvasId = this.elements.urgencyChart.id || 'urgencyChart';
+        this.chartManager.renderUrgencyChart(servidores, canvasId);
     }
 
     /**
@@ -287,19 +288,15 @@ class HomePage {
             return;
         }
 
-        // Contar cargos
-        const cargoCounts = this._countCargos(servidores);
-
         // Atualizar total no header do gráfico
         if (this.elements.cargoTotal) {
             this.elements.cargoTotal.textContent = servidores.length;
         }
 
         // Delegar renderização para ChartManager
-        this.chartManager.renderCargoChart(
-            this.elements.cargoChart,
-            cargoCounts
-        );
+        // ChartManager.renderCargoChart(servidores, canvasId)
+        const canvasId = this.elements.cargoChart.id || 'cargoChart';
+        this.chartManager.renderCargoChart(servidores, canvasId);
     }
 
     /**

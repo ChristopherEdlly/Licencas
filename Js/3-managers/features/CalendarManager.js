@@ -75,7 +75,14 @@ class CalendarManager {
     loadData(servidores) {
         this.licensesByDate.clear();
 
-        if (!servidores || servidores.length === 0) {
+        // Robust check: if invalid, treat as empty
+        if (!servidores || !Array.isArray(servidores)) {
+            console.warn('CalendarManager: servidores invalido/vazio, carregando vazio', servidores);
+            servidores = [];
+        }
+
+        if (servidores.length === 0) {
+            this.render(); // Ensure clear render
             return;
         }
 
@@ -132,7 +139,10 @@ class CalendarManager {
      * Renderiza calendário
      */
     render() {
-        if (!this.container) return;
+        if (!this.container) {
+            console.warn('CalendarManager: Tentativa de renderizar sem container definido');
+            return;
+        }
 
         this.container.innerHTML = '';
 
@@ -614,6 +624,22 @@ class CalendarManager {
         if (count <= 5) return 2;
         if (count <= 10) return 3;
         return 4;
+    }
+
+    /**
+     * Renderiza heatmap anual (método wrapper para compatibilidade)
+     * @param {Array<Object>} servidores - Dados dos servidores
+     * @param {HTMLElement|string} container - Container ou ID
+     */
+    renderYearlyHeatmap(servidores, container) {
+        // Configurar visualização para ano
+        this.viewMode = 'year';
+
+        // Carregar dados
+        this.loadData(servidores);
+
+        // Inicializar no container
+        this.init(container);
     }
 
     /**

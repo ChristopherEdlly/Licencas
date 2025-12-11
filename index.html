@@ -40,6 +40,7 @@
         defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
     <script src="js - old/themeManager.js"></script>
+    <script src="js - old/settingsManager.js"></script>
 </head>
 
 <body>
@@ -175,7 +176,7 @@
                 </div>
 
                 <!-- Botão Importar -->
-                <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" style="display: none;">
+                <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" style="display: none;" aria-label="Importar arquivo de dados de servidores">
                 <div class="upload-wrapper">
                     <button class="btn-import" id="uploadButton">
                         <i class="bi bi-upload" aria-hidden="true"></i>
@@ -1412,6 +1413,9 @@
     <!-- Ordem de carregamento: CRÍTICA - NÃO ALTERAR SEM TESTAR     -->
     <!-- ============================================================ -->
 
+    <!-- ==================== CONFIGURAÇÃO ==================== -->
+    <script src="js/0-config/Config.js"></script>
+
     <!-- ==================== CAMADA 1: CORE ==================== -->
     <!-- Fundação - Lógica de negócio pura (funções puras)         -->
 
@@ -1458,6 +1462,7 @@
     <script src="js/3-managers/ui/ChartManager.js"></script>
     <script src="js/3-managers/ui/ModalManager.js"></script>
     <script src="js/3-managers/ui/SidebarManager.js"></script>
+    <script src="js/3-managers/ui/ThemeManager.js"></script>
 
     <!-- 3.3 Feature Managers (Features específicas) -->
     <script src="js/3-managers/features/SearchManager.js"></script>

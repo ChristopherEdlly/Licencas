@@ -587,8 +587,8 @@ const OperationalImpact = (function () {
         };
     }
 
-    // Exporta módulo
-    const OperationalImpact = {
+    // Retornar API pública do módulo
+    return {
         // Constantes
         IMPACT_LEVELS,
         CARGO_CRITICIDADE,
@@ -603,5 +603,14 @@ const OperationalImpact = (function () {
         gerarRecomendacoes,
         gerarRelatorioImpacto
     };
+})(); // Fecha IIFE
 
-    export default OperationalImpact;
+// Exportar para uso no browser
+if (typeof window !== 'undefined') {
+    window.OperationalImpact = OperationalImpact;
+}
+
+// Exportar para Node.js (testes)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = OperationalImpact;
+}

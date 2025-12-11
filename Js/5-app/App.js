@@ -112,7 +112,10 @@ class App {
             // 9. Setup event listeners globais
             this._setupGlobalEventListeners();
 
-            // 10. Restaurar cache (se existir)
+            // 10. Setup event listeners de upload
+            this._setupFileUploadListeners();
+
+            // 11. Restaurar cache (se existir)
             await this._restoreCache();
 
             this.isInitialized = true;
@@ -258,6 +261,7 @@ class App {
         // SidebarManager
         if (typeof SidebarManager !== 'undefined') {
             this.sidebarManager = new SidebarManager(this);
+            this.sidebarManager.init();
             console.log('✅ SidebarManager inicializado');
         }
     }
@@ -364,10 +368,12 @@ class App {
 
         if (typeof Router !== 'undefined') {
             this.router = Router.getInstance();
-            this.router.init(this.eventBus);
 
-            // Registrar rotas
+            // Registrar rotas ANTES de inicializar (para evitar erro de rota não encontrada)
             this._registerRoutes();
+
+            // Inicializar router (vai processar rota inicial)
+            this.router.init(this.eventBus);
 
             console.log('✅ Router inicializado');
         } else {
@@ -428,6 +434,37 @@ class App {
         console.log('✅ Event listeners globais configurados');
     }
 
+    /**
+     * Setup de event listeners de upload
+     * @private
+     */
+    _setupFileUploadListeners() {
+        const uploadButton = document.getElementById('uploadButton');
+        const fileInput = document.getElementById('fileInput');
+
+        if (!uploadButton || !fileInput) {
+            console.warn('⚠️ Elementos de upload não encontrados');
+            return;
+        }
+
+        // Botão de upload abre o file input
+        uploadButton.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // File input processa o arquivo
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                await this.loadFile(file);
+                // Limpar input para permitir recarregar o mesmo arquivo
+                e.target.value = '';
+            }
+        });
+
+        console.log('✅ Event listeners de upload configurados');
+    }
+
     // ==================== CARREGAMENTO DE DADOS ====================
 
     /**
@@ -457,10 +494,10 @@ class App {
             }
 
             // 2. Carregar dados
-            const rawData = await this._loadFileData(file);
+            const { content, metadata } = await this._loadFileData(file);
 
             // 3. Parsear dados
-            const parsedData = await this._parseData(rawData);
+            const parsedData = await this._parseData(content);
 
             // 4. Transformar dados
             const transformedData = await this._transformData(parsedData);
@@ -522,20 +559,30 @@ class App {
      * Carrega dados do arquivo
      * @private
      * @param {File} file - Arquivo
-     * @returns {Promise<string>}
+     * @returns {Promise<{content: string, metadata: Object}>}
      */
     async _loadFileData(file) {
-        if (this.fileService) {
-            return await this.fileService.readFile(file);
+        // Usar FileService para processar arquivo (CSV ou Excel)
+        if (typeof FileService !== 'undefined') {
+            return await FileService.processFile(file);
         }
 
-        // Fallback: ler arquivo manualmente
-        return new Promise((resolve, reject) => {
+        // Fallback: ler arquivo manualmente como CSV
+        const content = await new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = (e) => resolve(e.target.result);
             reader.onerror = (e) => reject(e);
             reader.readAsText(file);
         });
+
+        return {
+            content,
+            metadata: {
+                name: file.name,
+                size: file.size,
+                type: file.type
+            }
+        };
     }
 
     /**
@@ -565,7 +612,8 @@ class App {
      */
     async _transformData(parsedData) {
         if (typeof DataTransformer !== 'undefined') {
-            return DataTransformer.transformAll(parsedData);
+            // Use enrichServidoresBatch para enriquecer array de servidores
+            return DataTransformer.enrichServidoresBatch(parsedData);
         }
 
         // Fallback: retornar dados sem transformação
@@ -641,6 +689,36 @@ class App {
         console.log(`🔍 Filtros aplicados: ${filtered.length} resultados`);
     }
 
+    // ==================== NAVEGAÇÃO ====================
+
+    /**
+     * Navega para uma página
+     * @param {string} page - Nome da página (ex: 'home', 'calendar', 'timeline')
+     */
+    navigateToPage(page) {
+        if (!this.router) {
+            console.warn('⚠️ Router não disponível para navegação');
+            return;
+        }
+
+        // Mapear nome da página para rota
+        const routeMap = {
+            'home': '/',
+            'calendar': '/calendar',
+            'timeline': '/timeline',
+            'reports': '/reports',
+            'settings': '/settings',
+            'tips': '/tips'
+        };
+
+        const route = routeMap[page] || `/${page}`;
+
+        // Navegar usando o router
+        this.router.navigate(route);
+
+        console.log(`🧭 Navegando para: ${page} (rota: ${route})`);
+    }
+
     // ==================== TRATAMENTO DE ERROS ====================
 
     /**
@@ -661,50 +739,145 @@ class App {
         }
     }
 
-    // ==================== UTILITÁRIOS ====================
+    // ==================== INTERAÇÃO UI ====================
 
     /**
-     * Retorna informações de debug
-     * @returns {Object}
+     * Manipula clique na linha da tabela
+     * @param {Object} servidor 
      */
-    getDebugInfo() {
-        return {
-            isInitialized: this.isInitialized,
-            isLoading: this.isLoading,
-            featureFlags: this.featureFlags,
-            managers: {
-                eventBus: !!this.eventBus,
-                router: !!this.router,
-                dataState: !!this.dataStateManager,
-                filterState: !!this.filterStateManager,
-                uiState: !!this.uiStateManager,
-                table: !!this.tableManager,
-                chart: !!this.chartManager,
-                modal: !!this.modalManager,
-                sidebar: !!this.sidebarManager,
-                search: !!this.searchManager,
-                filter: !!this.filterManager,
-                calendar: !!this.calendarManager,
-                timeline: !!this.timelineManager,
-                reports: !!this.reportsManager,
-                keyboard: !!this.keyboardManager
-            },
-            pages: {
-                home: !!this.pages.home,
-                calendar: !!this.pages.calendar,
-                timeline: !!this.pages.timeline,
-                reports: !!this.pages.reports,
-                settings: !!this.pages.settings,
-                tips: !!this.pages.tips
-            },
-            services: {
-                file: !!this.fileService,
-                cache: !!this.cacheService,
-                export: !!this.exportService,
-                notification: !!this.notificationService
-            }
-        };
+    onRowClick(servidor) {
+        this.showServidorDetails(servidor);
     }
+
+    /**
+     * Mostra detalhes do servidor
+     * @param {Object} servidor 
+     */
+    showServidorDetails(servidor) {
+        if (!this.modalManager) {
+            console.warn('ModalManager não disponível');
+            if (this.notificationService) {
+                this.notificationService.info(`Servidor: ${servidor.nome || servidor.servidor}`);
+            }
+            return;
+        }
+
+        const modalId = 'servidorDetailsModal';
+        const content = this._generateServidorDetailsHtml(servidor);
+        const title = `Detalhes: ${servidor.nome || servidor.servidor || 'N/A'}`;
+
+        // Verificar se modal já existe no DOM (criado via HTML ou anteriormente)
+        let modal = document.getElementById(modalId);
+
+        if (!modal) {
+            this.modalManager.createModal({
+                id: modalId,
+                title: title,
+                content: content,
+                size: 'large',
+                closeButton: true
+            });
+        } else {
+            this.modalManager.updateContent(modalId, content);
+            this.modalManager.updateTitle(modalId, title);
+        }
+
+        this.modalManager.open(modalId);
+    }
+
+    /**
+     * Gera HTML para detalhes do servidor
+     * @private
+     * @param {Object} s 
+     * @returns {string}
+     */
+    _generateServidorDetailsHtml(s) {
+        if (!s) return '<p>Dados não disponíveis</p>';
+
+        const formatDate = (d) => {
+            if (!d) return '--';
+            try { return new Date(d).toLocaleDateString('pt-BR'); }
+            catch { return d; }
+        };
+
+        return `
+            <div class="container-fluid">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Nome:</strong> <p>${s.nome || s.servidor || '--'}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>CPF:</strong> <p>${s.cpf || s.cpfFormatado || '--'}</p>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Cargo:</strong> <p>${s.cargo || '--'}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Lotação:</strong> <p>${s.lotacao || '--'}</p>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>Admissão:</strong> <p>${formatDate(s.admissao)}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Meses (Concedidos):</strong> <p>${s.mesesConcedidos || 0}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Meses (A Conceder):</strong> <p>${s.mesesAConceder || 0}</p>
+                    </div>
+                </div>
+                
+                <hr>
+                <h5>Licenças</h5>
+                ${this._generateLicencasTableHtml(s.licencas)}
+            </div>
+        `;
+    }
+
+    _generateLicencasTableHtml(licencas) {
+        if (!licencas || !Array.isArray(licencas) || licencas.length === 0) {
+            return '<p class="text-muted">Nenhuma licença registrada.</p>';
+        }
+
+        const formatDate = (d) => {
+            if (!d) return '--';
+            try { return new Date(d).toLocaleDateString('pt-BR'); }
+            catch { return d; }
+        };
+
+        const rows = licencas.map(l => `
+            <tr>
+                <td>${formatDate(l.dataInicio || l.inicio)}</td>
+                <td>${formatDate(l.dataFim || l.fim)}</td>
+                <td>${l.dias || '--'}</td>
+                <td>${l.diasGozados || 0}</td>
+                <td>${l.saldo || 0}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Início</th>
+                            <th>Fim</th>
+                            <th>Dias</th>
+                            <th>Gozados</th>
+                            <th>Saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
 }
 
 // ==================== EXPORTAÇÃO E BACKWARD COMPATIBILITY ====================
@@ -716,14 +889,8 @@ if (typeof window !== 'undefined') {
     // Backward compatibility: alias para dashboard
     window.dashboard = window.app;
 
-    // Auto-inicialização
-    document.addEventListener('DOMContentLoaded', async () => {
-        try {
-            await window.app.init();
-        } catch (error) {
-            console.error('❌ Erro ao inicializar App:', error);
-        }
-    });
+    // Remover Auto-inicialização aqui para evitar conflito com index.html
+    // O index.html já chama window.app.init()
 }
 
 // Expor classe também

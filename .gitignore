@@ -37,16 +37,19 @@ claude.md
 
 # Arquivos de teste
 *.log
-tests/
+# NÃO IGNORAR tests/ - contém testes importantes!
+# tests/  <-- REMOVIDO - testes devem ser versionados
+
 /react-builder
 /react-builder/*
 react-builder/
 react-builder/*
 react-builder
 
-# Playwright
+# Playwright - apenas resultados, não os testes
 /test-results/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+tests/e2e/temp-*.csv

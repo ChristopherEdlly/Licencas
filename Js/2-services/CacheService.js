@@ -182,6 +182,24 @@ class CacheService {
     }
 
     /**
+     * Obtém o arquivo mais recente do cache
+     * @returns {Promise<Object|null>}
+     */
+    static async getLatestCache() {
+        try {
+            const files = await this.listCachedFiles();
+            if (files && files.length > 0) {
+                // listCachedFiles já retorna ordenado por lastUsed (mais recente primeiro)
+                return files[0];
+            }
+            return null;
+        } catch (error) {
+            console.warn('Erro ao obter último cache:', error);
+            return null;
+        }
+    }
+
+    /**
      * Remove arquivo do cache
      * @param {number} id - ID do registro
      * @returns {Promise<boolean>}

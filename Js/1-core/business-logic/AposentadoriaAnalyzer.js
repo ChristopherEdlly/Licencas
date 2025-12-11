@@ -1,18 +1,16 @@
 /**
  * AposentadoriaAnalyzer - Módulo de análise de aposentadoria
- * 
+ *
  * Responsabilidades:
  * - Calcular elegibilidade para aposentadoria
  * - Projetar datas de aposentadoria
  * - Analisar impacto de licenças na aposentadoria
  * - Gerar relatórios de aposentadoria
- * 
+ *
  * @module AposentadoriaAnalyzer
+ *
+ * Dependências globais: DateUtils, ValidationUtils, MathUtils
  */
-
-import DateUtils from '../utilities/DateUtils.js';
-import ValidationUtils from '../utilities/ValidationUtils.js';
-import MathUtils from '../utilities/MathUtils.js';
 
 /**
  * Regras de aposentadoria conforme legislação brasileira
@@ -544,12 +542,12 @@ function calcularProgressoAposentadoria(servidor) {
     };
 }
 
-// Exporta módulo
+// Exporta módulo para uso global
 const AposentadoriaAnalyzer = {
     // Constantes
     REGRAS_APOSENTADORIA,
     TIPOS_APOSENTADORIA,
-    
+
     // Funções principais
     calcularIdade,
     calcularTempoContribuicao,
@@ -562,4 +560,12 @@ const AposentadoriaAnalyzer = {
     calcularProgressoAposentadoria
 };
 
-export default AposentadoriaAnalyzer;
+// Exportar para uso no browser
+if (typeof window !== 'undefined') {
+    window.AposentadoriaAnalyzer = AposentadoriaAnalyzer;
+}
+
+// Exportar para Node.js (testes)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = AposentadoriaAnalyzer;
+}

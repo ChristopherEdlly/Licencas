@@ -203,11 +203,11 @@ class ReportsPage {
                 }
             };
 
-            document.addEventListener('dataStateChanged', dataChangeHandler);
+            document.addEventListener('filtered-data-changed', dataChangeHandler);
 
             this.eventListeners.push({
                 element: document,
-                event: 'dataStateChanged',
+                event: 'filtered-data-changed',
                 handler: dataChangeHandler
             });
         }
@@ -219,11 +219,11 @@ class ReportsPage {
             }
         };
 
-        document.addEventListener('filtersChanged', filterChangeHandler);
+        document.addEventListener('filters-changed', filterChangeHandler);
 
         this.eventListeners.push({
             element: document,
-            event: 'filtersChanged',
+            event: 'filters-changed',
             handler: filterChangeHandler
         });
 

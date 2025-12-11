@@ -131,7 +131,7 @@ class TipsPage {
      */
     _initManagers() {
         // Managers de features
-        this.keyboardShortcutsManager = this.app.keyboardShortcutsManager;
+        this.keyboardShortcutsManager = this.app.keyboardManager || this.app.keyboardShortcutsManager;
 
         // Validar managers críticos
         if (!this.keyboardShortcutsManager) {

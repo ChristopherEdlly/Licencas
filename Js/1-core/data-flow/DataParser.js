@@ -37,15 +37,23 @@ class DataParser {
             return [];
         }
 
+        // Detectar delimitador (vírgula ou ponto-e-vírgula)
+        const firstLine = lines[0];
+        const commaCount = (firstLine.match(/,/g) || []).length;
+        const semiCount = (firstLine.match(/;/g) || []).length;
+        const delimiter = semiCount > commaCount ? ';' : ','; // Preferência por msg_count se empate
+
+        console.log(`[DataParser] Delimitador detectado: "${delimiter}"`);
+
         // Primeira linha = headers
-        const headers = this._parseCSVLine(lines[0]);
+        const headers = this._parseCSVLine(firstLine, delimiter);
         console.log(`[DataParser] Headers encontrados: ${headers.length}`);
         console.log(`[DataParser] Colunas: ${headers.join(', ')}`);
 
         // Parse das linhas de dados
         const data = [];
         for (let i = 1; i < lines.length; i++) {
-            const values = this._parseCSVLine(lines[i]);
+            const values = this._parseCSVLine(lines[i], delimiter);
 
             // Pular linhas vazias
             if (values.length === 0 || values.every(v => !v)) {
@@ -55,7 +63,7 @@ class DataParser {
             // Criar objeto com headers como chaves
             const row = {};
             headers.forEach((header, index) => {
-                row[header] = values[index] || '';
+                row[header] = values[index] !== undefined ? values[index] : '';
             });
 
             data.push(row);
@@ -66,11 +74,12 @@ class DataParser {
     }
 
     /**
-     * Parse de uma linha CSV (suporta vírgulas dentro de aspas)
+     * Parse de uma linha CSV (suporta delimitador customizado e aspas)
      * @param {string} line - Linha do CSV
+     * @param {string} delimiter - Delimitador (padrão: ',')
      * @returns {Array<string>} - Array de valores
      */
-    static _parseCSVLine(line) {
+    static _parseCSVLine(line, delimiter = ',') {
         const result = [];
         let current = '';
         let inQuotes = false;
@@ -87,8 +96,8 @@ class DataParser {
                 } else {
                     inQuotes = !inQuotes;
                 }
-            } else if (char === ',' && !inQuotes) {
-                // Vírgula fora de aspas = separador
+            } else if (char === delimiter && !inQuotes) {
+                // Delimitador fora de aspas = separador
                 result.push(current.trim());
                 current = '';
             } else {
@@ -113,7 +122,7 @@ class DataParser {
         const headerMap = {};
         const mappings = {
             // Nome do servidor
-            nome: ['nome', 'nome servidor', 'servidor', 'nome_servidor'],
+            nome: ['nome', 'nome servidor', 'servidor', 'nome_servidor', 'funcionario', 'funcionário', 'colaborador', 'empregado', 'nome completo'],
 
             // Matrícula
             matricula: ['matricula', 'matrícula', 'mat', 'matricula siape', 'siape'],
@@ -134,7 +143,10 @@ class DataParser {
             sexo: ['sexo', 'genero', 'gênero'],
 
             // Licenças prêmio
-            licencasPremio: ['licencas premio', 'licenças prêmio', 'licenca premio', 'licença prêmio', 'lp']
+            licencasPremio: ['licencas premio', 'licenças prêmio', 'licenca premio', 'licença prêmio', 'lp'],
+
+            // Saldo
+            saldo: ['saldo', 'restando', 'dias restantes', 'dias_restando']
         };
 
         headers.forEach((header, index) => {
@@ -163,9 +175,7 @@ class DataParser {
      * @returns {Array<Object>} - Dados com headers normalizados
      */
     static normalizeData(data, headerMap) {
-        console.log('[DataParser] Normalizando dados...');
-
-        return data.map(row => {
+        const normalizedData = data.map(row => {
             const normalized = {};
 
             for (const [originalHeader, value] of Object.entries(row)) {
@@ -175,6 +185,8 @@ class DataParser {
 
             return normalized;
         });
+
+        return normalizedData;
     }
 
     /**
@@ -183,10 +195,6 @@ class DataParser {
      * @returns {Array<Object>} - Dados parseados e normalizados
      */
     static parse(csvString) {
-        console.log('\n' + '='.repeat(60));
-        console.log('[DataParser] 📊 Iniciando pipeline de parsing');
-        console.log('='.repeat(60));
-
         // 1. Parse básico do CSV
         const rawData = this.parseCSV(csvString);
 
@@ -201,9 +209,6 @@ class DataParser {
 
         // 3. Normalizar dados
         const normalizedData = this.normalizeData(rawData, headerMap);
-
-        console.log(`[DataParser] ✓ Pipeline completo: ${normalizedData.length} registros`);
-        console.log('='.repeat(60) + '\n');
 
         return normalizedData;
     }
