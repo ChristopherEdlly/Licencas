@@ -276,6 +276,30 @@ class CalendarPage {
             this.calendarManager.updateYearlyHeatmap(this.currentYear);
         }
     }
+
+    /**
+     * Ativa a página (torna visível)
+     * Chamado pelo Router quando usuário navega para Calendar
+     */
+    show(params) {
+        if (!this.isInitialized) {
+            this.init();
+        }
+
+        console.log('👁️ Mostrando CalendarPage');
+
+        // Tornar página visível
+        if (this.elements.page) {
+            this.elements.page.classList.add('active');
+        }
+
+        this.isActive = true;
+
+        // Atualizar display do ano
+        this._updateYearDisplay();
+
+        // Renderizar com dados atuais
+        this.render();
     }
 
     /**
@@ -386,45 +410,6 @@ class CalendarPage {
         html += '</div>';
 
         return html;
-        _setupYearNavigation() {
-            // Botão ano anterior
-            if (this.elements.prevYearBtn) {
-                const prevYearHandler = () => {
-                    if (this.calendarManager && typeof this.calendarManager.changeCalendarYear === 'function') {
-                        this.calendarManager.changeCalendarYear(-1);
-                    }
-                    this.currentYear--;
-                    this._updateYearDisplay();
-                    this.render();
-                };
-                this.elements.prevYearBtn.addEventListener('click', prevYearHandler);
-                this.eventListeners.push({
-                    element: this.elements.prevYearBtn,
-                    event: 'click',
-                    handler: prevYearHandler
-                });
-            }
-
-            // Botão próximo ano
-            if (this.elements.nextYearBtn) {
-                const nextYearHandler = () => {
-                    if (this.calendarManager && typeof this.calendarManager.changeCalendarYear === 'function') {
-                        this.calendarManager.changeCalendarYear(1);
-                    }
-                    this.currentYear++;
-                    this._updateYearDisplay();
-                    this.render();
-                };
-                this.elements.nextYearBtn.addEventListener('click', nextYearHandler);
-                this.eventListeners.push({
-                    element: this.elements.nextYearBtn,
-                    event: 'click',
-                    handler: nextYearHandler
-                });
-            }
-
-            console.log('✅ Navegação de ano configurada');
-        this.render();
     }
 
     /**

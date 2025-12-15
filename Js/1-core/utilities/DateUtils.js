@@ -5,6 +5,8 @@
  */
 
 class DateUtils {
+    // Toggle verbose parsing logs
+    static DEBUG = false;
     /**
      * Parse data brasileira flexível
      * Aceita: "jan/2025", "01/2025", "janeiro/2025", "2025-01-01"
@@ -18,7 +20,7 @@ class DateUtils {
         }
 
         const str = dateStr.trim().toLowerCase();
-        console.log(`[DateUtils] Parsing: "${str}"`);
+        if (DateUtils.DEBUG) console.log(`[DateUtils] Parsing: "${str}"`);
 
         // Mapa de meses
         const monthMap = {
@@ -44,7 +46,7 @@ class DateUtils {
             const year = parseInt(yearStr);
             
             if (month !== undefined && !isNaN(year)) {
-                console.log(`[DateUtils] ✓ Parsed como mês/ano: ${month + 1}/${year}`);
+                if (DateUtils.DEBUG) console.log(`[DateUtils] ✓ Parsed como mês/ano: ${month + 1}/${year}`);
                 return new Date(year, month, 1);
             }
         }
@@ -58,7 +60,7 @@ class DateUtils {
             const year = parseInt(yearStr);
             
             if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && !isNaN(year)) {
-                console.log(`[DateUtils] ✓ Parsed como DD/MM/YYYY: ${day}/${month + 1}/${year}`);
+                if (DateUtils.DEBUG) console.log(`[DateUtils] ✓ Parsed como DD/MM/YYYY: ${day}/${month + 1}/${year}`);
                 return new Date(year, month, day);
             }
         }
@@ -71,7 +73,7 @@ class DateUtils {
             const year = parseInt(yearStr);
             
             if (month >= 0 && month <= 11 && !isNaN(year)) {
-                console.log(`[DateUtils] ✓ Parsed como MM/YYYY: ${month + 1}/${year}`);
+                if (DateUtils.DEBUG) console.log(`[DateUtils] ✓ Parsed como MM/YYYY: ${month + 1}/${year}`);
                 return new Date(year, month, 1);
             }
         }
@@ -85,12 +87,12 @@ class DateUtils {
             const day = parseInt(dayStr);
             
             if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && !isNaN(year)) {
-                console.log(`[DateUtils] ✓ Parsed como ISO: ${year}-${month + 1}-${day}`);
+                if (DateUtils.DEBUG) console.log(`[DateUtils] ✓ Parsed como ISO: ${year}-${month + 1}-${day}`);
                 return new Date(year, month, day);
             }
         }
 
-        console.log(`[DateUtils] ✗ Não foi possível fazer parse: "${dateStr}"`);
+        if (DateUtils.DEBUG) console.log(`[DateUtils] ✗ Não foi possível fazer parse: "${dateStr}"`);
         return null;
     }
 

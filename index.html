@@ -1504,8 +1504,9 @@
         document.addEventListener('DOMContentLoaded', function () {
             console.log('✅ DOM carregado');
 
-            // Se USE_NEW_APP estiver ativado, inicializar novo sistema
-            if (window.FEATURE_FLAGS && window.FEATURE_FLAGS.USE_NEW_APP) {
+            // Se USE_NEW_APP estiver desativado explicitamente, manter sistema legado
+            // Caso contrário (flag ausente ou true) inicializar novo sistema
+            if (!window.FEATURE_FLAGS || window.FEATURE_FLAGS.USE_NEW_APP) {
                 if (window.App) {
                     console.log('🚀 Inicializando novo App...');
                     window.app = new App();
