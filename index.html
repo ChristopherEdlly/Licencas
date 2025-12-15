@@ -176,7 +176,8 @@
                 </div>
 
                 <!-- Botão Importar -->
-                <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" style="display: none;" aria-label="Importar arquivo de dados de servidores">
+                <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" style="display: none;"
+                    aria-label="Importar arquivo de dados de servidores">
                 <div class="upload-wrapper">
                     <button class="btn-import" id="uploadButton">
                         <i class="bi bi-upload" aria-hidden="true"></i>
@@ -1461,6 +1462,7 @@
     <script src="js/3-managers/ui/TableManager.js"></script>
     <script src="js/3-managers/ui/ChartManager.js"></script>
     <script src="js/3-managers/ui/ModalManager.js"></script>
+
     <script src="js/3-managers/ui/SidebarManager.js"></script>
     <script src="js/3-managers/ui/ThemeManager.js"></script>
 
@@ -1522,28 +1524,7 @@
     </script>
 
 
-    <!-- Modal de Confirmação Customizado -->
-    <div class="custom-modal-overlay" id="customModalOverlay" style="display: none;">
-        <div class="custom-modal" id="customModal">
-            <div class="custom-modal-header">
-                <i class="custom-modal-icon bi bi-question-circle"></i>
-                <h3 class="custom-modal-title" id="customModalTitle">Confirmação</h3>
-            </div>
-            <div class="custom-modal-body" id="customModalBody">
-                <p id="customModalMessage">Mensagem</p>
-            </div>
-            <div class="custom-modal-footer">
-                <button class="custom-modal-btn custom-modal-btn-secondary" id="customModalCancel">
-                    <i class="bi bi-x-circle"></i>
-                    <span>Cancelar</span>
-                </button>
-                <button class="custom-modal-btn custom-modal-btn-primary" id="customModalConfirm">
-                    <i class="bi bi-check-circle"></i>
-                    <span>Confirmar</span>
-                </button>
-            </div>
-        </div>
-    </div>
+
 
 </body>
 

@@ -15,307 +15,241 @@ class CalendarManager {
     /**
      * Construtor
      * @param {Object} app - Referência à aplicação
-     */
-    constructor(app) {
-        this.app = app;
 
-        // Estado do calendário
-        this.currentYear = new Date().getFullYear();
-        this.currentMonth = new Date().getMonth(); // 0-11
 
-        // Visualização
-        this.viewMode = 'year'; // 'year' ou 'month'
-
-        // Container
-        this.container = null;
-
-        // Dados de licenças por data
-        this.licensesByDate = new Map(); // date string -> array of servidores
-
-        // Cores para intensidade
-        this.intensityColors = [
-            '#f0f0f0', // 0 licenças
-            '#c6e48b', // 1-2
-            '#7bc96f', // 3-5
-            '#239a3b', // 6-10
-            '#196127'  // 11+
-        ];
-
-        console.log('✅ CalendarManager criado');
-    }
-
-    // ==================== INICIALIZAÇÃO ====================
-
-    /**
-     * Inicializa calendário em container
-     * @param {HTMLElement|string} container - Container ou ID
-     */
-    init(container) {
-        if (typeof container === 'string') {
-            this.container = document.getElementById(container);
-        } else {
-            this.container = container;
+    // Lógica legada portada de js - old/modules/CalendarManager.js
+    class CalendarManager {
+        constructor(app) {
+            this.app = app;
+            this.currentYear = new Date().getFullYear();
         }
 
-        if (!this.container) {
-            console.error('Container do calendário não encontrado');
-            return;
-        }
+        updateYearlyHeatmap(year = null) {
+            if (!year) {
+                const yearElement = document.getElementById('currentCalendarYear');
+                year = yearElement ? parseInt(yearElement.textContent) : this.currentYear;
+            }
 
-        this.render();
-        console.log('📅 Calendário inicializado');
-    }
+            const container = document.getElementById('yearlyHeatmap');
+            if (!container) return;
 
-    // ==================== CARREGAMENTO DE DADOS ====================
+            const currentYearElement = document.getElementById('currentCalendarYear');
+            if (currentYearElement) currentYearElement.textContent = year;
 
-    /**
-     * Carrega dados de licenças
-     * @param {Array<Object>} servidores - Dados dos servidores
-     */
-    loadData(servidores) {
-        this.licensesByDate.clear();
-
-        // Robust check: if invalid, treat as empty
-        if (!servidores || !Array.isArray(servidores)) {
-            console.warn('CalendarManager: servidores invalido/vazio, carregando vazio', servidores);
-            servidores = [];
-        }
-
-        if (servidores.length === 0) {
-            this.render(); // Ensure clear render
-            return;
-        }
-
-        // Mapear licenças por data
-        servidores.forEach(servidor => {
-            if (!servidor.licencas || servidor.licencas.length === 0) {
+            // Adaptar: obter dados filtrados do DataStateManager via app
+            const servidores = this.app && this.app.dataStateManager ? this.app.dataStateManager.getFilteredData() : [];
+            if (!servidores || servidores.length === 0) {
+                container.innerHTML = '<p style="text-align: center; padding: 2rem; color: var(--text-muted);">Nenhum dado disponível para visualização.</p>';
                 return;
             }
 
-            servidor.licencas.forEach(licenca => {
-                if (!licenca.inicio || !licenca.fim) return;
+            container.innerHTML = '';
+            const monthsContainer = document.createElement('div');
+            monthsContainer.className = 'months-grid';
 
-                const start = new Date(licenca.inicio);
-                const end = new Date(licenca.fim);
+            for (let month = 0; month < 12; month++) {
+                const monthDiv = this.createMonthHeatmap(year, month, servidores);
+                monthsContainer.appendChild(monthDiv);
+            }
 
-                // Iterar por cada dia da licença
-                for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-                    const dateKey = this._formatDateKey(date);
+            container.appendChild(monthsContainer);
+        }
 
-                    if (!this.licensesByDate.has(dateKey)) {
-                        this.licensesByDate.set(dateKey, []);
+        changeCalendarYear(direction) {
+            const currentYearElement = document.getElementById('currentCalendarYear');
+            if (!currentYearElement) return;
+
+            const currentYear = parseInt(currentYearElement.textContent);
+            const newYear = currentYear + direction;
+
+            if (newYear >= 2020 && newYear <= 2030) {
+                currentYearElement.textContent = newYear;
+                this.updateYearlyHeatmap(newYear);
+            }
+        }
+
+        createMonthHeatmap(year, month, servidores) {
+            const monthDiv = document.createElement('div');
+            monthDiv.className = 'month-heatmap';
+
+            const monthHeader = document.createElement('div');
+            monthHeader.className = 'month-header';
+            monthHeader.textContent = this.getMonthName(month);
+            monthDiv.appendChild(monthHeader);
+
+            const daysHeader = document.createElement('div');
+            daysHeader.className = 'days-header';
+            const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+            dayNames.forEach(day => {
+                const dayEl = document.createElement('div');
+                dayEl.className = 'day-name';
+                dayEl.textContent = day;
+                daysHeader.appendChild(dayEl);
+            });
+            monthDiv.appendChild(daysHeader);
+
+            const calendarGrid = document.createElement('div');
+            calendarGrid.className = 'calendar-grid';
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            const dayData = {};
+            servidores.forEach(servidor => {
+                if (!servidor.licencas) return;
+                servidor.licencas.forEach(licenca => {
+                    const licenseStart = new Date(licenca.inicio);
+                    let licenseEnd = licenca.fim ? new Date(licenca.fim) : null;
+                    if (!licenseEnd) {
+                        const nextMonth = new Date(licenseStart);
+                        nextMonth.setMonth(nextMonth.getMonth() + 1);
+                        nextMonth.setDate(nextMonth.getDate() - 1);
+                        licenseEnd = nextMonth;
                     }
 
-                    this.licensesByDate.get(dateKey).push({
-                        servidor: servidor.servidor,
-                        cargo: servidor.cargo,
-                        lotacao: servidor.lotacao,
-                        urgencia: servidor.urgencia,
-                        licenca: licenca
-                    });
-                }
+                    const monthStart = new Date(year, month, 1);
+                    const monthEnd = new Date(year, month + 1, 0);
+
+                    if (licenseStart <= monthEnd && licenseEnd >= monthStart) {
+                        let startDay, endDay;
+
+                        if (servidor.tipoTabela === 'licenca-premio') {
+                            if (licenseStart <= monthStart) {
+                                startDay = 1;
+                            } else {
+                                startDay = licenseStart.getDate();
+                            }
+
+                            if (licenseEnd >= monthEnd) {
+                                endDay = new Date(year, month + 1, 0).getDate();
+                            } else {
+                                endDay = licenseEnd.getDate();
+                            }
+                        } else {
+                            startDay = Math.max(1, licenseStart.getMonth() === month && licenseStart.getFullYear() === year ? licenseStart.getDate() : 1);
+                            endDay = Math.min(
+                                new Date(year, month + 1, 0).getDate(),
+                                licenseEnd.getMonth() === month && licenseEnd.getFullYear() === year ? licenseEnd.getDate() : new Date(year, month + 1, 0).getDate()
+                            );
+                        }
+
+                        for (let day = startDay; day <= endDay; day++) {
+                            dayData[day] = (dayData[day] || 0) + 1;
+                        }
+                    }
+                });
             });
-        });
 
-        console.log(`📊 ${this.licensesByDate.size} datas com licenças carregadas`);
-        this.render();
-    }
+            for (let i = 0; i < firstDay; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'day-cell empty';
+                calendarGrid.appendChild(emptyCell);
+            }
 
-    /**
-     * Formata data como chave (YYYY-MM-DD)
-     * @private
-     */
-    _formatDateKey(date) {
-        const d = new Date(date);
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    }
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayCell = document.createElement('div');
+                dayCell.className = 'day-cell';
 
-    // ==================== RENDERIZAÇÃO ====================
+                const count = dayData[day] || 0;
+                let level = 0;
+                if (count > 0) {
+                    if (count === 1) level = 1;
+                    else if (count <= 3) level = 2;
+                    else if (count <= 5) level = 3;
+                    else level = 4;
+                }
 
-    /**
-     * Renderiza calendário
-     */
-    render() {
-        if (!this.container) {
-            console.warn('CalendarManager: Tentativa de renderizar sem container definido');
-            return;
+                dayCell.classList.add(`level-${level}`);
+                dayCell.textContent = day;
+                dayCell.title = `${day}/${month + 1}/${year}: ${count} licenças`;
+
+                if (count > 0) {
+                    dayCell.addEventListener('click', () => {
+                        this.showCalendarDayDetails(year, month, day, count, servidores);
+                    });
+                    dayCell.style.cursor = 'pointer';
+                }
+
+                calendarGrid.appendChild(dayCell);
+            }
+
+            monthDiv.appendChild(calendarGrid);
+            return monthDiv;
         }
 
-        this.container.innerHTML = '';
+        showCalendarDayDetails(year, month, day, count, servidores) {
+            const targetDate = new Date(year, month, day);
+            const dateStr = targetDate.toLocaleDateString('pt-BR', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
 
-        // Cabeçalho com navegação
-        this._renderHeader();
+            const servidoresNoDia = servidores.filter(servidor => {
+                return (servidor.licencas || []).some(licenca => {
+                    const licenseStart = new Date(licenca.inicio);
+                    let licenseEnd = licenca.fim ? new Date(licenca.fim) : null;
+                    if (!licenseEnd) {
+                        const nextMonth = new Date(licenseStart);
+                        nextMonth.setMonth(nextMonth.getMonth() + 1);
+                        nextMonth.setDate(nextMonth.getDate() - 1);
+                        licenseEnd = nextMonth;
+                    }
+                    return targetDate >= licenseStart && targetDate <= licenseEnd;
+                });
+            });
 
-        // Calendário
-        if (this.viewMode === 'year') {
-            this._renderYearView();
-        } else {
-            this._renderMonthView();
-        }
-    }
-
-    /**
-     * Renderiza cabeçalho
-     * @private
-     */
-    _renderHeader() {
-        const header = document.createElement('div');
-        header.className = 'calendar-header';
-        header.style.cssText = `
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding: 15px;
-            background: var(--card-bg, #fff);
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        `;
-
-        // Botão anterior
-        const btnPrev = document.createElement('button');
-        btnPrev.innerHTML = '← Anterior';
-        btnPrev.className = 'btn btn-secondary';
-        btnPrev.onclick = () => this.navigatePrevious();
-
-        // Título
-        const title = document.createElement('h3');
-        title.style.margin = '0';
-        if (this.viewMode === 'year') {
-            title.textContent = this.currentYear;
-        } else {
-            const monthName = new Date(this.currentYear, this.currentMonth).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-            title.textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-        }
-
-        // Botões de modo de visualização
-        const viewToggle = document.createElement('div');
-        viewToggle.style.display = 'flex';
-        viewToggle.style.gap = '5px';
-
-        const btnYear = document.createElement('button');
-        btnYear.textContent = 'Ano';
-        btnYear.className = `btn ${this.viewMode === 'year' ? 'btn-primary' : 'btn-secondary'}`;
-        btnYear.onclick = () => {
-            this.viewMode = 'year';
-            this.render();
-        };
-
-        const btnMonth = document.createElement('button');
-        btnMonth.textContent = 'Mês';
-        btnMonth.className = `btn ${this.viewMode === 'month' ? 'btn-primary' : 'btn-secondary'}`;
-        btnMonth.onclick = () => {
-            this.viewMode = 'month';
-            this.render();
-        };
-
-        viewToggle.appendChild(btnYear);
-        viewToggle.appendChild(btnMonth);
-
-        // Botão próximo
-        const btnNext = document.createElement('button');
-        btnNext.innerHTML = 'Próximo →';
-        btnNext.className = 'btn btn-secondary';
-        btnNext.onclick = () => this.navigateNext();
-
-        header.appendChild(btnPrev);
-        header.appendChild(title);
-        header.appendChild(viewToggle);
-        header.appendChild(btnNext);
-
-        this.container.appendChild(header);
-    }
-
-    /**
-     * Renderiza visualização anual
-     * @private
-     */
-    _renderYearView() {
-        const yearContainer = document.createElement('div');
-        yearContainer.className = 'calendar-year-view';
-        yearContainer.style.cssText = `
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-        `;
-
-        // Renderizar 12 meses
-        for (let month = 0; month < 12; month++) {
-            const monthCard = this._renderMonthCard(this.currentYear, month);
-            yearContainer.appendChild(monthCard);
-        }
-
-        this.container.appendChild(yearContainer);
-
-        // Legenda
-        this._renderLegend();
-    }
-
-    /**
-     * Renderiza card de mês
-     * @private
-     */
-    _renderMonthCard(year, month) {
-        const card = document.createElement('div');
-        card.className = 'calendar-month-card';
-        card.style.cssText = `
-            background: var(--card-bg, #fff);
-            border-radius: 8px;
-            padding: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        `;
-
-        // Nome do mês
-        const monthName = new Date(year, month).toLocaleDateString('pt-BR', { month: 'long' });
-        const title = document.createElement('h4');
-        title.textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-        title.style.cssText = 'margin: 0 0 10px 0; text-align: center;';
-        card.appendChild(title);
-
-        // Grid de dias
-        const grid = document.createElement('div');
-        grid.style.cssText = `
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 3px;
-        `;
-
-        // Cabeçalho (dias da semana)
-        const weekDays = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
-        weekDays.forEach(day => {
-            const dayLabel = document.createElement('div');
-            dayLabel.textContent = day;
-            dayLabel.style.cssText = `
-                text-align: center;
-                font-weight: bold;
-                font-size: 0.8rem;
-                color: var(--text-muted, #666);
+            let content = `
+                <div class="calendar-day-details">
+                    <div class="day-header">
+                        <h4>${dateStr}</h4>
+                        <p>${count} servidor(es) de licença</p>
+                    </div>
+                    <div class="servidores-list">
             `;
-            grid.appendChild(dayLabel);
-        });
 
-        // Primeiro dia do mês
-        const firstDay = new Date(year, month, 1).getDay();
+            servidoresNoDia.forEach(servidor => {
+                const urgencia = servidor.urgencia || (this.app && this.app.calcularUrgencia ? this.app.calcularUrgencia(servidor) : 'baixa');
+                content += `
+                    <div class="servidor-card" onclick="if(window.ModalManager) ModalManager.showServidorDetails('${this.escapeHtml(servidor.nome)}')">
+                        <div class="servidor-info">
+                            <div class="servidor-nome">${servidor.nome}</div>
+                            <div class="servidor-cargo">${servidor.cargo || 'N/A'}</div>
+                        </div>
+                        <div class="servidor-urgencia urgency-${urgencia.toLowerCase()}">${urgencia}</div>
+                    </div>
+                `;
+            });
 
-        // Espaços vazios antes do primeiro dia
-        for (let i = 0; i < firstDay; i++) {
-            const empty = document.createElement('div');
-            grid.appendChild(empty);
+            content += `</div></div>`;
+            if (this.app && this.app.modalManager) {
+                this.app.modalManager.showModal('Licenças do Dia', content, 'calendar-day-modal');
+            } else if (window.ModalManager) {
+                window.ModalManager.showModal('Licenças do Dia', content, 'calendar-day-modal');
+            }
         }
 
-        // Dias do mês
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        for (let day = 1; day <= daysInMonth; day++) {
-            const date = new Date(year, month, day);
-            const dateKey = this._formatDateKey(date);
-            const licenses = this.licensesByDate.get(dateKey) || [];
-            const intensity = this._getIntensityLevel(licenses.length);
+        getMonthName(month) {
+            const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                               'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            return monthNames[month];
+        }
 
-            const dayCell = document.createElement('div');
-            dayCell.textContent = day;
+        escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    }
+
+    if (typeof window !== 'undefined') {
+        window.CalendarManager = CalendarManager;
+    }
+
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = CalendarManager;
+    }
             dayCell.style.cssText = `
                 aspect-ratio: 1;
                 display: flex;

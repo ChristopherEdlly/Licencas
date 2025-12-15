@@ -123,9 +123,13 @@ class DataStateManager {
      * @returns {Object|null}
      */
     getServidorByNome(nome) {
-        return this._allServidores.find(s =>
-            s.servidor && s.servidor.toLowerCase() === nome.toLowerCase()
-        ) || null;
+        // Buscar por ambos os campos: 'nome' e 'servidor', ignorando maiúsculas/minúsculas e espaços extras
+        const nomeAlvo = nome.trim().toLowerCase();
+        return this._allServidores.find(s => {
+            const nome1 = (s.nome || '').trim().toLowerCase();
+            const nome2 = (s.servidor || '').trim().toLowerCase();
+            return nome1 === nomeAlvo || nome2 === nomeAlvo;
+        }) || null;
     }
 
     /**

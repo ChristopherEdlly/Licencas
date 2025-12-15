@@ -256,7 +256,15 @@ class App {
         if (typeof ModalManager !== 'undefined') {
             this.modalManager = new ModalManager(this);
             console.log('✅ ModalManager inicializado');
+
+            // Backward compatibility for customModal
+            window.customModal = {
+                alert: (msg, title) => this.modalManager.alert(msg, title),
+                confirm: (msg, title) => this.modalManager.confirm(msg, title)
+            };
         }
+
+
 
         // SidebarManager
         if (typeof SidebarManager !== 'undefined') {
@@ -754,128 +762,14 @@ class App {
      * @param {Object} servidor 
      */
     showServidorDetails(servidor) {
-        if (!this.modalManager) {
+        if (this.modalManager) {
+            this.modalManager.showServidorDetails(servidor);
+        } else {
             console.warn('ModalManager não disponível');
             if (this.notificationService) {
                 this.notificationService.info(`Servidor: ${servidor.nome || servidor.servidor}`);
             }
-            return;
         }
-
-        const modalId = 'servidorDetailsModal';
-        const content = this._generateServidorDetailsHtml(servidor);
-        const title = `Detalhes: ${servidor.nome || servidor.servidor || 'N/A'}`;
-
-        // Verificar se modal já existe no DOM (criado via HTML ou anteriormente)
-        let modal = document.getElementById(modalId);
-
-        if (!modal) {
-            this.modalManager.createModal({
-                id: modalId,
-                title: title,
-                content: content,
-                size: 'large',
-                closeButton: true
-            });
-        } else {
-            this.modalManager.updateContent(modalId, content);
-            this.modalManager.updateTitle(modalId, title);
-        }
-
-        this.modalManager.open(modalId);
-    }
-
-    /**
-     * Gera HTML para detalhes do servidor
-     * @private
-     * @param {Object} s 
-     * @returns {string}
-     */
-    _generateServidorDetailsHtml(s) {
-        if (!s) return '<p>Dados não disponíveis</p>';
-
-        const formatDate = (d) => {
-            if (!d) return '--';
-            try { return new Date(d).toLocaleDateString('pt-BR'); }
-            catch { return d; }
-        };
-
-        return `
-            <div class="container-fluid">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>Nome:</strong> <p>${s.nome || s.servidor || '--'}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <strong>CPF:</strong> <p>${s.cpf || s.cpfFormatado || '--'}</p>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>Cargo:</strong> <p>${s.cargo || '--'}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <strong>Lotação:</strong> <p>${s.lotacao || '--'}</p>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <strong>Admissão:</strong> <p>${formatDate(s.admissao)}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <strong>Meses (Concedidos):</strong> <p>${s.mesesConcedidos || 0}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <strong>Meses (A Conceder):</strong> <p>${s.mesesAConceder || 0}</p>
-                    </div>
-                </div>
-                
-                <hr>
-                <h5>Licenças</h5>
-                ${this._generateLicencasTableHtml(s.licencas)}
-            </div>
-        `;
-    }
-
-    _generateLicencasTableHtml(licencas) {
-        if (!licencas || !Array.isArray(licencas) || licencas.length === 0) {
-            return '<p class="text-muted">Nenhuma licença registrada.</p>';
-        }
-
-        const formatDate = (d) => {
-            if (!d) return '--';
-            try { return new Date(d).toLocaleDateString('pt-BR'); }
-            catch { return d; }
-        };
-
-        const rows = licencas.map(l => `
-            <tr>
-                <td>${formatDate(l.dataInicio || l.inicio)}</td>
-                <td>${formatDate(l.dataFim || l.fim)}</td>
-                <td>${l.dias || '--'}</td>
-                <td>${l.diasGozados || 0}</td>
-                <td>${l.saldo || 0}</td>
-            </tr>
-        `).join('');
-
-        return `
-            <div class="table-responsive">
-                <table class="table table-sm table-bordered">
-                    <thead>
-                        <tr>
-                            <th>Início</th>
-                            <th>Fim</th>
-                            <th>Dias</th>
-                            <th>Gozados</th>
-                            <th>Saldo</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rows}
-                    </tbody>
-                </table>
-            </div>
-        `;
     }
 
 }

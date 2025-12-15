@@ -573,6 +573,12 @@ class TableManager {
         const sortedData = this._sortData(this.app?.dataStateManager?.getFilteredServidores() || []);
         const servidor = sortedData[index];
 
+        console.log('[TableManager] DEBUG - Servidor clicado:', {
+            index,
+            servidor,
+            campos: servidor ? Object.keys(servidor) : []
+        });
+
         if (servidor && this.app && this.app.showServidorDetails) {
             this.app.showServidorDetails(servidor);
         }

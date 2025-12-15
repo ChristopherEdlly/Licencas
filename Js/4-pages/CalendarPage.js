@@ -271,17 +271,11 @@ class CalendarPage {
             console.warn('⚠️ CalendarManager ou yearlyHeatmap não disponível');
             return;
         }
-
-        // Delegar renderização para o CalendarManager
-        // Passa ano atual e callback para abrir modal de detalhes
-        this.calendarManager.renderYearlyHeatmap(
-            this.elements.yearlyHeatmap,
-            servidores,
-            this.currentYear,
-            (date, servidoresNoDia) => {
-                this._showCalendarDayModal(date, servidoresNoDia);
-            }
-        );
+        // Usar lógica legada: chama updateYearlyHeatmap do CalendarManager
+        if (typeof this.calendarManager.updateYearlyHeatmap === 'function') {
+            this.calendarManager.updateYearlyHeatmap(this.currentYear);
+        }
+    }
     }
 
     /**
@@ -392,42 +386,44 @@ class CalendarPage {
         html += '</div>';
 
         return html;
-    }
+        _setupYearNavigation() {
+            // Botão ano anterior
+            if (this.elements.prevYearBtn) {
+                const prevYearHandler = () => {
+                    if (this.calendarManager && typeof this.calendarManager.changeCalendarYear === 'function') {
+                        this.calendarManager.changeCalendarYear(-1);
+                    }
+                    this.currentYear--;
+                    this._updateYearDisplay();
+                    this.render();
+                };
+                this.elements.prevYearBtn.addEventListener('click', prevYearHandler);
+                this.eventListeners.push({
+                    element: this.elements.prevYearBtn,
+                    event: 'click',
+                    handler: prevYearHandler
+                });
+            }
 
-    /**
-     * Escapa HTML para prevenir XSS
-     * @private
-     * @param {string} text - Texto a escapar
-     * @returns {string} Texto escapado
-     */
-    _escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
+            // Botão próximo ano
+            if (this.elements.nextYearBtn) {
+                const nextYearHandler = () => {
+                    if (this.calendarManager && typeof this.calendarManager.changeCalendarYear === 'function') {
+                        this.calendarManager.changeCalendarYear(1);
+                    }
+                    this.currentYear++;
+                    this._updateYearDisplay();
+                    this.render();
+                };
+                this.elements.nextYearBtn.addEventListener('click', nextYearHandler);
+                this.eventListeners.push({
+                    element: this.elements.nextYearBtn,
+                    event: 'click',
+                    handler: nextYearHandler
+                });
+            }
 
-    /**
-     * Ativa a página (torna visível)
-     * Chamado pelo Router quando usuário navega para Calendar
-     */
-    show() {
-        if (!this.isInitialized) {
-            this.init();
-        }
-
-        console.log('👁️ Mostrando CalendarPage');
-
-        // Tornar página visível
-        if (this.elements.page) {
-            this.elements.page.classList.add('active');
-        }
-
-        this.isActive = true;
-
-        // Atualizar display do ano
-        this._updateYearDisplay();
-
-        // Renderizar com dados atuais
+            console.log('✅ Navegação de ano configurada');
         this.render();
     }
 
