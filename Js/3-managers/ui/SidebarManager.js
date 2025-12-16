@@ -71,6 +71,51 @@ class SidebarManager {
                 this.toggle();
             });
         }
+
+        // Botão de Filtros Avançados (abre modal existente `filtersModal`)
+        const advBtn = document.getElementById('btnAdvancedFilters');
+        if (advBtn) {
+            advBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (this.app && this.app.modalManager && typeof this.app.modalManager.open === 'function') {
+                    this.app.modalManager.open('filtersModal');
+                } else {
+                    const modal = document.getElementById('filtersModal');
+                    if (modal) {
+                        modal.style.display = 'flex';
+                        modal.classList.add('show');
+                    }
+                }
+            });
+        }
+
+        // Atualizar badge de filtros ativos quando AdvancedFilterManager emitir evento
+        const badge = document.getElementById('activeFiltersBadge');
+        const updateBadge = (count) => {
+            if (!badge) return;
+            if (count && count > 0) {
+                badge.style.display = '';
+                badge.textContent = String(count);
+            } else {
+                badge.style.display = 'none';
+                badge.textContent = '0';
+            }
+        };
+
+        // Ouvir evento global emitido pelo AdvancedFilterManager
+        document.addEventListener('advanced-filters-changed', (ev) => {
+            try {
+                const mgr = this.app?.advancedFilterManager || window.advancedFilterManager;
+                const c = mgr ? mgr.countActiveFilters() : (ev?.detail?.filters ? Object.values(ev.detail.filters).filter(Boolean).length : 0);
+                updateBadge(c);
+            } catch (e) { /* ignore */ }
+        });
+
+        // Se AdvancedFilterManager já disponível, inicializa badge
+        try {
+            const existing = this.app?.advancedFilterManager || window.advancedFilterManager;
+            if (existing) updateBadge(existing.countActiveFilters());
+        } catch (e) { /* ignore */ }
     }
 
     /**

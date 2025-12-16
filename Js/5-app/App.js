@@ -257,6 +257,13 @@ class App {
             this.modalManager = new ModalManager(this);
             console.log('✅ ModalManager inicializado');
 
+            // Inicializar internamente para registrar listeners e preparar modais
+            try {
+                if (typeof this.modalManager.init === 'function') this.modalManager.init();
+            } catch (e) {
+                console.warn('⚠️ Falha ao inicializar ModalManager:', e);
+            }
+
             // Backward compatibility for customModal
             window.customModal = {
                 alert: (msg, title) => this.modalManager.alert(msg, title),
@@ -289,6 +296,15 @@ class App {
         if (typeof FilterManager !== 'undefined') {
             this.filterManager = new FilterManager(this);
             console.log('✅ FilterManager inicializado');
+        }
+
+        // AdvancedFilterManager (portado from legacy)
+        if (typeof AdvancedFilterManager !== 'undefined') {
+            this.advancedFilterManager = new AdvancedFilterManager(this);
+            window.advancedFilterManager = this.advancedFilterManager;
+            console.log('✅ AdvancedFilterManager inicializado');
+        } else {
+            console.log('ℹ️ AdvancedFilterManager não disponível');
         }
 
         // CalendarManager

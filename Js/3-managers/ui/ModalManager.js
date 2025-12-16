@@ -58,6 +58,9 @@ class ModalManager {
         // Setup modais existentes
         this._setupExistingModals();
 
+        // Setup advanced filters modal interactions (sub-modais)
+        this._setupFiltersModalHandlers();
+
         console.log('📋 Modais configurados');
     }
 
@@ -107,6 +110,13 @@ class ModalManager {
         if (options.onOpen) {
             options.onOpen(modal);
         }
+
+        // Specialized hook: when opening filters modal, initialize its UI
+        try {
+            if ((typeof modalId === 'string' ? modalId : (modal.id || '')) === 'filtersModal') {
+                this._onFiltersModalOpened();
+            }
+        } catch (e) { /* ignore */ }
 
         // Atualizar UIStateManager
         if (this.app?.uiStateManager) {
@@ -237,6 +247,27 @@ class ModalManager {
         };
 
         document.addEventListener('keydown', this.escapeHandler);
+        // Delegated click for filter-type-card to support cases where modal markup
+        // wasn't present at init time. Will open the filter config popup if
+        // the filters modal is visible.
+        this._delegatedFilterCardHandler = (e) => {
+            try {
+                const card = e.target.closest && e.target.closest('.filter-type-card');
+                if (!card) return;
+                const filtersModal = document.getElementById('filtersModal');
+                if (!filtersModal) return;
+                const isVisible = (filtersModal.style.display === 'flex') || filtersModal.classList.contains('show') || filtersModal.classList.contains('active');
+                if (!isVisible) return;
+                const filterType = card.dataset && card.dataset.filterType;
+                console.debug('[ModalManager] delegated click on filter-type-card', { filterType, card, target: e.target });
+                if (!filterType) return;
+                try { this._openFilterConfigPopup(filterType); } catch (err) { console.warn('Erro ao abrir popup de filtro:', err); }
+            } catch (err) {
+                console.error('[ModalManager] error in delegatedFilterCardHandler', err);
+            }
+        };
+
+        document.addEventListener('click', this._delegatedFilterCardHandler);
     }
 
     /**
@@ -451,6 +482,202 @@ class ModalManager {
     // MÉTODOS DE UTILIDADE (Alert/Confirm)
     // ============================================================
 
+    /**
+     * Called when the Filters modal is opened to render active list and wire buttons
+     * @private
+     */
+    _onFiltersModalOpened() {
+        const mgr = this.app?.advancedFilterManager || window.advancedFilterManager;
+        // Ensure manager has up-to-date unique values (populate from current data)
+        try {
+            const data = this.app?.dataStateManager?.getFilteredData ? this.app.dataStateManager.getFilteredData() : (this.app?.dataStateManager?.getAllServidores ? this.app.dataStateManager.getAllServidores() : []);
+            if (mgr && typeof mgr.extractUniqueValues === 'function') {
+                mgr.extractUniqueValues(data || []);
+            }
+        } catch (e) { console.warn('[ModalManager] Falha ao popular valores únicos do AdvancedFilterManager', e); }
+        const activeListEl = document.getElementById('activeFiltersList');
+        const resultsCount = document.getElementById('resultsCount');
+        const clearAllBtn = document.getElementById('clearAllFiltersModalBtn');
+        const cancelBtn = document.getElementById('cancelFiltersModalBtn');
+
+        if (mgr && typeof mgr.renderActiveFiltersList === 'function') {
+            try { mgr.renderActiveFiltersList(); } catch (e) { console.warn('Erro renderActiveFiltersList', e); }
+        }
+
+        // Update results preview if possible
+        try {
+            const data = this.app?.dataStateManager?.getFilteredData ? this.app.dataStateManager.getFilteredData() : [];
+            const filtered = mgr && typeof mgr.applyFilters === 'function' ? mgr.applyFilters(data) : data;
+            if (resultsCount) {
+                resultsCount.innerHTML = `Mostrando <strong>${filtered.length}</strong> de <strong>${(data||[]).length}</strong> servidores`;
+            }
+        } catch (e) { /* ignore */ }
+
+        // Wire clear all button
+        if (clearAllBtn) {
+            clearAllBtn.disabled = !(mgr && typeof mgr.hasActiveFilters === 'function' && mgr.hasActiveFilters());
+            clearAllBtn.onclick = () => {
+                try { if (mgr && typeof mgr.clearAll === 'function') mgr.clearAll(); } catch(e){ }
+                try { if (mgr && typeof mgr.renderActiveFiltersList === 'function') mgr.renderActiveFiltersList(); } catch(e){}
+                // update badge
+                document.dispatchEvent(new CustomEvent('advanced-filters-changed'));
+                clearAllBtn.disabled = true;
+            };
+        }
+
+        // Wire cancel/close button
+        if (cancelBtn) {
+            cancelBtn.onclick = () => {
+                this.close('filtersModal');
+            };
+        }
+    }
+
+    /**
+     * Setup handlers specific to the Advanced Filters modal and its sub-popup
+     * @private
+     */
+    _setupFiltersModalHandlers() {
+        const filtersModal = document.getElementById('filtersModal');
+        const popup = document.getElementById('filterConfigPopup');
+        const popupTitle = document.getElementById('filterConfigPopupTitle');
+        const popupBody = document.getElementById('filterConfigPopupBody');
+        const closePopupBtn = document.getElementById('closeFilterConfigPopup');
+        const cancelPopupBtn = document.getElementById('cancelFilterPopupBtn');
+        // If modal or popup not present yet, skip; delegated handler will still work
+        if (!filtersModal || !popup) return;
+
+        // Wire popup close buttons
+        this._closeFilterConfigPopup = () => {
+            popup.classList.remove('active', 'show');
+            popup.setAttribute('aria-hidden', 'true');
+            popup.style.display = 'none';
+        };
+        if (closePopupBtn) closePopupBtn.addEventListener('click', () => this._closeFilterConfigPopup());
+        if (cancelPopupBtn) cancelPopupBtn.addEventListener('click', () => this._closeFilterConfigPopup());
+
+        // When clicking a filter-type-card inside the filters modal, open popup
+        filtersModal.addEventListener('click', (e) => {
+            const card = e.target.closest && e.target.closest('.filter-type-card');
+            if (!card) return;
+            const filterType = card.dataset && card.dataset.filterType;
+            console.debug('[ModalManager] modal click on filter-type-card', { filterType, card, target: e.target });
+            if (!filterType) return;
+            this._openFilterConfigPopup(filterType);
+        });
+
+        // Close popup if clicked outside
+        popup.addEventListener('click', (e) => {
+            if (e.target === popup) this._closeFilterConfigPopup();
+        });
+    }
+
+    /**
+     * Abre o popup de configuração de filtro (reutilizável)
+     * @param {string} filterType
+     * @private
+     */
+    _openFilterConfigPopup(filterType) {
+        const popup = document.getElementById('filterConfigPopup');
+        const popupTitle = document.getElementById('filterConfigPopupTitle');
+        const popupBody = document.getElementById('filterConfigPopupBody');
+        if (!popup || !popupBody) return;
+
+        let mgr = this.app?.advancedFilterManager || window.advancedFilterManager;
+        let mgr = this.app?.advancedFilterManager || window.advancedFilterManager;
+        // Ensure unique values are populated
+        try {
+            const valuesBefore = mgr && typeof mgr.getUniqueValues === 'function' ? (mgr.getUniqueValues(filterType) || []) : [];
+            if ((!valuesBefore || valuesBefore.length === 0) && this.app?.dataStateManager && mgr && typeof mgr.extractUniqueValues === 'function') {
+                const data = this.app.dataStateManager.getFilteredData ? this.app.dataStateManager.getFilteredData() : this.app.dataStateManager.getAllServidores ? this.app.dataStateManager.getAllServidores() : [];
+                mgr.extractUniqueValues(data || []);
+                mgr = this.app?.advancedFilterManager || window.advancedFilterManager || mgr;
+            }
+        } catch (e) { console.warn('[ModalManager] Erro ao tentar popular valores únicos antes de abrir popup', e); }
+
+        let html = '';
+        const values = mgr && typeof mgr.getUniqueValues === 'function' ? (mgr.getUniqueValues(filterType) || []) : [];
+
+        // Fallback UIs for specific filter types
+        const renderServidorSearch = () => {
+            const dataNames = values.length ? values : (this.app?.dataStateManager?.getFilteredData ? (this.app.dataStateManager.getFilteredData() || []).map(s => (s.NOME||s.nome||s.SERVIDOR||s.servidor||'')).filter(Boolean) : []);
+            return `
+                <div class="filter-search">
+                    <input type="search" id="filterServidorSearchInput" placeholder="Buscar servidor..." class="form-control" />
+                    <div id="filterServidorResults" class="filter-search-results" style="margin-top:0.5rem; max-height:200px; overflow:auto;"></div>
+                </div>
+            `;
+        };
+
+        const renderPeriodoForm = () => `
+            <div class="filter-periodo-form">
+                <label>Início</label>
+                <input type="date" id="filterPeriodoInicio" class="form-control" />
+                <label>Fim</label>
+                <input type="date" id="filterPeriodoFim" class="form-control" />
+                <div style="margin-top:0.75rem; display:flex; gap:0.5rem;"><button id="applyPeriodoBtn" class="btn btn-primary">Aplicar</button><button id="clearPeriodoBtn" class="btn btn-outline">Limpar</button></div>
+            </div>
+        `;
+
+        const renderIdadeForm = () => `
+            <div class="filter-idade-form">
+                <label>Idade mínima</label>
+                <input type="number" id="filterIdadeMin" class="form-control" />
+                <label>Idade máxima</label>
+                <input type="number" id="filterIdadeMax" class="form-control" />
+                <div style="margin-top:0.75rem; display:flex; gap:0.5rem;"><button id="applyIdadeBtn" class="btn btn-primary">Aplicar</button><button id="clearIdadeBtn" class="btn btn-outline">Limpar</button></div>
+            </div>
+        `;
+
+        const renderMesesForm = () => `
+            <div class="filter-meses-form">
+                <label>Meses (mínimo)</label>
+                <input type="number" id="filterMesesInput" class="form-control" />
+                <div style="margin-top:0.75rem;"><button id="applyMesesBtn" class="btn btn-primary">Aplicar</button></div>
+            </div>
+        `;
+
+        if (filterType === 'servidor') {
+            html = renderServidorSearch();
+        } else if (filterType === 'periodo') {
+            html = renderPeriodoForm();
+        } else if (filterType === 'idade') {
+            html = renderIdadeForm();
+        } else if (filterType === 'meses') {
+            html = renderMesesForm();
+        } else if (values && values.length > 0) {
+            html = '<div class="filter-options-list">';
+            for (const v of values) {
+                const safe = this.escapeHtml(v);
+                html += `<button type="button" class="btn btn-link filter-option-btn" data-value="${safe}">${safe}</button>`;
+            }
+            html += '</div>';
+        } else {
+            html = '<div class="empty-state"><p>Nenhuma opção disponível</p></div>';
+        }
+        popupBody.innerHTML = html;
+
+        // Attach option handlers
+        const optionButtons = popupBody.querySelectorAll('.filter-option-btn');
+        optionButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const val = e.currentTarget.dataset.value;
+                try {
+                    const mgr = this.app?.advancedFilterManager || window.advancedFilterManager;
+                    if (mgr && typeof mgr.setFilter === 'function') {
+                        mgr.setFilter(filterType, val);
+                    }
+                } catch (err) { console.warn('Erro ao aplicar filtro:', err); }
+                if (typeof this._closeFilterConfigPopup === 'function') this._closeFilterConfigPopup();
+                try { const mgr = this.app?.advancedFilterManager || window.advancedFilterManager; if (mgr && typeof mgr.renderActiveFiltersList === 'function') mgr.renderActiveFiltersList(); } catch(e){}
+            });
+        });
+
+        popup.style.display = 'flex';
+        popup.setAttribute('aria-hidden', 'false');
+        popup.classList.add('active', 'show');
+        setTimeout(() => { popup.focus(); }, 50);
+    }
     /**
      * Mostra um alerta (substitui window.alert)
      * @param {string} message - Mensagem
