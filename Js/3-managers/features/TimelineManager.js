@@ -110,11 +110,19 @@ class TimelineManager {
         // Processar licenças
         // Em licença prêmio, cada SERVIDOR É uma licença (cada linha do CSV)
         let processedCount = 0;
+        let skippedCount = 0;
         servidores.forEach(servidor => {
+            const nomeServidor = servidor.nome || servidor.NOME || servidor.servidor || servidor.SERVIDOR || 'SEM NOME';
+            const isAcacia = nomeServidor.toUpperCase().includes('ACACIA');
+
             // Verificar se tem array de licenças (formato novo)
             if (servidor.licencas && Array.isArray(servidor.licencas) && servidor.licencas.length > 0) {
                 servidor.licencas.forEach(licenca => {
-                    if (!licenca.inicio && !licenca.A_PARTIR) return;
+                    if (!licenca.inicio && !licenca.A_PARTIR) {
+                        if (isAcacia) console.log('[TimelineManager] ACACIA: licença sem data de início', licenca);
+                        skippedCount++;
+                        return;
+                    }
 
                     const inicioRaw = licenca.inicio || licenca.A_PARTIR;
                     const fimRaw = licenca.fim || licenca.TERMINO;
@@ -122,12 +130,33 @@ class TimelineManager {
                     const inicio = typeof inicioRaw === 'string' ? new Date(inicioRaw) : inicioRaw;
                     const fim = fimRaw ? (typeof fimRaw === 'string' ? new Date(fimRaw) : fimRaw) : inicio;
 
+                    if (isAcacia) {
+                        console.log('[TimelineManager] ACACIA: processando licença');
+                        console.log('  - inicioRaw:', inicioRaw);
+                        console.log('  - fimRaw:', fimRaw);
+                        console.log('  - inicio (Date):', inicio);
+                        console.log('  - fim (Date):', fim);
+                        console.log('  - viewType:', viewType);
+                        console.log('  - selectedYear:', selectedYear, 'selectedMonth:', selectedMonth);
+                    }
+
+                    // CRÍTICO: Criar um clone do servidor com informações da licença específica
+                    // para evitar que o Set remova duplicatas quando o mesmo servidor tem múltiplas licenças
+                    const servidorComLicenca = {
+                        ...servidor,
+                        licenseInfo: null, // Será calculado depois
+                        A_PARTIR: inicio,
+                        TERMINO: fim,
+                        inicio: inicio,
+                        fim: fim
+                    };
+
                     if (viewType === 'yearly') {
-                        this._processYearlyLicense(data, inicio, fim, servidor, periodStart, periodEnd);
+                        this._processYearlyLicense(data, inicio, fim, servidorComLicenca, periodStart, periodEnd);
                     } else if (viewType === 'monthly') {
-                        this._processMonthlyLicense(data, inicio, fim, servidor, periodStart, periodEnd, selectedYear);
+                        this._processMonthlyLicense(data, inicio, fim, servidorComLicenca, periodStart, periodEnd, selectedYear);
                     } else if (viewType === 'daily') {
-                        this._processDailyLicense(data, inicio, fim, servidor, selectedYear, selectedMonth);
+                        this._processDailyLicense(data, inicio, fim, servidorComLicenca, selectedYear, selectedMonth);
                     }
                     processedCount++;
                 });
@@ -136,23 +165,49 @@ class TimelineManager {
                 const inicioRaw = servidor.A_PARTIR || servidor.inicio;
                 const fimRaw = servidor.TERMINO || servidor.fim;
 
-                if (!inicioRaw) return;
+                if (!inicioRaw) {
+                    if (isAcacia) console.log('[TimelineManager] ACACIA: servidor sem data de início (formato antigo)');
+                    skippedCount++;
+                    return;
+                }
 
                 const inicio = typeof inicioRaw === 'string' ? new Date(inicioRaw) : inicioRaw;
                 const fim = fimRaw ? (typeof fimRaw === 'string' ? new Date(fimRaw) : fimRaw) : inicio;
 
+                if (isAcacia) {
+                    console.log('[TimelineManager] ACACIA: processando no formato antigo');
+                    console.log('  - inicioRaw:', inicioRaw);
+                    console.log('  - fimRaw:', fimRaw);
+                    console.log('  - inicio (Date):', inicio);
+                    console.log('  - fim (Date):', fim);
+                    console.log('  - viewType:', viewType);
+                    console.log('  - selectedYear:', selectedYear, 'selectedMonth:', selectedMonth);
+                }
+
+                // CRÍTICO: Criar um clone do servidor com informações da licença específica
+                // para evitar que o Set remova duplicatas quando o mesmo servidor tem múltiplas licenças
+                const servidorComLicenca = {
+                    ...servidor,
+                    licenseInfo: null, // Será calculado depois
+                    A_PARTIR: inicio,
+                    TERMINO: fim,
+                    inicio: inicio,
+                    fim: fim
+                };
+
                 if (viewType === 'yearly') {
-                    this._processYearlyLicense(data, inicio, fim, servidor, periodStart, periodEnd);
+                    this._processYearlyLicense(data, inicio, fim, servidorComLicenca, periodStart, periodEnd);
                 } else if (viewType === 'monthly') {
-                    this._processMonthlyLicense(data, inicio, fim, servidor, periodStart, periodEnd, selectedYear);
+                    this._processMonthlyLicense(data, inicio, fim, servidorComLicenca, periodStart, periodEnd, selectedYear);
                 } else if (viewType === 'daily') {
-                    this._processDailyLicense(data, inicio, fim, servidor, selectedYear, selectedMonth);
+                    this._processDailyLicense(data, inicio, fim, servidorComLicenca, selectedYear, selectedMonth);
                 }
                 processedCount++;
             }
         });
 
         console.log('[TimelineManager] Servidores processados:', processedCount);
+        console.log('[TimelineManager] Servidores ignorados (sem data):', skippedCount);
         console.log('[TimelineManager] Data final:', data);
 
         // Converter para arrays ordenados
@@ -225,7 +280,7 @@ class TimelineManager {
                 data[key] = {
                     count: 0,
                     period: {type: 'month', year, month},
-                    servidores: new Set()
+                    servidores: [] // Array para permitir múltiplas licenças do mesmo servidor
                 };
                 current.setMonth(current.getMonth() + 1);
             }
@@ -236,7 +291,7 @@ class TimelineManager {
                 data[key] = {
                     count: 0,
                     period: {type: 'day', date: new Date(selectedYear, selectedMonth, day), day, month: selectedMonth, year: selectedYear},
-                    servidores: new Set()
+                    servidores: [] // Array para permitir múltiplas licenças do mesmo servidor
                 };
             }
         } else if (viewType === 'yearly' && periodStart && periodEnd) {
@@ -248,7 +303,7 @@ class TimelineManager {
                 data[key] = {
                     count: 0,
                     period: {type: 'year', value: year},
-                    servidores: new Set()
+                    servidores: [] // Array para permitir múltiplas licenças do mesmo servidor
                 };
             }
         }
@@ -275,9 +330,10 @@ class TimelineManager {
         for (let year = minYear; year <= maxYear; year++) {
             const key = year.toString();
             if (!data[key]) {
-                data[key] = {count: 0, period: {type: 'year', value: year}, servidores: new Set()};
+                data[key] = {count: 0, period: {type: 'year', value: year}, servidores: []};
             }
-            data[key].servidores.add(servidor.nome || servidor.NOME);
+            // IMPORTANTE: Adicionar o objeto servidor completo (permitindo duplicatas)
+            data[key].servidores.push(servidor);
         }
     }
 
@@ -303,9 +359,10 @@ class TimelineManager {
             }
 
             if (!data[key]) {
-                data[key] = {count: 0, period: {type: 'month', year, month}, servidores: new Set()};
+                data[key] = {count: 0, period: {type: 'month', year, month}, servidores: []};
             }
-            data[key].servidores.add(servidor.nome || servidor.NOME);
+            // IMPORTANTE: Adicionar o objeto servidor completo (permitindo duplicatas)
+            data[key].servidores.push(servidor);
             current.setMonth(current.getMonth() + 1);
         }
     }
@@ -327,7 +384,8 @@ class TimelineManager {
             if (year === selectedYear && month === selectedMonth) {
                 const key = day.toString();
                 if (data[key]) {
-                    data[key].servidores.add(servidor.nome || servidor.NOME);
+                    // IMPORTANTE: Adicionar o objeto servidor completo (permitindo duplicatas)
+                    data[key].servidores.push(servidor);
                 }
             }
 
@@ -358,7 +416,7 @@ class TimelineManager {
 
         sortedKeys.forEach(key => {
             const item = data[key];
-            item.count = item.servidores.size;
+            item.count = item.servidores.length; // Array em vez de Set
 
             // Label
             if (viewType === 'daily') {
@@ -372,7 +430,7 @@ class TimelineManager {
 
             values.push(item.count);
             periods.push(item.period);
-            servidoresData.push(Array.from(item.servidores));
+            servidoresData.push(item.servidores); // Já é array, não precisa converter
         });
 
         return {labels, data: values, periods, servidoresData};
@@ -433,9 +491,13 @@ class TimelineManager {
                 responsive: true,
                 maintainAspectRatio: false,
                 onClick: (_event, elements) => {
+                    console.log('[TimelineManager] onClick disparado. Elements:', elements);
                     if (elements.length > 0) {
                         const dataIndex = elements[0].index;
+                        console.log('[TimelineManager] Clicado no índice:', dataIndex);
                         this._showPeriodDetails(dataIndex);
+                    } else {
+                        console.log('[TimelineManager] Clique fora dos pontos do gráfico');
                     }
                 },
                 plugins: {
@@ -528,6 +590,7 @@ class TimelineManager {
 
     /**
      * Mostra modal com lista de servidores do período clicado
+     * Reutiliza o modal do calendário (calendarDayModal)
      * @private
      * @param {number} dataIndex - Índice do ponto clicado no gráfico
      */
@@ -547,113 +610,191 @@ class TimelineManager {
         }
 
         console.log('[TimelineManager] Mostrando detalhes do período:', label, 'Servidores:', servidores.length);
+        console.log('[TimelineManager] Period:', period);
+        console.log('[TimelineManager] currentData:', this.currentData);
+        console.log('[TimelineManager] Exemplo de servidor:', servidores[0]);
+        console.log('[TimelineManager] Todas as propriedades do servidor:', Object.keys(servidores[0]));
 
-        // Atualizar título do modal
-        const modalTitle = document.getElementById('timelinePeriodTitle');
-        if (modalTitle) {
-            let titleText = 'Licenças do Período';
-            if (period.type === 'day') {
-                titleText = new Date(period.date).toLocaleDateString('pt-BR', {day: '2-digit', month: 'long', year: 'numeric'});
-            } else if (period.type === 'month') {
-                const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-                titleText = `${monthNames[period.month]} de ${period.year}`;
-            } else if (period.type === 'year') {
-                titleText = `Ano de ${period.value}`;
-            }
-            modalTitle.textContent = titleText;
-        }
+        // Calcular licenseInfo para cada servidor (período de licença ativo)
+        servidores.forEach(servidor => {
+            if (servidor.licenseInfo) return; // Já tem
 
-        // Popular lista de servidores
-        const listContainer = document.getElementById('timelineServersList');
-        if (!listContainer) {
-            console.error('[TimelineManager] Elemento #timelineServersList não encontrado');
-            return;
-        }
+            // Tentar encontrar a licença ativa para este período
+            const inicio = servidor.A_PARTIR || servidor.inicio;
+            const fim = servidor.TERMINO || servidor.fim;
 
-        // Criar HTML dos servidores
-        const servidoresHtml = servidores.map((servidor, index) => {
-            const nome = servidor.nome || servidor.NOME || servidor.servidor || servidor.SERVIDOR || 'Nome não informado';
-            const cargo = servidor.cargo || servidor.CARGO || '';
-            const lotacao = servidor.lotacao || servidor.LOTACAO || servidor.lotação || '';
+            if (inicio) {
+                const inicioDate = typeof inicio === 'string' ? new Date(inicio) : inicio;
+                const fimDate = fim ? (typeof fim === 'string' ? new Date(fim) : fim) : inicioDate;
 
-            return `
-                <div class="servidor-item" data-index="${index}"
-                     style="cursor: pointer; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.5rem; transition: all 0.2s;"
-                     onmouseover="this.style.backgroundColor='var(--bg-hover)'; this.style.borderColor='var(--primary)';"
-                     onmouseout="this.style.backgroundColor=''; this.style.borderColor='var(--border)';">
-                    <div style="display: flex; align-items: center; gap: 0.75rem;">
-                        <div style="flex: 1;">
-                            <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">${nome}</div>
-                            ${cargo ? `<div style="font-size: 0.875rem; color: var(--text-secondary);">${cargo}</div>` : ''}
-                            ${lotacao ? `<div style="font-size: 0.875rem; color: var(--text-secondary);">${lotacao}</div>` : ''}
-                        </div>
-                        <i class="bi bi-chevron-right" style="color: var(--text-secondary);"></i>
-                    </div>
-                </div>
-            `;
-        }).join('');
+                const inicioStr = inicioDate.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
+                const fimStr = fimDate.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
 
-        listContainer.innerHTML = `
-            <div style="margin-bottom: 1rem;">
-                <div style="font-size: 0.875rem; color: var(--text-secondary);">
-                    <strong>${servidores.length}</strong> ${servidores.length === 1 ? 'servidor' : 'servidores'} em licença neste período
-                </div>
-            </div>
-            ${servidoresHtml}
-        `;
-
-        // Adicionar event listener para abrir detalhes do servidor
-        listContainer.addEventListener('click', (e) => {
-            const item = e.target.closest('.servidor-item');
-            if (!item) return;
-
-            const index = parseInt(item.getAttribute('data-index'), 10);
-            const servidor = servidores[index];
-            const nomeToShow = (servidor.nome || servidor.NOME || servidor.servidor || servidor.SERVIDOR || '').trim();
-
-            console.log('[TimelineManager] Abrindo detalhes do servidor:', nomeToShow);
-
-            // Tentar abrir via ModalManager
-            if (this.app && this.app.modalManager && typeof this.app.modalManager.showServidorDetails === 'function') {
-                this.app.modalManager.showServidorDetails(nomeToShow);
-            } else if (window.ModalManager && typeof window.ModalManager.showServidorDetails === 'function') {
-                window.ModalManager.showServidorDetails(nomeToShow);
-            } else {
-                console.warn('[TimelineManager] ModalManager não disponível para mostrar detalhes');
+                servidor.licenseInfo = `${inicioStr} até ${fimStr}`;
             }
         });
 
-        // Abrir modal
-        const modal = document.getElementById('timelinePeriodModal');
-        if (modal) {
-            modal.style.display = 'flex';
-
-            // Adicionar listener para fechar
-            const closeBtn = document.getElementById('timelinePeriodCloseBtn');
-            const backdrop = modal.querySelector('.modal-backdrop');
-
-            const closeHandler = () => {
-                modal.style.display = 'none';
-            };
-
-            if (closeBtn) {
-                closeBtn.removeEventListener('click', closeHandler);
-                closeBtn.addEventListener('click', closeHandler);
-            }
-            if (backdrop) {
-                backdrop.removeEventListener('click', closeHandler);
-                backdrop.addEventListener('click', closeHandler);
-            }
-
-            // Fechar com ESC
-            const escHandler = (e) => {
-                if (e.key === 'Escape' && modal.style.display === 'flex') {
-                    modal.style.display = 'none';
-                    document.removeEventListener('keydown', escHandler);
-                }
-            };
-            document.addEventListener('keydown', escHandler);
+        // Formatar título baseado no tipo de período
+        let titleText = 'Licenças do Período';
+        if (period.type === 'day') {
+            titleText = new Date(period.date).toLocaleDateString('pt-BR', {day: '2-digit', month: 'long', year: 'numeric'});
+        } else if (period.type === 'month') {
+            const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            titleText = `${monthNames[period.month]} de ${period.year}`;
+        } else if (period.type === 'year') {
+            titleText = `Ano de ${period.value}`;
         }
+
+        console.log('[TimelineManager] Título do modal:', titleText);
+
+        // Função para criar HTML de cada servidor (EXATAMENTE igual ao CalendarManager)
+        const createItemHtml = (servidor, index) => {
+            const nome = servidor.nome || servidor.NOME || servidor.servidor || servidor.SERVIDOR || 'Nome não informado';
+            const cargo = servidor.cargo || servidor.CARGO || '';
+            const lotacao = servidor.lotacao || servidor.LOTACAO || servidor.lotação || '';
+            const licenseInfo = servidor.licenseInfo || '';
+
+            // Gerar iniciais para o avatar
+            const nameParts = nome.trim().split(' ');
+            const initials = nameParts.length >= 2
+                ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+                : nome.substring(0, 2).toUpperCase();
+
+            return `
+                <div class="servidor-item" data-index="${index}">
+                    <div class="server-avatar">${initials}</div>
+                    <div class="servidor-info">
+                        <strong class="servidor-nome">${nome}</strong>
+                        <div class="servidor-meta">
+                            <span class="meta-item">
+                                <i class="bi bi-briefcase"></i>
+                                <span>${cargo || 'Cargo não informado'}</span>
+                            </span>
+                        </div>
+                        ${licenseInfo ? `
+                            <div class="servidor-licenca">
+                                <i class="bi bi-calendar-check"></i>
+                                <span>${licenseInfo}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="servidor-details">
+                        <button class="btn-icon btn-eye" data-index="${index}" title="Ver detalhes">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        };
+
+        // Usar modal do calendário (reutilizar)
+        const legacyModal = document.getElementById('calendarDayModal');
+        console.log('[TimelineManager] Modal calendarDayModal:', legacyModal);
+        if (!legacyModal) {
+            console.error('[TimelineManager] Modal calendarDayModal não encontrado');
+            return;
+        }
+
+        // Atualizar título
+        const modalTitleEl = document.getElementById('calendarDayTitle');
+        console.log('[TimelineManager] Modal title element:', modalTitleEl);
+        if (modalTitleEl) {
+            modalTitleEl.textContent = titleText;
+        }
+
+        // Atualizar conteúdo
+        const modalBodyEl = document.getElementById('calendarServersList');
+        console.log('[TimelineManager] Modal body element:', modalBodyEl);
+        if (modalBodyEl) {
+            const sectionHtml = `
+                <div class="modal-section">
+                    <div class="section-header">
+                        <i class="bi bi-calendar-check section-icon"></i>
+                        <h4 class="section-title">Licenças</h4>
+                        <span class="section-badge success">${servidores.length}</span>
+                    </div>
+                    <div class="section-content" id="licencasList"></div>
+                </div>
+            `;
+
+            modalBodyEl.innerHTML = sectionHtml;
+
+            const licencasList = document.getElementById('licencasList');
+            if (licencasList) {
+                const htmlList = servidores.map((s, i) => createItemHtml(s, i)).join('');
+                console.log('[TimelineManager] HTML dos primeiros 2 servidores:', servidores.slice(0, 2).map((s, i) => createItemHtml(s, i)));
+
+                // Popular lista usando a mesma estrutura do CalendarManager
+                licencasList.innerHTML = `<div class="servidores-list">${htmlList}</div>`;
+
+                // Delegated click handler
+                const wrapper = licencasList.querySelector('.servidores-list');
+                if (wrapper) {
+                    if (wrapper._timelineClickHandler) {
+                        wrapper.removeEventListener('click', wrapper._timelineClickHandler);
+                    }
+
+                    wrapper._representantes = servidores;
+                    wrapper._timelineClickHandler = (ev) => {
+                        // Click no botão "olho" ou no card inteiro
+                        const eye = ev.target.closest('.btn-eye');
+                        const card = ev.target.closest('.servidor-item');
+
+                        if (eye || card) {
+                            ev.stopPropagation();
+                            const idx = eye ? parseInt(eye.getAttribute('data-index'), 10) : parseInt(card.getAttribute('data-index'), 10);
+                            const representante = wrapper._representantes[idx];
+                            if (!representante) return;
+
+                            const nomeToShow = (representante.nome || representante.NOME || representante.servidor || representante.SERVIDOR || '').trim();
+                            console.log('[TimelineManager] Abrindo detalhes do servidor:', nomeToShow);
+
+                            // Abrir via ModalManager
+                            if (this.app && this.app.modalManager && typeof this.app.modalManager.showServidorDetails === 'function') {
+                                this.app.modalManager.showServidorDetails(nomeToShow);
+                            } else if (window.ModalManager && typeof window.ModalManager.showServidorDetails === 'function') {
+                                window.ModalManager.showServidorDetails(nomeToShow);
+                            }
+                        }
+                    };
+
+                    wrapper.addEventListener('click', wrapper._timelineClickHandler);
+                }
+            }
+        }
+
+        // IMPORTANTE: Apenas abrir o modal (igual ao CalendarManager faz)
+        // NÃO fechar antes, pois isso causa problemas com os event listeners
+        console.log('[TimelineManager] Tentando abrir modal...');
+        console.log('[TimelineManager] this.app:', this.app);
+        console.log('[TimelineManager] this.app.modalManager:', this.app ? this.app.modalManager : null);
+
+        if (this.app && this.app.modalManager && typeof this.app.modalManager.open === 'function') {
+            console.log('[TimelineManager] Abrindo modal via ModalManager.open()');
+            this.app.modalManager.open('calendarDayModal');
+
+            // Verificar estado após abrir
+            setTimeout(() => {
+                console.log('[TimelineManager] Estado do modal após open():');
+                console.log('  - display:', legacyModal.style.display);
+                console.log('  - classList:', legacyModal.classList.toString());
+                console.log('  - aria-hidden:', legacyModal.getAttribute('aria-hidden'));
+                console.log('  - offsetWidth:', legacyModal.offsetWidth);
+                console.log('  - offsetHeight:', legacyModal.offsetHeight);
+                console.log('  - Posição na tela:', legacyModal.getBoundingClientRect());
+            }, 100);
+
+            // Scroll para o topo do modal
+            const modalContent = legacyModal.querySelector('.modal-content');
+            if (modalContent) {
+                modalContent.scrollTop = 0;
+            }
+        } else {
+            console.log('[TimelineManager] Abrindo via style.display direto');
+            legacyModal.style.display = 'flex';
+        }
+
+        console.log('[TimelineManager] Modal display após abertura:', legacyModal.style.display);
     }
 
     /**

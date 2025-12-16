@@ -433,26 +433,6 @@
                                 <div id="yearlyHeatmap" class="heatmap-container"></div>
                             </div>
                         </div>
-
-                        <!-- Calendar Day Details Modal -->
-                        <div class="modal" id="calendarDayModal" style="display: none;">
-                            <div class="modal-backdrop"></div>
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <div class="modal-title-section">
-                                        <h3 id="calendarDayTitle">Licenças do Dia</h3>
-                                    </div>
-                                    <button class="btn-close" id="calendarDayCloseBtn">
-                                        <i class="bi bi-x"></i>
-                                    </button>
-                                </div>
-                                <div class="modal-body">
-                                    <div class="modal-sections" id="calendarServersList">
-                                        <!-- Conteúdo gerado dinamicamente -->
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
                 <!-- Fim da Página de Calendário -->
@@ -1397,6 +1377,30 @@
     </div>
 
     <!-- Script de inicialização de modais (deve ser o primeiro) -->
+    <!-- ============================================================ -->
+    <!-- MODAIS GLOBAIS (fora das páginas para funcionar em todas)  -->
+    <!-- ============================================================ -->
+
+    <!-- Calendar Day Details Modal (usado pelo Calendar E Timeline) -->
+    <div class="modal" id="calendarDayModal" style="display: none;">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title-section">
+                    <h3 id="calendarDayTitle">Licenças do Dia</h3>
+                </div>
+                <button class="btn-close" id="calendarDayCloseBtn">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-sections" id="calendarServersList">
+                    <!-- Conteúdo gerado dinamicamente -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Inicializar aria-hidden em todos os modais ao carregar
         document.addEventListener('DOMContentLoaded', () => {

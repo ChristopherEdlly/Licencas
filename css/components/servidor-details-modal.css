@@ -3,6 +3,11 @@
    Arquivo isolado - usa apenas variáveis globais do tema
    ============================================================================ */
 
+/* Z-index elevado para aparecer acima de outros modais (como calendarDayModal) */
+#detailsModal {
+    z-index: 10100 !important;
+}
+
 /* ==================== CONTAINER DO MODAL ==================== */
 #detailsModal .modal-content {
     max-width: 720px;
