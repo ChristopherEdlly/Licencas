@@ -307,6 +307,15 @@ class App {
             console.log('ℹ️ AdvancedFilterManager não disponível');
         }
 
+        // AdvancedFiltersBuilder (UI para construção visual de filtros)
+        if (typeof AdvancedFiltersBuilder !== 'undefined') {
+            this.advancedFiltersBuilder = new AdvancedFiltersBuilder(this);
+            window.advancedFiltersBuilder = this.advancedFiltersBuilder;
+            console.log('✅ AdvancedFiltersBuilder inicializado');
+        } else {
+            console.log('ℹ️ AdvancedFiltersBuilder não disponível');
+        }
+
         // CalendarManager
         if (typeof CalendarManager !== 'undefined') {
             this.calendarManager = new CalendarManager(this);
