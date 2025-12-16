@@ -71,7 +71,9 @@ class ModalManager {
      * @param {Object} options - Opções de abertura
      */
     open(modalId, options = {}) {
-        const modal = document.getElementById(modalId);
+        let modal = null;
+        if (typeof modalId === 'string') modal = document.getElementById(modalId);
+        else if (modalId instanceof HTMLElement) modal = modalId;
 
         if (!modal) {
             console.warn(`Modal ${modalId} não encontrado`);
@@ -120,15 +122,19 @@ class ModalManager {
      * @param {Object} options - Opções de fechamento
      */
     close(modalId, options = {}) {
-        const modal = document.getElementById(modalId);
+
+        let modal = null;
+        let resolvedId = modalId;
+        if (typeof modalId === 'string') modal = document.getElementById(modalId);
+        else if (modalId instanceof HTMLElement) { modal = modalId; resolvedId = modal.id || resolvedId; }
 
         if (!modal) {
-            console.warn(`Modal ${modalId} não encontrado`);
+            console.warn(`Modal ${resolvedId} não encontrado`);
             return;
         }
 
         // Remover do stack
-        this.modalStack = this.modalStack.filter(id => id !== modalId);
+        this.modalStack = this.modalStack.filter(id => id !== resolvedId);
 
         // Animação de saída
         modal.classList.remove('show');
@@ -157,10 +163,10 @@ class ModalManager {
 
         // Atualizar UIStateManager
         if (this.app?.uiStateManager) {
-            this.app.uiStateManager.closeModal(modalId);
+            this.app.uiStateManager.closeModal(resolvedId);
         }
 
-        console.log(`📋 Modal fechado: ${modalId}`);
+        console.log(`📋 Modal fechado: ${resolvedId}`);
     }
 
     /**
@@ -250,7 +256,8 @@ class ModalManager {
             if (closeBtn) {
                 // Remover listeners antigos para evitar duplicação (simple clone hack)
                 const newBtn = closeBtn.cloneNode(true);
-                closeBtn.parentNode.replaceChild(newBtn, closeBtn);
+                const parent = closeBtn.parentNode;
+                if (parent) parent.replaceChild(newBtn, closeBtn);
 
                 newBtn.addEventListener('click', () => {
                     this.close(modalId);
@@ -262,7 +269,8 @@ class ModalManager {
             if (backdrop) {
                 // Remover listeners antigos
                 const newBackdrop = backdrop.cloneNode(true);
-                backdrop.parentNode.replaceChild(newBackdrop, backdrop);
+                const parent = backdrop.parentNode;
+                if (parent) parent.replaceChild(newBackdrop, backdrop);
 
                 newBackdrop.addEventListener('click', (e) => {
                     if (e.target === newBackdrop) {

@@ -125,20 +125,20 @@ class CalendarPage {
      */
     _setupEventListeners() {
         // Listener para mudanças no DataStateManager (Observer Pattern)
-        if (this.dataStateManager) {
+        if (this.dataStateManager && typeof this.dataStateManager.subscribe === 'function') {
             const dataChangeHandler = () => {
                 if (this.isActive) {
                     this.render();
                 }
             };
 
-            document.addEventListener('dataStateChanged', dataChangeHandler);
+            // Subscribe to both all-data and filtered-data changes
+            const unsubFiltered = this.dataStateManager.subscribe('filtered-data-changed', dataChangeHandler);
+            const unsubAll = this.dataStateManager.subscribe('all-data-changed', dataChangeHandler);
 
-            this.eventListeners.push({
-                element: document,
-                event: 'dataStateChanged',
-                handler: dataChangeHandler
-            });
+            // Store unsubscribe functions for cleanup
+            this.eventListeners.push({ element: this.dataStateManager, event: 'filtered-data-changed', handler: unsubFiltered });
+            this.eventListeners.push({ element: this.dataStateManager, event: 'all-data-changed', handler: unsubAll });
         }
 
         // Listener para mudanças nos filtros
@@ -462,7 +462,17 @@ class CalendarPage {
 
         // Remover todos os event listeners registrados
         this.eventListeners.forEach(({ element, event, handler }) => {
-            element.removeEventListener(event, handler);
+            try {
+                // If the element is the DataStateManager, handler might be an unsubscribe function
+                if (element === this.dataStateManager && typeof handler === 'function') {
+                    // If it's an unsubscribe function, calling it will unregister
+                    try { handler(); } catch (err) { /* ignore */ }
+                } else if (element && typeof element.removeEventListener === 'function') {
+                    element.removeEventListener(event, handler);
+                }
+            } catch (err) {
+                // ignore any error during cleanup
+            }
         });
 
         this.eventListeners = [];

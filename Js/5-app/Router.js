@@ -59,6 +59,14 @@ class Router {
     init(eventBus = null) {
         this._eventBus = eventBus;
 
+        // Limpar estados `active` pré-existentes no DOM (permitir que Router controle a ativação)
+        try {
+            document.querySelectorAll('.page-content.active').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-link.active').forEach(el => el.classList.remove('active'));
+        } catch (err) {
+            // ignore if DOM not ready
+        }
+
         // Escutar mudanças no hash
         window.addEventListener('hashchange', () => this._handleHashChange());
 
@@ -196,6 +204,22 @@ class Router {
         // Mostrar nova página
         if (this._currentController && typeof this._currentController.show === 'function') {
             this._currentController.show(params);
+        }
+
+        // Atualizar link ativo na sidebar (se existir)
+        try {
+            const page = targetPath === '/' ? 'home' : targetPath.replace(/^\//, '').split('/')[0];
+            document.querySelectorAll('.nav-link').forEach(link => {
+                if (link.dataset && link.dataset.page === page) {
+                    link.classList.add('active');
+                    link.setAttribute('aria-current', 'page');
+                } else {
+                    link.classList.remove('active');
+                    link.removeAttribute('aria-current');
+                }
+            });
+        } catch (err) {
+            // ignore
         }
 
         // Emitir evento APÓS a mudança

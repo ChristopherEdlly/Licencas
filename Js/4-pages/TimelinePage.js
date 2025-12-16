@@ -87,6 +87,9 @@ class TimelinePage {
         // 4. Setup de controles (modo de visualização)
         this._setupViewControls();
 
+        // 5. Inicializar custom datepickers
+        this._initDatePickers();
+
         this.isInitialized = true;
         console.log('✅ TimelinePage inicializado');
     }
@@ -357,6 +360,71 @@ class TimelinePage {
     }
 
     /**
+     * Inicializa custom datepickers para os controles de timeline
+     * @private
+     */
+    _initDatePickers() {
+        // Verificar se CustomDatePicker está disponível
+        if (typeof CustomDatePicker === 'undefined') {
+            console.warn('⚠️ CustomDatePicker não disponível - usando inputs nativos');
+            return;
+        }
+
+        // Datepicker para visualização diária (escolher mês/ano)
+        if (this.elements.timelineDailyMonth) {
+            const today = new Date();
+            const yearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            this.elements.timelineDailyMonth.value = yearMonth;
+
+            this.dailyPicker = new CustomDatePicker('timelineDailyMonth', {
+                type: 'month',
+                onSelect: () => {
+                    console.log('[TimelinePage] Data diária selecionada');
+                    // O evento 'change' já está configurado em _setupViewControls
+                    // Disparar manualmente o evento para garantir atualização
+                    const event = new Event('change', { bubbles: true });
+                    this.elements.timelineDailyMonth.dispatchEvent(event);
+                }
+            });
+        }
+
+        // Datepicker para período mensal - início
+        if (this.elements.timelinePeriodStartMonth) {
+            const today = new Date();
+            const yearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            this.elements.timelinePeriodStartMonth.value = yearMonth;
+
+            this.monthlyStartPicker = new CustomDatePicker('timelinePeriodStartMonth', {
+                type: 'month',
+                onSelect: () => {
+                    console.log('[TimelinePage] Data mensal início selecionada');
+                    const event = new Event('change', { bubbles: true });
+                    this.elements.timelinePeriodStartMonth.dispatchEvent(event);
+                }
+            });
+        }
+
+        // Datepicker para período mensal - fim
+        if (this.elements.timelinePeriodEndMonth) {
+            const today = new Date();
+            const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0); // último dia do mês
+            const yearMonth = `${endDate.getFullYear()}-${String(endDate.getMonth() + 2).padStart(2, '0')}`;
+            this.elements.timelinePeriodEndMonth.value = yearMonth;
+
+            this.monthlyEndPicker = new CustomDatePicker('timelinePeriodEndMonth', {
+                type: 'month',
+                onSelect: () => {
+                    console.log('[TimelinePage] Data mensal fim selecionada');
+                    const event = new Event('change', { bubbles: true });
+                    this.elements.timelinePeriodEndMonth.dispatchEvent(event);
+                }
+            });
+        }
+
+        console.log('✅ Custom datepickers inicializados');
+    }
+
+    /**
      * Renderiza a página com os dados atuais
      * Chamado quando a página é ativada ou quando dados mudam
      */
@@ -402,18 +470,13 @@ class TimelinePage {
             return;
         }
 
-        // Preparar configuração baseada no modo atual
-        const config = {
-            view: this.currentView,
-            period: this._getCurrentPeriod()
-        };
+        // Inicializar se necessário
+        if (!this.timelineManager.chartCanvas) {
+            this.timelineManager.init(this.elements.timelineChart);
+        }
 
-        // Delegar renderização para o TimelineManager
-        this.timelineManager.renderTimeline(
-            this.elements.timelineChart,
-            servidores,
-            config
-        );
+        // Renderizar com dados filtrados
+        this.timelineManager.render(servidores);
     }
 
     /**
@@ -563,6 +626,20 @@ class TimelinePage {
      */
     destroy() {
         console.log('🧹 Destruindo TimelinePage...');
+
+        // Destruir custom datepickers
+        if (this.dailyPicker && typeof this.dailyPicker.destroy === 'function') {
+            this.dailyPicker.destroy();
+            this.dailyPicker = null;
+        }
+        if (this.monthlyStartPicker && typeof this.monthlyStartPicker.destroy === 'function') {
+            this.monthlyStartPicker.destroy();
+            this.monthlyStartPicker = null;
+        }
+        if (this.monthlyEndPicker && typeof this.monthlyEndPicker.destroy === 'function') {
+            this.monthlyEndPicker.destroy();
+            this.monthlyEndPicker = null;
+        }
 
         // Remover todos os event listeners registrados
         this.eventListeners.forEach(({ element, event, handler }) => {

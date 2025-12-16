@@ -1,754 +1,677 @@
 /**
- * TimelineManager - Gerenciamento de timeline de licenças
+ * TimelineManager - Gerenciamento de gráfico de timeline de licenças
  *
- * Responsabilidades:
- * - Visualização temporal de licenças
- * - Timeline horizontal/vertical
- * - Agrupamento por período (dia/semana/mês/ano)
- * - Detecção de sobreposições/conflitos
- * - Zoom e navegação temporal
- *
- * @module 3-managers/features/TimelineManager
+ * Baseado no dashboard.js antigo (createTimelineChart, getTimelineData)
+ * Usa Chart.js para renderizar gráfico de linha
+ * Suporta 3 modos: daily, monthly, yearly
  */
 
 class TimelineManager {
-    /**
-     * Construtor
-     * @param {Object} app - Referência à aplicação
-     */
     constructor(app) {
         this.app = app;
 
-        // Estado da timeline
-        this.viewMode = 'month'; // 'day', 'week', 'month', 'year'
-        this.currentDate = new Date();
+        // Referência ao chart
+        this.chart = null;
+        this.chartCanvas = null;
 
-        // Container
-        this.container = null;
-
-        // Dados processados
-        this.timelineData = [];
-
-        // Cores por urgência
-        this.urgencyColors = {
-            critica: '#dc3545',
-            alta: '#fd7e14',
-            moderada: '#ffc107',
-            baixa: '#28a745',
-            null: '#6c757d'
-        };
+        // Dados atuais
+        this.currentData = null;
+        this.currentStats = null;
 
         console.log('✅ TimelineManager criado');
     }
 
-    // ==================== INICIALIZAÇÃO ====================
-
     /**
-     * Inicializa timeline em container
-     * @param {HTMLElement|string} container - Container ou ID
+     * Inicializa o gráfico de timeline
+     * @param {HTMLCanvasElement|string} canvas - Canvas ou ID do canvas
      */
-    init(container) {
-        if (typeof container === 'string') {
-            this.container = document.getElementById(container);
+    init(canvas) {
+        if (typeof canvas === 'string') {
+            this.chartCanvas = document.getElementById(canvas);
         } else {
-            this.container = container;
+            this.chartCanvas = canvas;
         }
 
-        if (!this.container) {
-            console.error('Container da timeline não encontrado');
+        if (!this.chartCanvas) {
+            console.error('[TimelineManager] Canvas não encontrado');
             return;
         }
 
-        this.render();
-        console.log('📊 Timeline inicializada');
+        console.log('[TimelineManager] Inicializado com canvas:', this.chartCanvas.id);
     }
 
-    // ==================== CARREGAMENTO DE DADOS ====================
+    /**
+     * Renderiza o gráfico com os dados dos servidores
+     * @param {Array} servidores - Dados filtrados dos servidores
+     */
+    render(servidores) {
+        if (!this.chartCanvas) {
+            console.warn('[TimelineManager] Canvas não inicializado');
+            return;
+        }
+
+        if (!servidores || servidores.length === 0) {
+            console.warn('[TimelineManager] Nenhum servidor fornecido');
+            this._renderEmptyState();
+            return;
+        }
+
+        console.log('[TimelineManager] Renderizando com', servidores.length, 'servidores');
+        console.log('[TimelineManager] Exemplo de servidor:', servidores[0]);
+
+        // Destruir gráfico existente
+        if (this.chart) {
+            this.chart.destroy();
+            this.chart = null;
+        }
+
+        // Obter dados processados
+        const timelineData = this._getTimelineData(servidores);
+
+        if (!timelineData || !timelineData.labels || timelineData.labels.length === 0) {
+            this._renderEmptyState();
+            return;
+        }
+
+        // Salvar stats
+        this.currentStats = this._calculateStats(timelineData, servidores);
+
+        // Criar gráfico
+        this._createChart(timelineData);
+
+        console.log('[TimelineManager] Gráfico renderizado:', {
+            pontos: timelineData.labels.length,
+            maxValue: Math.max(...timelineData.data)
+        });
+    }
 
     /**
-     * Carrega dados de servidores
-     * @param {Array<Object>} servidores - Dados dos servidores
+     * Processa dados dos servidores para formato do gráfico
+     * @private
+     * @param {Array} servidores - Servidores filtrados
+     * @returns {Object} Dados formatados {labels, data, periods, servidoresData}
      */
-    loadData(servidores) {
-        if (!servidores || !Array.isArray(servidores)) {
-            console.warn('TimelineManager: servidores invalido/vazio, carregando vazio', servidores);
-            this.timelineData = [];
-            this.render(); // Ensure clear render
-            return;
+    _getTimelineData(servidores) {
+        const viewType = this._getViewType();
+        const data = {};
+
+        console.log('[TimelineManager] ViewType:', viewType);
+
+        // Obter período selecionado
+        const {selectedYear, selectedMonth, periodStart, periodEnd} = this._getSelectedPeriod(viewType);
+
+        console.log('[TimelineManager] Período selecionado:', {selectedYear, selectedMonth, periodStart, periodEnd});
+
+        // Criar esqueleto de períodos
+        this._createPeriodSkeleton(data, viewType, selectedYear, selectedMonth, periodStart, periodEnd);
+
+        console.log('[TimelineManager] Períodos criados:', Object.keys(data).length);
+
+        // Processar licenças
+        // Em licença prêmio, cada SERVIDOR É uma licença (cada linha do CSV)
+        let processedCount = 0;
+        servidores.forEach(servidor => {
+            // Verificar se tem array de licenças (formato novo)
+            if (servidor.licencas && Array.isArray(servidor.licencas) && servidor.licencas.length > 0) {
+                servidor.licencas.forEach(licenca => {
+                    if (!licenca.inicio && !licenca.A_PARTIR) return;
+
+                    const inicioRaw = licenca.inicio || licenca.A_PARTIR;
+                    const fimRaw = licenca.fim || licenca.TERMINO;
+
+                    const inicio = typeof inicioRaw === 'string' ? new Date(inicioRaw) : inicioRaw;
+                    const fim = fimRaw ? (typeof fimRaw === 'string' ? new Date(fimRaw) : fimRaw) : inicio;
+
+                    if (viewType === 'yearly') {
+                        this._processYearlyLicense(data, inicio, fim, servidor, periodStart, periodEnd);
+                    } else if (viewType === 'monthly') {
+                        this._processMonthlyLicense(data, inicio, fim, servidor, periodStart, periodEnd, selectedYear);
+                    } else if (viewType === 'daily') {
+                        this._processDailyLicense(data, inicio, fim, servidor, selectedYear, selectedMonth);
+                    }
+                    processedCount++;
+                });
+            } else {
+                // Formato antigo: cada servidor É uma licença (linha do CSV)
+                const inicioRaw = servidor.A_PARTIR || servidor.inicio;
+                const fimRaw = servidor.TERMINO || servidor.fim;
+
+                if (!inicioRaw) return;
+
+                const inicio = typeof inicioRaw === 'string' ? new Date(inicioRaw) : inicioRaw;
+                const fim = fimRaw ? (typeof fimRaw === 'string' ? new Date(fimRaw) : fimRaw) : inicio;
+
+                if (viewType === 'yearly') {
+                    this._processYearlyLicense(data, inicio, fim, servidor, periodStart, periodEnd);
+                } else if (viewType === 'monthly') {
+                    this._processMonthlyLicense(data, inicio, fim, servidor, periodStart, periodEnd, selectedYear);
+                } else if (viewType === 'daily') {
+                    this._processDailyLicense(data, inicio, fim, servidor, selectedYear, selectedMonth);
+                }
+                processedCount++;
+            }
+        });
+
+        console.log('[TimelineManager] Servidores processados:', processedCount);
+        console.log('[TimelineManager] Data final:', data);
+
+        // Converter para arrays ordenados
+        return this._convertToArrays(data, viewType);
+    }
+
+    /**
+     * Obtém tipo de visualização selecionado
+     * @private
+     */
+    _getViewType() {
+        const select = document.getElementById('timelineView');
+        return select ? select.value : 'monthly';
+    }
+
+    /**
+     * Obtém período selecionado pelos controles
+     * @private
+     */
+    _getSelectedPeriod(viewType) {
+        let selectedYear, selectedMonth, periodStart, periodEnd;
+
+        if (viewType === 'daily') {
+            const dailyInput = document.getElementById('timelineDailyMonth');
+            if (dailyInput && dailyInput.value) {
+                const [year, month] = dailyInput.value.split('-').map(Number);
+                selectedYear = year;
+                selectedMonth = month - 1;
+            } else {
+                const today = new Date();
+                selectedYear = today.getFullYear();
+                selectedMonth = today.getMonth();
+            }
+        } else if (viewType === 'monthly') {
+            const startInput = document.getElementById('timelinePeriodStartMonth');
+            const endInput = document.getElementById('timelinePeriodEndMonth');
+
+            if (startInput && startInput.value && endInput && endInput.value) {
+                const [startYear, startMonth] = startInput.value.split('-').map(Number);
+                const [endYear, endMonth] = endInput.value.split('-').map(Number);
+                periodStart = new Date(startYear, startMonth - 1, 1);
+                periodEnd = new Date(endYear, endMonth - 1, 28);
+            }
+        } else if (viewType === 'yearly') {
+            const startInput = document.getElementById('timelinePeriodStartYear');
+            const endInput = document.getElementById('timelinePeriodEndYear');
+
+            if (startInput && startInput.value && endInput && endInput.value) {
+                periodStart = new Date(parseInt(startInput.value), 0, 1);
+                periodEnd = new Date(parseInt(endInput.value), 11, 31);
+            }
         }
 
-        if (servidores.length === 0) {
-            this.timelineData = [];
-            this.render();
-            return;
-        }
+        return {selectedYear, selectedMonth, periodStart, periodEnd};
+    }
 
-        // Processar dados para timeline
-        this.timelineData = servidores
-            .filter(s => s.licencas && s.licencas.length > 0)
-            .map(servidor => {
-                return {
-                    servidor: servidor.servidor,
-                    cpf: servidor.cpf,
-                    cargo: servidor.cargo,
-                    lotacao: servidor.lotacao,
-                    urgencia: servidor.urgencia,
-                    licencas: servidor.licencas.map(lic => ({
-                        inicio: new Date(lic.inicio),
-                        fim: new Date(lic.fim),
-                        tipo: lic.tipo,
-                        meses: lic.meses
-                    }))
+    /**
+     * Cria esqueleto de períodos com count = 0
+     * @private
+     */
+    _createPeriodSkeleton(data, viewType, selectedYear, selectedMonth, periodStart, periodEnd) {
+        if (viewType === 'monthly' && periodStart && periodEnd) {
+            let current = new Date(periodStart.getFullYear(), periodStart.getMonth(), 1);
+            const end = new Date(periodEnd.getFullYear(), periodEnd.getMonth(), 1);
+
+            while (current <= end) {
+                const year = current.getFullYear();
+                const month = current.getMonth();
+                const key = `${year}-${month.toString().padStart(2, '0')}`;
+                data[key] = {
+                    count: 0,
+                    period: {type: 'month', year, month},
+                    servidores: new Set()
                 };
-            });
+                current.setMonth(current.getMonth() + 1);
+            }
+        } else if (viewType === 'daily') {
+            const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+            for (let day = 1; day <= daysInMonth; day++) {
+                const key = day.toString();
+                data[key] = {
+                    count: 0,
+                    period: {type: 'day', date: new Date(selectedYear, selectedMonth, day), day, month: selectedMonth, year: selectedYear},
+                    servidores: new Set()
+                };
+            }
+        } else if (viewType === 'yearly' && periodStart && periodEnd) {
+            const startYear = periodStart.getFullYear();
+            const endYear = periodEnd.getFullYear();
 
-        console.log(`📊 ${this.timelineData.length} servidores carregados na timeline`);
-        this.render();
+            for (let year = startYear; year <= endYear; year++) {
+                const key = year.toString();
+                data[key] = {
+                    count: 0,
+                    period: {type: 'year', value: year},
+                    servidores: new Set()
+                };
+            }
+        }
     }
 
-    // ==================== RENDERIZAÇÃO ====================
-
     /**
-     * Renderiza timeline
+     * Processa licença para view yearly
+     * @private
      */
-    render() {
-        if (!this.container) {
-            console.warn('TimelineManager: Tentativa de renderizar sem container definido');
-            return;
+    _processYearlyLicense(data, inicio, fim, servidor, periodStart, periodEnd) {
+        const startYear = inicio.getFullYear();
+        const endYear = fim.getFullYear();
+
+        let minYear = startYear;
+        let maxYear = endYear;
+
+        if (periodStart && periodEnd) {
+            const rangeStart = periodStart.getFullYear();
+            const rangeEnd = periodEnd.getFullYear();
+            minYear = Math.max(startYear, rangeStart);
+            maxYear = Math.min(endYear, rangeEnd);
         }
 
-        this.container.innerHTML = '';
-
-        // Cabeçalho
-        this._renderHeader();
-
-        // Timeline principal
-        this._renderTimeline();
-
-        // Legenda
-        this._renderLegend();
-    }
-
-    /**
-     * Renderiza cabeçalho
-     * @private
-     */
-    _renderHeader() {
-        const header = document.createElement('div');
-        header.className = 'timeline-header';
-        header.style.cssText = `
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding: 15px;
-            background: var(--card-bg, #fff);
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        `;
-
-        // Botões de navegação
-        const btnPrev = document.createElement('button');
-        btnPrev.innerHTML = '← Anterior';
-        btnPrev.className = 'btn btn-secondary';
-        btnPrev.onclick = () => this.navigatePrevious();
-
-        const btnNext = document.createElement('button');
-        btnNext.innerHTML = 'Próximo →';
-        btnNext.className = 'btn btn-secondary';
-        btnNext.onclick = () => this.navigateNext();
-
-        const btnToday = document.createElement('button');
-        btnToday.textContent = 'Hoje';
-        btnToday.className = 'btn btn-primary';
-        btnToday.onclick = () => this.goToToday();
-
-        // Seletor de visualização
-        const viewSelect = document.createElement('select');
-        viewSelect.className = 'form-control';
-        viewSelect.style.width = 'auto';
-        viewSelect.innerHTML = `
-            <option value="day" ${this.viewMode === 'day' ? 'selected' : ''}>Diário</option>
-            <option value="week" ${this.viewMode === 'week' ? 'selected' : ''}>Semanal</option>
-            <option value="month" ${this.viewMode === 'month' ? 'selected' : ''}>Mensal</option>
-            <option value="year" ${this.viewMode === 'year' ? 'selected' : ''}>Anual</option>
-        `;
-        viewSelect.onchange = (e) => {
-            this.viewMode = e.target.value;
-            this.render();
-        };
-
-        // Título com período atual
-        const title = document.createElement('h4');
-        title.style.margin = '0';
-        title.textContent = this._getPeriodTitle();
-
-        const navGroup = document.createElement('div');
-        navGroup.style.cssText = 'display: flex; gap: 10px; align-items: center;';
-        navGroup.appendChild(btnPrev);
-        navGroup.appendChild(btnToday);
-        navGroup.appendChild(btnNext);
-
-        header.appendChild(navGroup);
-        header.appendChild(title);
-        header.appendChild(viewSelect);
-
-        this.container.appendChild(header);
-    }
-
-    /**
-     * Renderiza timeline principal
-     * @private
-     */
-    _renderTimeline() {
-        const timelineContainer = document.createElement('div');
-        timelineContainer.className = 'timeline-container';
-        timelineContainer.style.cssText = `
-            background: var(--card-bg, #fff);
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            overflow-x: auto;
-        `;
-
-        if (this.timelineData.length === 0) {
-            timelineContainer.innerHTML = '<p style="text-align: center; color: #666;">Nenhuma licença para exibir</p>';
-            this.container.appendChild(timelineContainer);
-            return;
+        for (let year = minYear; year <= maxYear; year++) {
+            const key = year.toString();
+            if (!data[key]) {
+                data[key] = {count: 0, period: {type: 'year', value: year}, servidores: new Set()};
+            }
+            data[key].servidores.add(servidor.nome || servidor.NOME);
         }
-
-        // Calcular range de datas
-        const { startDate, endDate } = this._getDateRange();
-
-        // Renderizar eixo de tempo
-        const timeAxis = this._renderTimeAxis(startDate, endDate);
-        timelineContainer.appendChild(timeAxis);
-
-        // Renderizar barras de licenças
-        const licensesBars = this._renderLicenseBars(startDate, endDate);
-        timelineContainer.appendChild(licensesBars);
-
-        this.container.appendChild(timelineContainer);
-
-        // Estatísticas
-        this._renderStats();
     }
 
     /**
-     * Renderiza eixo de tempo
+     * Processa licença para view monthly
      * @private
      */
-    _renderTimeAxis(startDate, endDate) {
-        const axis = document.createElement('div');
-        axis.className = 'timeline-axis';
-        axis.style.cssText = `
-            display: flex;
-            border-bottom: 2px solid var(--border-color, #ddd);
-            margin-bottom: 10px;
-            padding-bottom: 5px;
-        `;
+    _processMonthlyLicense(data, inicio, fim, servidor, periodStart, periodEnd, selectedYear) {
+        const current = new Date(inicio);
+        const end = new Date(fim);
 
-        const labels = this._getTimeLabels(startDate, endDate);
+        while (current <= end) {
+            const year = current.getFullYear();
+            const month = current.getMonth();
+            const key = `${year}-${month.toString().padStart(2, '0')}`;
 
-        labels.forEach(label => {
-            const tick = document.createElement('div');
-            tick.style.cssText = `
-                flex: 1;
-                text-align: center;
-                font-size: 0.75rem;
-                color: var(--text-muted, #666);
-                font-weight: bold;
-            `;
-            tick.textContent = label;
-            axis.appendChild(tick);
-        });
-
-        return axis;
-    }
-
-    /**
-     * Renderiza barras de licenças
-     * @private
-     */
-    _renderLicenseBars(startDate, endDate) {
-        const barsContainer = document.createElement('div');
-        barsContainer.className = 'timeline-bars';
-        barsContainer.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            max-height: 600px;
-            overflow-y: auto;
-        `;
-
-        const totalDays = this._daysBetween(startDate, endDate);
-
-        this.timelineData.forEach(item => {
-            item.licencas.forEach(licenca => {
-                // Verificar se licença está no range
-                if (licenca.fim < startDate || licenca.inicio > endDate) {
-                    return;
+            // Filtrar por range se existir
+            if (periodStart && periodEnd) {
+                if (current < periodStart || current > periodEnd) {
+                    current.setMonth(current.getMonth() + 1);
+                    continue;
                 }
+            }
 
-                const bar = this._createLicenseBar(item, licenca, startDate, totalDays);
-                barsContainer.appendChild(bar);
-            });
+            if (!data[key]) {
+                data[key] = {count: 0, period: {type: 'month', year, month}, servidores: new Set()};
+            }
+            data[key].servidores.add(servidor.nome || servidor.NOME);
+            current.setMonth(current.getMonth() + 1);
+        }
+    }
+
+    /**
+     * Processa licença para view daily
+     * @private
+     */
+    _processDailyLicense(data, inicio, fim, servidor, selectedYear, selectedMonth) {
+        const current = new Date(inicio);
+        const end = new Date(fim);
+
+        while (current <= end) {
+            const year = current.getFullYear();
+            const month = current.getMonth();
+            const day = current.getDate();
+
+            // Apenas dias do mês selecionado
+            if (year === selectedYear && month === selectedMonth) {
+                const key = day.toString();
+                if (data[key]) {
+                    data[key].servidores.add(servidor.nome || servidor.NOME);
+                }
+            }
+
+            current.setDate(current.getDate() + 1);
+        }
+    }
+
+    /**
+     * Converte objeto de dados para arrays ordenados
+     * @private
+     */
+    _convertToArrays(data, viewType) {
+        // Ordenar keys
+        const sortedKeys = Object.keys(data).sort((a, b) => {
+            if (viewType === 'daily') {
+                return parseInt(a) - parseInt(b);
+            } else if (viewType === 'yearly') {
+                return parseInt(a) - parseInt(b);
+            } else {
+                return a.localeCompare(b);
+            }
         });
 
-        return barsContainer;
-    }
-
-    /**
-     * Cria barra de licença
-     * @private
-     */
-    _createLicenseBar(servidor, licenca, rangeStart, totalDays) {
-        const container = document.createElement('div');
-        container.style.cssText = `
-            display: flex;
-            align-items: center;
-            min-height: 30px;
-            position: relative;
-        `;
-
-        // Nome do servidor (fixo à esquerda)
-        const nameLabel = document.createElement('div');
-        nameLabel.style.cssText = `
-            width: 200px;
-            padding-right: 10px;
-            font-size: 0.85rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            flex-shrink: 0;
-        `;
-        nameLabel.textContent = servidor.servidor;
-        nameLabel.title = `${servidor.servidor} - ${servidor.cargo}`;
-
-        // Timeline bar (flexível)
-        const timeline = document.createElement('div');
-        timeline.style.cssText = `
-            flex: 1;
-            position: relative;
-            height: 25px;
-            background: var(--bg-secondary, #f8f9fa);
-            border-radius: 4px;
-        `;
-
-        // Barra de licença
-        const startOffset = Math.max(0, this._daysBetween(rangeStart, licenca.inicio));
-        const duration = this._daysBetween(licenca.inicio, licenca.fim);
-        const leftPercent = (startOffset / totalDays) * 100;
-        const widthPercent = (duration / totalDays) * 100;
-
-        const bar = document.createElement('div');
-        bar.style.cssText = `
-            position: absolute;
-            left: ${leftPercent}%;
-            width: ${widthPercent}%;
-            height: 100%;
-            background: ${this.urgencyColors[servidor.urgencia] || this.urgencyColors.null};
-            border-radius: 4px;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        `;
-
-        bar.onmouseenter = () => {
-            bar.style.opacity = '0.8';
-            this._showTooltip(bar, servidor, licenca);
-        };
-
-        bar.onmouseleave = () => {
-            bar.style.opacity = '1';
-            this._hideTooltip();
-        };
-
-        timeline.appendChild(bar);
-        container.appendChild(nameLabel);
-        container.appendChild(timeline);
-
-        return container;
-    }
-
-    /**
-     * Renderiza estatísticas
-     * @private
-     */
-    _renderStats() {
-        const stats = document.createElement('div');
-        stats.className = 'timeline-stats';
-        stats.style.cssText = `
-            margin-top: 20px;
-            padding: 15px;
-            background: var(--card-bg, #fff);
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-        `;
-
-        const totalLicenses = this.timelineData.reduce((sum, item) => sum + item.licencas.length, 0);
-        const totalServidores = this.timelineData.length;
-
-        const { startDate, endDate } = this._getDateRange();
-        const conflitos = this._detectConflicts(startDate, endDate);
-
-        const statsData = [
-            { label: 'Servidores', value: totalServidores },
-            { label: 'Licenças', value: totalLicenses },
-            { label: 'Período', value: this._formatPeriod(startDate, endDate) },
-            { label: 'Sobreposições', value: conflitos }
-        ];
-
-        statsData.forEach(item => {
-            const statCard = document.createElement('div');
-            statCard.style.textAlign = 'center';
-            statCard.innerHTML = `
-                <div style="font-size: 1.5rem; font-weight: bold; color: var(--primary-color, #007bff);">${item.value}</div>
-                <div style="font-size: 0.85rem; color: var(--text-muted, #666);">${item.label}</div>
-            `;
-            stats.appendChild(statCard);
-        });
-
-        this.container.appendChild(stats);
-    }
-
-    /**
-     * Renderiza legenda
-     * @private
-     */
-    _renderLegend() {
-        const legend = document.createElement('div');
-        legend.className = 'timeline-legend';
-        legend.style.cssText = `
-            margin-top: 20px;
-            padding: 15px;
-            background: var(--card-bg, #fff);
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            text-align: center;
-        `;
-
-        legend.innerHTML = '<strong>Urgência:</strong><br>';
-
-        const items = document.createElement('div');
-        items.style.cssText = `
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 10px;
-            flex-wrap: wrap;
-        `;
-
-        const urgencies = [
-            { key: 'critica', label: 'Crítica' },
-            { key: 'alta', label: 'Alta' },
-            { key: 'moderada', label: 'Moderada' },
-            { key: 'baixa', label: 'Baixa' }
-        ];
-
-        urgencies.forEach(urg => {
-            const item = document.createElement('div');
-            item.style.cssText = 'display: flex; align-items: center; gap: 5px;';
-            item.innerHTML = `
-                <div style="width: 20px; height: 20px; background: ${this.urgencyColors[urg.key]}; border-radius: 3px;"></div>
-                <span style="font-size: 0.85rem;">${urg.label}</span>
-            `;
-            items.appendChild(item);
-        });
-
-        legend.appendChild(items);
-        this.container.appendChild(legend);
-    }
-
-    // ==================== TOOLTIPS ====================
-
-    /**
-     * Mostra tooltip
-     * @private
-     */
-    _showTooltip(element, servidor, licenca) {
-        this._hideTooltip();
-
-        const tooltip = document.createElement('div');
-        tooltip.id = 'timeline-tooltip';
-        tooltip.style.cssText = `
-            position: fixed;
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            z-index: 10000;
-            max-width: 300px;
-            pointer-events: none;
-        `;
-
-        tooltip.innerHTML = `
-            <strong>${servidor.servidor}</strong><br>
-            <small>${servidor.cargo} - ${servidor.lotacao}</small><br>
-            <br>
-            <strong>Licença:</strong><br>
-            ${this._formatDate(licenca.inicio)} - ${this._formatDate(licenca.fim)}<br>
-            <small>${licenca.meses} meses (${this._daysBetween(licenca.inicio, licenca.fim)} dias)</small>
-        `;
-
-        document.body.appendChild(tooltip);
-
-        const rect = element.getBoundingClientRect();
-        tooltip.style.left = rect.left + 'px';
-        tooltip.style.top = (rect.bottom + 5) + 'px';
-    }
-
-    /**
-     * Esconde tooltip
-     * @private
-     */
-    _hideTooltip() {
-        const tooltip = document.getElementById('timeline-tooltip');
-        if (tooltip) {
-            tooltip.remove();
-        }
-    }
-
-    // ==================== NAVEGAÇÃO ====================
-
-    /**
-     * Navega para período anterior
-     */
-    navigatePrevious() {
-        switch (this.viewMode) {
-            case 'day':
-                this.currentDate.setDate(this.currentDate.getDate() - 1);
-                break;
-            case 'week':
-                this.currentDate.setDate(this.currentDate.getDate() - 7);
-                break;
-            case 'month':
-                this.currentDate.setMonth(this.currentDate.getMonth() - 1);
-                break;
-            case 'year':
-                this.currentDate.setFullYear(this.currentDate.getFullYear() - 1);
-                break;
-        }
-        this.render();
-    }
-
-    /**
-     * Navega para próximo período
-     */
-    navigateNext() {
-        switch (this.viewMode) {
-            case 'day':
-                this.currentDate.setDate(this.currentDate.getDate() + 1);
-                break;
-            case 'week':
-                this.currentDate.setDate(this.currentDate.getDate() + 7);
-                break;
-            case 'month':
-                this.currentDate.setMonth(this.currentDate.getMonth() + 1);
-                break;
-            case 'year':
-                this.currentDate.setFullYear(this.currentDate.getFullYear() + 1);
-                break;
-        }
-        this.render();
-    }
-
-    /**
-     * Vai para hoje
-     */
-    goToToday() {
-        this.currentDate = new Date();
-        this.render();
-    }
-
-    // ==================== UTILITÁRIOS ====================
-
-    /**
-     * Calcula range de datas baseado no modo de visualização
-     * @private
-     * @returns {{startDate: Date, endDate: Date}}
-     */
-    _getDateRange() {
-        const start = new Date(this.currentDate);
-        const end = new Date(this.currentDate);
-
-        switch (this.viewMode) {
-            case 'day':
-                start.setHours(0, 0, 0, 0);
-                end.setHours(23, 59, 59, 999);
-                break;
-            case 'week':
-                start.setDate(start.getDate() - start.getDay());
-                end.setDate(start.getDate() + 6);
-                break;
-            case 'month':
-                start.setDate(1);
-                end.setMonth(end.getMonth() + 1, 0);
-                break;
-            case 'year':
-                start.setMonth(0, 1);
-                end.setMonth(11, 31);
-                break;
-        }
-
-        return { startDate: start, endDate: end };
-    }
-
-    /**
-     * Gera labels do eixo de tempo
-     * @private
-     */
-    _getTimeLabels(startDate, endDate) {
         const labels = [];
+        const values = [];
+        const periods = [];
+        const servidoresData = [];
 
-        switch (this.viewMode) {
-            case 'day':
-                for (let h = 0; h < 24; h++) {
-                    labels.push(`${h}h`);
-                }
-                break;
-            case 'week':
-                const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-                for (let i = 0; i < 7; i++) {
-                    const date = new Date(startDate);
-                    date.setDate(date.getDate() + i);
-                    labels.push(`${days[date.getDay()]} ${date.getDate()}`);
-                }
-                break;
-            case 'month':
-                const daysInMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate();
-                for (let d = 1; d <= daysInMonth; d++) {
-                    if (d === 1 || d % 5 === 0 || d === daysInMonth) {
-                        labels.push(d.toString());
+        sortedKeys.forEach(key => {
+            const item = data[key];
+            item.count = item.servidores.size;
+
+            // Label
+            if (viewType === 'daily') {
+                labels.push(item.period.day);
+            } else if (viewType === 'monthly') {
+                const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                labels.push(`${monthNames[item.period.month]}/${item.period.year}`);
+            } else if (viewType === 'yearly') {
+                labels.push(item.period.value);
+            }
+
+            values.push(item.count);
+            periods.push(item.period);
+            servidoresData.push(Array.from(item.servidores));
+        });
+
+        return {labels, data: values, periods, servidoresData};
+    }
+
+    /**
+     * Calcula estatísticas dos dados
+     * @private
+     */
+    _calculateStats(timelineData, servidores) {
+        const totalLicenses = timelineData.data.reduce((sum, val) => sum + val, 0);
+        const activeServers = new Set();
+
+        servidores.forEach(s => {
+            if (s.licencas && s.licencas.length > 0) {
+                activeServers.add(s.nome || s.NOME);
+            }
+        });
+
+        const maxValue = Math.max(...timelineData.data);
+        const peakIndex = timelineData.data.indexOf(maxValue);
+        const peakPeriod = timelineData.labels[peakIndex] || '-';
+        const averageLicenses = timelineData.data.length > 0 ? (totalLicenses / timelineData.data.length).toFixed(1) : 0;
+
+        return {
+            totalLicenses,
+            activeServersCount: activeServers.size,
+            peakPeriod,
+            averageLicenses
+        };
+    }
+
+    /**
+     * Cria o gráfico Chart.js
+     * @private
+     */
+    _createChart(timelineData) {
+        this.chart = new Chart(this.chartCanvas, {
+            type: 'line',
+            data: {
+                labels: timelineData.labels,
+                datasets: [{
+                    label: 'Servidores em Licença',
+                    data: timelineData.data,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointBackgroundColor: '#2563eb',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                onClick: (_event, elements) => {
+                    if (elements.length > 0) {
+                        const dataIndex = elements[0].index;
+                        this._showPeriodDetails(dataIndex);
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: '#2563eb',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        callbacks: {
+                            title: (context) => {
+                                const idx = context[0].dataIndex;
+                                const period = timelineData.periods[idx];
+
+                                if (period.type === 'day') {
+                                    return new Date(period.date).toLocaleDateString('pt-BR', {day: '2-digit', month: 'long', year: 'numeric'});
+                                } else if (period.type === 'month') {
+                                    const monthNames = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+                                    return `${monthNames[period.month]} de ${period.year}`;
+                                } else if (period.type === 'year') {
+                                    return String(period.value);
+                                }
+
+                                return context[0].label;
+                            },
+                            label: (context) => {
+                                const count = context.parsed.y;
+                                return `${count} ${count === 1 ? 'servidor' : 'servidores'} em licença`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#64748b',
+                            font: {size: 11}
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: '#f1f5f9',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#64748b',
+                            font: {size: 11},
+                            stepSize: 1
+                        }
                     }
                 }
-                break;
-            case 'year':
-                const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-                months.forEach(m => labels.push(m));
-                break;
-        }
-
-        return labels;
-    }
-
-    /**
-     * Título do período atual
-     * @private
-     */
-    _getPeriodTitle() {
-        const date = this.currentDate;
-
-        switch (this.viewMode) {
-            case 'day':
-                return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-            case 'week':
-                const { startDate, endDate } = this._getDateRange();
-                return `${this._formatDate(startDate)} - ${this._formatDate(endDate)}`;
-            case 'month':
-                return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-            case 'year':
-                return date.getFullYear().toString();
-            default:
-                return '';
-        }
-    }
-
-    /**
-     * Calcula dias entre datas
-     * @private
-     */
-    _daysBetween(start, end) {
-        const diffTime = Math.abs(end - start);
-        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    }
-
-    /**
-     * Formata data
-     * @private
-     */
-    _formatDate(date) {
-        return new Date(date).toLocaleDateString('pt-BR');
-    }
-
-    /**
-     * Formata período
-     * @private
-     */
-    _formatPeriod(start, end) {
-        const days = this._daysBetween(start, end);
-        return `${days} dias`;
-    }
-
-    /**
-     * Detecta conflitos/sobreposições
-     * @private
-     */
-    _detectConflicts(startDate, endDate) {
-        let conflicts = 0;
-        const dateMap = new Map();
-
-        this.timelineData.forEach(item => {
-            item.licencas.forEach(licenca => {
-                if (licenca.fim < startDate || licenca.inicio > endDate) {
-                    return;
-                }
-
-                for (let d = new Date(licenca.inicio); d <= licenca.fim; d.setDate(d.getDate() + 1)) {
-                    const key = d.toISOString().split('T')[0];
-                    dateMap.set(key, (dateMap.get(key) || 0) + 1);
-                }
-            });
+            }
         });
 
-        dateMap.forEach(count => {
-            if (count > 1) conflicts++;
-        });
-
-        return conflicts;
+        this.currentData = timelineData;
     }
 
     /**
-     * Renderiza timeline (método wrapper para compatibilidade)
-     * @param {Array<Object>} servidores - Dados dos servidores
-     * @param {HTMLElement|string} container - Container ou ID
-     * @param {string} viewMode - Modo de visualização (opcional)
+     * Renderiza estado vazio
+     * @private
      */
-    renderTimeline(servidores, container, viewMode = 'month') {
-        // Configurar modo de visualização
-        if (viewMode) {
-            this.viewMode = viewMode;
+    _renderEmptyState() {
+        if (this.chart) {
+            this.chart.destroy();
+            this.chart = null;
         }
 
-        // Carregar dados
-        this.loadData(servidores);
-
-        // Inicializar no container
-        this.init(container);
+        const ctx = this.chartCanvas.getContext('2d');
+        ctx.clearRect(0, 0, this.chartCanvas.width, this.chartCanvas.height);
+        ctx.font = '14px sans-serif';
+        ctx.fillStyle = '#64748b';
+        ctx.textAlign = 'center';
+        ctx.fillText('Nenhum dado disponível para o período selecionado', this.chartCanvas.width / 2, this.chartCanvas.height / 2);
     }
 
     /**
-     * Informações de debug
-     * @returns {Object}
+     * Retorna estatísticas atuais
      */
-    getDebugInfo() {
-        return {
-            viewMode: this.viewMode,
-            currentDate: this.currentDate.toISOString(),
-            dataCount: this.timelineData.length
-        };
+    getStats() {
+        return this.currentStats;
+    }
+
+    /**
+     * Mostra modal com lista de servidores do período clicado
+     * @private
+     * @param {number} dataIndex - Índice do ponto clicado no gráfico
+     */
+    _showPeriodDetails(dataIndex) {
+        if (!this.currentData || !this.currentData.servidoresData) {
+            console.warn('[TimelineManager] Dados não disponíveis para mostrar detalhes');
+            return;
+        }
+
+        const servidores = this.currentData.servidoresData[dataIndex];
+        const period = this.currentData.periods[dataIndex];
+        const label = this.currentData.labels[dataIndex];
+
+        if (!servidores || servidores.length === 0) {
+            console.warn('[TimelineManager] Nenhum servidor encontrado para o período');
+            return;
+        }
+
+        console.log('[TimelineManager] Mostrando detalhes do período:', label, 'Servidores:', servidores.length);
+
+        // Atualizar título do modal
+        const modalTitle = document.getElementById('timelinePeriodTitle');
+        if (modalTitle) {
+            let titleText = 'Licenças do Período';
+            if (period.type === 'day') {
+                titleText = new Date(period.date).toLocaleDateString('pt-BR', {day: '2-digit', month: 'long', year: 'numeric'});
+            } else if (period.type === 'month') {
+                const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+                titleText = `${monthNames[period.month]} de ${period.year}`;
+            } else if (period.type === 'year') {
+                titleText = `Ano de ${period.value}`;
+            }
+            modalTitle.textContent = titleText;
+        }
+
+        // Popular lista de servidores
+        const listContainer = document.getElementById('timelineServersList');
+        if (!listContainer) {
+            console.error('[TimelineManager] Elemento #timelineServersList não encontrado');
+            return;
+        }
+
+        // Criar HTML dos servidores
+        const servidoresHtml = servidores.map((servidor, index) => {
+            const nome = servidor.nome || servidor.NOME || servidor.servidor || servidor.SERVIDOR || 'Nome não informado';
+            const cargo = servidor.cargo || servidor.CARGO || '';
+            const lotacao = servidor.lotacao || servidor.LOTACAO || servidor.lotação || '';
+
+            return `
+                <div class="servidor-item" data-index="${index}"
+                     style="cursor: pointer; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.5rem; transition: all 0.2s;"
+                     onmouseover="this.style.backgroundColor='var(--bg-hover)'; this.style.borderColor='var(--primary)';"
+                     onmouseout="this.style.backgroundColor=''; this.style.borderColor='var(--border)';">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">${nome}</div>
+                            ${cargo ? `<div style="font-size: 0.875rem; color: var(--text-secondary);">${cargo}</div>` : ''}
+                            ${lotacao ? `<div style="font-size: 0.875rem; color: var(--text-secondary);">${lotacao}</div>` : ''}
+                        </div>
+                        <i class="bi bi-chevron-right" style="color: var(--text-secondary);"></i>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        listContainer.innerHTML = `
+            <div style="margin-bottom: 1rem;">
+                <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                    <strong>${servidores.length}</strong> ${servidores.length === 1 ? 'servidor' : 'servidores'} em licença neste período
+                </div>
+            </div>
+            ${servidoresHtml}
+        `;
+
+        // Adicionar event listener para abrir detalhes do servidor
+        listContainer.addEventListener('click', (e) => {
+            const item = e.target.closest('.servidor-item');
+            if (!item) return;
+
+            const index = parseInt(item.getAttribute('data-index'), 10);
+            const servidor = servidores[index];
+            const nomeToShow = (servidor.nome || servidor.NOME || servidor.servidor || servidor.SERVIDOR || '').trim();
+
+            console.log('[TimelineManager] Abrindo detalhes do servidor:', nomeToShow);
+
+            // Tentar abrir via ModalManager
+            if (this.app && this.app.modalManager && typeof this.app.modalManager.showServidorDetails === 'function') {
+                this.app.modalManager.showServidorDetails(nomeToShow);
+            } else if (window.ModalManager && typeof window.ModalManager.showServidorDetails === 'function') {
+                window.ModalManager.showServidorDetails(nomeToShow);
+            } else {
+                console.warn('[TimelineManager] ModalManager não disponível para mostrar detalhes');
+            }
+        });
+
+        // Abrir modal
+        const modal = document.getElementById('timelinePeriodModal');
+        if (modal) {
+            modal.style.display = 'flex';
+
+            // Adicionar listener para fechar
+            const closeBtn = document.getElementById('timelinePeriodCloseBtn');
+            const backdrop = modal.querySelector('.modal-backdrop');
+
+            const closeHandler = () => {
+                modal.style.display = 'none';
+            };
+
+            if (closeBtn) {
+                closeBtn.removeEventListener('click', closeHandler);
+                closeBtn.addEventListener('click', closeHandler);
+            }
+            if (backdrop) {
+                backdrop.removeEventListener('click', closeHandler);
+                backdrop.addEventListener('click', closeHandler);
+            }
+
+            // Fechar com ESC
+            const escHandler = (e) => {
+                if (e.key === 'Escape' && modal.style.display === 'flex') {
+                    modal.style.display = 'none';
+                    document.removeEventListener('keydown', escHandler);
+                }
+            };
+            document.addEventListener('keydown', escHandler);
+        }
+    }
+
+    /**
+     * Destrói o gráfico
+     */
+    destroy() {
+        if (this.chart) {
+            this.chart.destroy();
+            this.chart = null;
+        }
     }
 }
 
-// Expor classe
+// Exportar
 if (typeof window !== 'undefined') {
     window.TimelineManager = TimelineManager;
 }
 
-// Exportar para Node.js
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = TimelineManager;
 }

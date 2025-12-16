@@ -10680,7 +10680,6 @@ body.tooltips-disabled [title]:hover::after {
 .modal-body {
     flex: 1;
     overflow-y: auto;
-    padding: 1.5rem 2rem;
 }
 
 /* Grid de 2 Colunas */
