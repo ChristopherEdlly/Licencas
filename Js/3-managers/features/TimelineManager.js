@@ -18,7 +18,51 @@ class TimelineManager {
         this.currentData = null;
         this.currentStats = null;
 
+        // Helper para gerar chaves estáveis para servidores (evita duplicatas)
+        this._servidorWeakMap = new WeakMap();
+        this._anonServidorCounter = 1;
+
         console.log('✅ TimelineManager criado');
+    }
+
+    /**
+     * Parse a raw date value from various formats into a Date object.
+     * Supports Date objects, ISO strings, and dd/mm/yyyy (common in CSVs).
+     * Returns null when input is falsy.
+     * @private
+     */
+    _parseDate(raw) {
+        if (!raw && raw !== 0) return null;
+        if (raw instanceof Date) return raw;
+        if (typeof raw !== 'string') return new Date(raw);
+
+        const s = raw.trim();
+
+        // dd/mm/yyyy or d/m/yyyy
+        if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(s)) {
+            const parts = s.split('/');
+            const d = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10) - 1;
+            let y = parseInt(parts[2], 10);
+            if (y < 100) y += 2000;
+            return new Date(y, m, d);
+        }
+
+        // yyyy-mm-dd
+        if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(s)) {
+            const parts = s.split('-').map(Number);
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        }
+
+        // yyyy-mm
+        if (/^\d{4}-\d{1,2}$/.test(s)) {
+            const parts = s.split('-').map(Number);
+            return new Date(parts[0], parts[1] - 1, 1);
+        }
+
+        // Fallback to Date constructor
+        const dt = new Date(s);
+        return isNaN(dt) ? null : dt;
     }
 
     /**
@@ -39,6 +83,8 @@ class TimelineManager {
 
         console.log('[TimelineManager] Inicializado com canvas:', this.chartCanvas.id);
     }
+
+    
 
     /**
      * Renderiza o gráfico com os dados dos servidores
@@ -127,8 +173,8 @@ class TimelineManager {
                     const inicioRaw = licenca.inicio || licenca.A_PARTIR;
                     const fimRaw = licenca.fim || licenca.TERMINO;
 
-                    const inicio = typeof inicioRaw === 'string' ? new Date(inicioRaw) : inicioRaw;
-                    const fim = fimRaw ? (typeof fimRaw === 'string' ? new Date(fimRaw) : fimRaw) : inicio;
+                    const inicio = this._parseDate(inicioRaw);
+                    const fim = fimRaw ? this._parseDate(fimRaw) : inicio;
 
                     if (isAcacia) {
                         console.log('[TimelineManager] ACACIA: processando licença');
@@ -171,8 +217,8 @@ class TimelineManager {
                     return;
                 }
 
-                const inicio = typeof inicioRaw === 'string' ? new Date(inicioRaw) : inicioRaw;
-                const fim = fimRaw ? (typeof fimRaw === 'string' ? new Date(fimRaw) : fimRaw) : inicio;
+                const inicio = this._parseDate(inicioRaw);
+                const fim = fimRaw ? this._parseDate(fimRaw) : inicio;
 
                 if (isAcacia) {
                     console.log('[TimelineManager] ACACIA: processando no formato antigo');
@@ -224,6 +270,27 @@ class TimelineManager {
     }
 
     /**
+     * Generate a stable key for a servidor object to avoid duplicates across licenses
+     * @private
+     */
+    _getServidorKey(s) {
+        if (!s || typeof s !== 'object') return null;
+        const id = s.id || s.ID || s.NUMERO || s.numero || s.NUM || s.MATRICULA || s.matricula;
+        if (id) return `id:${String(id)}`;
+        const cpf = s.cpf || s.CPF || s.cpf_cnpj || s.CPFCNPJ;
+        if (cpf) return `cpf:${String(cpf)}`;
+        const nome = (s.nome || s.NOME || s.servidor || s.SERVIDOR || '').toString().trim();
+        if (nome) return `nome:${nome.replace(/\s+/g, ' ').toUpperCase()}`;
+
+        let key = this._servidorWeakMap.get(s);
+        if (!key) {
+            key = `anon:${this._anonServidorCounter++}`;
+            this._servidorWeakMap.set(s, key);
+        }
+        return key;
+    }
+
+    /**
      * Obtém período selecionado pelos controles
      * @private
      */
@@ -251,6 +318,15 @@ class TimelineManager {
                 periodStart = new Date(startYear, startMonth - 1, 1);
                 periodEnd = new Date(endYear, endMonth - 1, 28);
             }
+            // fallback default: last 12 months
+            if (!periodStart || !periodEnd) {
+                const now = new Date();
+                const end = new Date(now.getFullYear(), now.getMonth(), 28);
+                const start = new Date(now.getFullYear(), now.getMonth(), 1);
+                start.setMonth(start.getMonth() - 11);
+                periodStart = start;
+                periodEnd = end;
+            }
         } else if (viewType === 'yearly') {
             const startInput = document.getElementById('timelinePeriodStartYear');
             const endInput = document.getElementById('timelinePeriodEndYear');
@@ -258,6 +334,12 @@ class TimelineManager {
             if (startInput && startInput.value && endInput && endInput.value) {
                 periodStart = new Date(parseInt(startInput.value), 0, 1);
                 periodEnd = new Date(parseInt(endInput.value), 11, 31);
+            }
+            // fallback default: last 5 years
+            if (!periodStart || !periodEnd) {
+                const now = new Date();
+                periodEnd = new Date(now.getFullYear(), 11, 31);
+                periodStart = new Date(now.getFullYear() - 4, 0, 1);
             }
         }
 
@@ -280,7 +362,8 @@ class TimelineManager {
                 data[key] = {
                     count: 0,
                     period: {type: 'month', year, month},
-                    servidores: [] // Array para permitir múltiplas licenças do mesmo servidor
+                    servidores: [], // Array para permitir múltiplas licenças do mesmo servidor
+                    servidoresSet: new Set()
                 };
                 current.setMonth(current.getMonth() + 1);
             }
@@ -291,7 +374,8 @@ class TimelineManager {
                 data[key] = {
                     count: 0,
                     period: {type: 'day', date: new Date(selectedYear, selectedMonth, day), day, month: selectedMonth, year: selectedYear},
-                    servidores: [] // Array para permitir múltiplas licenças do mesmo servidor
+                    servidores: [], // Array para permitir múltiplas licenças do mesmo servidor
+                    servidoresSet: new Set()
                 };
             }
         } else if (viewType === 'yearly' && periodStart && periodEnd) {
@@ -303,7 +387,8 @@ class TimelineManager {
                 data[key] = {
                     count: 0,
                     period: {type: 'year', value: year},
-                    servidores: [] // Array para permitir múltiplas licenças do mesmo servidor
+                    servidores: [], // Array para permitir múltiplas licenças do mesmo servidor
+                    servidoresSet: new Set()
                 };
             }
         }
@@ -330,10 +415,13 @@ class TimelineManager {
         for (let year = minYear; year <= maxYear; year++) {
             const key = year.toString();
             if (!data[key]) {
-                data[key] = {count: 0, period: {type: 'year', value: year}, servidores: []};
+                data[key] = {count: 0, period: {type: 'year', value: year}, servidores: [], servidoresSet: new Set()};
             }
-            // IMPORTANTE: Adicionar o objeto servidor completo (permitindo duplicatas)
-            data[key].servidores.push(servidor);
+            const skey = this._getServidorKey(servidor);
+            if (!data[key].servidoresSet.has(skey)) {
+                data[key].servidoresSet.add(skey);
+                data[key].servidores.push(servidor);
+            }
         }
     }
 
@@ -359,10 +447,13 @@ class TimelineManager {
             }
 
             if (!data[key]) {
-                data[key] = {count: 0, period: {type: 'month', year, month}, servidores: []};
+                data[key] = {count: 0, period: {type: 'month', year, month}, servidores: [], servidoresSet: new Set()};
             }
-            // IMPORTANTE: Adicionar o objeto servidor completo (permitindo duplicatas)
-            data[key].servidores.push(servidor);
+            const skey = this._getServidorKey(servidor);
+            if (!data[key].servidoresSet.has(skey)) {
+                data[key].servidoresSet.add(skey);
+                data[key].servidores.push(servidor);
+            }
             current.setMonth(current.getMonth() + 1);
         }
     }
@@ -384,8 +475,12 @@ class TimelineManager {
             if (year === selectedYear && month === selectedMonth) {
                 const key = day.toString();
                 if (data[key]) {
-                    // IMPORTANTE: Adicionar o objeto servidor completo (permitindo duplicatas)
-                    data[key].servidores.push(servidor);
+                    const skey = this._getServidorKey(servidor);
+                    if (!data[key].servidoresSet) data[key].servidoresSet = new Set();
+                    if (!data[key].servidoresSet.has(skey)) {
+                        data[key].servidoresSet.add(skey);
+                        data[key].servidores.push(servidor);
+                    }
                 }
             }
 
@@ -624,11 +719,11 @@ class TimelineManager {
             const fim = servidor.TERMINO || servidor.fim;
 
             if (inicio) {
-                const inicioDate = typeof inicio === 'string' ? new Date(inicio) : inicio;
-                const fimDate = fim ? (typeof fim === 'string' ? new Date(fim) : fim) : inicioDate;
+                const inicioDate = this._parseDate(inicio);
+                const fimDate = this._parseDate(fim) || inicioDate;
 
-                const inicioStr = inicioDate.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
-                const fimStr = fimDate.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
+                const inicioStr = inicioDate ? inicioDate.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'}) : '';
+                const fimStr = fimDate ? fimDate.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'}) : '';
 
                 servidor.licenseInfo = `${inicioStr} até ${fimStr}`;
             }

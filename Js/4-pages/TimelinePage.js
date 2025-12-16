@@ -87,10 +87,24 @@ class TimelinePage {
         // 4. Setup de controles (modo de visualização)
         this._setupViewControls();
 
+        // 4.1 Restaurar estado salvo dos controles (se houver)
+        try { this._loadTimelineState(); } catch (e) { console.warn('[TimelinePage] Falha ao restaurar estado dos controles', e); }
+
         // 5. Inicializar custom datepickers
         this._initDatePickers();
 
         this.isInitialized = true;
+        // Atualizar controles visuais e tentar render inicial se a página estiver visível
+        this._updateViewControls();
+
+        // Se a página estiver visível, marcar active e renderizar
+        try {
+            if (this.elements.page && this.elements.page.offsetParent !== null) {
+                this.isActive = true;
+                this.render();
+            }
+        } catch (e) { /* ignore */ }
+
         console.log('✅ TimelinePage inicializado');
     }
 
@@ -153,34 +167,37 @@ class TimelinePage {
         // Listener para mudanças no DataStateManager (Observer Pattern)
         if (this.dataStateManager) {
             const dataChangeHandler = () => {
-                if (this.isActive) {
-                    this.render();
-                }
+                try {
+                    const visible = this.elements.page ? this.elements.page.offsetParent !== null : this.isActive;
+                    if (visible) this.render();
+                } catch (e) { /* ignore */ }
             };
 
-            document.addEventListener('dataStateChanged', dataChangeHandler);
+            // Listen to document events dispatched by DataStateManager
+            document.addEventListener('filtered-data-changed', dataChangeHandler);
+            document.addEventListener('all-data-changed', dataChangeHandler);
 
-            this.eventListeners.push({
-                element: document,
-                event: 'dataStateChanged',
-                handler: dataChangeHandler
-            });
+            this.eventListeners.push({ element: document, event: 'filtered-data-changed', handler: dataChangeHandler });
+            this.eventListeners.push({ element: document, event: 'all-data-changed', handler: dataChangeHandler });
+
+            // Also subscribe via the manager API for robustness
+            try {
+                const unsub = this.dataStateManager.subscribe('filtered-data-changed', dataChangeHandler);
+                this.eventListeners.push({ element: this.dataStateManager, event: 'filtered-data-changed', handler: dataChangeHandler, unsub });
+            } catch (e) { /* ignore */ }
         }
 
         // Listener para mudanças nos filtros
         const filterChangeHandler = () => {
-            if (this.isActive) {
-                this.render();
-            }
+            try {
+                const visible = this.elements.page ? this.elements.page.offsetParent !== null : this.isActive;
+                if (visible) this.render();
+            } catch (e) { /* ignore */ }
         };
 
         document.addEventListener('filtersChanged', filterChangeHandler);
 
-        this.eventListeners.push({
-            element: document,
-            event: 'filtersChanged',
-            handler: filterChangeHandler
-        });
+        this.eventListeners.push({ element: document, event: 'filtersChanged', handler: filterChangeHandler });
 
         // Listener para botão de exportar
         if (this.elements.exportTimelineBtn) {
@@ -210,6 +227,7 @@ class TimelinePage {
             const viewChangeHandler = (e) => {
                 this.currentView = e.target.value;
                 this._updateViewControls();
+                this._saveTimelineState();
                 this.render();
             };
 
@@ -232,6 +250,7 @@ class TimelinePage {
                 } else {
                     this.currentPeriod.daily = null;
                 }
+                this._saveTimelineState();
                 this.render();
             };
 
@@ -254,6 +273,7 @@ class TimelinePage {
                 } else {
                     this.currentPeriod.monthly.start = null;
                 }
+                this._saveTimelineState();
                 this.render();
             };
 
@@ -275,6 +295,7 @@ class TimelinePage {
                 } else {
                     this.currentPeriod.monthly.end = null;
                 }
+                this._saveTimelineState();
                 this.render();
             };
 
@@ -292,6 +313,7 @@ class TimelinePage {
             const yearlyStartHandler = (e) => {
                 const value = parseInt(e.target.value, 10);
                 this.currentPeriod.yearly.start = isNaN(value) ? null : value;
+                this._saveTimelineState();
                 this.render();
             };
 
@@ -308,6 +330,7 @@ class TimelinePage {
             const yearlyEndHandler = (e) => {
                 const value = parseInt(e.target.value, 10);
                 this.currentPeriod.yearly.end = isNaN(value) ? null : value;
+                this._saveTimelineState();
                 this.render();
             };
 
@@ -374,7 +397,7 @@ class TimelinePage {
         if (this.elements.timelineDailyMonth) {
             const today = new Date();
             const yearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-            this.elements.timelineDailyMonth.value = yearMonth;
+            if (!this.elements.timelineDailyMonth.value) this.elements.timelineDailyMonth.value = yearMonth;
 
             this.dailyPicker = new CustomDatePicker('timelineDailyMonth', {
                 type: 'month',
@@ -392,7 +415,7 @@ class TimelinePage {
         if (this.elements.timelinePeriodStartMonth) {
             const today = new Date();
             const yearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-            this.elements.timelinePeriodStartMonth.value = yearMonth;
+            if (!this.elements.timelinePeriodStartMonth.value) this.elements.timelinePeriodStartMonth.value = yearMonth;
 
             this.monthlyStartPicker = new CustomDatePicker('timelinePeriodStartMonth', {
                 type: 'month',
@@ -409,7 +432,7 @@ class TimelinePage {
             const today = new Date();
             const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0); // último dia do mês
             const yearMonth = `${endDate.getFullYear()}-${String(endDate.getMonth() + 2).padStart(2, '0')}`;
-            this.elements.timelinePeriodEndMonth.value = yearMonth;
+            if (!this.elements.timelinePeriodEndMonth.value) this.elements.timelinePeriodEndMonth.value = yearMonth;
 
             this.monthlyEndPicker = new CustomDatePicker('timelinePeriodEndMonth', {
                 type: 'month',
@@ -477,6 +500,71 @@ class TimelinePage {
 
         // Renderizar com dados filtrados
         this.timelineManager.render(servidores);
+    }
+
+    /**
+     * Storage key for timeline controls
+     * @private
+     */
+    _timelineStorageKey() {
+        return 'timelineState:v1';
+    }
+
+    /**
+     * Load timeline controls state from localStorage
+     * @private
+     */
+    _loadTimelineState() {
+        const raw = localStorage.getItem(this._timelineStorageKey());
+        if (!raw) return;
+        let state = null;
+        try { state = JSON.parse(raw); } catch (e) { return; }
+        if (!state) return;
+
+        if (this.elements.timelineView && state.view) this.elements.timelineView.value = state.view;
+        if (this.elements.timelineDailyMonth && state.daily) this.elements.timelineDailyMonth.value = state.daily;
+        if (this.elements.timelinePeriodStartMonth && state.periodStart) this.elements.timelinePeriodStartMonth.value = state.periodStart;
+        if (this.elements.timelinePeriodEndMonth && state.periodEnd) this.elements.timelinePeriodEndMonth.value = state.periodEnd;
+        if (this.elements.timelinePeriodStartYear && state.yearStart) this.elements.timelinePeriodStartYear.value = state.yearStart;
+        if (this.elements.timelinePeriodEndYear && state.yearEnd) this.elements.timelinePeriodEndYear.value = state.yearEnd;
+
+        // Reflect into current state
+        if (this.elements.timelineView) this.currentView = this.elements.timelineView.value || this.currentView;
+        if (this.elements.timelineDailyMonth && this.elements.timelineDailyMonth.value) {
+            const [y,m] = this.elements.timelineDailyMonth.value.split('-').map(Number);
+            this.currentPeriod.daily = new Date(y, m - 1, 1);
+        }
+        if (this.elements.timelinePeriodStartMonth && this.elements.timelinePeriodStartMonth.value) {
+            const [y,m] = this.elements.timelinePeriodStartMonth.value.split('-').map(Number);
+            this.currentPeriod.monthly.start = new Date(y, m - 1, 1);
+        }
+        if (this.elements.timelinePeriodEndMonth && this.elements.timelinePeriodEndMonth.value) {
+            const [y,m] = this.elements.timelinePeriodEndMonth.value.split('-').map(Number);
+            this.currentPeriod.monthly.end = new Date(y, m - 1, 1);
+        }
+        if (this.elements.timelinePeriodStartYear && this.elements.timelinePeriodStartYear.value) {
+            this.currentPeriod.yearly.start = parseInt(this.elements.timelinePeriodStartYear.value, 10) || null;
+        }
+        if (this.elements.timelinePeriodEndYear && this.elements.timelinePeriodEndYear.value) {
+            this.currentPeriod.yearly.end = parseInt(this.elements.timelinePeriodEndYear.value, 10) || null;
+        }
+    }
+
+    /**
+     * Save timeline controls state to localStorage
+     * @private
+     */
+    _saveTimelineState() {
+        const state = {
+            view: this.elements.timelineView ? this.elements.timelineView.value : undefined,
+            daily: this.elements.timelineDailyMonth ? this.elements.timelineDailyMonth.value : undefined,
+            periodStart: this.elements.timelinePeriodStartMonth ? this.elements.timelinePeriodStartMonth.value : undefined,
+            periodEnd: this.elements.timelinePeriodEndMonth ? this.elements.timelinePeriodEndMonth.value : undefined,
+            yearStart: this.elements.timelinePeriodStartYear ? this.elements.timelinePeriodStartYear.value : undefined,
+            yearEnd: this.elements.timelinePeriodEndYear ? this.elements.timelinePeriodEndYear.value : undefined
+        };
+
+        try { localStorage.setItem(this._timelineStorageKey(), JSON.stringify(state)); } catch (e) { /* ignore */ }
     }
 
     /**
