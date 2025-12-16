@@ -584,7 +584,6 @@ class ModalManager {
         if (!popup || !popupBody) return;
 
         let mgr = this.app?.advancedFilterManager || window.advancedFilterManager;
-        let mgr = this.app?.advancedFilterManager || window.advancedFilterManager;
         // Ensure unique values are populated
         try {
             const valuesBefore = mgr && typeof mgr.getUniqueValues === 'function' ? (mgr.getUniqueValues(filterType) || []) : [];
@@ -657,26 +656,362 @@ class ModalManager {
         }
         popupBody.innerHTML = html;
 
-        // Attach option handlers
-        const optionButtons = popupBody.querySelectorAll('.filter-option-btn');
-        optionButtons.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const val = e.currentTarget.dataset.value;
-                try {
-                    const mgr = this.app?.advancedFilterManager || window.advancedFilterManager;
-                    if (mgr && typeof mgr.setFilter === 'function') {
-                        mgr.setFilter(filterType, val);
+        const mgrRef = this.app?.advancedFilterManager || window.advancedFilterManager;
+
+        // If this is a dual-list based filter, wire dual-list listeners and confirm behaviour
+        const dualTypes = ['cargo','lotacao','superintendencia','subsecretaria','urgencia','servidor'];
+        if (dualTypes.includes(filterType)) {
+            const dualId = filterType;
+            // For urgencia, map internal values to display labels
+            let dualValues = values || [];
+            if (filterType === 'urgencia') {
+                const map = { 'critical': '🔴 Crítica', 'high': '🟠 Alta', 'moderate': '🟡 Moderada', 'low': '🟢 Baixa' };
+                dualValues = Object.values(map);
+            }
+            // Render dual list HTML (if not already created by render functions)
+            if (!popupBody.querySelector(`[data-dual-list="${dualId}"]`)) {
+                popupBody.innerHTML = this.createDualListBox(dualId, dualValues, [], 'Disponíveis', 'Selecionados');
+            }
+            setTimeout(() => this.setupDualListBoxListeners(dualId), 0);
+
+            const confirmBtn = document.getElementById('confirmFilterPopupBtn');
+            if (confirmBtn) {
+                confirmBtn.onclick = () => {
+                    let selected = this.getDualListSelectedValues(dualId) || [];
+                    // Map urgencia labels back to internal values
+                    if (filterType === 'urgencia') {
+                        const reverseMap = { '🔴 Crítica': 'critical', '🟠 Alta': 'high', '🟡 Moderada': 'moderate', '🟢 Baixa': 'low' };
+                        selected = selected.map(s => reverseMap[s] || s);
                     }
-                } catch (err) { console.warn('Erro ao aplicar filtro:', err); }
-                if (typeof this._closeFilterConfigPopup === 'function') this._closeFilterConfigPopup();
-                try { const mgr = this.app?.advancedFilterManager || window.advancedFilterManager; if (mgr && typeof mgr.renderActiveFiltersList === 'function') mgr.renderActiveFiltersList(); } catch(e){}
+                    try { if (mgrRef && typeof mgrRef.setFilter === 'function') mgrRef.setFilter(filterType, selected.length === 1 ? selected[0] : selected); } catch(e){ console.warn(e); }
+                    if (typeof this._closeFilterConfigPopup === 'function') this._closeFilterConfigPopup();
+                    try { if (mgrRef && typeof mgrRef.renderActiveFiltersList === 'function') mgrRef.renderActiveFiltersList(); } catch(e){}
+                    document.dispatchEvent(new CustomEvent('advanced-filters-changed'));
+                };
+            }
+        } else {
+            // Attach option handlers for static lists
+            const optionButtons = popupBody.querySelectorAll('.filter-option-btn');
+            optionButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const val = e.currentTarget.dataset.value;
+                    try {
+                        if (mgrRef && typeof mgrRef.setFilter === 'function') {
+                            mgrRef.setFilter(filterType, val);
+                        }
+                    } catch (err) { console.warn('Erro ao aplicar filtro:', err); }
+                    if (typeof this._closeFilterConfigPopup === 'function') this._closeFilterConfigPopup();
+                    try { if (mgrRef && typeof mgrRef.renderActiveFiltersList === 'function') mgrRef.renderActiveFiltersList(); } catch(e){}
+                    document.dispatchEvent(new CustomEvent('advanced-filters-changed'));
+                });
             });
-        });
+
+            // Fallback handlers for special UIs
+            if (filterType === 'servidor') {
+                const input = popupBody.querySelector('#filterServidorSearchInput');
+                const results = popupBody.querySelector('#filterServidorResults');
+                const names = values.length ? values : (this.app?.dataStateManager?.getFilteredData ? (this.app.dataStateManager.getFilteredData() || []).map(s => (s.NOME||s.nome||s.SERVIDOR||s.servidor||'')).filter(Boolean) : []);
+                const renderResults = (list) => {
+                    if (!results) return;
+                    results.innerHTML = list.map(n => `<button type="button" class="btn btn-link filter-option-btn" data-value="${this.escapeHtml(n)}">${this.escapeHtml(n)}</button>`).join('');
+                    results.querySelectorAll('.filter-option-btn').forEach(b => b.addEventListener('click', (e) => {
+                        const val = e.currentTarget.dataset.value;
+                        try { if (mgrRef && typeof mgrRef.setFilter === 'function') mgrRef.setFilter('servidor', val); } catch (err) { console.warn(err); }
+                        if (typeof this._closeFilterConfigPopup === 'function') this._closeFilterConfigPopup();
+                        try { if (mgrRef && typeof mgrRef.renderActiveFiltersList === 'function') mgrRef.renderActiveFiltersList(); } catch(e){}
+                        document.dispatchEvent(new CustomEvent('advanced-filters-changed'));
+                    }));
+                };
+                renderResults(names.slice(0, 50));
+                if (input) {
+                    input.addEventListener('input', () => {
+                        const q = (input.value || '').toLowerCase();
+                        const filtered = names.filter(n => n && n.toLowerCase().includes(q));
+                        renderResults(filtered.slice(0, 200));
+                    });
+                }
+            }
+
+            if (filterType === 'periodo') {
+                const inicio = popupBody.querySelector('#filterPeriodoInicio');
+                const fim = popupBody.querySelector('#filterPeriodoFim');
+                const applyBtn = popupBody.querySelector('#applyPeriodoBtn');
+                const clearBtn = popupBody.querySelector('#clearPeriodoBtn');
+                if (applyBtn) applyBtn.addEventListener('click', () => {
+                    const val = { inicio: inicio?.value || null, fim: fim?.value || null };
+                    try { if (mgrRef && typeof mgrRef.setFilter === 'function') mgrRef.setFilter('periodo', val); } catch(e){ console.warn(e); }
+                    if (typeof this._closeFilterConfigPopup === 'function') this._closeFilterConfigPopup();
+                    try { if (mgrRef && typeof mgrRef.renderActiveFiltersList === 'function') mgrRef.renderActiveFiltersList(); } catch(e){}
+                    document.dispatchEvent(new CustomEvent('advanced-filters-changed'));
+                });
+                if (clearBtn) clearBtn.addEventListener('click', () => {
+                    try { if (mgrRef && typeof mgrRef.removeFilter === 'function') mgrRef.removeFilter('periodo'); else if (mgrRef && typeof mgrRef.setFilter === 'function') mgrRef.setFilter('periodo', null); } catch(e){}
+                    if (typeof this._closeFilterConfigPopup === 'function') this._closeFilterConfigPopup();
+                    try { if (mgrRef && typeof mgrRef.renderActiveFiltersList === 'function') mgrRef.renderActiveFiltersList(); } catch(e){}
+                    document.dispatchEvent(new CustomEvent('advanced-filters-changed'));
+                });
+            }
+
+            if (filterType === 'idade') {
+                const min = popupBody.querySelector('#filterIdadeMin');
+                const max = popupBody.querySelector('#filterIdadeMax');
+                const applyBtn = popupBody.querySelector('#applyIdadeBtn');
+                const clearBtn = popupBody.querySelector('#clearIdadeBtn');
+                if (applyBtn) applyBtn.addEventListener('click', () => {
+                    const val = { min: min?.value ? parseInt(min.value,10) : null, max: max?.value ? parseInt(max.value,10) : null };
+                    try { if (mgrRef && typeof mgrRef.setFilter === 'function') mgrRef.setFilter('idade', val); } catch(e){ console.warn(e); }
+                    if (typeof this._closeFilterConfigPopup === 'function') this._closeFilterConfigPopup();
+                    try { if (mgrRef && typeof mgrRef.renderActiveFiltersList === 'function') mgrRef.renderActiveFiltersList(); } catch(e){}
+                    document.dispatchEvent(new CustomEvent('advanced-filters-changed'));
+                });
+                if (clearBtn) clearBtn.addEventListener('click', () => {
+                    try { if (mgrRef && typeof mgrRef.removeFilter === 'function') mgrRef.removeFilter('idade'); else if (mgrRef && typeof mgrRef.setFilter === 'function') mgrRef.setFilter('idade', null); } catch(e){}
+                    if (typeof this._closeFilterConfigPopup === 'function') this._closeFilterConfigPopup();
+                    try { if (mgrRef && typeof mgrRef.renderActiveFiltersList === 'function') mgrRef.renderActiveFiltersList(); } catch(e){}
+                    document.dispatchEvent(new CustomEvent('advanced-filters-changed'));
+                });
+            }
+
+            if (filterType === 'meses') {
+                const input = popupBody.querySelector('#filterMesesInput');
+                const applyBtn = popupBody.querySelector('#applyMesesBtn');
+                if (applyBtn) applyBtn.addEventListener('click', () => {
+                    const val = input?.value ? parseInt(input.value,10) : null;
+                    try { if (mgrRef && typeof mgrRef.setFilter === 'function') mgrRef.setFilter('meses', val); } catch(e){ console.warn(e); }
+                    if (typeof this._closeFilterConfigPopup === 'function') this._closeFilterConfigPopup();
+                    try { if (mgrRef && typeof mgrRef.renderActiveFiltersList === 'function') mgrRef.renderActiveFiltersList(); } catch(e){}
+                    document.dispatchEvent(new CustomEvent('advanced-filters-changed'));
+                });
+            }
+        }
 
         popup.style.display = 'flex';
         popup.setAttribute('aria-hidden', 'false');
         popup.classList.add('active', 'show');
         setTimeout(() => { popup.focus(); }, 50);
+    }
+
+    /**
+     * Normaliza texto removendo acentos para busca
+     */
+    normalizeText(text) {
+        if (!text) return '';
+            try {
+                return String(text).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        } catch (e) {
+            return String(text).toLowerCase();
+        }
+    }
+
+    /**
+     * Cria um componente Dual List Box (duas colunas para seleção)
+     */
+    createDualListBox(id, availableItems, selectedItems = [], availableLabel = 'Disponíveis', selectedLabel = 'Selecionados') {
+        const selectedSet = new Set(selectedItems);
+        const available = availableItems.filter(item => !selectedSet.has(item));
+
+        return `
+            <div class="dual-list-container" data-dual-list="${id}">
+                <div class="dual-list-panel">
+                    <div class="dual-list-header">
+                        <span class="dual-list-title">
+                            ${availableLabel}
+                            <span class="dual-list-count" data-count-available>${available.length}</span>
+                        </span>
+                    </div>
+                    <div class="dual-list-search">
+                        <input type="text" placeholder="Buscar..." data-search-available autocomplete="off">
+                    </div>
+                    <div class="dual-list-items" data-items-available>
+                        ${available.length > 0 ? available.map(item => `
+                            <div class="dual-list-item" data-value="${this.escapeHtml(item)}" data-item-available>
+                                <span class="dual-list-item-text">${this.escapeHtml(item)}</span>
+                                <i class="bi bi-chevron-right dual-list-item-icon"></i>
+                            </div>
+                        `).join('') : `
+                            <div class="dual-list-empty">
+                                <div class="dual-list-empty-icon">✓</div>
+                                <div class="dual-list-empty-text">Todos os itens foram selecionados</div>
+                            </div>
+                        `}
+                    </div>
+                </div>
+                <div class="dual-list-panel selected">
+                    <div class="dual-list-header">
+                        <span class="dual-list-title">
+                            ${selectedLabel}
+                            <span class="dual-list-count" data-count-selected>${selectedItems.length}</span>
+                        </span>
+                    </div>
+                    <div class="dual-list-search">
+                        <input type="text" placeholder="Buscar..." data-search-selected autocomplete="off">
+                    </div>
+                    <div class="dual-list-items" data-items-selected>
+                        ${selectedItems.length > 0 ? selectedItems.map(item => `
+                            <div class="dual-list-item" data-value="${this.escapeHtml(item)}" data-item-selected>
+                                <span class="dual-list-item-text">${this.escapeHtml(item)}</span>
+                                <i class="bi bi-x-lg dual-list-item-icon"></i>
+                            </div>
+                        `).join('') : `
+                            <div class="dual-list-empty">
+                                <div class="dual-list-empty-icon">👈</div>
+                                <div class="dual-list-empty-text">Clique nos itens à esquerda para selecioná-los</div>
+                            </div>
+                        `}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Configura os event listeners para um Dual List Box
+     */
+    setupDualListBoxListeners(id) {
+        const container = document.querySelector(`[data-dual-list="${id}"]`);
+        if (!container) return;
+
+        const availableItems = container.querySelector('[data-items-available]');
+        const selectedItems = container.querySelector('[data-items-selected]');
+        const searchAvailable = container.querySelector('[data-search-available]');
+        const searchSelected = container.querySelector('[data-search-selected]');
+        const countAvailable = container.querySelector('[data-count-available]');
+        const countSelected = container.querySelector('[data-count-selected]');
+
+        const moveToSelected = (itemElement) => {
+            const value = itemElement.dataset.value;
+            itemElement.remove();
+            const emptyState = selectedItems.querySelector('.dual-list-empty');
+            if (emptyState) emptyState.remove();
+            const newItem = document.createElement('div');
+            newItem.className = 'dual-list-item';
+            newItem.dataset.value = value;
+            newItem.dataset.itemSelected = '';
+            newItem.innerHTML = `
+                <span class="dual-list-item-text">${this.escapeHtml(value)}</span>
+                <i class="bi bi-x-lg dual-list-item-icon"></i>
+            `;
+            selectedItems.appendChild(newItem);
+            this.updateDualListCounts(container, countAvailable, countSelected);
+            if (availableItems.querySelectorAll('[data-item-available]').length === 0) {
+                availableItems.innerHTML = `
+                    <div class="dual-list-empty">
+                        <div class="dual-list-empty-icon">✓</div>
+                        <div class="dual-list-empty-text">Todos os itens foram selecionados</div>
+                    </div>
+                `;
+            }
+        };
+
+        const moveToAvailable = (itemElement) => {
+            const value = itemElement.dataset.value;
+            itemElement.remove();
+            const emptyState = availableItems.querySelector('.dual-list-empty');
+            if (emptyState) emptyState.remove();
+            const newItem = document.createElement('div');
+            newItem.className = 'dual-list-item';
+            newItem.dataset.value = value;
+            newItem.dataset.itemAvailable = '';
+            newItem.innerHTML = `
+                <span class="dual-list-item-text">${this.escapeHtml(value)}</span>
+                <i class="bi bi-chevron-right dual-list-item-icon"></i>
+            `;
+            availableItems.appendChild(newItem);
+            this.updateDualListCounts(container, countAvailable, countSelected);
+            if (selectedItems.querySelectorAll('[data-item-selected]').length === 0) {
+                selectedItems.innerHTML = `
+                    <div class="dual-list-empty">
+                        <div class="dual-list-empty-icon">👈</div>
+                        <div class="dual-list-empty-text">Clique nos itens à esquerda para selecioná-los</div>
+                    </div>
+                `;
+            }
+        };
+
+        availableItems.addEventListener('click', (e) => {
+            const item = e.target.closest('[data-item-available]');
+            if (item) moveToSelected(item);
+        });
+
+        selectedItems.addEventListener('click', (e) => {
+            const item = e.target.closest('[data-item-selected]');
+            if (item) moveToAvailable(item);
+        });
+
+        if (searchAvailable) {
+            searchAvailable.addEventListener('input', (e) => {
+                const searchTerm = this.normalizeText(e.target.value);
+                const items = availableItems.querySelectorAll('[data-item-available]');
+                let visibleCount = 0;
+                items.forEach(item => {
+                    const text = this.normalizeText(item.querySelector('.dual-list-item-text').textContent);
+                    const matches = text.includes(searchTerm);
+                    item.style.display = matches ? '' : 'none';
+                    if (matches) visibleCount++;
+                });
+                const existingNoResults = availableItems.querySelector('.dual-list-no-results');
+                if (existingNoResults) existingNoResults.remove();
+                if (visibleCount === 0 && items.length > 0) {
+                    const noResults = document.createElement('div');
+                    noResults.className = 'dual-list-no-results';
+                    noResults.innerHTML = `
+                        <div class="dual-list-no-results-icon">🔍</div>
+                        <div class="dual-list-no-results-text">Nenhum resultado encontrado</div>
+                    `;
+                    availableItems.appendChild(noResults);
+                }
+            });
+        }
+
+        if (searchSelected) {
+            searchSelected.addEventListener('input', (e) => {
+                const searchTerm = this.normalizeText(e.target.value);
+                const items = selectedItems.querySelectorAll('[data-item-selected]');
+                let visibleCount = 0;
+                items.forEach(item => {
+                    const text = this.normalizeText(item.querySelector('.dual-list-item-text').textContent);
+                    const matches = text.includes(searchTerm);
+                    item.style.display = matches ? '' : 'none';
+                    if (matches) visibleCount++;
+                });
+                const existingNoResults = selectedItems.querySelector('.dual-list-no-results');
+                if (existingNoResults) existingNoResults.remove();
+                if (visibleCount === 0 && items.length > 0) {
+                    const noResults = document.createElement('div');
+                    noResults.className = 'dual-list-no-results';
+                    noResults.innerHTML = `
+                        <div class="dual-list-no-results-icon">🔍</div>
+                        <div class="dual-list-no-results-text">Nenhum resultado encontrado</div>
+                    `;
+                    selectedItems.appendChild(noResults);
+                }
+            });
+        }
+    }
+
+    updateDualListCounts(container, countAvailable, countSelected) {
+        const availableCount = container.querySelectorAll('[data-item-available]').length;
+        const selectedCount = container.querySelectorAll('[data-item-selected]').length;
+        if (countAvailable) countAvailable.textContent = availableCount;
+        if (countSelected) countSelected.textContent = selectedCount;
+    }
+
+    getDualListSelectedValues(id) {
+        const container = document.querySelector(`[data-dual-list="${id}"]`);
+        if (!container) return [];
+        const selectedItems = container.querySelectorAll('[data-item-selected]');
+        return Array.from(selectedItems).map(item => item.dataset.value);
+    }
+
+    populateDualListBox(type, selectedValues) {
+        const container = document.querySelector(`[data-dual-list="${type}"]`);
+        if (!container) return;
+        const availableItems = container.querySelector('[data-items-available]');
+        const selectedItems = container.querySelector('[data-items-selected]');
+        selectedValues.forEach(value => {
+            const item = availableItems.querySelector(`[data-value="${value}"]`);
+            if (item) item.click();
+        });
     }
     /**
      * Mostra um alerta (substitui window.alert)
