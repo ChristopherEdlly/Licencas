@@ -271,7 +271,12 @@ class App {
             };
         }
 
-
+        // HeaderManager
+        if (typeof HeaderManager !== 'undefined') {
+            this.headerManager = new HeaderManager(this);
+            this.headerManager.init();
+            console.log('✅ HeaderManager inicializado');
+        }
 
         // SidebarManager
         if (typeof SidebarManager !== 'undefined') {

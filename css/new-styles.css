@@ -1446,6 +1446,12 @@ body.sidebar-collapsed .sidebar .nav-link.active {
     font-size: 1.125rem;
 }
 
+/* Contador com filtro ativo */
+.server-count span.filtered {
+    color: var(--warning);
+    font-weight: 700;
+}
+
 /* Busca no Header */
 .header-search {
     display: flex;
