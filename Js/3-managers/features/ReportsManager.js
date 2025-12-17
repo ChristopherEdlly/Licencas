@@ -642,6 +642,95 @@ class ReportsManager {
         return html;
     }
 
+    /**
+     * Export helper used by UI: tries to produce an Excel-like file (CSV fallback)
+     * @param {Array<Object>} exportData - Array of plain objects (rows)
+     * @param {string} title - Filename / report title
+     */
+    exportToExcel(exportData, title = 'report') {
+        // Delegate to ExportService if present
+        if (this.app && this.app.exportService && typeof this.app.exportService.exportToExcel === 'function') {
+            try {
+                this.app.exportService.exportToExcel(exportData, title);
+                return;
+            } catch (e) {
+                console.warn('ExportService.exportToExcel falhou, fallback para CSV', e);
+            }
+        }
+
+        // Fallback: generate CSV and trigger download with .csv extension
+        try {
+            const keys = exportData.length ? Object.keys(exportData[0]) : [];
+            const csvRows = [];
+            if (keys.length) csvRows.push(keys.join(','));
+            exportData.forEach(row => {
+                const values = keys.map(k => {
+                    const v = row[k];
+                    if (v === null || v === undefined) return '';
+                    if (typeof v === 'object') return '"' + JSON.stringify(v).replace(/"/g, '""') + '"';
+                    return '"' + String(v).replace(/"/g, '""') + '"';
+                });
+                csvRows.push(values.join(','));
+            });
+
+            const csv = csvRows.join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${title.replace(/\s+/g, '_')}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error('Erro ao gerar CSV para exportação:', e);
+        }
+    }
+
+    /**
+     * Export helper to produce a printable PDF view (opens print dialog)
+     * @param {Array<Object>} exportData
+     * @param {string} title
+     */
+    exportToPDF(exportData, title = 'report') {
+        // Delegate to ExportService if present
+        if (this.app && this.app.exportService && typeof this.app.exportService.exportToPDF === 'function') {
+            try {
+                this.app.exportService.exportToPDF(exportData, title);
+                return;
+            } catch (e) {
+                console.warn('ExportService.exportToPDF falhou, fallback para janela de impressão', e);
+            }
+        }
+
+        // Fallback: build a simple HTML and open in new window for printing
+        try {
+            const report = {
+                name: title,
+                description: '',
+                generatedAt: new Date().toISOString(),
+                data: exportData
+            };
+
+            const html = this.exportAsHTML(report);
+            const w = window.open('', '_blank');
+            if (!w) {
+                console.error('Não foi possível abrir nova janela para impressão');
+                return;
+            }
+            w.document.open();
+            w.document.write(html);
+            w.document.close();
+            // Wait a bit for content to load then call print
+            setTimeout(() => {
+                try { w.print(); } catch (e) { console.warn('Erro ao chamar print()', e); }
+            }, 300);
+        } catch (e) {
+            console.error('Erro ao gerar PDF (fallback):', e);
+        }
+    }
+
     // ==================== GERENCIAMENTO DE TEMPLATES ====================
 
     /**

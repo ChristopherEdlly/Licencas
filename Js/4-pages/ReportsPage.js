@@ -27,6 +27,12 @@ class ReportsPage {
         this.reportTitle = 'Relatório de Licenças';
         this.columnSearchTerm = '';
 
+        // Fixed columns order (legacy behavior expects fixed ordering)
+        this.columnsOrder = ['nome','cpf','matricula','cargo','idade','lotacao','superintendencia','subsecretaria','urgencia','periodoLicenca','dataInicio','dataFim','diasLicenca','mesesLicenca'];
+
+        // Columns with data available in current dataset
+        this.availableColumns = new Set();
+
         // Referências aos managers (serão inicializados no init)
         this.dataStateManager = null;
         this.exportService = null;
@@ -67,24 +73,24 @@ class ReportsPage {
         // Mapeamento de colunas para extração de dados
         this.columnMapping = {
             // Dados do Servidor
-            nome: { label: 'Nome', extract: (s) => s.servidor || s.nome || 'Não informado' },
-            cpf: { label: 'CPF', extract: (s) => s.cpf || '' },
-            matricula: { label: 'Matrícula', extract: (s) => s.matricula || '' },
-            cargo: { label: 'Cargo', extract: (s) => s.cargo || 'Não informado' },
-            idade: { label: 'Idade', extract: (s) => s.idade || '' },
+            nome: { label: 'Nome', extract: (s) => this._getField(s, ['^nome$', '^servidor$', 'NOME', 'SERVIDOR']) || 'Não informado' },
+            cpf: { label: 'CPF', extract: (s) => this._getField(s, ['cpf', 'CPF']) || '' },
+            matricula: { label: 'Matrícula', extract: (s) => this._getField(s, ['matricula', 'MATRICULA', 'matr']) || '' },
+            cargo: { label: 'Cargo', extract: (s) => this._getField(s, ['^cargo$', 'CARGO']) || 'Não informado' },
+            idade: { label: 'Idade', extract: (s) => this._extractAge(s) || '' },
 
             // Localização
-            lotacao: { label: 'Lotação', extract: (s) => s.lotacao || 'Não informada' },
-            superintendencia: { label: 'Superintendência', extract: (s) => s.superintendencia || '' },
-            subsecretaria: { label: 'Subsecretaria', extract: (s) => s.subsecretaria || '' },
+            lotacao: { label: 'Lotação', extract: (s) => this._getField(s, ['lotac', 'lotação', 'LOTACAO', 'lotacao']) || 'Não informada' },
+            superintendencia: { label: 'Superintendência', extract: (s) => this._getField(s, ['super', 'superintend', 'SUPERINTENDENCIA']) || '' },
+            subsecretaria: { label: 'Subsecretaria', extract: (s) => this._getField(s, ['subsec', 'subsecret', 'subsecretaria', 'SUBSECRETARIA']) || '' },
 
             // Informações da Licença
-            urgencia: { label: 'Urgência', extract: (s) => s.urgencia || 'Não calculada' },
+            urgencia: { label: 'Urgência', extract: (s) => this._getField(s, ['urg', 'urgencia', 'nivelUrgencia']) || 'Não calculada' },
             periodoLicenca: { label: 'Período da Licença', extract: (s) => this._formatPeriodoLicenca(s) },
-            dataInicio: { label: 'Data Início', extract: (s) => this._formatDate(s.dataInicio) },
-            dataFim: { label: 'Data Fim', extract: (s) => this._formatDate(s.dataFim) },
-            diasLicenca: { label: 'Dias de Licença', extract: (s) => s.diasLicenca || '' },
-            mesesLicenca: { label: 'Meses de Licença', extract: (s) => s.mesesLicenca || '' }
+            dataInicio: { label: 'Data Início', extract: (s) => this._formatDate(this._getField(s, ['dataInicio', 'inicio', 'A_PARTIR', 'inicioLicenca'])) },
+            dataFim: { label: 'Data Fim', extract: (s) => this._formatDate(this._getField(s, ['dataFim', 'fim', 'TERMINO', 'fimLicenca'])) },
+            diasLicenca: { label: 'Dias de Licença', extract: (s) => this._getField(s, ['dias', 'DIAS', 'diasLicenca', 'dias_licenca']) || '' },
+            mesesLicenca: { label: 'Meses de Licença', extract: (s) => this._getField(s, ['meses', 'MESES', 'mesesLicenca']) || '' }
         };
 
         // Event listeners registrados (para cleanup)
@@ -416,6 +422,161 @@ class ReportsPage {
     }
 
     /**
+     * Retorna colunas selecionadas respeitando a ordem fixa definida em `this.columnsOrder`.
+     * @returns {Array<string>}
+     */
+    _orderedSelectedColumns() {
+        return this.columnsOrder.filter(col => this.selectedColumns.has(col) && this.columnMapping[col]);
+    }
+
+    /**
+     * Atualiza `availableColumns` baseado nos dados fornecidos e ajusta checkboxes no DOM
+     * @param {Array} servidores
+     */
+    _updateAvailableColumns(servidores) {
+        const available = new Set();
+        const sample = servidores || this._getFilteredData() || [];
+        // For each defined column, check if at least one non-empty value exists
+        Object.keys(this.columnMapping).forEach(col => {
+            const extractor = this.columnMapping[col].extract;
+            if (!extractor) return;
+            const has = sample.some(s => {
+                try {
+                    const v = extractor(s);
+                    return v !== null && v !== undefined && String(v).trim() !== '';
+                } catch (e) { return false; }
+            });
+            if (has) available.add(col);
+        });
+
+        this.availableColumns = available;
+
+        // Update DOM checkboxes: disable those not available
+        if (this.elements.columnsAccordion) {
+            const checkboxes = this.elements.columnsAccordion.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                const val = cb.value;
+                if (!available.has(val)) {
+                    cb.disabled = true;
+                    // visually indicate disabled
+                    cb.closest('.column-checkbox')?.classList.add('disabled');
+                    // ensure not selected
+                    if (this.selectedColumns.has(val)) this.selectedColumns.delete(val);
+                    cb.checked = false;
+                } else {
+                    cb.disabled = false;
+                    cb.closest('.column-checkbox')?.classList.remove('disabled');
+                }
+            });
+        }
+    }
+
+    /**
+     * Seleciona/desseleciona todas as colunas disponíveis (respeita `availableColumns`)
+     * @param {boolean} selectAll
+     */
+    _selectAllColumns(selectAll) {
+        if (selectAll) {
+            this.selectedColumns = new Set(Array.from(this.availableColumns));
+        } else {
+            this.selectedColumns.clear();
+        }
+
+        // Atualizar checkboxes no DOM
+        if (this.elements.columnsAccordion) {
+            const checkboxes = this.elements.columnsAccordion.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = this.selectedColumns.has(cb.value);
+            });
+        }
+    }
+
+    /**
+     * Helper: busca um campo tolerante a variações de nome/acento
+     * @param {Object} obj
+     * @param {Array<string>} patterns - array de regex-like patterns (strings)
+     * @returns {*} valor encontrado ou empty string
+     */
+    _getField(obj, patterns) {
+        if (!obj || !patterns || !Array.isArray(patterns)) return '';
+        const keys = Object.keys(obj || {});
+        for (const p of patterns) {
+            try {
+                const re = new RegExp(p, 'i');
+                const k = keys.find(k => re.test(k));
+                if (k) return obj[k];
+            } catch (e) {
+                // if pattern isn't a valid regex, fallback to simple match
+                const k = keys.find(k => (k || '').toLowerCase().includes(String(p).toLowerCase()));
+                if (k) return obj[k];
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Retorna array de licenças do servidor, tolerante a nomes diferentes
+     * @param {Object} servidor
+     * @returns {Array}
+     */
+    _getLicenses(servidor) {
+        if (!servidor) return [];
+        const keys = Object.keys(servidor || {});
+        const licKey = keys.find(k => /licen|licença|licenca|licenses|license/i.test(k));
+        if (licKey) {
+            const val = servidor[licKey];
+            if (Array.isArray(val)) return val;
+            if (typeof val === 'string') {
+                try { const parsed = JSON.parse(val); if (Array.isArray(parsed)) return parsed; } catch (e) { }
+                return [];
+            }
+            return Array.isArray(val) ? val : [];
+        }
+        // also check periodoLicenca
+        if (servidor.periodoLicenca) {
+            if (Array.isArray(servidor.periodoLicenca)) return servidor.periodoLicenca;
+            return [servidor.periodoLicenca];
+        }
+        return [];
+    }
+
+    /**
+     * Extrai idade do servidor: tenta campo direto ou calcula a partir da data de nascimento
+     * @param {Object} s
+     * @returns {number|string}
+     */
+    _extractAge(s) {
+        if (!s) return '';
+        // try direct fields
+        const ageVal = this._getField(s, ['idade', 'IDADE', 'age']);
+        if (ageVal !== '' && ageVal !== null && ageVal !== undefined) {
+            const n = Number(String(ageVal).replace(/\D/g, ''));
+            if (!isNaN(n) && n > 0 && n < 150) return n;
+        }
+
+        // try birth date fields
+        const birth = this._getField(s, ['nasc', 'nascimento', 'data_nasc', 'dataNascimento', 'dt_nasc', 'NASCIMENTO']);
+        if (birth) {
+            const d = (typeof birth === 'string') ? (new Date(birth)) : (birth instanceof Date ? birth : null);
+            if (d instanceof Date && !isNaN(d)) {
+                const diff = Date.now() - d.getTime();
+                return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+            }
+            // try DD/MM/YYYY format
+            const m = String(birth).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+            if (m) {
+                const dt = new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]));
+                if (!isNaN(dt)) {
+                    const diff = Date.now() - dt.getTime();
+                    return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
      * Atualiza estado visual do toggle
      * @private
      */
@@ -513,22 +674,7 @@ class ReportsPage {
      * @private
      * @param {boolean} selectAll - true para marcar todas, false para desmarcar
      */
-    _selectAllColumns(selectAll) {
-        // Atualizar estado
-        if (selectAll) {
-            this.selectedColumns = new Set(Object.keys(this.columnMapping));
-        } else {
-            this.selectedColumns.clear();
-        }
-
-        // Atualizar checkboxes no DOM
-        if (this.elements.columnsAccordion) {
-            const checkboxes = this.elements.columnsAccordion.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(cb => {
-                cb.checked = selectAll;
-            });
-        }
-    }
+    
 
     /**
      * Renderiza a página com os dados atuais
@@ -547,6 +693,9 @@ class ReportsPage {
 
         // 2. Processar dados conforme toggle (todas licenças vs apenas filtradas)
         const processedData = this._processDataForExport(servidores);
+
+        // Update available columns based on processed data (disable columns without data)
+        try { this._updateAvailableColumns(processedData); } catch (e) { console.warn('Erro ao atualizar coluna disponível:', e); }
 
         // 3. Renderizar preview da tabela
         this._renderPreview(processedData);
@@ -575,38 +724,62 @@ class ReportsPage {
      * @returns {Array} Array de dados processados
      */
     _processDataForExport(servidores) {
-        if (this.showAllPeriods) {
-            // Visão Completa: Todas as licenças de cada servidor
-            // Se servidor tem múltiplas licenças, criar uma linha por licença
-            const expandedData = [];
+        // Always produce one row per servidor (aggregate license periods)
+        const aggregated = servidores.map(servidor => {
+            const licencas = this._getLicenses(servidor) || [];
+            const ag = this._aggregateLicenses(licencas);
 
-            servidores.forEach(servidor => {
-                // Verificar se servidor tem múltiplas licenças
-                if (servidor.licencas && Array.isArray(servidor.licencas) && servidor.licencas.length > 0) {
-                    // Criar uma linha por licença
-                    servidor.licencas.forEach(licenca => {
-                        expandedData.push({
-                            ...servidor,
-                            // Substituir campos de licença por dados específicos desta licença
-                            dataInicio: licenca.inicio,
-                            dataFim: licenca.fim,
-                            diasLicenca: licenca.dias,
-                            mesesLicenca: licenca.meses,
-                            periodoLicenca: licenca
-                        });
-                    });
-                } else {
-                    // Servidor sem licenças ou sem array de licenças
-                    expandedData.push(servidor);
-                }
-            });
+            return {
+                ...servidor,
+                // aggregated summary fields
+                periodoLicenca: ag.periodSummary,
+                periodosDetalhados: ag.periods, // array of {inicio,fim}
+                totalLicencas: ag.count,
+                diasLicenca: ag.totalDays || '',
+                mesesLicenca: ag.maxMonths || ''
+            };
+        });
 
-            return expandedData;
-        } else {
-            // Apenas Filtradas: Usar dados como vieram do filtro
-            // (FilterManager já aplicou os filtros de período)
-            return servidores;
-        }
+        return aggregated;
+    }
+
+    /**
+     * Agrega array de licenças em um resumo: períodos concatenados, total, soma dias, maior meses
+     * @param {Array} licencas
+     * @returns {Object}
+     */
+    _aggregateLicenses(licencas) {
+        if (!licencas || licencas.length === 0) return { periodSummary: '', periods: [], count: 0, totalDays: 0, maxMonths: '' };
+
+        const periods = licencas.map(l => {
+            const inicio = l.inicio || l.INICIO || l.A_PARTIR || l.aPartir || l.dataInicio || l.DATA_INICIO || '';
+            const fim = l.fim || l.FIM || l.TERMINO || l.termino || l.dataFim || l.DATA_FIM || '';
+            return { inicio, fim };
+        }).filter(p => p.inicio || p.fim);
+
+        // build human-readable summary: up to 3 periods joined, plus count
+        const summaryParts = periods.slice(0, 3).map(p => {
+            const si = this._formatDate(p.inicio) || '';
+            const sf = this._formatDate(p.fim) || '';
+            if (si && sf) return `${si} – ${sf}`;
+            if (si) return si;
+            if (sf) return sf;
+            return '';
+        }).filter(Boolean);
+
+        const periodSummary = summaryParts.join('; ') + (periods.length > 3 ? `; ... (+${periods.length - 3})` : '') || '';
+
+        // total days and max months
+        let totalDays = 0;
+        let maxMonths = null;
+        licencas.forEach(l => {
+            const dias = Number(l.dias || l.DIAS || l.days || 0) || 0;
+            totalDays += dias;
+            const meses = Number(l.meses || l.MESES || l.months || 0) || 0;
+            if (meses && (maxMonths === null || meses > maxMonths)) maxMonths = meses;
+        });
+
+        return { periodSummary, periods, count: licencas.length, totalDays: totalDays || '', maxMonths: maxMonths || '' };
     }
 
     /**
@@ -643,7 +816,20 @@ class ReportsPage {
         }
 
         // Renderizar tabela (máximo 15 linhas no preview)
-        const previewData = data.slice(0, 15);
+        // Evitar repetição de servidores na pré-visualização (agrupar por CPF/Matrícula/Nome)
+        const previewData = [];
+        const seen = new Set();
+        for (const row of data) {
+            const key = this._getServerKey(row);
+            if (!key) {
+                // fallback: include if no key
+                previewData.push(row);
+            } else if (!seen.has(key)) {
+                seen.add(key);
+                previewData.push(row);
+            }
+            if (previewData.length >= 15) break;
+        }
         const tableHtml = this._renderPreviewTable(previewData);
         this.elements.previewTableRedesign.innerHTML = tableHtml;
     }
@@ -693,14 +879,12 @@ class ReportsPage {
      */
     _renderPreviewTable(data) {
         // Cabeçalhos
-        const headers = Array.from(this.selectedColumns)
-            .filter(col => this.columnMapping[col])
+        const headers = this._orderedSelectedColumns()
             .map(col => this.columnMapping[col].label);
 
         // Corpo
         const rows = data.map(servidor => {
-            const cells = Array.from(this.selectedColumns)
-                .filter(col => this.columnMapping[col])
+            const cells = this._orderedSelectedColumns()
                 .map(col => {
                     const extractor = this.columnMapping[col].extract;
                     const value = extractor(servidor);
@@ -794,8 +978,7 @@ class ReportsPage {
         return data.map(servidor => {
             const row = {};
 
-            Array.from(this.selectedColumns)
-                .filter(col => this.columnMapping[col])
+            this._orderedSelectedColumns()
                 .forEach(col => {
                     const { label, extract } = this.columnMapping[col];
                     row[label] = extract(servidor);
@@ -828,35 +1011,33 @@ class ReportsPage {
      * @returns {string} Período formatado
      */
     _formatPeriodoLicenca(servidor) {
-        // Se tem objeto periodoLicenca específico (visão expandida)
-        if (servidor.periodoLicenca && typeof servidor.periodoLicenca === 'object') {
-            const licenca = servidor.periodoLicenca;
-            const inicio = this._formatDate(licenca.inicio);
-            const fim = this._formatDate(licenca.fim);
-
-            if (inicio && fim) {
-                return `${inicio} - ${fim}`;
+        // If there's an explicit periodoLicenca object/array, use first entry
+        if (servidor.periodoLicenca) {
+            const p = Array.isArray(servidor.periodoLicenca) ? servidor.periodoLicenca[0] : servidor.periodoLicenca;
+            if (p && typeof p === 'object') {
+                const inicio = this._formatDate(p.inicio || p.INICIO || p.A_PARTIR || p.dataInicio);
+                const fim = this._formatDate(p.fim || p.FIM || p.TERMINO || p.dataFim);
+                if (inicio && fim) return `${inicio} - ${fim}`;
+                if (inicio) return inicio;
+                return p.descricao || 'Não informado';
             }
-
-            if (inicio) {
-                return inicio;
-            }
-
-            return licenca.descricao || 'Não informado';
         }
 
-        // Fallback: usar dataInicio e dataFim do servidor
-        const inicio = this._formatDate(servidor.dataInicio);
-        const fim = this._formatDate(servidor.dataFim);
-
-        if (inicio && fim) {
-            return `${inicio} - ${fim}`;
+        // Otherwise, try to get licenses via _getLicenses and format first
+        const licencas = this._getLicenses(servidor);
+        if (licencas && licencas.length > 0) {
+            const l = licencas[0];
+            const inicio = this._formatDate(l.inicio || l.INICIO || l.A_PARTIR || l.dataInicio);
+            const fim = this._formatDate(l.fim || l.FIM || l.TERMINO || l.dataFim);
+            if (inicio && fim) return `${inicio} - ${fim}`;
+            if (inicio) return inicio;
         }
 
-        if (inicio) {
-            return inicio;
-        }
-
+        // Fallback: use server-level dataInicio/dataFim
+        const inicio = this._formatDate(this._getField(servidor, ['dataInicio', 'inicio']));
+        const fim = this._formatDate(this._getField(servidor, ['dataFim', 'fim']));
+        if (inicio && fim) return `${inicio} - ${fim}`;
+        if (inicio) return inicio;
         return 'Não informado';
     }
 
@@ -911,6 +1092,22 @@ class ReportsPage {
     }
 
     /**
+     * Gera chave única para um servidor baseada em CPF, matrícula ou nome (fallback).
+     * @param {Object} s
+     * @returns {string}
+     */
+    _getServerKey(s) {
+        if (!s) return '';
+        const cpf = this._getField(s, ['cpf', 'CPF']);
+        if (cpf) return String(cpf).replace(/\D/g, '').trim();
+        const matr = this._getField(s, ['matricula', 'matr', 'MATRICULA']);
+        if (matr) return `M:${String(matr).trim()}`;
+        const nome = this._getField(s, ['^nome$', '^servidor$', 'NOME', 'SERVIDOR']);
+        if (nome) return `N:${String(nome).trim().toLowerCase()}`;
+        return '';
+    }
+
+    /**
      * Ativa a página (torna visível)
      * Chamado pelo Router quando usuário navega para Reports
      */
@@ -957,7 +1154,9 @@ class ReportsPage {
         if (this.elements.columnsAccordion) {
             const checkboxes = this.elements.columnsAccordion.querySelectorAll('input[type="checkbox"]');
             checkboxes.forEach(cb => {
-                cb.checked = this.selectedColumns.has(cb.value);
+                // respect availableColumns if computed
+                const allowed = this.availableColumns.size ? this.availableColumns.has(cb.value) : true;
+                cb.checked = this.selectedColumns.has(cb.value) && allowed;
             });
         }
 
@@ -971,7 +1170,12 @@ class ReportsPage {
      * @param {Array<string>} columns - Array de IDs de colunas
      */
     setSelectedColumns(columns) {
-        this.selectedColumns = new Set(columns);
+        // respect availableColumns if present
+        if (this.availableColumns && this.availableColumns.size) {
+            this.selectedColumns = new Set(columns.filter(c => this.availableColumns.has(c)));
+        } else {
+            this.selectedColumns = new Set(columns);
+        }
 
         // Atualizar checkboxes no DOM
         if (this.elements.columnsAccordion) {

@@ -849,18 +849,6 @@ select.form-control option:checked:hover {
     position: relative;
 }
 
-.preview-table tbody tr::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 4px;
-    height: 100%;
-    background: var(--primary-color);
-    transform: scaleY(0);
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
 .preview-table tbody tr:hover {
     background: linear-gradient(90deg, 
         rgba(59, 130, 246, 0.08) 0%, 
