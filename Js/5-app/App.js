@@ -188,6 +188,17 @@ class App {
             console.error('❌ DataStateManager não disponível');
         }
 
+        // LotacaoHierarchyManager (Singleton global para hierarquia organizacional)
+        if (typeof LotacaoHierarchyManager !== 'undefined') {
+            if (!window.lotacaoHierarchyManager) {
+                window.lotacaoHierarchyManager = new LotacaoHierarchyManager();
+            }
+            this.lotacaoHierarchyManager = window.lotacaoHierarchyManager;
+            console.log('✅ LotacaoHierarchyManager inicializado');
+        } else {
+            console.warn('⚠️ LotacaoHierarchyManager não disponível');
+        }
+
         // FilterStateManager (Singleton global)
         if (typeof window !== 'undefined' && window.filterStateManager) {
             this.filterStateManager = window.filterStateManager;
