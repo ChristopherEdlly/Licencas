@@ -7323,6 +7323,11 @@ input[type="number"]::-webkit-outer-spin-button {
     outline: none;
 }
 
+.datepicker-day.empty {
+    cursor: default;
+    pointer-events: none;
+}
+
 /* Responsividade */
 @media (max-width: 768px) {
     .custom-datepicker-dropdown {

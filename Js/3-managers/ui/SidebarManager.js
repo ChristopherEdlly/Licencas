@@ -86,6 +86,46 @@ class SidebarManager {
                         modal.classList.add('show');
                     }
                 }
+
+                // Botão limpar filtros na sidebar
+                const clearSidebarBtn = document.getElementById('btnClearAllFilters');
+                if (clearSidebarBtn) {
+                    clearSidebarBtn.addEventListener('click', async (e) => {
+                        e.preventDefault();
+                        // confirmar ação
+                        const confirmed = await (window.customModal ? window.customModal.confirm({
+                            title: 'Limpar Todos os Filtros',
+                            message: 'Deseja realmente remover todos os filtros aplicados?',
+                            type: 'danger',
+                            confirmText: 'Limpar',
+                            cancelText: 'Cancelar'
+                        }) : Promise.resolve(true));
+
+                        if (!confirmed) return;
+
+                        try {
+                            // Preferir manager moderno se existir
+                            if (this.app?.advancedFilterManager && typeof this.app.advancedFilterManager.clearAll === 'function') {
+                                this.app.advancedFilterManager.clearAll();
+                            }
+
+                            if (this.app?.advancedFiltersBuilder && typeof this.app.advancedFiltersBuilder.clearAll === 'function') {
+                                await this.app.advancedFiltersBuilder.clearAll();
+                            }
+
+                            // Fallback: resetar dados filtrados diretamente
+                            const all = this.app?.dataStateManager?.getAllServidores ? this.app.dataStateManager.getAllServidores() : (this.app?.allServidores || []);
+                            if (this.app?.dataStateManager?.setFilteredServidores) {
+                                this.app.dataStateManager.setFilteredServidores(all || []);
+                            }
+
+                            // emitir evento para atualização de UI
+                            document.dispatchEvent(new CustomEvent('advanced-filters-changed', { detail: { filters: {} } }));
+                        } catch (err) {
+                            console.warn('Erro ao limpar filtros pela sidebar:', err);
+                        }
+                    });
+                }
             });
         }
 

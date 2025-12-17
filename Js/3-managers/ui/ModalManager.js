@@ -89,6 +89,17 @@ class ModalManager {
         // Adicionar ao stack
         this.modalStack.push(modalId);
 
+        // Ajustar z-index para empilhar modais corretamente
+        try {
+            const base = 1050;
+            const z = base + (this.modalStack.length * 10);
+            modal.style.zIndex = z;
+            const backdrop = modal.querySelector('.modal-backdrop');
+            const content = modal.querySelector('.modal-content');
+            if (backdrop) backdrop.style.zIndex = z;
+            if (content) content.style.zIndex = z + 1;
+        } catch (e) { /* ignore */ }
+
         // Mostrar modal
         modal.style.display = 'flex';
         modal.setAttribute('aria-hidden', 'false');
@@ -247,9 +258,7 @@ class ModalManager {
         };
 
         document.addEventListener('keydown', this.escapeHandler);
-        // Delegated click for filter-type-card to support cases where modal markup
-        // wasn't present at init time. Will open the filter config popup if
-        // the filters modal is visible.
+        // Delegated click for filter-type-card: prefer AdvancedFiltersBuilder if present
         this._delegatedFilterCardHandler = (e) => {
             try {
                 const card = e.target.closest && e.target.closest('.filter-type-card');
@@ -261,7 +270,12 @@ class ModalManager {
                 const filterType = card.dataset && card.dataset.filterType;
                 console.debug('[ModalManager] delegated click on filter-type-card', { filterType, card, target: e.target });
                 if (!filterType) return;
-                try { this._openFilterConfigPopup(filterType); } catch (err) { console.warn('Erro ao abrir popup de filtro:', err); }
+                const builder = this.app?.advancedFiltersBuilder || window.advancedFiltersBuilder;
+                if (builder && typeof builder.openFilterConfigPopup === 'function') {
+                    try { builder.openFilterConfigPopup(filterType); } catch (err) { console.warn('Erro ao abrir popup de filtro via Builder:', err); }
+                } else {
+                    try { this._openFilterConfigPopup(filterType); } catch (err) { console.warn('Erro ao abrir popup de filtro:', err); }
+                }
             } catch (err) {
                 console.error('[ModalManager] error in delegatedFilterCardHandler', err);
             }
@@ -487,7 +501,22 @@ class ModalManager {
      * @private
      */
     _onFiltersModalOpened() {
-        const mgr = this.app?.advancedFilterManager || window.advancedFilterManager;
+        // Priorizar AdvancedFiltersBuilder (novo) sobre AdvancedFilterManager (legado)
+        const mgr = this.app?.advancedFiltersBuilder || window.advancedFiltersBuilder || this.app?.advancedFilterManager || window.advancedFilterManager;
+
+        console.log('[ModalManager] _onFiltersModalOpened - manager:', mgr?.constructor?.name);
+
+        // Chamar openModal se for AdvancedFiltersBuilder
+        if (mgr && typeof mgr.openModal === 'function') {
+            try {
+                mgr.openModal();
+                return; // openModal já faz tudo necessário
+            } catch (e) {
+                console.error('[ModalManager] Erro ao chamar openModal:', e);
+            }
+        }
+
+        // Fallback para compatibilidade com AdvancedFilterManager legado
         // Ensure manager has up-to-date unique values (populate from current data)
         try {
             const data = this.app?.dataStateManager?.getFilteredData ? this.app.dataStateManager.getFilteredData() : (this.app?.dataStateManager?.getAllServidores ? this.app.dataStateManager.getAllServidores() : []);
@@ -563,7 +592,12 @@ class ModalManager {
             const filterType = card.dataset && card.dataset.filterType;
             console.debug('[ModalManager] modal click on filter-type-card', { filterType, card, target: e.target });
             if (!filterType) return;
-            this._openFilterConfigPopup(filterType);
+            const builder = this.app?.advancedFiltersBuilder || window.advancedFiltersBuilder;
+            if (builder && typeof builder.openFilterConfigPopup === 'function') {
+                try { builder.openFilterConfigPopup(filterType); } catch (err) { console.warn('Erro ao abrir popup de filtro via Builder:', err); }
+            } else {
+                this._openFilterConfigPopup(filterType);
+            }
         });
 
         // Close popup if clicked outside
@@ -683,9 +717,20 @@ class ModalManager {
                         const reverseMap = { '🔴 Crítica': 'critical', '🟠 Alta': 'high', '🟡 Moderada': 'moderate', '🟢 Baixa': 'low' };
                         selected = selected.map(s => reverseMap[s] || s);
                     }
-                    try { if (mgrRef && typeof mgrRef.setFilter === 'function') mgrRef.setFilter(filterType, selected.length === 1 ? selected[0] : selected); } catch(e){ console.warn(e); }
+                    console.log('[ModalManager] applying filter', filterType, selected);
+                    try {
+                        if (mgrRef && typeof mgrRef.setFilter === 'function') {
+                            mgrRef.setFilter(filterType, selected.length === 1 ? selected[0] : selected);
+                            console.log('[ModalManager] called setFilter on manager');
+                        } else {
+                            console.warn('[ModalManager] mgrRef.setFilter not available');
+                        }
+                    } catch (e) {
+                        console.warn('[ModalManager] error calling setFilter', e);
+                    }
                     if (typeof this._closeFilterConfigPopup === 'function') this._closeFilterConfigPopup();
                     try { if (mgrRef && typeof mgrRef.renderActiveFiltersList === 'function') mgrRef.renderActiveFiltersList(); } catch(e){}
+                    console.log('[ModalManager] dispatching advanced-filters-changed');
                     document.dispatchEvent(new CustomEvent('advanced-filters-changed'));
                 };
             }
@@ -878,54 +923,66 @@ class ModalManager {
         const countAvailable = container.querySelector('[data-count-available]');
         const countSelected = container.querySelector('[data-count-selected]');
 
-        const moveToSelected = (itemElement) => {
-            const value = itemElement.dataset.value;
-            itemElement.remove();
-            const emptyState = selectedItems.querySelector('.dual-list-empty');
-            if (emptyState) emptyState.remove();
-            const newItem = document.createElement('div');
-            newItem.className = 'dual-list-item';
-            newItem.dataset.value = value;
-            newItem.dataset.itemSelected = '';
-            newItem.innerHTML = `
-                <span class="dual-list-item-text">${this.escapeHtml(value)}</span>
-                <i class="bi bi-x-lg dual-list-item-icon"></i>
-            `;
-            selectedItems.appendChild(newItem);
-            this.updateDualListCounts(container, countAvailable, countSelected);
-            if (availableItems.querySelectorAll('[data-item-available]').length === 0) {
-                availableItems.innerHTML = `
+        // Prevent attaching listeners more than once
+        if (container.dataset.listenersAttached) return;
+
+        const renderItems = (parent, values, type) => {
+            if (!parent) return;
+            if (!Array.isArray(values) || values.length === 0) {
+                parent.innerHTML = type === 'available' ? `
                     <div class="dual-list-empty">
                         <div class="dual-list-empty-icon">✓</div>
                         <div class="dual-list-empty-text">Todos os itens foram selecionados</div>
                     </div>
-                `;
-            }
-        };
-
-        const moveToAvailable = (itemElement) => {
-            const value = itemElement.dataset.value;
-            itemElement.remove();
-            const emptyState = availableItems.querySelector('.dual-list-empty');
-            if (emptyState) emptyState.remove();
-            const newItem = document.createElement('div');
-            newItem.className = 'dual-list-item';
-            newItem.dataset.value = value;
-            newItem.dataset.itemAvailable = '';
-            newItem.innerHTML = `
-                <span class="dual-list-item-text">${this.escapeHtml(value)}</span>
-                <i class="bi bi-chevron-right dual-list-item-icon"></i>
-            `;
-            availableItems.appendChild(newItem);
-            this.updateDualListCounts(container, countAvailable, countSelected);
-            if (selectedItems.querySelectorAll('[data-item-selected]').length === 0) {
-                selectedItems.innerHTML = `
+                ` : `
                     <div class="dual-list-empty">
                         <div class="dual-list-empty-icon">👈</div>
                         <div class="dual-list-empty-text">Clique nos itens à esquerda para selecioná-los</div>
                     </div>
                 `;
+                return;
             }
+            const html = values.map(v => `
+                <div class="dual-list-item" data-value="${this.escapeHtml(v)}" data-item-${type}>
+                    <span class="dual-list-item-text">${this.escapeHtml(v)}</span>
+                    <i class="bi ${type === 'available' ? 'bi-chevron-right' : 'bi-x-lg'} dual-list-item-icon"></i>
+                </div>
+            `).join('');
+            parent.innerHTML = html;
+        };
+
+        const collectValues = (parent, selector) => Array.from(parent.querySelectorAll(selector)).map(n => n.querySelector('.dual-list-item-text')?.textContent?.trim() || n.dataset.value);
+
+        const moveToSelected = (itemElement) => {
+            const value = itemElement.dataset.value;
+            const text = itemElement.querySelector('.dual-list-item-text')?.textContent || value;
+            itemElement.remove();
+            const newEl = document.createElement('div');
+            newEl.className = 'dual-list-item';
+            newEl.setAttribute('data-value', value);
+            newEl.setAttribute('data-item-selected', '');
+            newEl.innerHTML = `
+                <span class="dual-list-item-text">${this.escapeHtml(text)}</span>
+                <i class="bi bi-x-lg dual-list-item-icon"></i>
+            `;
+            selectedItems.appendChild(newEl);
+            this.updateDualListCounts(container, countAvailable, countSelected);
+        };
+
+        const moveToAvailable = (itemElement) => {
+            const value = itemElement.dataset.value;
+            const text = itemElement.querySelector('.dual-list-item-text')?.textContent || value;
+            itemElement.remove();
+            const newEl = document.createElement('div');
+            newEl.className = 'dual-list-item';
+            newEl.setAttribute('data-value', value);
+            newEl.setAttribute('data-item-available', '');
+            newEl.innerHTML = `
+                <span class="dual-list-item-text">${this.escapeHtml(text)}</span>
+                <i class="bi bi-chevron-right dual-list-item-icon"></i>
+            `;
+            availableItems.appendChild(newEl);
+            this.updateDualListCounts(container, countAvailable, countSelected);
         };
 
         availableItems.addEventListener('click', (e) => {
@@ -987,6 +1044,8 @@ class ModalManager {
                 }
             });
         }
+        // mark listeners attached to avoid duplicates
+        container.dataset.listenersAttached = 'true';
     }
 
     updateDualListCounts(container, countAvailable, countSelected) {
@@ -1000,7 +1059,7 @@ class ModalManager {
         const container = document.querySelector(`[data-dual-list="${id}"]`);
         if (!container) return [];
         const selectedItems = container.querySelectorAll('[data-item-selected]');
-        return Array.from(selectedItems).map(item => item.dataset.value);
+        return Array.from(selectedItems).map(item => item.querySelector('.dual-list-item-text')?.textContent?.trim() || item.dataset.value);
     }
 
     populateDualListBox(type, selectedValues) {
@@ -1008,9 +1067,17 @@ class ModalManager {
         if (!container) return;
         const availableItems = container.querySelector('[data-items-available]');
         const selectedItems = container.querySelector('[data-items-selected]');
+        if (!Array.isArray(selectedValues)) selectedValues = [selectedValues];
         selectedValues.forEach(value => {
-            const item = availableItems.querySelector(`[data-value="${value}"]`);
-            if (item) item.click();
+            const items = availableItems.querySelectorAll('[data-item-available]');
+            for (const it of items) {
+                const text = it.querySelector('.dual-list-item-text')?.textContent?.trim();
+                if (text && text === String(value)) {
+                    const evt = new Event('click', { bubbles: true });
+                    it.dispatchEvent(evt);
+                    break;
+                }
+            }
         });
     }
     /**
@@ -1077,10 +1144,25 @@ class ModalManager {
     confirm(message, title = 'Confirmação') {
         return new Promise((resolve) => {
             const modalId = 'confirmModal';
+            // Ensure message is a string (avoid [object Object])
+            let safeMessage = '';
+            try {
+                if (message === null || message === undefined) safeMessage = '';
+                else if (typeof message === 'string') safeMessage = message;
+                else if (message && typeof message === 'object') {
+                    if (typeof message.message === 'string') safeMessage = message.message;
+                    else safeMessage = JSON.stringify(message, null, 2);
+                } else {
+                    safeMessage = String(message);
+                }
+            } catch (e) {
+                safeMessage = String(message);
+            }
+
             const content = `
                 <div class="confirm-content" style="padding: 1rem; text-align: center;">
                     <i class="bi bi-question-circle" style="font-size: 3rem; color: var(--primary); margin-bottom: 1rem; display: block;"></i>
-                    <p style="font-size: 1.1rem; color: var(--text-primary);">${message}</p>
+                    <p style="font-size: 1.1rem; color: var(--text-primary); white-space: pre-wrap; text-align: left;">${this.escapeHtml(safeMessage)}</p>
                 </div>
             `;
 

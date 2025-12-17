@@ -16,6 +16,8 @@ class CustomDatePicker {
         this.isValid = true;
         this.type = options.type || 'month'; // 'month', 'year' ou 'date'
         this.onSelect = options.onSelect || (() => {});
+        this.minDate = options.minDate || null; // Data mínima permitida (YYYY-MM-DD)
+        this.maxDate = options.maxDate || null; // Data máxima permitida (YYYY-MM-DD)
         this.pickerElement = null;
         this.wrapper = null;
         this.triggerButton = null;
@@ -57,6 +59,22 @@ class CustomDatePicker {
                 this.currentYear = this.today.getFullYear();
                 this.selectedYear = this.currentYear;
                 this.selectedMonth = 0;
+            }
+        } else if (this.type === 'date') {
+            if (currentValue) {
+                const date = new Date(currentValue + 'T00:00:00');
+                this.currentYear = date.getFullYear();
+                this.currentMonth = date.getMonth();
+                this.selectedYear = date.getFullYear();
+                this.selectedMonth = date.getMonth();
+                this.selectedDay = date.getDate();
+                this.hasValue = true;
+            } else {
+                this.currentYear = this.today.getFullYear();
+                this.currentMonth = this.today.getMonth();
+                this.selectedYear = null;
+                this.selectedMonth = null;
+                this.selectedDay = null;
             }
         }
 
@@ -113,6 +131,8 @@ class CustomDatePicker {
             picker.innerHTML = this.getMonthPickerHTML();
         } else if (this.type === 'year') {
             picker.innerHTML = this.getYearPickerHTML();
+        } else if (this.type === 'date') {
+            picker.innerHTML = this.getDatePickerHTML();
         }
 
         document.body.appendChild(picker);
@@ -197,6 +217,70 @@ class CustomDatePicker {
         `;
     }
 
+    getDatePickerHTML() {
+        // Determinar o título baseado no ID do input
+        let titleText = 'Selecione a Data';
+        if (this.inputId.includes('Inicio') || this.inputId.includes('Start')) {
+            titleText = 'Data Inicial';
+        } else if (this.inputId.includes('Fim') || this.inputId.includes('End')) {
+            titleText = 'Data Final';
+        }
+
+        const monthName = this.monthNamesFull[this.currentMonth];
+        const daysInMonth = new Date(this.currentYear, this.currentMonth + 1, 0).getDate();
+        const firstDayOfMonth = new Date(this.currentYear, this.currentMonth, 1).getDay();
+
+        // Criar array com os dias
+        let daysHTML = '';
+
+        // Adicionar dias vazios no início (para alinhar com dia da semana)
+        for (let i = 0; i < firstDayOfMonth; i++) {
+            daysHTML += '<div class="datepicker-day empty"></div>';
+        }
+
+        // Adicionar os dias do mês
+        for (let day = 1; day <= daysInMonth; day++) {
+            const isSelected = this.selectedYear === this.currentYear &&
+                             this.selectedMonth === this.currentMonth &&
+                             this.selectedDay === day;
+            const isToday = this.today.getFullYear() === this.currentYear &&
+                          this.today.getMonth() === this.currentMonth &&
+                          this.today.getDate() === day;
+            const isDisabled = this.isDayDisabled(this.currentYear, this.currentMonth, day);
+
+            daysHTML += `
+                <button type="button"
+                        class="datepicker-day ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''} ${isDisabled ? 'disabled' : ''}"
+                        data-day="${day}"
+                        ${isDisabled ? 'disabled' : ''}>
+                    ${day}
+                </button>
+            `;
+        }
+
+        return `
+            <div class="datepicker-header">
+                <button type="button" class="datepicker-nav" data-action="prev-month">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <div class="datepicker-title" data-action="toggle-month">
+                    <span class="datepicker-month-year">${monthName} ${this.currentYear}</span>
+                </div>
+                <button type="button" class="datepicker-nav" data-action="next-month">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+            <div class="datepicker-body">
+                <div class="datepicker-weekdays">
+                    ${this.weekdayNames.map(name => `<div class="datepicker-weekday">${name}</div>`).join('')}
+                </div>
+                <div class="datepicker-days">
+                    ${daysHTML}
+                </div>
+            </div>
+        `;
+    }
+
     attachEvents() {
         if (!this.triggerButton) {
             return;
@@ -222,6 +306,7 @@ class CustomDatePicker {
             const action = button.dataset.action;
             const month = button.dataset.month;
             const year = button.dataset.year;
+            const day = button.dataset.day;
 
             if (action === 'prev-year') {
                 e.preventDefault();
@@ -231,6 +316,22 @@ class CustomDatePicker {
                 e.preventDefault();
                 this.currentYear++;
                 this.updatePicker();
+            } else if (action === 'prev-month') {
+                e.preventDefault();
+                this.currentMonth--;
+                if (this.currentMonth < 0) {
+                    this.currentMonth = 11;
+                    this.currentYear--;
+                }
+                this.updatePicker();
+            } else if (action === 'next-month') {
+                e.preventDefault();
+                this.currentMonth++;
+                if (this.currentMonth > 11) {
+                    this.currentMonth = 0;
+                    this.currentYear++;
+                }
+                this.updatePicker();
             } else if (action === 'prev-decade') {
                 e.preventDefault();
                 this.currentYear -= 10;
@@ -239,6 +340,8 @@ class CustomDatePicker {
                 e.preventDefault();
                 this.currentYear += 10;
                 this.updatePicker();
+            } else if (day !== undefined) {
+                this.selectDay(parseInt(day));
             } else if (month !== undefined) {
                 this.selectMonth(parseInt(month));
             } else if (year !== undefined) {
@@ -250,6 +353,39 @@ class CustomDatePicker {
     isMonthSelected(monthIndex) {
         if (this.type !== 'month') return false;
         return this.currentYear === this.selectedYear && this.selectedMonth === monthIndex;
+    }
+
+    isDayDisabled(year, month, day) {
+        if (this.type !== 'date') return false;
+
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const date = new Date(dateStr + 'T00:00:00');
+
+        if (this.minDate) {
+            const minDateObj = new Date(this.minDate + 'T00:00:00');
+            if (date < minDateObj) return true;
+        }
+
+        if (this.maxDate) {
+            const maxDateObj = new Date(this.maxDate + 'T00:00:00');
+            if (date > maxDateObj) return true;
+        }
+
+        return false;
+    }
+
+    setMinDate(dateStr) {
+        this.minDate = dateStr;
+        if (this.pickerElement) {
+            this.updatePicker();
+        }
+    }
+
+    setMaxDate(dateStr) {
+        this.maxDate = dateStr;
+        if (this.pickerElement) {
+            this.updatePicker();
+        }
     }
 
     handleDocumentClick(event) {
@@ -298,6 +434,31 @@ class CustomDatePicker {
         this.close();
     }
 
+    selectDay(day) {
+        this.selectedDay = day;
+        this.selectedMonth = this.currentMonth;
+        this.selectedYear = this.currentYear;
+        this.hasValue = true;
+
+        // Atualizar input original (formato YYYY-MM-DD)
+        const value = `${this.selectedYear}-${String(this.selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        this.input.value = value;
+
+        // Atualizar display
+        this.updateTriggerButton();
+
+        // Callback
+        this.onSelect({
+            year: this.selectedYear,
+            month: this.selectedMonth,
+            day: this.selectedDay,
+            value
+        });
+
+        // Fechar
+        this.close();
+    }
+
     updatePicker() {
         if (!this.pickerElement) return;
 
@@ -305,6 +466,8 @@ class CustomDatePicker {
             this.pickerElement.innerHTML = this.getMonthPickerHTML();
         } else if (this.type === 'year') {
             this.pickerElement.innerHTML = this.getYearPickerHTML();
+        } else if (this.type === 'date') {
+            this.pickerElement.innerHTML = this.getDatePickerHTML();
         }
     }
 
@@ -320,6 +483,13 @@ class CustomDatePicker {
 
         if (this.type === 'year') {
             return this.selectedYear || 'Selecionar';
+        }
+
+        if (this.type === 'date') {
+            if (this.selectedYear && this.selectedMonth !== null && this.selectedDay) {
+                return `${String(this.selectedDay).padStart(2, '0')}/${String(this.selectedMonth + 1).padStart(2, '0')}/${this.selectedYear}`;
+            }
+            return 'Selecionar data';
         }
 
         return 'Selecionar';

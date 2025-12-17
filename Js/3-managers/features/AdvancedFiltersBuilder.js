@@ -50,6 +50,17 @@ class AdvancedFiltersBuilder {
         
         this.init();
     }
+
+    /**
+     * Helper: case-insensitive field extractor
+     */
+    _getField(obj, fieldNames) {
+        if (!obj) return null;
+        for (const name of fieldNames) {
+            if (obj[name] !== undefined && obj[name] !== null) return obj[name];
+        }
+        return null;
+    }
     
     /**
      * Inicializa o gerenciador
@@ -189,10 +200,16 @@ class AdvancedFiltersBuilder {
     openHierarchyFilterModal(editingFilterId = null) {
         // Cria o modal se não existir
         if (!this.hierarchyFilterModal) {
-            this.hierarchyFilterModal = new HierarchyFilterModal({
-                onApply: (selection) => this.handleHierarchyFilterApply(selection, editingFilterId),
-                onClose: () => {}
-            });
+            // Prefer global singleton if available
+            if (window.hierarchyFilterModal) {
+                this.hierarchyFilterModal = window.hierarchyFilterModal;
+            } else {
+                this.hierarchyFilterModal = new HierarchyFilterModal({
+                    onApply: (selection) => this.handleHierarchyFilterApply(selection, editingFilterId),
+                    onClose: () => {}
+                });
+                window.hierarchyFilterModal = this.hierarchyFilterModal;
+            }
         }
         
         // Se estiver editando, carrega a seleção existente
@@ -463,40 +480,80 @@ class AdvancedFiltersBuilder {
     setupFormEventListeners(type) {
         // Preset buttons para idade
         if (type === 'idade') {
-            const presetButtons = document.querySelectorAll('.preset-btn');
+            const presetButtons = document.querySelectorAll('.btn-preset');
             presetButtons.forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const min = parseInt(e.target.dataset.min);
                     const max = parseInt(e.target.dataset.max);
                     document.getElementById('filterIdadeMin').value = min;
                     document.getElementById('filterIdadeMax').value = max;
+
+                    // Highlight ativo
+                    presetButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
                 });
             });
         }
 
         // Preset buttons para meses
         if (type === 'meses') {
-            const presetButtons = document.querySelectorAll('.preset-btn');
+            const presetButtons = document.querySelectorAll('.btn-preset');
             presetButtons.forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const min = parseInt(e.target.dataset.min);
                     const max = parseInt(e.target.dataset.max);
                     document.getElementById('filterMesesMin').value = min;
                     document.getElementById('filterMesesMax').value = max;
+
+                    // Highlight ativo
+                    presetButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
                 });
             });
         }
 
         if (type === 'periodo') {
-            // Aguardar um pouco mais para garantir que o DOM foi renderizado e o popup esteja visível
-            setTimeout(() => {
-                const popup = document.getElementById('filterConfigPopup');
-                if (popup && (popup.style.display === 'flex' || popup.classList.contains('show'))) {
+            // Usar requestAnimationFrame para garantir que o DOM foi renderizado
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
                     this.initializePeriodoPickers();
-                } else {
-                    setTimeout(() => this.initializePeriodoPickers(), 200);
-                }
-            }, 100);
+                });
+            });
+        }
+
+        // Para dual-lists e listas similares, atualizar estado do botão de confirmar
+        const dualTypes = ['cargo', 'lotacao', 'superintendencia', 'subsecretaria', 'urgencia', 'servidor'];
+        if (dualTypes.includes(type)) {
+            // pequenas esperas para garantir que o DOM do popup foi renderizado
+            setTimeout(() => {
+                const container = document.querySelector(`[data-dual-list="${type}"]`);
+                const confirmBtn = document.getElementById('confirmFilterPopupBtn');
+                if (!container || !confirmBtn) return;
+
+                const updateConfirm = () => {
+                    try {
+                        const selected = this.getDualListSelectedValues(type) || [];
+                        confirmBtn.disabled = !(selected && selected.length > 0);
+                    } catch (err) {
+                        // fallback: desabilitar para segurança
+                        confirmBtn.disabled = true;
+                    }
+                };
+
+                // Estado inicial
+                updateConfirm();
+
+                // Atualizar em cliques dentro do container (movimentos add/remove)
+                container.addEventListener('click', (e) => {
+                    updateConfirm();
+                });
+
+                // Atualizar também quando o usuário digitar em campos de busca dentro do container
+                const searchInputs = container.querySelectorAll('input[type="search"], input[type="text"]');
+                searchInputs.forEach(input => {
+                    input.addEventListener('input', () => updateConfirm());
+                });
+            }, 50);
         }
     }
     
@@ -504,45 +561,76 @@ class AdvancedFiltersBuilder {
      * Extrai valores únicos dos dados
      */
     extractUniqueValues(servidores) {
-        if (!servidores || servidores.length === 0) return;
-        
-        // Cargos
+        if (!servidores || servidores.length === 0) {
+            console.warn('[extractUniqueValues] Nenhum servidor para extrair valores');
+            return;
+        }
+
+        console.log('[extractUniqueValues] Processando', servidores.length, 'servidores');
+
+        // Helper para buscar campo case-insensitive
+        const getField = (obj, fieldNames) => {
+            for (const name of fieldNames) {
+                if (obj[name] !== undefined && obj[name] !== null) {
+                    return obj[name];
+                }
+            }
+            return null;
+        };
+
+        // Cargos (case-insensitive)
         this.uniqueValues.cargos = [...new Set(
             servidores
-                .map(s => s.cargo)
+                .map(s => getField(s, ['cargo', 'Cargo', 'CARGO']))
                 .filter(Boolean)
         )].sort();
-        
-        // Lotações
+
+        // Lotações (case-insensitive)
         this.uniqueValues.lotacoes = [...new Set(
             servidores
-                .map(s => s.lotacao)
+                .map(s => getField(s, ['lotacao', 'Lotacao', 'LOTACAO', 'lotação', 'Lotação', 'LOTAÇÃO']))
                 .filter(Boolean)
         )].sort();
-        
-        // Superintendências
+
+        // Superintendências (case-insensitive)
         this.uniqueValues.superintendencias = [...new Set(
             servidores
-                .map(s => s.superintendencia)
+                .map(s => getField(s, ['superintendencia', 'Superintendencia', 'SUPERINTENDENCIA', 'superintendência', 'Superintendência', 'SUPERINTENDÊNCIA']))
                 .filter(Boolean)
         )].sort();
-        
-        // Subsecretarias
+
+        // Subsecretarias (case-insensitive)
         this.uniqueValues.subsecretarias = [...new Set(
             servidores
-                .map(s => s.subsecretaria)
+                .map(s => getField(s, ['subsecretaria', 'Subsecretaria', 'SUBSECRETARIA']))
                 .filter(Boolean)
         )].sort();
-        
-        // Servidores (nome + matrícula para identificação única)
-        this.uniqueValues.servidores = servidores
-            .map(s => ({
-                nome: s.nome,
-                matricula: s.matricula,
-                displayName: `${s.nome} ${s.matricula ? `(${s.matricula})` : ''}`
-            }))
-            .filter(s => s.nome)
-            .sort((a, b) => a.nome.localeCompare(b.nome));
+
+        // Servidores (nome + matrícula para identificação única - dedupe por chave)
+        {
+            const map = new Map();
+            servidores.forEach(s => {
+                const nome = getField(s, ['nome', 'Nome', 'NOME', 'servidor', 'Servidor', 'SERVIDOR']);
+                if (!nome) return;
+                const matricula = getField(s, ['matricula', 'Matricula', 'MATRICULA', 'matrícula', 'Matrícula', 'MATRÍCULA']) || '';
+                const key = `${String(nome).trim().toLowerCase()}|${String(matricula).trim()}`;
+                if (!map.has(key)) {
+                    map.set(key, {
+                        nome: String(nome).trim(),
+                        matricula: String(matricula).trim(),
+                        displayName: `${String(nome).trim()}${matricula ? ` (${matricula})` : ''}`
+                    });
+                }
+            });
+            this.uniqueValues.servidores = Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+        }
+
+        console.log('[extractUniqueValues] Resultados:');
+        console.log('  - Cargos:', this.uniqueValues.cargos.length);
+        console.log('  - Lotações:', this.uniqueValues.lotacoes.length);
+        console.log('  - Superintendências:', this.uniqueValues.superintendencias.length);
+        console.log('  - Subsecretarias:', this.uniqueValues.subsecretarias.length);
+        console.log('  - Servidores:', this.uniqueValues.servidores.length);
     }
     
     /**
@@ -550,15 +638,39 @@ class AdvancedFiltersBuilder {
      */
     openModal(focusType = null) {
         if (!this.modal) return;
-        
-        // Extrair valores únicos se ainda não foi feito
-        if (this.dashboard.allServidores && this.dashboard.allServidores.length > 0) {
-            this.extractUniqueValues(this.dashboard.allServidores);
+
+        // Tentar obter dados de diferentes fontes
+        let allServidores = null;
+
+        if (this.dashboard?.dataStateManager?.getAllServidores) {
+            allServidores = this.dashboard.dataStateManager.getAllServidores();
+            console.log('[openModal] Dados obtidos via dataStateManager:', allServidores?.length || 0, 'servidores');
+        } else if (this.dashboard?.allServidores) {
+            allServidores = this.dashboard.allServidores;
+            console.log('[openModal] Dados obtidos via dashboard.allServidores:', allServidores?.length || 0, 'servidores');
+        } else if (this.app?.allServidores) {
+            allServidores = this.app.allServidores;
+            console.log('[openModal] Dados obtidos via app.allServidores:', allServidores?.length || 0, 'servidores');
+        }
+
+        // Extrair valores únicos se houver dados
+        if (allServidores && allServidores.length > 0) {
+            this.extractUniqueValues(allServidores);
+        } else {
+            console.warn('[openModal] Nenhum servidor disponível para extrair valores únicos');
+            console.warn('[openModal] Verificar estrutura:', {
+                'dashboard.dataStateManager': !!this.dashboard?.dataStateManager,
+                'dashboard.allServidores': !!this.dashboard?.allServidores,
+                'app.allServidores': !!this.app?.allServidores
+            });
         }
         
         // Atualizar contador de resultados
         this.updateResultsPreview();
-        
+
+        // Renderizar lista de filtros ativos ao reabrir
+        this.renderActiveFilters();
+
         // Mostrar modal usando o método do dashboard
         this.modal.style.display = 'flex';
         this.modal.classList.add('active');
@@ -582,15 +694,46 @@ class AdvancedFiltersBuilder {
      */
     closeModal() {
         if (!this.modal) return;
-        
+
+        // Obter dados de diferentes fontes
+        let allServidores = null;
+        if (this.dashboard?.dataStateManager?.getAllServidores) {
+            allServidores = this.dashboard.dataStateManager.getAllServidores();
+        } else if (this.dashboard?.allServidores) {
+            allServidores = this.dashboard.allServidores;
+        } else if (this.app?.allServidores) {
+            allServidores = this.app.allServidores;
+        }
+
         // Aplicar filtros ao fechar (já são aplicados em tempo real no preview)
-        const filtered = this.applyFiltersToData(this.dashboard.allServidores);
-        this.dashboard.filteredServidores = filtered;
-        
-        // Atualizar UI do dashboard
-        if (this.dashboard.updateTable) this.dashboard.updateTable();
-        if (this.dashboard.updateStats) this.dashboard.updateStats();
-        if (this.dashboard.updateCharts) this.dashboard.updateCharts();
+        const filtered = this.applyFiltersToData(allServidores);
+
+        // Atualizar dados filtrados no DataStateManager (usar API atualizada)
+        try {
+            if (this.dashboard?.dataStateManager?.setFilteredServidores) {
+                this.dashboard.dataStateManager.setFilteredServidores(filtered);
+                console.log('[AdvancedFiltersBuilder] setFilteredServidores called — filtered count:', (filtered||[]).length);
+            } else if (this.dashboard?.dataStateManager?.setFilteredData) {
+                // fallback para implementações antigas
+                this.dashboard.dataStateManager.setFilteredData(filtered);
+                console.log('[AdvancedFiltersBuilder] setFilteredData called (fallback) — filtered count:', (filtered||[]).length);
+            } else if (this.dashboard) {
+                this.dashboard.filteredServidores = filtered;
+                console.log('[AdvancedFiltersBuilder] assigned dashboard.filteredServidores — filtered count:', (filtered||[]).length);
+            }
+
+            // Ensure UI reacts: DataStateManager.setFilteredServidores emits events; if we used fallback, dispatch event
+            if (!this.dashboard?.dataStateManager?.setFilteredServidores) {
+                document.dispatchEvent(new CustomEvent('filtered-data-changed', { detail: { data: filtered, count: (filtered||[]).length } }));
+            }
+
+            // Try calling common update hooks if present
+            if (this.dashboard.updateTable) this.dashboard.updateTable();
+            if (this.dashboard.updateStats) this.dashboard.updateStats();
+            if (this.dashboard.updateCharts) this.dashboard.updateCharts();
+        } catch (e) {
+            console.warn('[AdvancedFiltersBuilder] Error updating filtered data:', e);
+        }
         
         this.modal.classList.remove('active');
         
@@ -705,8 +848,11 @@ class AdvancedFiltersBuilder {
      * Formulário: Cargo
      */
     renderCargoForm() {
+        console.log('[renderCargoForm] uniqueValues.cargos:', this.uniqueValues.cargos);
+
         // Verificar se há dados disponíveis
         if (!this.uniqueValues.cargos || this.uniqueValues.cargos.length === 0) {
+            console.warn('[renderCargoForm] Nenhum cargo disponível');
             return `
                 <div class="filter-popup-empty-state">
                     <div class="filter-popup-empty-state-icon">📭</div>
@@ -715,7 +861,13 @@ class AdvancedFiltersBuilder {
                 </div>
             `;
         }
-        
+
+        // Limpar marcador de listeners antes de recriar
+        const existingContainer = document.querySelector('[data-dual-list="cargo"]');
+        if (existingContainer) {
+            delete existingContainer.dataset.listenersAttached;
+        }
+
         const dualListHtml = this.createDualListBox(
             'cargo',
             this.uniqueValues.cargos,
@@ -723,7 +875,7 @@ class AdvancedFiltersBuilder {
             'Cargos Disponíveis',
             'Cargos Selecionados'
         );
-        
+
         // Configurar listeners após renderização
         setTimeout(() => this.setupDualListBoxListeners('cargo'), 0);
         
@@ -783,7 +935,13 @@ class AdvancedFiltersBuilder {
         }
         
         const lotacoes = Array.from(lotacoesSet).sort();
-        
+
+        // Limpar marcador de listeners antes de recriar
+        const existingContainerLotacao = document.querySelector('[data-dual-list="lotacao"]');
+        if (existingContainerLotacao) {
+            delete existingContainerLotacao.dataset.listenersAttached;
+        }
+
         if (lotacoes.length === 0) {
             const hasFilter = subsecretariaFilter || superintendenciaFilter;
             return `
@@ -989,7 +1147,13 @@ class AdvancedFiltersBuilder {
             { value: 'moderate', label: '🟡 Moderada' },
             { value: 'low', label: '� Baixa' }
         ];
-        
+
+        // Limpar marcador de listeners antes de recriar
+        const existingContainer = document.querySelector('[data-dual-list="urgencia"]');
+        if (existingContainer) {
+            delete existingContainer.dataset.listenersAttached;
+        }
+
         const dualListHtml = this.createDualListBox(
             'urgencia',
             urgenciaLevels.map(u => u.label),
@@ -1058,7 +1222,13 @@ class AdvancedFiltersBuilder {
         
         // Criar lista de display names para os servidores
         const servidoresDisplay = this.uniqueValues.servidores.map(s => s.displayName);
-        
+
+        // Limpar marcador de listeners antes de recriar
+        const existingContainer = document.querySelector('[data-dual-list="servidor"]');
+        if (existingContainer) {
+            delete existingContainer.dataset.listenersAttached;
+        }
+
         const dualListHtml = this.createDualListBox(
             'servidor',
             servidoresDisplay,
@@ -1136,16 +1306,22 @@ class AdvancedFiltersBuilder {
      * Inicializa os date pickers customizados do filtro de período
      */
     initializePeriodoPickers() {
+        console.log('[initializePeriodoPickers] Iniciando...');
+
         const inicioInput = document.getElementById('filterPeriodoInicio');
         const fimInput = document.getElementById('filterPeriodoFim');
 
         if (!inicioInput || !fimInput) {
+            console.warn('[initializePeriodoPickers] Inputs não encontrados');
             return;
         }
 
         if (typeof CustomDatePicker === 'undefined') {
+            console.warn('[initializePeriodoPickers] CustomDatePicker não disponível');
             return;
         }
+
+        console.log('[initializePeriodoPickers] Criando pickers...');
 
         // Destruir instâncias anteriores se existirem
         if (this.periodoInicioPicker) {
@@ -1173,8 +1349,9 @@ class AdvancedFiltersBuilder {
                     this.syncPeriodoRange('inicio', value);
                 }
             });
+            console.log('[initializePeriodoPickers] Picker de início criado com sucesso');
         } catch (e) {
-            // Ignorar erros de criação
+            console.error('[initializePeriodoPickers] Erro ao criar picker de início:', e);
         }
 
         try {
@@ -1184,8 +1361,9 @@ class AdvancedFiltersBuilder {
                     this.syncPeriodoRange('fim', value);
                 }
             });
+            console.log('[initializePeriodoPickers] Picker de fim criado com sucesso');
         } catch (e) {
-            // Ignorar erros de criação
+            console.error('[initializePeriodoPickers] Erro ao criar picker de fim:', e);
         }
 
         if (inicioInput.value && this.periodoInicioPicker) {
@@ -1209,18 +1387,32 @@ class AdvancedFiltersBuilder {
         const inicioValue = inicioInput.value;
         const fimValue = fimInput.value;
 
-        if (changedField === 'inicio' && !fimValue && value) {
-            fimInput.value = value;
-            if (this.periodoFimPicker) {
-                this.periodoFimPicker.setValue(value);
+        // Quando muda a data inicial, atualiza a minDate do picker de fim
+        if (changedField === 'inicio' && value) {
+            if (this.periodoFimPicker && this.periodoFimPicker.setMinDate) {
+                this.periodoFimPicker.setMinDate(value);
+            }
+            // Se não há data final, sugere a mesma data
+            if (!fimValue) {
+                fimInput.value = value;
+                if (this.periodoFimPicker) {
+                    this.periodoFimPicker.setValue(value);
+                }
             }
             return;
         }
 
-        if (changedField === 'fim' && !inicioValue && value) {
-            inicioInput.value = value;
-            if (this.periodoInicioPicker) {
-                this.periodoInicioPicker.setValue(value);
+        // Quando muda a data final, atualiza a maxDate do picker de início
+        if (changedField === 'fim' && value) {
+            if (this.periodoInicioPicker && this.periodoInicioPicker.setMaxDate) {
+                this.periodoInicioPicker.setMaxDate(value);
+            }
+            // Se não há data inicial, sugere a mesma data
+            if (!inicioValue) {
+                inicioInput.value = value;
+                if (this.periodoInicioPicker) {
+                    this.periodoInicioPicker.setValue(value);
+                }
             }
             return;
         }
@@ -1483,8 +1675,13 @@ class AdvancedFiltersBuilder {
      * Renderiza lista de filtros ativos
      */
     renderActiveFilters() {
-        if (!this.activeFiltersList) return;
-        
+        if (!this.activeFiltersList) {
+            console.warn('[AdvancedFiltersBuilder] activeFiltersList não encontrado');
+            return;
+        }
+
+        console.log('[AdvancedFiltersBuilder] renderActiveFilters - total filtros:', this.filters.length);
+
         if (this.filters.length === 0) {
             this.activeFiltersList.innerHTML = `
                 <div class="empty-state">
@@ -1685,7 +1882,7 @@ class AdvancedFiltersBuilder {
         }
         
         if (this.filterFormActions) {
-            this.filterFormActions.style.display = 'none';
+                const simple = String(name).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         }
         
         const actionText = document.getElementById('filterActionText');
@@ -1693,16 +1890,65 @@ class AdvancedFiltersBuilder {
         
         this.currentEditingId = null;
     }
+
+    /**
+     * Remove todos os filtros do construtor e atualiza a UI/dados
+     */
+    async clearAllFilters() {
+        this.filters = [];
+        this.renderActiveFilters();
+        this.updateResultsPreview();
+
+        // Atualizar dados filtrados para mostrar todos os servidores
+        try {
+            const allServidores = this.dashboard?.dataStateManager?.getAllServidores ? this.dashboard.dataStateManager.getAllServidores() : (this.dashboard?.allServidores || this.app?.allServidores || []);
+            if (this.dashboard?.dataStateManager?.setFilteredServidores) {
+                this.dashboard.dataStateManager.setFilteredServidores(allServidores || []);
+            } else if (this.dashboard) {
+                this.dashboard.filteredServidores = allServidores || [];
+            }
+            // Emitir evento para atualizar badges e views
+            document.dispatchEvent(new CustomEvent('advanced-filters-changed', { detail: { filters: {} } }));
+            document.dispatchEvent(new CustomEvent('filtered-data-changed', { detail: { data: allServidores || [], count: (allServidores||[]).length } }));
+        } catch (e) {
+            console.warn('[AdvancedFiltersBuilder] Erro ao limpar filtros:', e);
+        }
+    }
+
+    /**
+     * Alias compatível com AdvancedFilterManager
+     */
+    clearAll() { return this.clearAllFilters(); }
+
+    /**
+     * Indica se há filtros ativos no construtor
+     */
+    hasActiveFilters() { return Array.isArray(this.filters) && this.filters.length > 0; }
     
     /**
      * Atualizar preview de resultados
      */
     updateResultsPreview() {
-        if (!this.resultsCount || !this.dashboard.allServidores) return;
-        
-        const total = this.dashboard.allServidores.length;
-        const filtered = this.applyFiltersToData(this.dashboard.allServidores).length;
-        
+        if (!this.resultsCount) return;
+
+        // Obter dados de diferentes fontes
+        let allServidores = null;
+        if (this.dashboard?.dataStateManager?.getAllServidores) {
+            allServidores = this.dashboard.dataStateManager.getAllServidores();
+        } else if (this.dashboard?.allServidores) {
+            allServidores = this.dashboard.allServidores;
+        } else if (this.app?.allServidores) {
+            allServidores = this.app.allServidores;
+        }
+
+        if (!allServidores || allServidores.length === 0) {
+            this.resultsCount.innerHTML = `Mostrando <strong>0</strong> de <strong>0</strong> servidores`;
+            return;
+        }
+
+        const total = allServidores.length;
+        const filtered = this.applyFiltersToData(allServidores).length;
+
         this.resultsCount.innerHTML = `Mostrando <strong>${filtered}</strong> de <strong>${total}</strong> servidores`;
     }
     
@@ -1710,14 +1956,26 @@ class AdvancedFiltersBuilder {
      * Aplicar filtros aos dados (preview)
      */
     applyFiltersToData(servidores) {
+        // Validação: se não há servidores, retorna array vazio
+        if (!servidores || !Array.isArray(servidores)) {
+            console.warn('[applyFiltersToData] servidores inválido:', servidores);
+            return [];
+        }
+
         if (this.filters.length === 0) return servidores;
-        
-        const filtered = servidores.filter(servidor => {
-            return this.filters.every(filter => {
-                return this.checkFilter(servidor, filter);
+
+        // Diagnostic: for each filter, count matches individually to help debug
+        try {
+            const diagnostics = this.filters.map(f => {
+                const count = servidores.reduce((acc, s) => acc + (this.checkFilter(s, f) ? 1 : 0), 0);
+                return { type: f.type, matches: count };
             });
-        });
-        
+            console.log('[applyFiltersToData] per-filter matches:', diagnostics);
+        } catch (e) {
+            console.warn('[applyFiltersToData] diagnostics failed:', e);
+        }
+
+        const filtered = servidores.filter(servidor => this.filters.every(filter => this.checkFilter(servidor, filter)));
         return filtered;
     }
     
@@ -1732,9 +1990,10 @@ class AdvancedFiltersBuilder {
                 
             case 'cargo':
                 // filter.value agora é um array de cargos
-                return Array.isArray(filter.value) 
-                    ? filter.value.includes(servidor.cargo)
-                    : servidor.cargo === filter.value;
+                const servidorCargo = this._getField(servidor, ['cargo', 'Cargo', 'CARGO']) || servidor.cargo || '';
+                return Array.isArray(filter.value)
+                    ? filter.value.includes(servidorCargo)
+                    : servidorCargo === filter.value;
                 
             case 'lotacao':
                 // Filtro por gerência/lotação específica
@@ -1751,15 +2010,25 @@ class AdvancedFiltersBuilder {
                 
             case 'urgencia':
                 // filter.value é array de níveis de urgência
-                return filter.value.includes(servidor.nivelUrgencia);
+                const nivel = this._getField(servidor, ['nivelUrgencia', 'nivel_urgencia', 'urgencia', 'URGANCIA']) || servidor.nivelUrgencia || servidor.urgencia || '';
+                return filter.value.includes(nivel);
                 
             case 'servidor':
                 // filter.value é array de display names de servidores
-                // Precisamos verificar pelo display name
-                const displayName = `${servidor.nome} ${servidor.matricula ? `(${servidor.matricula})` : ''}`;
+                // Aceitar correspondência por displayName ou somente por nome (tolerante a espaços/acentos)
+                const nomeField = this._getField(servidor, ['nome', 'Nome', 'NOME', 'servidor', 'Servidor', 'SERVIDOR']) || '';
+                const matriculaField = this._getField(servidor, ['matricula', 'Matricula', 'MATRICULA', 'matrícula', 'Matrícula', 'MATRÍCULA']) || '';
+                const serverDisplay = `${String(nomeField).trim()}${matriculaField ? ` (${String(matriculaField).trim()})` : ''}`;
                 return filter.value.some(selected => {
-                    // Comparar com o display name ou apenas com o nome
-                    return selected === displayName || selected === servidor.nome;
+                    if (!selected) return false;
+                    const sel = String(selected).trim();
+                    if (sel === serverDisplay) return true;
+                    if (sel === String(nomeField).trim()) return true;
+                    // fallback: normalized compare
+                    const normSel = this.normalizeText(sel);
+                    if (this.normalizeText(serverDisplay) === normSel) return true;
+                    if (this.normalizeText(String(nomeField)) === normSel) return true;
+                    return false;
                 });
                 
             case 'periodo':
@@ -1769,29 +2038,33 @@ class AdvancedFiltersBuilder {
                 const filterStart = new Date(`${filter.value.inicio}T00:00:00`);
                 const filterEnd = new Date(`${filter.value.fim}T23:59:59`);
 
-                const normalizeDate = (date) => {
-                    if (!date) return null;
-                    if (date instanceof Date) return isNaN(date.getTime()) ? null : date;
-                    const parsed = new Date(date);
-                    return isNaN(parsed.getTime()) ? null : parsed;
+                const normalizeDate = (raw) => {
+                    if (!raw) return null;
+                    if (raw instanceof Date) return isNaN(raw.getTime()) ? null : raw;
+                    // try common formats and legacy field names
+                    const candidates = [raw, raw.A_PARTIR, raw.aPartir, raw.inicio, raw.INICIO, raw.dataInicio, raw.DATA_INICIO, raw.A_PARTIR];
+                    for (const c of candidates) {
+                        if (!c) continue;
+                        const d = new Date(c);
+                        if (!isNaN(d.getTime())) return d;
+                    }
+                    return null;
                 };
 
                 const intervals = [];
 
-                const inicioPrincipal = normalizeDate(servidor.inicioLicenca);
-                const fimPrincipal = normalizeDate(servidor.fimLicenca);
+                // try top-level fields variations
+                const inicioPrincipal = normalizeDate(this._getField(servidor, ['inicioLicenca', 'inicio', 'A_PARTIR', 'aPartir', 'dataInicio']));
+                const fimPrincipal = normalizeDate(this._getField(servidor, ['fimLicenca', 'fim', 'TERMINO', 'termino', 'dataFim']));
+                if (inicioPrincipal) intervals.push({ inicio: inicioPrincipal, fim: fimPrincipal || inicioPrincipal });
 
-                if (inicioPrincipal) {
-                    intervals.push({ inicio: inicioPrincipal, fim: fimPrincipal || inicioPrincipal });
-                }
-
-                if (Array.isArray(servidor.licencas)) {
-                    servidor.licencas.forEach(licenca => {
-                        const inicio = normalizeDate(licenca?.inicio);
-                        const fim = normalizeDate(licenca?.fim) || inicio;
-                        if (inicio) {
-                            intervals.push({ inicio, fim });
-                        }
+                // licencas array: try to parse multiple possible keys
+                const licencas = servidor.licencas || servidor.LICENCAS || servidor.licenca || [];
+                if (Array.isArray(licencas)) {
+                    licencas.forEach(lic => {
+                        const inicio = normalizeDate(lic?.A_PARTIR || lic?.aPartir || lic?.inicio || lic?.dataInicio || lic?.inic || lic?.INICIO || lic?.data_inicio || lic?.inicioLicenca);
+                        const fim = normalizeDate(lic?.TERMINO || lic?.termino || lic?.fim || lic?.dataFim || lic?.FIM || lic?.DATA_FIM);
+                        if (inicio) intervals.push({ inicio, fim: fim || inicio });
                     });
                 }
 
@@ -1804,9 +2077,27 @@ class AdvancedFiltersBuilder {
                 });
                 
             case 'meses':
-                // Filtro por meses acumulados de licença
-                const meses = servidor.mesesLicenca || servidor.mesesCalculados || 0;
-                return meses >= filter.value.min && meses <= filter.value.max;
+                // Filtro por meses acumulados de licença - calcular a partir de GOZO ou campos acumulados
+                const maybeMonths = this._getField(servidor, ['mesesLicenca', 'mesesCalculados', 'meses', 'MES']) || null;
+                let totalMonths = null;
+                if (maybeMonths != null && !isNaN(Number(maybeMonths))) {
+                    totalMonths = Number(maybeMonths);
+                } else {
+                    // try summing GOZO days from licencas
+                    const licencasArr = servidor.licencas || servidor.LICENCAS || [];
+                    let totalDays = 0;
+                    if (Array.isArray(licencasArr)) {
+                        licencasArr.forEach(l => {
+                            const gozo = parseInt(l?.GOZO || l?.gozo || l?.dias || l?.DIAS || 0, 10) || 0;
+                            totalDays += gozo;
+                        });
+                    }
+                    if (totalDays > 0) totalMonths = Math.floor(totalDays / 30);
+                }
+                if (totalMonths == null) return false;
+                const minM = filter.value?.min != null ? Number(filter.value.min) : -Infinity;
+                const maxM = filter.value?.max != null ? Number(filter.value.max) : Infinity;
+                return totalMonths >= minM && totalMonths <= maxM;
             
             case 'hierarquia':
                 // Filtro hierárquico unificado
@@ -1851,7 +2142,7 @@ class AdvancedFiltersBuilder {
      */
     checkHierarchyFilter(servidor, filterValues, filterLevel) {
         const values = Array.isArray(filterValues) ? filterValues : [filterValues];
-        const lotacao = servidor.lotacao;
+        const lotacao = this._getField(servidor, ['lotacao', 'Lotacao', 'LOTACAO', 'lotação', 'Lotação', 'LOTAÇÃO', 'unidade', 'Unidade']) || servidor.lotacao || servidor.unidade || null;
         
         if (!lotacao) return false;
         
@@ -1862,8 +2153,8 @@ class AdvancedFiltersBuilder {
         return values.some(selectedValue => {
             if (!selectedValue) return false;
             
-            const normalizedSelected = selectedValue.toLowerCase().trim();
-            const normalizedLotacao = lotacao.toLowerCase().trim();
+            const normalizedSelected = this.normalizeText(String(selectedValue));
+            const normalizedLotacao = this.normalizeText(String(lotacao));
             
             // 1. Verificação direta: a lotação do servidor corresponde exatamente ao filtro
             if (normalizedLotacao.includes(normalizedSelected) || normalizedSelected.includes(normalizedLotacao)) {
@@ -1884,7 +2175,7 @@ class AdvancedFiltersBuilder {
                     // Filtro de subsecretaria: verificar se a lotação pertence a esta subsecretaria
                     // (pode ser a própria subsecretaria, uma superintendência ou gerência dentro dela)
                     if (lotacaoInfo.subsecretaria) {
-                        const normalizedSubsec = lotacaoInfo.subsecretaria.toLowerCase();
+                        const normalizedSubsec = this.normalizeText(String(lotacaoInfo.subsecretaria));
                         if (normalizedSubsec.includes(normalizedSelected) || normalizedSelected.includes(normalizedSubsec)) {
                             return true;
                         }
@@ -1895,7 +2186,7 @@ class AdvancedFiltersBuilder {
                     // Filtro de superintendência: verificar se a lotação pertence a esta superintendência
                     // (pode ser a própria superintendência ou uma gerência dentro dela)
                     if (lotacaoInfo.superintendencia) {
-                        const normalizedSuper = lotacaoInfo.superintendencia.toLowerCase();
+                        const normalizedSuper = this.normalizeText(String(lotacaoInfo.superintendencia));
                         if (normalizedSuper.includes(normalizedSelected) || normalizedSelected.includes(normalizedSuper)) {
                             return true;
                         }
@@ -1913,7 +2204,7 @@ class AdvancedFiltersBuilder {
                     // Filtro de gerência/lotação: verificação direta (já foi feita acima)
                     // Verifica também pelo nome completo na hierarquia
                     if (lotacaoInfo.name) {
-                        const normalizedName = lotacaoInfo.name.toLowerCase();
+                        const normalizedName = this.normalizeText(String(lotacaoInfo.name));
                         if (normalizedName.includes(normalizedSelected) || normalizedSelected.includes(normalizedName)) {
                             return true;
                         }
@@ -1940,16 +2231,16 @@ class AdvancedFiltersBuilder {
             return true;
         }
         
-        const lotacao = servidor.lotacao;
+        const lotacao = this._getField(servidor, ['lotacao', 'Lotacao', 'LOTACAO', 'lotação', 'Lotação', 'LOTAÇÃO', 'unidade', 'Unidade']) || servidor.lotacao || servidor.unidade || null;
         if (!lotacao) return false;
         
         // Buscar informações hierárquicas da lotação do servidor
         const lotacaoInfo = this.hierarchyManager.findLotacao(lotacao);
-        const normalizedLotacao = lotacao.toLowerCase().trim();
+        const normalizedLotacao = this.normalizeText(String(lotacao));
         
         // Verificar se a lotação está diretamente selecionada
         if (lotacoes.some(l => {
-            const normalized = l.toLowerCase().trim();
+            const normalized = this.normalizeText(String(l));
             return normalizedLotacao.includes(normalized) || normalized.includes(normalizedLotacao);
         })) {
             return true;
@@ -1959,8 +2250,8 @@ class AdvancedFiltersBuilder {
         if (lotacaoInfo) {
             // Verificar se a superintendência do servidor está selecionada
             if (lotacaoInfo.superintendencia && superintendencias.some(s => {
-                const normalized = s.toLowerCase().trim();
-                const normalizedSuper = lotacaoInfo.superintendencia.toLowerCase();
+                const normalized = this.normalizeText(String(s));
+                const normalizedSuper = this.normalizeText(String(lotacaoInfo.superintendencia));
                 return normalizedSuper.includes(normalized) || normalized.includes(normalizedSuper);
             })) {
                 return true;
@@ -1968,8 +2259,8 @@ class AdvancedFiltersBuilder {
             
             // Verificar se a subsecretaria do servidor está selecionada
             if (lotacaoInfo.subsecretaria && subsecretarias.some(sub => {
-                const normalized = sub.toLowerCase().trim();
-                const normalizedSubsec = lotacaoInfo.subsecretaria.toLowerCase();
+                const normalized = this.normalizeText(String(sub));
+                const normalizedSubsec = this.normalizeText(String(lotacaoInfo.subsecretaria));
                 return normalizedSubsec.includes(normalized) || normalized.includes(normalizedSubsec);
             })) {
                 return true;
@@ -1995,8 +2286,15 @@ class AdvancedFiltersBuilder {
      */
     extractSigla(name) {
         if (!name) return null;
-        const match = name.match(/^([A-Z0-9/]+)\s*-/);
-        return match ? match[1].trim().toLowerCase() : null;
+        try {
+            // remover acentos e normalizar
+            const simple = String(name).normalize('NFD').replace(/[0-\u036f]/g, '').replace(/[\u0300-\u036f]/g, '');
+            const match = simple.match(/^([A-Z0-9/]+)\s*-/i);
+            return match ? match[1].trim().toLowerCase() : null;
+        } catch (e) {
+            const match = String(name).match(/^([A-Z0-9/]+)\s*-/i);
+            return match ? match[1].trim().toLowerCase() : null;
+        }
     }
     
     /**
@@ -2157,7 +2455,10 @@ class AdvancedFiltersBuilder {
     setupDualListBoxListeners(id) {
         const container = document.querySelector(`[data-dual-list="${id}"]`);
         if (!container) return;
-        
+
+        // Proteção contra duplicação de event listeners
+        if (container.dataset.listenersAttached) return;
+
         const availableItems = container.querySelector('[data-items-available]');
         const selectedItems = container.querySelector('[data-items-selected]');
         const searchAvailable = container.querySelector('[data-search-available]');
@@ -2303,6 +2604,9 @@ class AdvancedFiltersBuilder {
                 }
             });
         }
+
+        // Marca que os listeners já foram configurados
+        container.dataset.listenersAttached = 'true';
     }
     
     /**

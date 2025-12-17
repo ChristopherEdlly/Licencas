@@ -42,23 +42,35 @@ class AdvancedFilterManager {
         if (!servidores || servidores.length === 0) return [];
         let filtered = [...servidores];
 
+        const applyMatch = (fieldValue, filterValue) => {
+            if (filterValue == null) return true;
+            const normField = this.normalizeValue(fieldValue || '');
+            if (Array.isArray(filterValue)) {
+                return filterValue.map(v => this.normalizeValue(v)).includes(normField);
+            }
+            return normField === this.normalizeValue(filterValue);
+        };
+
         if (this.activeFilters.cargo) {
-            filtered = filtered.filter(s => this.normalizeValue(s.cargo) === this.normalizeValue(this.activeFilters.cargo));
+            filtered = filtered.filter(s => applyMatch(s.cargo, this.activeFilters.cargo));
         }
         if (this.activeFilters.lotacao) {
-            filtered = filtered.filter(s => this.normalizeValue(s.lotacao) === this.normalizeValue(this.activeFilters.lotacao));
+            filtered = filtered.filter(s => applyMatch(s.lotacao, this.activeFilters.lotacao));
         }
         if (this.activeFilters.superintendencia) {
-            filtered = filtered.filter(s => this.normalizeValue(s.superintendencia) === this.normalizeValue(this.activeFilters.superintendencia));
+            filtered = filtered.filter(s => applyMatch(s.superintendencia, this.activeFilters.superintendencia));
         }
         if (this.activeFilters.subsecretaria) {
-            filtered = filtered.filter(s => this.normalizeValue(s.subsecretaria) === this.normalizeValue(this.activeFilters.subsecretaria));
+            filtered = filtered.filter(s => applyMatch(s.subsecretaria, this.activeFilters.subsecretaria));
         }
         if (this.activeFilters.urgencia && this.activeFilters.urgencia !== 'all') {
-            filtered = filtered.filter(s => {
-                const urgencia = this.normalizeValue(s.nivelUrgencia || s.urgencia || '');
-                return urgencia === this.activeFilters.urgencia;
-            });
+            if (Array.isArray(this.activeFilters.urgencia)) {
+                const norms = this.activeFilters.urgencia.map(v => this.normalizeValue(v));
+                filtered = filtered.filter(s => norms.includes(this.normalizeValue(s.nivelUrgencia || s.urgencia || '')));
+            } else {
+                const target = this.normalizeValue(this.activeFilters.urgencia);
+                filtered = filtered.filter(s => this.normalizeValue(s.nivelUrgencia || s.urgencia || '') === target);
+            }
         }
         if (this.activeFilters.status && this.activeFilters.status.length > 0) {
             filtered = filtered.filter(s => this.matchesStatusFilters(s));
@@ -256,6 +268,7 @@ class AdvancedFilterManager {
     }
 
     setFilter(filterType, value) {
+        console.log('[AdvancedFilterManager] setFilter called:', filterType, value);
         switch (filterType) {
             case 'cargo':
             case 'lotacao':
@@ -428,8 +441,12 @@ class AdvancedFilterManager {
 
     _notifyFiltersChanged() {
         // Emit event so other modules react
+        console.log('[AdvancedFilterManager] _notifyFiltersChanged — activeFilters:', this.activeFilters);
+        // Emit both modern and legacy event names for compatibility
         document.dispatchEvent(new CustomEvent('advanced-filters-changed', { detail: { filters: this.activeFilters } }));
         document.dispatchEvent(new CustomEvent('filtersChanged'));
+        // Older parts of the app expect 'filters-changed' (hyphen) — emit for compatibility
+        document.dispatchEvent(new CustomEvent('filters-changed', { detail: { filters: this.activeFilters } }));
     }
 }
 

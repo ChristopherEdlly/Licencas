@@ -332,6 +332,32 @@ class App {
             console.log('ℹ️ AdvancedFiltersBuilder não disponível');
         }
 
+        // Ensure a single HierarchyFilterModal instance is available and wired
+        if (typeof HierarchyFilterModal !== 'undefined') {
+            if (!window.hierarchyFilterModal) {
+                try {
+                    window.hierarchyFilterModal = new HierarchyFilterModal({
+                        onApply: (selection) => {
+                            try {
+                                // prefer AdvancedFiltersBuilder flow if available
+                                if (this.advancedFiltersBuilder && typeof this.advancedFiltersBuilder.handleHierarchyFilterApply === 'function') {
+                                    this.advancedFiltersBuilder.handleHierarchyFilterApply(selection);
+                                } else if (this.advancedFilterManager && typeof this.advancedFilterManager.setFilter === 'function') {
+                                    // setLotacao-like filter: pass lotacoes array
+                                    this.advancedFilterManager.setFilter('lotacao', selection.lotacoes || []);
+                                    try { if (this.advancedFilterManager.renderActiveFiltersList) this.advancedFilterManager.renderActiveFiltersList(); } catch(e){}
+                                    document.dispatchEvent(new CustomEvent('advanced-filters-changed'));
+                                }
+                            } catch (e) { console.warn('Erro no onApply do HierarchyFilterModal', e); }
+                        }
+                    });
+                    console.log('✅ HierarchyFilterModal singleton criado');
+                } catch (e) {
+                    console.warn('⚠️ Falha ao instanciar HierarchyFilterModal:', e);
+                }
+            }
+        }
+
         // CalendarManager
         if (typeof CalendarManager !== 'undefined') {
             this.calendarManager = new CalendarManager(this);
@@ -465,22 +491,47 @@ class App {
      * @private
      */
     _setupGlobalEventListeners() {
-        if (!this.eventBus) return;
+        // Configure eventBus listeners only if EventBus exists
+        if (this.eventBus) {
+            // Listener para erros globais
+            this.eventBus.on('error:occurred', (error) => {
+                console.error('❌ Erro global:', error);
+                if (this.notificationService) {
+                    this.notificationService.error('Ocorreu um erro. Por favor, tente novamente.');
+                }
+            });
 
-        // Listener para erros globais
-        this.eventBus.on('error:occurred', (error) => {
-            console.error('❌ Erro global:', error);
-            if (this.notificationService) {
-                this.notificationService.error('Ocorreu um erro. Por favor, tente novamente.');
+            // Listener para mudanças de tema
+            this.eventBus.on('ui:theme-changed', (theme) => {
+                console.log('🎨 Tema alterado:', theme);
+            });
+
+            console.log('✅ EventBus listeners configurados');
+        } else {
+            console.log('ℹ️ EventBus não disponível — registrando listeners DOM');
+        }
+
+        // Apply advanced filters to the dataset when filters change (register on document regardless of EventBus)
+        document.addEventListener('advanced-filters-changed', (ev) => {
+            try {
+                const mgr = this.advancedFilterManager || window.advancedFilterManager;
+                if (!mgr || !this.dataStateManager) return;
+                const all = this.dataStateManager.getAllServidores() || [];
+                const beforeCount = all.length;
+                // Log incoming event detail if present
+                if (ev && ev.detail && ev.detail.filters) {
+                    console.log('🔔 advanced-filters-changed payload:', ev.detail.filters);
+                } else {
+                    console.log('🔔 advanced-filters-changed (no payload) — using manager state');
+                }
+                console.log('🔍 Applying filters (active):', mgr.activeFilters || mgr.getStats && mgr.getStats().activeFilters);
+                const filtered = mgr.applyFilters ? mgr.applyFilters(all || []) : all || [];
+                this.dataStateManager.setFilteredServidores(filtered || []);
+                console.log(`🔁 Advanced filters applied — before: ${beforeCount}, after: ${filtered.length}`);
+            } catch (e) {
+                console.warn('Erro ao aplicar advanced-filters-changed:', e);
             }
         });
-
-        // Listener para mudanças de tema
-        this.eventBus.on('ui:theme-changed', (theme) => {
-            console.log('🎨 Tema alterado:', theme);
-        });
-
-        console.log('✅ Event listeners globais configurados');
     }
 
     /**
