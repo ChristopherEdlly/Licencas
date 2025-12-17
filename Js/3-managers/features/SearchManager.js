@@ -52,7 +52,7 @@ class SearchManager {
     // ==================== BUSCA PRINCIPAL ====================
 
     /**
-     * Executa busca
+     * Executa busca (melhorada com SmartSearch)
      * @param {string} query - Termo de busca
      * @param {Array<Object>} data - Dados para buscar
      * @param {Object} options - Opções de busca
@@ -63,44 +63,122 @@ class SearchManager {
             return data;
         }
 
+        if (!data || data.length === 0) {
+            return [];
+        }
+
         // Merge options
         const searchOptions = { ...this.options, ...options };
-
-        // Normalizar query
-        const normalizedQuery = this._normalizeString(query, searchOptions);
 
         // Adicionar ao histórico
         this._addToHistory(query);
 
-        // Buscar em todos os campos
-        const results = data.filter(item => {
-            return this.searchableFields.some(field => {
-                const value = item[field];
-                if (!value) return false;
-
-                const normalizedValue = this._normalizeString(String(value), searchOptions);
-
-                // Match exato ou parcial
-                if (searchOptions.partialMatch) {
-                    return normalizedValue.includes(normalizedQuery);
-                } else {
-                    return normalizedValue === normalizedQuery;
-                }
-            });
-        });
-
         this.currentQuery = query;
 
-        // Se não encontrou resultados e fuzzy está ativo, tentar busca fuzzy
-        if (results.length === 0 && searchOptions.fuzzyThreshold > 0) {
-            return this._fuzzySearch(query, data, searchOptions);
+        let results;
+
+        // Detectar tipo de busca
+        if (query.includes(',')) {
+            // Busca multi-campo (separado por vírgula)
+            console.log('🔍 Busca multi-campo:', query);
+            results = this._multiFieldSearch(query, data, searchOptions);
+        } else {
+            // Usar busca exata E fuzzy combinadas
+            console.log('🔍 Busca inteligente:', query);
+            const exactResults = this._exactSearch(query, data, searchOptions);
+
+            // Se query >= 3 chars, também fazer busca fuzzy e combinar resultados
+            if (query.length >= 3) {
+                const fuzzyResults = this._fuzzySearch(query, data, searchOptions);
+
+                // Combinar resultados (removendo duplicatas)
+                const combinedMap = new Map();
+
+                // Adicionar resultados exatos primeiro (prioridade)
+                exactResults.forEach(item => {
+                    const key = item.cpf || item.servidor || JSON.stringify(item);
+                    if (key) combinedMap.set(key, item);
+                });
+
+                // Adicionar resultados fuzzy
+                fuzzyResults.forEach(item => {
+                    const key = item.cpf || item.servidor || JSON.stringify(item);
+                    if (key && !combinedMap.has(key)) {
+                        combinedMap.set(key, item);
+                    }
+                });
+
+                results = Array.from(combinedMap.values());
+                console.log(`  → Combinados: ${exactResults.length} exatos + ${fuzzyResults.length} fuzzy = ${results.length} total`);
+            } else {
+                results = exactResults;
+            }
         }
+
+        console.log(`✅ Busca "${query}": ${results.length} resultados`);
 
         return results.slice(0, searchOptions.maxResults);
     }
 
     /**
-     * Busca fuzzy (tolerante a erros)
+     * Busca exata com suporte a múltiplas palavras
+     * @private
+     */
+    _exactSearch(query, data, options) {
+        const normalizedQuery = this._normalizeString(query, options);
+        const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 0);
+
+        const results = data.filter(item => {
+            // Buscar em cada campo
+            return this.searchableFields.some(field => {
+                const value = item[field];
+                if (!value) return false;
+
+                const normalizedValue = this._normalizeString(String(value), options);
+                const valueWords = normalizedValue.split(/\s+/);
+
+                // Verificar se TODAS as palavras da query estão presentes no valor
+                const matches = queryWords.every(qWord =>
+                    valueWords.some(vWord => vWord.startsWith(qWord) || vWord.includes(qWord))
+                );
+
+                return matches;
+            });
+        });
+
+        console.log(`  → Busca exata encontrou ${results.length} resultados`);
+        return results;
+    }
+
+    /**
+     * Busca multi-campo (separado por vírgula)
+     * Ex: "Maria, GEROT, 60" busca Maria E GEROT E 60
+     * @private
+     */
+    _multiFieldSearch(query, data, options) {
+        const terms = query.split(',').map(t => t.trim()).filter(t => t.length > 0);
+
+        const results = data.filter(item => {
+            // Item deve conter TODOS os termos (em qualquer campo)
+            return terms.every(term => {
+                const normalizedTerm = this._normalizeString(term, options);
+
+                return this.searchableFields.some(field => {
+                    const value = item[field];
+                    if (!value) return false;
+
+                    const normalizedValue = this._normalizeString(String(value), options);
+                    return normalizedValue.includes(normalizedTerm);
+                });
+            });
+        });
+
+        console.log(`  → Busca multi-campo encontrou ${results.length} resultados`);
+        return results;
+    }
+
+    /**
+     * Busca fuzzy (tolerante a erros) usando FuzzySearch.js
      * @private
      * @param {string} query - Termo de busca
      * @param {Array<Object>} data - Dados
@@ -108,6 +186,11 @@ class SearchManager {
      * @returns {Array<Object>}
      */
     _fuzzySearch(query, data, options) {
+        // Usar FuzzySearch se disponível, senão fallback para método interno
+        if (typeof FuzzySearch !== 'undefined') {
+            return this._fuzzySearchAdvanced(query, data, options);
+        }
+
         const normalizedQuery = this._normalizeString(query, options);
 
         const scoredResults = data.map(item => {
@@ -135,6 +218,39 @@ class SearchManager {
             .sort((a, b) => b.score - a.score)
             .slice(0, options.maxResults)
             .map(result => result.item);
+    }
+
+    /**
+     * Busca fuzzy avançada usando FuzzySearch.js (com busca por palavras)
+     * @private
+     */
+    _fuzzySearchAdvanced(query, data, options) {
+        const normalizedQuery = FuzzySearch.normalize(query).toLowerCase();
+        const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 0);
+
+        const results = data.filter(item => {
+            // Buscar em cada campo
+            return this.searchableFields.some(field => {
+                const value = item[field];
+                if (!value) return false;
+
+                const normalizedValue = FuzzySearch.normalize(String(value)).toLowerCase();
+                const valueWords = normalizedValue.split(/\s+/);
+
+                // Para cada palavra da query, verificar se há similaridade com alguma palavra do valor
+                const matches = queryWords.every(qWord =>
+                    valueWords.some(vWord => {
+                        const similarity = FuzzySearch.similarity(qWord, vWord);
+                        return similarity >= 0.7; // 70% de similaridade
+                    })
+                );
+
+                return matches;
+            });
+        });
+
+        console.log(`  → Busca fuzzy encontrou ${results.length} resultados (threshold: 0.7)`);
+        return results;
     }
 
     /**

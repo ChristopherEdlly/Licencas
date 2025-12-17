@@ -271,7 +271,12 @@ class App {
             };
         }
 
-
+        // HeaderManager
+        if (typeof HeaderManager !== 'undefined') {
+            this.headerManager = new HeaderManager(this);
+            this.headerManager.init();
+            console.log('✅ HeaderManager inicializado');
+        }
 
         // SidebarManager
         if (typeof SidebarManager !== 'undefined') {
@@ -305,6 +310,15 @@ class App {
             console.log('✅ AdvancedFilterManager inicializado');
         } else {
             console.log('ℹ️ AdvancedFilterManager não disponível');
+        }
+
+        // AdvancedFiltersBuilder (UI para construção visual de filtros)
+        if (typeof AdvancedFiltersBuilder !== 'undefined') {
+            this.advancedFiltersBuilder = new AdvancedFiltersBuilder(this);
+            window.advancedFiltersBuilder = this.advancedFiltersBuilder;
+            console.log('✅ AdvancedFiltersBuilder inicializado');
+        } else {
+            console.log('ℹ️ AdvancedFiltersBuilder não disponível');
         }
 
         // CalendarManager
