@@ -692,6 +692,22 @@ class ModalManager {
 
         const mgrRef = this.app?.advancedFilterManager || window.advancedFilterManager;
 
+        // If this is a lotacao filter, delegate to the HierarchyFilterModal instead
+        if (filterType === 'lotacao') {
+            try {
+                if (window.hierarchyFilterModal && typeof window.hierarchyFilterModal.open === 'function') {
+                    window.hierarchyFilterModal.open();
+                } else if (window.advancedFiltersBuilder && typeof window.advancedFiltersBuilder.openHierarchyFilterModal === 'function') {
+                    window.advancedFiltersBuilder.openHierarchyFilterModal();
+                } else if (this.app && typeof this.app.openHierarchyFilterModal === 'function') {
+                    this.app.openHierarchyFilterModal();
+                }
+            } catch (e) {
+                console.warn('[ModalManager] could not open hierarchy modal for lotacao', e);
+            }
+            return;
+        }
+
         // If this is a dual-list based filter, wire dual-list listeners and confirm behaviour
         const dualTypes = ['cargo','lotacao','superintendencia','subsecretaria','urgencia','servidor'];
         if (dualTypes.includes(filterType)) {

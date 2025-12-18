@@ -958,16 +958,14 @@ class AdvancedFiltersBuilder {
             `;
         }
         
-        const dualListHtml = this.createDualListBox(
-            'lotacao',
-            lotacoes,
-            [],
-            'Lotações Disponíveis',
-            'Lotações Selecionadas'
-        );
-        
-        // Configurar listeners após renderização
-        setTimeout(() => this.setupDualListBoxListeners('lotacao'), 0);
+        // Instead of a dual-list, open the HierarchyFilterModal to select lotações
+        const dualListHtml = `
+            <div class="lotacao-hierarchy-picker">
+                <p style="margin:0 0 8px 0;">Selecione lotações usando o filtro por hierarquia.</p>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="(window.advancedFiltersBuilder||window.app.advancedFiltersBuilder).openHierarchyFilterModal()">Abrir filtro por hierarquia</button>
+                <small class="text-muted d-block mt-2">Lotações disponíveis na hierarquia: <strong>${lotacoes.length}</strong></small>
+            </div>
+        `;
         
         // Mensagem informativa sobre cascata
         let cascadeInfo = '';
