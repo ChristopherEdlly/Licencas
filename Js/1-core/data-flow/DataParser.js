@@ -332,8 +332,15 @@ class DataParser {
             }
 
             // Atualizar lotação se mudou (usar a mais recente)
-            if (row.LOTACAO || row.LOTAÇÃO) {
-                servidor.lotacao = row.LOTACAO || row.LOTAÇÃO || servidor.lotacao;
+            // Aceitar várias formas de chave (maiúsculas/minúsculas e 'unidade')
+            const possibleLotKeys = [
+                'LOTACAO', 'LOTAÇÃO', 'lotacao', 'lotação', 'UNIDADE', 'unidade'
+            ];
+            for (const k of possibleLotKeys) {
+                if (row[k]) {
+                    servidor.lotacao = row[k];
+                    break;
+                }
             }
         });
 

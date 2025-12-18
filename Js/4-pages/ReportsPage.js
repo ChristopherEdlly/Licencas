@@ -696,6 +696,16 @@ class ReportsPage {
         // Update available columns based on processed data (disable columns without data)
         try { this._updateAvailableColumns(processedData); } catch (e) { console.warn('Erro ao atualizar coluna disponível:', e); }
 
+        // Debug helper: inspect processed object for 'ABILIO' if present (temporary)
+        try {
+            const ab = processedData.find(s => (s.nome || s.NOME || '').toString().toUpperCase().includes('ABILIO'));
+            if (ab) {
+                console.debug('ReportsPage: processed object for ABILIO:', ab, 'keys=', Object.keys(ab));
+            }
+        } catch (e) {
+            /* ignore */
+        }
+
         // 3. Renderizar preview da tabela
         this._renderPreview(processedData);
 
@@ -825,10 +835,38 @@ class ReportsPage {
 
             const ag = this._aggregateLicenses(effectiveLicencas);
 
+            // Ensure lotacao is populated: prefer servidor.lotacao, then unidade, then try to lookup in full dataset
+            let lotacaoFinal = this._getField(servidor, ['lotacao', 'LOTACAO', 'Lotacao']) || servidor.lotacao || servidor.LOTACAO || servidor.unidade || servidor.UNIDADE || '';
+            if ((!lotacaoFinal || String(lotacaoFinal).trim() === '') && this.dataStateManager && typeof this.dataStateManager.getAllServidores === 'function') {
+                try {
+                    const all = this.dataStateManager.getAllServidores() || [];
+                    const nomeAlvo = (servidor.nome || servidor.NOME || servidor.servidor || '').toString().trim().toLowerCase();
+                    if (nomeAlvo) {
+                        const match = all.find(s => ((s.nome || s.NOME || s.servidor) || '').toString().trim().toLowerCase() === nomeAlvo && (s.lotacao || s.LOTACAO || s.unidade || s.UNIDADE));
+                        if (match) {
+                            lotacaoFinal = match.lotacao || match.LOTACAO || match.unidade || match.UNIDADE || lotacaoFinal;
+                        }
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            }
+
+            const enrichedLot = lotacaoFinal || '';
+            // if DataTransformer.normalizeForSearch exists, compute normalized form
+            let lotacaoNormalizada = '';
+            try {
+                if (typeof DataTransformer !== 'undefined' && typeof DataTransformer.normalizeForSearch === 'function') {
+                    lotacaoNormalizada = DataTransformer.normalizeForSearch(enrichedLot);
+                }
+            } catch (e) { /* ignore */ }
+
             return {
                 ...servidor,
                 // ensure the renderer/formatters see the filtered licencas
                 licencas: effectiveLicencas,
+                lotacao: enrichedLot,
+                _lotacaoNormalizada: lotacaoNormalizada,
                 // aggregated summary fields
                 periodoLicenca: ag.periodSummary,
                 periodosDetalhados: ag.periods, // array of {inicio,fim}

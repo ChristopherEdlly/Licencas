@@ -227,6 +227,40 @@ const DataTransformer = (function () {
 
         const enriched = { ...servidor };
 
+        // Defensive: if lotacao is empty, try to derive from alternative fields
+        // But avoid filling with generic organization names like 'SEFAZ' (prefer specific gerência names)
+        if ((!enriched.lotacao || String(enriched.lotacao).trim() === '') && (enriched.unidade || enriched.UNIDADE)) {
+            const candidate = (enriched.UNIDADE || enriched.unidade || '').toString().trim();
+            const normalize = typeof normalizeForSearch === 'function' ? normalizeForSearch : (t=> (t||'').toString().toLowerCase().trim());
+            const candidateNorm = normalize(candidate);
+
+            const GENERIC_UNIDADES = new Set(['sefaz','secretaria','secretaria de estado da fazenda','orgao','orgão','n/a','nao informada','unidade']);
+
+            let accept = candidate && candidate.length > 2 && !GENERIC_UNIDADES.has(candidateNorm);
+
+            // If hierarchy manager exists, prefer candidate only when it maps to a gerencia (specific)
+            try {
+                if (accept && typeof window !== 'undefined' && window.lotacaoHierarchyManager && typeof window.lotacaoHierarchyManager.findLotacao === 'function') {
+                    const info = window.lotacaoHierarchyManager.findLotacao(candidate);
+                    if (info && info.type && info.type !== 'gerencia') {
+                        accept = false; // candidate is too generic (e.g., secretaria)
+                    }
+                }
+            } catch (e) {
+                // ignore hierarchy check failures
+            }
+
+            if (accept) {
+                enriched.lotacao = candidate;
+                try { console.debug('[DataTransformer] backfill lotacao from unidade for', enriched.nome || enriched.NOME || '(unknown)', '=>', enriched.lotacao); } catch (e) {}
+            }
+        }
+
+        // If still missing, assign a sentinel value so UI and filters can show/select it
+        if (!enriched.lotacao || String(enriched.lotacao).trim() === '') {
+            enriched.lotacao = 'Sem lotação';
+        }
+
         // Formata CPF
         if (enriched.cpf) {
             enriched.cpfFormatado = FormatUtils.formatCPF(enriched.cpf);

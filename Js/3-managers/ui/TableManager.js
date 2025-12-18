@@ -216,7 +216,29 @@ class TableManager {
         // Extração de dados segura (Case Insensitive)
         const nomeRaw = this._getKeyCaseInsensitive(servidor, 'nome') || this._getKeyCaseInsensitive(servidor, 'servidor') || '';
         const cargoRaw = this._getKeyCaseInsensitive(servidor, 'cargo');
-        const lotacaoRaw = this._getKeyCaseInsensitive(servidor, 'lotacao') || this._getKeyCaseInsensitive(servidor, 'unidade');
+        let lotacaoRaw = this._getKeyCaseInsensitive(servidor, 'lotacao') || this._getKeyCaseInsensitive(servidor, 'unidade');
+
+        // Fallback: se valor vazio ou apenas espaços, tentar buscar nos registros completos
+        if ((!lotacaoRaw || String(lotacaoRaw).trim() === '') && this.app && this.app.dataStateManager && typeof this.app.dataStateManager.getAllServidores === 'function') {
+            try {
+                const all = this.app.dataStateManager.getAllServidores() || [];
+                const nome = (nomeRaw || '').toString().trim().toLowerCase();
+                if (nome) {
+                    for (const s of all) {
+                        const sNome = (s.nome || s.NOME || s.servidor || '').toString().trim().toLowerCase();
+                        if (sNome === nome) {
+                            const candidate = this._getKeyCaseInsensitive(s, 'lotacao') || this._getKeyCaseInsensitive(s, 'unidade');
+                            if (candidate && String(candidate).trim() !== '') {
+                                lotacaoRaw = candidate;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                // ignore lookup errors
+            }
+        }
         const idadeRaw = this._getKeyCaseInsensitive(servidor, 'idade');
         const urgenciaRaw = this._getKeyCaseInsensitive(servidor, 'nivelUrgencia') || this._getKeyCaseInsensitive(servidor, 'urgencia');
 
