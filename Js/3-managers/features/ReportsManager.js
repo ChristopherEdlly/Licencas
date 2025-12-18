@@ -18,6 +18,8 @@ class ReportsManager {
      */
     constructor(app) {
         this.app = app;
+        this.showOnlyFilteredLicenses = false; // Estado do toggle
+        this.debug = false; // Flag de debug
 
         // Templates de relatórios predefinidos
         this.reportTemplates = {
@@ -63,7 +65,74 @@ class ReportsManager {
             }
         };
 
+        this.init();
         console.log('✅ ReportsManager criado');
+    }
+
+    /**
+     * Inicialização
+     */
+    init() {
+        this.loadToggleState();
+        this.setupToggleListener();
+    }
+
+    /**
+     * Carregar estado do toggle do localStorage
+     */
+    loadToggleState() {
+        const savedState = localStorage.getItem('licenseViewToggleState');
+        this.showOnlyFilteredLicenses = savedState === 'true';
+
+        const toggle = document.getElementById('licenseViewToggle');
+        if (toggle) {
+            toggle.checked = this.showOnlyFilteredLicenses;
+            this.updateToggleLabels();
+        }
+    }
+
+    /**
+     * Salvar estado do toggle no localStorage
+     */
+    saveToggleState() {
+        localStorage.setItem('licenseViewToggleState', this.showOnlyFilteredLicenses.toString());
+    }
+
+    /**
+     * Atualizar labels do toggle
+     */
+    updateToggleLabels() {
+        const labelComplete = document.getElementById('toggleLabelComplete');
+        const labelFiltered = document.getElementById('toggleLabelFiltered');
+        const description = document.getElementById('toggleDescriptionText');
+
+        if (labelComplete) {
+            labelComplete.classList.toggle('active', !this.showOnlyFilteredLicenses);
+        }
+        if (labelFiltered) {
+            labelFiltered.classList.toggle('active', this.showOnlyFilteredLicenses);
+        }
+        if (description) {
+            description.textContent = this.showOnlyFilteredLicenses
+                ? 'Exibindo apenas licenças dentro do período filtrado nos Filtros Avançados'
+                : 'Exibindo todas as licenças dos servidores encontrados';
+        }
+    }
+
+    /**
+     * Configurar listener do toggle
+     */
+    setupToggleListener() {
+        const toggle = document.getElementById('licenseViewToggle');
+        if (toggle) {
+            toggle.addEventListener('change', (e) => {
+                this.showOnlyFilteredLicenses = e.target.checked;
+                this.saveToggleState();
+                this.updateToggleLabels();
+                console.log(`🔄 Toggle alterado: ${this.showOnlyFilteredLicenses ? 'Apenas Filtradas' : 'Visão Completa'}`);
+            });
+            console.log('✅ ReportsManager: Toggle de visualização conectado');
+        }
     }
 
     // ==================== GERAÇÃO DE RELATÓRIOS ====================
@@ -643,92 +712,368 @@ class ReportsManager {
     }
 
     /**
-     * Export helper used by UI: tries to produce an Excel-like file (CSV fallback)
-     * @param {Array<Object>} exportData - Array of plain objects (rows)
-     * @param {string} title - Filename / report title
+     * Obter filtro de período ativo
      */
-    exportToExcel(exportData, title = 'report') {
-        // Delegate to ExportService if present
-        if (this.app && this.app.exportService && typeof this.app.exportService.exportToExcel === 'function') {
-            try {
-                this.app.exportService.exportToExcel(exportData, title);
-                return;
-            } catch (e) {
-                console.warn('ExportService.exportToExcel falhou, fallback para CSV', e);
+    getActivePeriodFilter() {
+        // Tentar obter do AdvancedFiltersBuilder primeiro (usado com dados reais)
+        const advFiltersBuilder = this.app?.advancedFiltersBuilder;
+        if (advFiltersBuilder && advFiltersBuilder.filters) {
+            const periodFilters = advFiltersBuilder.filters.filter(f => f.type === 'periodo');
+            if (periodFilters.length > 0) {
+                const filter = periodFilters[0];
+                // AdvancedFiltersBuilder armazena como { inicio, fim }
+                return {
+                    dataInicio: filter.value?.inicio,
+                    dataFim: filter.value?.fim
+                };
             }
         }
 
-        // Fallback: generate CSV and trigger download with .csv extension
-        try {
-            const keys = exportData.length ? Object.keys(exportData[0]) : [];
-            const csvRows = [];
-            if (keys.length) csvRows.push(keys.join(','));
-            exportData.forEach(row => {
-                const values = keys.map(k => {
-                    const v = row[k];
-                    if (v === null || v === undefined) return '';
-                    if (typeof v === 'object') return '"' + JSON.stringify(v).replace(/"/g, '""') + '"';
-                    return '"' + String(v).replace(/"/g, '""') + '"';
-                });
-                csvRows.push(values.join(','));
-            });
+        // Fallback: tentar currentFilters (usado nos testes com dados mock)
+        const currentPeriod = this.app?.currentFilters?.periodo;
+        if (currentPeriod && (currentPeriod.dataInicio || currentPeriod.dataFim)) {
+            return currentPeriod;
+        }
 
-            const csv = csvRows.join('\n');
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${title.replace(/\s+/g, '_')}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        } catch (e) {
-            console.error('Erro ao gerar CSV para exportação:', e);
+        return null;
+    }
+
+    /**
+     * Obtém todas as licenças de um servidor
+     * SIMPLIFICADO: Dados já vêm normalizados do DataTransformer
+     * @param {Object} servidor - Objeto servidor (dados normalizados)
+     * @returns {Array<Object>} - Array de licenças
+     */
+    getAllLicenses(servidor) {
+        // Dados já vêm prontos do DataTransformer!
+        // Cada licença tem: { inicio: Date, fim: Date, tipo, descricao, meses }
+        return servidor.licencas || [];
+    }
+
+    /**
+     * Habilitar/desabilitar modo debug
+     */
+    setDebug(enabled) {
+        this.debug = enabled;
+        console.log(`🔍 Debug do ReportsManager: ${enabled ? 'ATIVADO' : 'DESATIVADO'}`);
+    }
+
+    /**
+     * Parsear data
+     */
+    parseDate(value, endOfDay = false) {
+        if (!value) return null;
+        if (value instanceof Date) {
+            return isNaN(value.getTime()) ? null : value;
+        }
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return null;
+        if (endOfDay) {
+            date.setHours(23, 59, 59, 999);
+        } else {
+            date.setHours(0, 0, 0, 0);
+        }
+        return date;
+    }
+
+    /**
+     * Formatar data
+     */
+    formatDate(dateInput, options = {}) {
+        const { raw = false } = options;
+        if (!dateInput) return raw ? '' : '';
+
+        let date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+        if (Number.isNaN(date.getTime())) return raw ? '' : '';
+
+        if (raw) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+    }
+
+    /**
+     * Normalizar texto para comparação (remove acentos, mantém espaços e hífens)
+     */
+    normalizeText(text) {
+        if (!text) return '';
+        return text.toString()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+            .trim();
+    }
+
+    /**
+     * Obter valor de célula com suporte a múltiplas licenças
+     */
+    getCellValue(servidor, column, options = {}) {
+        const { raw = false, showOnlyFilteredLicenses = false } = options;
+
+        // Para coluna de período, mostrar TODAS as licenças (dados normalizados)
+        if (column === 'periodoLicenca') {
+            const licenses = this.getAllLicenses(servidor) || [];
+
+            if (licenses.length === 0) return '';
+
+            let filtered = licenses;
+
+            if (showOnlyFilteredLicenses) {
+                const periodFilter = this.getActivePeriodFilter();
+                if (periodFilter && (periodFilter.dataInicio || periodFilter.dataFim)) {
+                    const filterStart = this.parseDate(periodFilter.dataInicio) || new Date(1900, 0, 1);
+                    const filterEnd = this.parseDate(periodFilter.dataFim, true) || new Date(2100, 0, 1);
+
+                    filtered = filtered.filter(lic => {
+                        const inicio = lic.inicio instanceof Date ? lic.inicio : this.parseDate(lic.inicio);
+                        const fim = lic.fim instanceof Date ? lic.fim : this.parseDate(lic.fim) || inicio;
+                        if (!inicio) return false;
+                        return inicio <= filterEnd && fim >= filterStart;
+                    });
+                }
+            }
+
+            if (filtered.length === 0) return '';
+
+            // Ordenar por data de início
+            filtered.sort((a, b) => (a.inicio?.getTime?.() || 0) - (b.inicio?.getTime?.() || 0));
+
+            const segmentJoiner = raw ? '\u000a' : '\n';
+            const segments = filtered.map(lic => {
+                const inicio = lic.inicio ? this.formatDate(lic.inicio) : '';
+                const fim = lic.fim ? this.formatDate(lic.fim) : inicio;
+                return inicio ? `${inicio} até ${fim}` : '';
+            }).filter(Boolean);
+
+            return segments.join(segmentJoiner);
+        }
+
+        // Outros campos
+        switch(column) {
+            case 'nome':
+                return servidor.nome || servidor.servidor || '';
+            case 'cpf':
+                return servidor.cpf || '';
+            case 'cargo':
+                return servidor.cargo || '';
+            case 'lotacao':
+                // Normalizar para preservar acentos e hífens originais
+                return servidor.lotacao || servidor.lotação || '';
+            case 'urgencia':
+                return servidor.urgencia || servidor.nivelUrgencia || '';
+            default:
+                return servidor[column] || '';
         }
     }
 
     /**
-     * Export helper to produce a printable PDF view (opens print dialog)
-     * @param {Array<Object>} exportData
-     * @param {string} title
+     * Exportar dados filtrados para XLSX real
      */
-    exportToPDF(exportData, title = 'report') {
-        // Delegate to ExportService if present
-        if (this.app && this.app.exportService && typeof this.app.exportService.exportToPDF === 'function') {
-            try {
-                this.app.exportService.exportToPDF(exportData, title);
-                return;
-            } catch (e) {
-                console.warn('ExportService.exportToPDF falhou, fallback para janela de impressão', e);
-            }
+    async exportToXLSX(button) {
+        const data = this.getBaseDataset();
+
+        if (data.length === 0) {
+            console.warn('Nenhum dado para exportar');
+            return;
         }
 
-        // Fallback: build a simple HTML and open in new window for printing
+        if (typeof XLSX === 'undefined') {
+            console.error('Biblioteca XLSX não carregada');
+            return;
+        }
+
+        let originalContent = null;
+        if (button) {
+            originalContent = button.innerHTML;
+            button.innerHTML = '<i class="bi bi-arrow-repeat"></i> Exportando...';
+            button.disabled = true;
+        }
+
         try {
-            const report = {
-                name: title,
-                description: '',
-                generatedAt: new Date().toISOString(),
-                data: exportData
-            };
+            // Preparar dados para exportação (sem colunas de início/fim separadas)
+            const columns = ['nome', 'cargo', 'lotacao', 'periodoLicenca', 'urgencia'];
+            const header = columns.map(col => {
+                const labels = {
+                    nome: 'Nome',
+                    cargo: 'Cargo',
+                    lotacao: 'Lotação',
+                    periodoLicenca: 'Períodos de Licença',
+                    urgencia: 'Urgência'
+                };
+                return labels[col] || col;
+            });
 
-            const html = this.exportAsHTML(report);
-            const w = window.open('', '_blank');
-            if (!w) {
-                console.error('Não foi possível abrir nova janela para impressão');
+            const rows = data.map(servidor => {
+                return columns.map(col => this.getCellValue(servidor, col, { raw: true, showOnlyFilteredLicenses: this.showOnlyFilteredLicenses }));
+            });
+
+            // Criar workbook
+            const workbook = XLSX.utils.book_new();
+            const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+
+            // Ajustar largura das colunas
+            const columnWidths = columns.map((_, columnIndex) => {
+                const headerText = header[columnIndex] ? String(header[columnIndex]) : '';
+                let maxLength = headerText.length;
+
+                rows.forEach(row => {
+                    const cellValue = row[columnIndex];
+                    if (cellValue === null || cellValue === undefined) return;
+                    const text = String(cellValue);
+                    text.replace(/\r?\n/g, '\n').split(/\n/).forEach(line => {
+                        if (line.length > maxLength) {
+                            maxLength = line.length;
+                        }
+                    });
+                });
+
+                return { wch: Math.min(Math.max(maxLength + 2, 14), 64) };
+            });
+
+            worksheet['!cols'] = columnWidths;
+
+            // Adicionar ao workbook
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Relatório');
+
+            // Gerar e baixar arquivo
+            const fileName = `relatorio_licencas_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(workbook, fileName, { bookType: 'xlsx' });
+
+            console.log(`✅ Arquivo exportado: ${fileName}`);
+        } catch (error) {
+            console.error('Erro ao exportar XLSX:', error);
+        } finally {
+            if (button) {
+                button.innerHTML = originalContent || '<i class="bi bi-file-earmark-spreadsheet"></i> Baixar Excel';
+                button.disabled = false;
+            }
+        }
+    }
+
+    /**
+     * Gerar PDF real com jsPDF
+     */
+    async generatePDF() {
+        const data = this.getBaseDataset();
+
+        if (data.length === 0) {
+            console.warn('Nenhum dado para gerar PDF');
+            return;
+        }
+
+        const btn = document.getElementById('generatePdfRedesign');
+        let originalText = null;
+
+        try {
+            if (btn) {
+                originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Gerando...';
+                btn.disabled = true;
+            }
+
+            // Criar documento PDF
+            const { jsPDF } = window.jspdf;
+            if (!jsPDF) {
+                console.error('jsPDF não está carregado');
                 return;
             }
-            w.document.open();
-            w.document.write(html);
-            w.document.close();
-            // Wait a bit for content to load then call print
-            setTimeout(() => {
-                try { w.print(); } catch (e) { console.warn('Erro ao chamar print()', e); }
-            }, 300);
-        } catch (e) {
-            console.error('Erro ao gerar PDF (fallback):', e);
+
+            const doc = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 14;
+            let yPosition = margin + 6;
+
+            // Cabeçalho
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(40, 40, 40);
+            doc.text('Relatório de Licenças', pageWidth / 2, yPosition, { align: 'center' });
+            yPosition += 8;
+
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(120, 120, 120);
+            const generatedAt = new Date();
+            const dateText = `Gerado em ${generatedAt.toLocaleDateString('pt-BR')} às ${generatedAt.toLocaleTimeString('pt-BR')}`;
+            doc.text(dateText, pageWidth / 2, yPosition, { align: 'center' });
+            yPosition += 10;
+
+            // Tabela de dados (sem colunas de início/fim separadas)
+            const columns = ['nome', 'cargo', 'lotacao', 'periodoLicenca', 'urgencia'];
+            const headers = ['Nome', 'Cargo', 'Lotação', 'Períodos de Licença', 'Urgência'];
+            const tableData = data.map(servidor => columns.map(col => this.getCellValue(servidor, col, { showOnlyFilteredLicenses: this.showOnlyFilteredLicenses })));
+
+            doc.autoTable({
+                startY: yPosition,
+                head: [headers],
+                body: tableData,
+                styles: {
+                    fontSize: 7,
+                    cellPadding: 2,
+                    overflow: 'linebreak',
+                    cellWidth: 'wrap',
+                },
+                headStyles: {
+                    fillColor: [59, 130, 246],
+                    textColor: 255,
+                    fontStyle: 'bold',
+                    halign: 'left'
+                },
+                alternateRowStyles: {
+                    fillColor: [245, 247, 250]
+                },
+                margin: { left: margin, right: margin },
+                tableWidth: 'auto',
+                theme: 'grid'
+            });
+
+            // Adicionar rodapé com número de páginas
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.text(`Página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+            }
+
+            // Baixar PDF (não abrir em nova janela)
+            const fileName = `relatorio_licencas_${new Date().toISOString().split('T')[0]}.pdf`;
+            doc.save(fileName);
+
+            console.log(`✅ PDF gerado: ${fileName}`);
+
+        } catch (error) {
+            console.error('Erro ao gerar PDF:', error);
+        } finally {
+            if (btn) {
+                btn.innerHTML = originalText || '<i class="bi bi-file-earmark-pdf"></i> Gerar PDF';
+                btn.disabled = false;
+            }
         }
+    }
+
+    /**
+     * Obter dataset base (compatibilidade)
+     */
+    getBaseDataset() {
+        const filtered = Array.isArray(this.app.filteredServidores) ? this.app.filteredServidores : [];
+        if (filtered.length > 0) {
+            return filtered;
+        }
+        const all = Array.isArray(this.app.allServidores) ? this.app.allServidores : [];
+        return all;
     }
 
     // ==================== GERENCIAMENTO DE TEMPLATES ====================

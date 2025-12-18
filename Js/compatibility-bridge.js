@@ -48,7 +48,18 @@
         // Se houver dados no sistema antigo, migrar para o novo
         if (window.dataStateManager && window.oldData) {
             try {
-                window.dataStateManager.setAllServidores(window.oldData);
+                let toMigrate = window.oldData;
+                // Tentar enriquecer/normalizar dados legados se DataTransformer estiver disponível
+                try {
+                    if (typeof DataTransformer !== 'undefined' && DataTransformer.enrichServidoresBatch) {
+                        toMigrate = DataTransformer.enrichServidoresBatch(toMigrate);
+                        console.log(`💠 Dados legados enriquecidos: ${toMigrate.length} registros`);
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Falha ao enriquecer dados legados antes da migração, usando original', e);
+                }
+
+                window.dataStateManager.setAllServidores(toMigrate);
                 console.log('✅ Dados migrados do sistema antigo para o novo');
             } catch (error) {
                 console.error('❌ Erro ao migrar dados:', error);

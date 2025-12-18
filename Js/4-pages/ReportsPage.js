@@ -22,13 +22,13 @@ class ReportsPage {
         this.isInitialized = false;
 
         // Estado do relatório
-        this.selectedColumns = new Set(['nome', 'cargo', 'idade', 'lotacao', 'urgencia', 'periodoLicenca']);
+        this.selectedColumns = new Set(['nome', 'cargo', 'lotacao', 'periodoLicenca', 'urgencia']);
         this.showAllPeriods = true; // true = visão completa, false = apenas filtradas
         this.reportTitle = 'Relatório de Licenças';
         this.columnSearchTerm = '';
 
-        // Fixed columns order (legacy behavior expects fixed ordering)
-        this.columnsOrder = ['nome','cpf','matricula','cargo','idade','lotacao','superintendencia','subsecretaria','urgencia','periodoLicenca','dataInicio','dataFim','diasLicenca','mesesLicenca'];
+        // Fixed columns order (sem dataInicio/dataFim - informação está em periodoLicenca)
+        this.columnsOrder = ['nome','cpf','matricula','cargo','idade','lotacao','superintendencia','subsecretaria','urgencia','periodoLicenca','diasLicenca','mesesLicenca'];
 
         // Columns with data available in current dataset
         this.availableColumns = new Set();
@@ -80,15 +80,23 @@ class ReportsPage {
             idade: { label: 'Idade', extract: (s) => this._extractAge(s) || '' },
 
             // Localização
-            lotacao: { label: 'Lotação', extract: (s) => this._getField(s, ['lotac', 'lotação', 'LOTACAO', 'lotacao']) || 'Não informada' },
+            lotacao: {
+                label: 'Lotação',
+                extract: (s) => {
+                    const resultado = this._getField(s, ['lotac', 'lotação', 'LOTACAO', 'lotacao']) || 'Não informada';
+                    if (window._reportDebugCount !== undefined && window._reportDebugCount < 3) {
+                        console.log(`   🏢 Lotação extraída: "${resultado}" (de ${s.nome || s.servidor})`);
+                    }
+                    return resultado;
+                }
+            },
             superintendencia: { label: 'Superintendência', extract: (s) => this._getField(s, ['super', 'superintend', 'SUPERINTENDENCIA']) || '' },
             subsecretaria: { label: 'Subsecretaria', extract: (s) => this._getField(s, ['subsec', 'subsecret', 'subsecretaria', 'SUBSECRETARIA']) || '' },
 
             // Informações da Licença
-            urgencia: { label: 'Urgência', extract: (s) => this._getField(s, ['urg', 'urgencia', 'nivelUrgencia']) || 'Não calculada' },
-            periodoLicenca: { label: 'Período da Licença', extract: (s) => this._formatPeriodoLicenca(s) },
-            dataInicio: { label: 'Data Início', extract: (s) => this._formatDate(this._getField(s, ['dataInicio', 'inicio', 'A_PARTIR', 'inicioLicenca'])) },
-            dataFim: { label: 'Data Fim', extract: (s) => this._formatDate(this._getField(s, ['dataFim', 'fim', 'TERMINO', 'fimLicenca'])) },
+            urgencia: { label: 'Urgência', extract: (s) => this._getField(s, ['urg', 'urgencia', 'nivelUrgencia']) || '' },
+            periodoLicenca: { label: 'Períodos de Licença', extract: (s) => this._formatPeriodoLicenca(s) },
+            // dataInicio e dataFim removidas - informação consolidada em periodoLicenca
             diasLicenca: { label: 'Dias de Licença', extract: (s) => this._getField(s, ['dias', 'DIAS', 'diasLicenca', 'dias_licenca']) || '' },
             mesesLicenca: { label: 'Meses de Licença', extract: (s) => this._getField(s, ['meses', 'MESES', 'mesesLicenca']) || '' }
         };
@@ -436,6 +444,23 @@ class ReportsPage {
     _updateAvailableColumns(servidores) {
         const available = new Set();
         const sample = servidores || this._getFilteredData() || [];
+
+        // If there is no data yet, consider all columns available (avoid disabling everything by default)
+        if (!Array.isArray(sample) || sample.length === 0) {
+            Object.keys(this.columnMapping).forEach(col => available.add(col));
+            this.availableColumns = available;
+
+            // Ensure checkboxes are enabled when no data (do not disable UI controls before data loads)
+            if (this.elements.columnsAccordion) {
+                const checkboxes = this.elements.columnsAccordion.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    cb.disabled = false;
+                    cb.closest('.column-checkbox')?.classList.remove('disabled');
+                });
+            }
+
+            return;
+        }
         // For each defined column, check if at least one non-empty value exists
         Object.keys(this.columnMapping).forEach(col => {
             const extractor = this.columnMapping[col].extract;
@@ -512,32 +537,6 @@ class ReportsPage {
             }
         }
         return '';
-    }
-
-    /**
-     * Retorna array de licenças do servidor, tolerante a nomes diferentes
-     * @param {Object} servidor
-     * @returns {Array}
-     */
-    _getLicenses(servidor) {
-        if (!servidor) return [];
-        const keys = Object.keys(servidor || {});
-        const licKey = keys.find(k => /licen|licença|licenca|licenses|license/i.test(k));
-        if (licKey) {
-            const val = servidor[licKey];
-            if (Array.isArray(val)) return val;
-            if (typeof val === 'string') {
-                try { const parsed = JSON.parse(val); if (Array.isArray(parsed)) return parsed; } catch (e) { }
-                return [];
-            }
-            return Array.isArray(val) ? val : [];
-        }
-        // also check periodoLicenca
-        if (servidor.periodoLicenca) {
-            if (Array.isArray(servidor.periodoLicenca)) return servidor.periodoLicenca;
-            return [servidor.periodoLicenca];
-        }
-        return [];
     }
 
     /**
@@ -724,13 +723,112 @@ class ReportsPage {
      * @returns {Array} Array de dados processados
      */
     _processDataForExport(servidores) {
+        // Detect legacy shape: many rows where each row is a license (CSV raw rows)
+        let input = servidores || [];
+
+        if (input.length > 0) {
+            const sample = input[0];
+            const hasLicenseFields = Object.keys(sample).some(k => /A_PARTIR|TERMINO|GOZO|NOME|LOTACAO|AQUISITIVO/i.test(k));
+            const lacksLicencasArray = !sample.hasOwnProperty('licencas');
+
+            if (hasLicenseFields && lacksLicencasArray) {
+                // Attempt to normalize: group by servidor and enrich
+                try {
+                    if (typeof DataParser !== 'undefined' && typeof DataParser.groupByServidor === 'function') {
+                        console.log('🔁 ReportsPage detected raw-license rows — grouping by servidor');
+                        input = DataParser.groupByServidor(input);
+                    }
+
+                    if (typeof DataTransformer !== 'undefined' && typeof DataTransformer.enrichServidoresBatch === 'function') {
+                        input = DataTransformer.enrichServidoresBatch(input);
+                        console.log('🔁 ReportsPage: enriched grouped servidores');
+                    }
+                } catch (e) {
+                    console.warn('⚠️ ReportsPage: failed to normalize legacy rows, proceeding with original input', e);
+                }
+            }
+        }
+
         // Always produce one row per servidor (aggregate license periods)
-        const aggregated = servidores.map(servidor => {
+        const aggregated = input.map(servidor => {
             const licencas = this._getLicenses(servidor) || [];
-            const ag = this._aggregateLicenses(licencas);
+
+            // If the UI is set to show only filtered periods, apply active period filter
+            let effectiveLicencas = licencas;
+            if (!this.showAllPeriods) {
+                try {
+                    const active = (this.reportsManager && typeof this.reportsManager.getActivePeriodFilter === 'function')
+                        ? this.reportsManager.getActivePeriodFilter()
+                        : (this.app && this.app.getActivePeriodFilter ? this.app.getActivePeriodFilter() : null);
+
+                    if (active && (active.dataInicio || active.dataFim || active.start || active.end)) {
+                        const toDate = v => {
+                            if (!v) return null;
+                            if (v instanceof Date) return v;
+                            if (typeof v === 'number') return new Date(v);
+                            if (typeof v === 'string') {
+                                const s = v.trim();
+                                // Try DD/MM/YYYY or D/M/YYYY (Brazilian format)
+                                const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(.*)$/);
+                                if (m) {
+                                    const day = Number(m[1]);
+                                    const month = Number(m[2]) - 1;
+                                    const year = Number(m[3]);
+                                    const d = new Date(year, month, day);
+                                    if (!isNaN(d.getTime())) return d;
+                                }
+                                // Fallback to Date parser (ISO, timestamps, etc.)
+                                const iso = new Date(s);
+                                if (!isNaN(iso.getTime())) return iso;
+                                return null;
+                            }
+                            return null;
+                        };
+
+                        let start = toDate(active.dataInicio || active.start || active.dataInicioStr || active.startDate) || null;
+                        let end = toDate(active.dataFim || active.end || active.dataFimStr || active.endDate) || null;
+
+                        // Normalize to full local days: start at 00:00:00.000, end at 23:59:59.999
+                        if (start) start = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0, 0);
+                        if (end) end = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999);
+
+                        // Debug: log what we received and parsed to help diagnose toggle/filter issues
+                        try {
+                            console.debug('ReportsPage: active-period raw=', active, 'parsed start=', start, 'end=', end, 'showAllPeriods=', this.showAllPeriods);
+                        } catch (e) {
+                            // ignore in environments without console
+                        }
+
+                        if (start || end) {
+                            effectiveLicencas = (licencas || []).filter(l => {
+                                const li = toDate(l.inicio || l.INICIO || l.A_PARTIR || l.aPartir || l.dataInicio || l.DATA_INICIO) || null;
+                                const lf = toDate(l.fim || l.FIM || l.TERMINO || l.termino || l.dataFim || l.DATA_FIM) || null;
+
+                                // If license has neither date, exclude
+                                if (!li && !lf) return false;
+
+                                // Treat missing end as same as start
+                                const licStart = li || lf;
+                                const licEnd = lf || li;
+
+                                // Compare intervals: overlap if not (licEnd < start || licStart > end)
+                                if (start && licEnd && licEnd < start) return false;
+                                if (end && licStart && licStart > end) return false;
+                                return true;
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.warn('⚠️ ReportsPage: failed to apply active-period filter, falling back to all periods', e);
+                }
+            }
+
+            const ag = this._aggregateLicenses(effectiveLicencas);
 
             return {
                 ...servidor,
+                // ensure the renderer/formatters see the filtered licencas
+                licencas: effectiveLicencas,
                 // aggregated summary fields
                 periodoLicenca: ag.periodSummary,
                 periodosDetalhados: ag.periods, // array of {inicio,fim}
@@ -767,7 +865,7 @@ class ReportsPage {
             return '';
         }).filter(Boolean);
 
-        const periodSummary = summaryParts.join('; ') + (periods.length > 3 ? `; ... (+${periods.length - 3})` : '') || '';
+        const periodSummary = summaryParts.join('\n') + (periods.length > 3 ? `\n... (+${periods.length - 3})` : '') || '';
 
         // total days and max months
         let totalDays = 0;
@@ -887,8 +985,21 @@ class ReportsPage {
             const cells = this._orderedSelectedColumns()
                 .map(col => {
                     const extractor = this.columnMapping[col].extract;
-                    const value = extractor(servidor);
-                    return this._escapeHtml(String(value));
+                    let value = extractor(servidor);
+
+                    // Show friendly fallback for urgencia only at render time
+                    if ((value === null || value === undefined || value === '') && col === 'urgencia') {
+                        value = 'Não calculada';
+                    }
+
+                    // Preserve multi-line values: render each period as a non-breaking line
+                    if (typeof value === 'string' && value.includes('\n')) {
+                        return value.split('\n').map(line => `
+                            <div style="white-space:nowrap">${this._escapeHtml(line)}</div>`
+                        ).join('');
+                    }
+
+                    return this._escapeHtml(String(value ?? ''));
                 });
 
             return `<tr>${cells.map(cell => `<td>${cell}</td>`).join('')}</tr>`;
@@ -1005,58 +1116,90 @@ class ReportsPage {
     }
 
     /**
-     * Formata período de licença para exibição
+     * Formata período de licença para exibição (TODAS as licenças)
+     * SIMPLIFICADO: Dados já vêm normalizados do DataTransformer
      * @private
-     * @param {Object} servidor - Objeto servidor
-     * @returns {string} Período formatado
+     * @param {Object} servidor - Objeto servidor (dados já normalizados)
+     * @returns {string} Período formatado (múltiplas linhas se houver várias licenças)
      */
     _formatPeriodoLicenca(servidor) {
-        // If there's an explicit periodoLicenca object/array, use first entry
-        if (servidor.periodoLicenca) {
-            const p = Array.isArray(servidor.periodoLicenca) ? servidor.periodoLicenca[0] : servidor.periodoLicenca;
-            if (p && typeof p === 'object') {
-                const inicio = this._formatDate(p.inicio || p.INICIO || p.A_PARTIR || p.dataInicio);
-                const fim = this._formatDate(p.fim || p.FIM || p.TERMINO || p.dataFim);
-                if (inicio && fim) return `${inicio} - ${fim}`;
-                if (inicio) return inicio;
-                return p.descricao || 'Não informado';
+        // Dados JÁ vêm normalizados: servidor.licencas = Array<{inicio: Date, fim: Date}>
+        const licencas = servidor.licencas || [];
+
+        // Fallback: se não há licenças, tentar reconstruir a partir do dataset (compatibilidade)
+        let effectiveLicencas = Array.isArray(licencas) ? licencas : [];
+        if (effectiveLicencas.length === 0) {
+            try {
+                const all = this.dataStateManager?.getAllServidores?.() || [];
+                if (all && all.length > 0) {
+                    const nomeAlvo = (servidor.nome || servidor.servidor || '').toString().trim().toLowerCase();
+                    if (nomeAlvo) {
+                        const matches = all.filter(r => {
+                            const n = (r.nome || r.NOME || r.servidor || '').toString().trim().toLowerCase();
+                            return n === nomeAlvo;
+                        });
+
+                        if (matches.length > 0) {
+                            effectiveLicencas = matches.map(m => {
+                                const inicioRaw = m.inicio || m.INICIO || m.A_PARTIR || m['A_PARTIR'] || m.dataInicio || m.DATA_INICIO;
+                                const fimRaw = m.fim || m.FIM || m.TERMINO || m.termino || m.dataFim || m.DATA_FIM;
+                                let inicio = null;
+                                let fim = null;
+                                try {
+                                    if (typeof DataTransformer !== 'undefined' && DataTransformer.enrichLicenca) {
+                                        // use transformer helpers indirectly by enriching a minimal lic object
+                                        const enriched = DataTransformer.enrichLicenca({ inicio: inicioRaw, fim: fimRaw });
+                                        inicio = enriched?.dataInicio || enriched?.inicio || enriched?.dataInicio;
+                                        fim = enriched?.dataFim || enriched?.fim || enriched?.dataFim;
+                                    }
+                                } catch (e) {
+                                    // fallback to Date parsing
+                                    inicio = inicioRaw ? new Date(inicioRaw) : null;
+                                    fim = fimRaw ? new Date(fimRaw) : (inicio || null);
+                                }
+
+                                return { inicio, fim };
+                            }).filter(l => l.inicio);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('⚠️ ReportsPage: fallback reconstruction of licenças failed', e);
             }
         }
 
-        // Otherwise, try to get licenses via _getLicenses and format first
-        const licencas = this._getLicenses(servidor);
-        if (licencas && licencas.length > 0) {
-            const l = licencas[0];
-            const inicio = this._formatDate(l.inicio || l.INICIO || l.A_PARTIR || l.dataInicio);
-            const fim = this._formatDate(l.fim || l.FIM || l.TERMINO || l.dataFim);
-            if (inicio && fim) return `${inicio} - ${fim}`;
-            if (inicio) return inicio;
+        if (effectiveLicencas.length === 0) {
+            return 'Não informado';
         }
 
-        // Fallback: use server-level dataInicio/dataFim
-        const inicio = this._formatDate(this._getField(servidor, ['dataInicio', 'inicio']));
-        const fim = this._formatDate(this._getField(servidor, ['dataFim', 'fim']));
-        if (inicio && fim) return `${inicio} - ${fim}`;
-        if (inicio) return inicio;
-        return 'Não informado';
+        // Apenas FORMATAR (não parsear!)
+        const periodos = effectiveLicencas.map(lic => {
+            if (!lic || !lic.inicio) return null;
+
+            const inicio = this._formatDate(lic.inicio instanceof Date ? lic.inicio : new Date(lic.inicio));
+            const fimVal = lic.fim instanceof Date ? lic.fim : (lic.fim ? new Date(lic.fim) : lic.inicio);
+            const fim = this._formatDate(fimVal);
+
+            return `${inicio} - ${fim}`;
+        }).filter(Boolean); // Remove nulls
+
+        return periodos.length > 0 ? periodos.join('\n') : 'Não informado';
     }
 
     /**
      * Formata data para exibição (DD/MM/YYYY)
      * @private
-     * @param {Date|string|null} date - Data a formatar
+     * @param {Date} date - Date object
      * @returns {string} Data formatada
      */
     _formatDate(date) {
-        if (!date) return '';
+        if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+            return '';
+        }
 
-        const d = typeof date === 'string' ? new Date(date) : date;
-
-        if (!(d instanceof Date) || isNaN(d)) return '';
-
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
 
         return `${day}/${month}/${year}`;
     }
@@ -1105,6 +1248,34 @@ class ReportsPage {
         const nome = this._getField(s, ['^nome$', '^servidor$', 'NOME', 'SERVIDOR']);
         if (nome) return `N:${String(nome).trim().toLowerCase()}`;
         return '';
+    }
+
+    /**
+     * Compatibilidade: retorna array de licenças de um servidor.
+     * Prefere `reportsManager.getAllLicenses` quando disponível, senão usa `servidor.licencas`.
+     * @private
+     * @param {Object} servidor
+     * @returns {Array<Object>}
+     */
+    _getLicenses(servidor) {
+        if (!servidor) return [];
+
+        try {
+            if (this.reportsManager && typeof this.reportsManager.getAllLicenses === 'function') {
+                const fromManager = this.reportsManager.getAllLicenses(servidor);
+                if (Array.isArray(fromManager)) return fromManager;
+            }
+        } catch (e) {
+            console.warn('ReportsPage: erro ao chamar reportsManager.getAllLicenses', e);
+        }
+
+        if (Array.isArray(servidor.licencas)) return servidor.licencas;
+
+        // Backward-compat: try common alternative keys
+        if (Array.isArray(servidor.licencasPremio)) return servidor.licencasPremio;
+        if (Array.isArray(servidor.lic)) return servidor.lic;
+
+        return [];
     }
 
     /**

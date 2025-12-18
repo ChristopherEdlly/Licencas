@@ -247,7 +247,19 @@ const DataFilter = (function () {
     // ============================================================
 
     /**
-     * Filtra por valores em um campo específico
+     * Normaliza texto para comparação (remove acentos, mantém espaços e hífens)
+     */
+    function normalizeForComparison(text) {
+        if (!text) return '';
+        return text.toString()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Remove apenas acentos
+            .trim()
+            .toLowerCase();
+    }
+
+    /**
+     * Filtra por valores em um campo específico com normalização
      * @param {Array<Object>} data - Dados para filtrar
      * @param {string} field - Campo para filtrar
      * @param {Array<any>} values - Valores aceitos
@@ -257,8 +269,16 @@ const DataFilter = (function () {
         if (!Array.isArray(data)) return [];
         if (!field || !Array.isArray(values) || values.length === 0) return data;
 
+        // Normalizar valores de filtro para comparação
+        const normalizedValues = values.map(v => normalizeForComparison(v));
+
         return data.filter(item => {
-            return values.includes(item[field]);
+            const itemValue = item[field];
+            if (!itemValue) return false;
+
+            // Comparar valores normalizados
+            const normalizedItemValue = normalizeForComparison(itemValue);
+            return normalizedValues.includes(normalizedItemValue);
         });
     }
 

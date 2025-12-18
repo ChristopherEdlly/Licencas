@@ -693,7 +693,15 @@ class App {
      */
     async _parseData(rawData) {
         if (typeof DataParser !== 'undefined') {
-            return DataParser.parseCSV(rawData);
+            // 1. Parse do CSV (cada linha vira um objeto)
+            const rawRows = DataParser.parseCSV(rawData);
+            console.log(`📋 CSV parseado: ${rawRows.length} linhas`);
+
+            // 2. Agrupar por servidor (agregando licenças)
+            const servidores = DataParser.groupByServidor(rawRows);
+            console.log(`👥 Servidores agregados: ${servidores.length} servidores`);
+
+            return servidores;
         }
 
         // Fallback: usar parser legado se disponível
@@ -733,12 +741,23 @@ class App {
 
         try {
             const cached = await this.cacheService.getLatestCache();
-            if (cached && cached.data) {
+                if (cached && cached.data) {
                 console.log('💾 Restaurando dados do cache...');
 
+                let restored = cached.data;
+                // Se disponível, garantir que dados restaurados sejam enriquecidos/normalizados
+                try {
+                    if (typeof DataTransformer !== 'undefined' && DataTransformer.enrichServidoresBatch) {
+                        restored = DataTransformer.enrichServidoresBatch(restored);
+                        console.log(`💠 Dados do cache enriquecidos: ${restored.length} registros`);
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Falha ao enriquecer dados do cache, usando dados originais', e);
+                }
+
                 if (this.dataStateManager) {
-                    this.dataStateManager.setAllServidores(cached.data);
-                    this.dataStateManager.setFilteredServidores(cached.data);
+                    this.dataStateManager.setAllServidores(restored);
+                    this.dataStateManager.setFilteredServidores(restored);
                 }
 
                 if (this.notificationService) {

@@ -259,6 +259,92 @@ class DataParser {
 
         return result;
     }
+
+    /**
+     * Agrupa linhas do CSV por servidor (quando cada linha é uma licença)
+     * @param {Array<Object>} rows - Array de objetos parseados do CSV
+     * @returns {Array<Object>} - Array de servidores com licencas agregadas
+     */
+    static groupByServidor(rows) {
+        console.log('[DataParser] Agrupando linhas por servidor...');
+
+        if (!Array.isArray(rows) || rows.length === 0) {
+            console.warn('[DataParser] Nenhuma linha para agrupar');
+            return [];
+        }
+
+        const servidoresMap = new Map();
+
+        rows.forEach((row, index) => {
+            // Identificar servidor (usar CPF se disponível, senão NOME)
+            const cpf = row.CPF || row.cpf;
+            const nome = row.NOME || row.nome || row.SERVIDOR || row.servidor;
+
+            if (!nome) {
+                console.warn(`[DataParser] Linha ${index}: sem nome, pulando`);
+                return;
+            }
+
+            // Chave única: CPF (se tiver) ou NOME normalizado
+            const chave = cpf || nome.trim().toUpperCase();
+
+            // Se servidor ainda não existe no map, criar
+            if (!servidoresMap.has(chave)) {
+                servidoresMap.set(chave, {
+                    nome: nome.trim(),
+                    cpf: cpf || '',
+                    cargo: row.CARGO || row.cargo || '',
+                    lotacao: row.LOTACAO || row.LOTAÇÃO || row.lotacao || '',
+                    unidade: row.UNIDADE || row.unidade || '',
+                    licencas: []
+                });
+            }
+
+            const servidor = servidoresMap.get(chave);
+
+            // Extrair dados da licença desta linha
+            const inicioRaw = row.A_PARTIR || row['A_PARTIR'] || row.INICIO || row['INÍCIO'];
+            const fimRaw = row.TERMINO || row.FINAL || row.FIM;
+            const gozoRaw = row.GOZO || row.gozo || '';
+            const restante = row.RESTANDO || row.restando || '';
+
+            // Parse de dias (formato: "30", "60", "90")
+            let dias = 0;
+            if (typeof gozoRaw === 'number') {
+                dias = gozoRaw;
+            } else if (typeof gozoRaw === 'string') {
+                const match = gozoRaw.match(/\d+/);
+                if (match) dias = parseInt(match[0], 10);
+            }
+
+            // Ignorar linhas com data "1899-12-30" (marca de "sem licença")
+            if (inicioRaw && !inicioRaw.toString().includes('1899')) {
+                // Adicionar licença ao array
+                servidor.licencas.push({
+                    inicio: inicioRaw,  // String ainda, será convertida no Transformer
+                    fim: fimRaw,
+                    dias: dias,
+                    restando: restante,
+                    aquisitivoInicio: row.AQUISITIVO_INICIO || row.aquisitivoInicio,
+                    aquisitivoFim: row.AQUISITIVO_FIM || row.aquisitivoFim,
+                    tipo: 'periodo-gozo'
+                });
+            }
+
+            // Atualizar lotação se mudou (usar a mais recente)
+            if (row.LOTACAO || row.LOTAÇÃO) {
+                servidor.lotacao = row.LOTACAO || row.LOTAÇÃO || servidor.lotacao;
+            }
+        });
+
+        // Converter Map para Array
+        const servidoresArray = Array.from(servidoresMap.values());
+
+        console.log(`[DataParser] ✓ Agrupadas ${rows.length} linhas em ${servidoresArray.length} servidores`);
+        console.log(`[DataParser] Exemplo: ${servidoresArray[0]?.nome} tem ${servidoresArray[0]?.licencas.length} licenças`);
+
+        return servidoresArray;
+    }
 }
 
 // Export para Node.js

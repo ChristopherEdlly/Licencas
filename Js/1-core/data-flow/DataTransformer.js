@@ -170,6 +170,48 @@ const DataTransformer = (function () {
     }
 
     // ============================================================
+    // FUNÇÕES AUXILIARES
+    // ============================================================
+
+    /**
+     * Normaliza texto para busca (remove acentos, lowercase)
+     * @param {string} text - Texto para normalizar
+     * @returns {string} Texto normalizado
+     */
+    function normalizeForSearch(text) {
+        if (!text) return '';
+        return text.toString()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+            .toLowerCase()
+            .trim();
+    }
+
+    /**
+     * Converte valor para Date object
+     * @param {*} value - String, Date, ou outro
+     * @returns {Date|null} Date object ou null se inválido
+     */
+    function ensureDate(value) {
+        if (!value) return null;
+        if (value instanceof Date) return value;
+
+        // Tentar parse direto (funciona com "YYYY-MM-DD HH:MM:SS")
+        const date = new Date(value);
+        if (!isNaN(date.getTime())) {
+            return date;
+        }
+
+        // Tentar via CronogramaParser se disponível
+        if (typeof window !== 'undefined' && window.CronogramaParser) {
+            const parser = new window.CronogramaParser();
+            return parser.parseDate(value);
+        }
+
+        return null;
+    }
+
+    // ============================================================
     // ENRIQUECIMENTO DE SERVIDORES
     // ============================================================
 
@@ -217,6 +259,57 @@ const DataTransformer = (function () {
                 }
             }
         }
+
+        // === NORMALIZAÇÃO DE LICENÇAS E CAMPOS ===
+
+        // 1. GARANTIR que licencas é um array
+        if (!Array.isArray(enriched.licencas)) {
+            enriched.licencas = [];
+        }
+
+        // 2. Normalizar TODAS as licenças (converter datas para Date objects)
+        enriched.licencas = enriched.licencas.map((lic, index) => {
+            const licNormalizada = {
+                inicio: ensureDate(lic.inicio || lic.dataInicio),
+                fim: ensureDate(lic.fim || lic.dataFim),
+                tipo: lic.tipo || 'prevista',
+                descricao: lic.descricao || '',
+                dias: lic.dias || 30,
+                meses: lic.meses || Math.ceil((lic.dias || 30) / 30),
+                restando: lic.restando || '',
+                aquisitivoInicio: ensureDate(lic.aquisitivoInicio),
+                aquisitivoFim: ensureDate(lic.aquisitivoFim)
+            };
+
+            // Se não tem fim mas tem inicio e dias, calcular fim
+            if (!licNormalizada.fim && licNormalizada.inicio && licNormalizada.dias) {
+                const fimCalculado = new Date(licNormalizada.inicio);
+                fimCalculado.setDate(fimCalculado.getDate() + licNormalizada.dias - 1);
+                licNormalizada.fim = fimCalculado;
+            }
+
+            return licNormalizada;
+        }).filter(lic => lic.inicio && lic.inicio instanceof Date); // Remove licenças sem data válida
+
+        // 3. Enriquecer cada licença normalizada
+        enriched.licencas = enriched.licencas.map(l => enrichLicenca(l));
+
+        // 4. Normalizar campos para busca (preserva originais para exibição)
+        if (enriched.lotacao) {
+            enriched._lotacaoNormalizada = normalizeForSearch(enriched.lotacao);
+        }
+
+        if (enriched.nome || enriched.servidor) {
+            const nomeOriginal = enriched.nome || enriched.servidor;
+            enriched.nome = nomeOriginal; // Padronizar em "nome"
+            enriched._nomeNormalizado = normalizeForSearch(nomeOriginal);
+        }
+
+        if (enriched.cargo) {
+            enriched._cargoNormalizado = normalizeForSearch(enriched.cargo);
+        }
+
+        // === FIM DA NORMALIZAÇÃO ===
 
         // Calcula estatísticas de licenças (se disponível)
         if (enriched.licencas && Array.isArray(enriched.licencas)) {
