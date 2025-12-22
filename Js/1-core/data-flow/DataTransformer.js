@@ -387,7 +387,27 @@ const DataTransformer = (function () {
             enriched.totalLicencas = enriched.licencas.length;
             enriched.totalDias = enriched.licencas.reduce((sum, lic) => sum + (lic.dias || 0), 0);
             enriched.totalGozados = enriched.licencas.reduce((sum, lic) => sum + (lic.diasGozados || 0), 0);
-            enriched.totalSaldo = enriched.licencas.reduce((sum, lic) => sum + (lic.saldo || 0), 0);
+
+            // Calcular total gerado por períodos aquisitivos
+            // Identificar períodos aquisitivos únicos e assumir 90 dias gerados por período
+            const uniqueAquisitivos = new Set();
+            enriched.licencas.forEach(lic => {
+                if (lic.aquisitivoInicio instanceof Date || lic.aquisitivoFim instanceof Date) {
+                    const inicioKey = lic.aquisitivoInicio ? lic.aquisitivoInicio.toISOString().slice(0,10) : '';
+                    const fimKey = lic.aquisitivoFim ? lic.aquisitivoFim.toISOString().slice(0,10) : '';
+                    uniqueAquisitivos.add(`${inicioKey}-${fimKey}`);
+                } else if (lic.inicio instanceof Date) {
+                    // fallback: use year window
+                    uniqueAquisitivos.add(`aquisitivo-${lic.inicio.getFullYear()}`);
+                }
+            });
+
+            const diasPorAquisitivo = 90;
+            const totalGerado = uniqueAquisitivos.size * diasPorAquisitivo;
+
+            // totalSaldo = totalGerado - totalGozados (clamp >= 0)
+            enriched.totalSaldo = Math.max(0, totalGerado - enriched.totalGozados);
+            enriched.totalDiasGanhos = totalGerado;
 
             enriched.totalDiasFormatado = FormatUtils.formatDays(enriched.totalDias);
             enriched.totalSaldoFormatado = FormatUtils.formatDays(enriched.totalSaldo);
