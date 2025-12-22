@@ -331,22 +331,60 @@ const DataTransformer = (function () {
 
         // 2. Normalizar TODAS as licenças (converter datas para Date objects)
         enriched.licencas = enriched.licencas.map((lic, index) => {
+            const inicioDate = ensureDate(lic.inicio || lic.dataInicio);
+            const fimDate = ensureDate(lic.fim || lic.dataFim);
+
+            // calcula dias a partir de inicio/fim quando possível
+            let diasCalculated = 0;
+            if (typeof lic.dias === 'number' && !isNaN(lic.dias)) {
+                diasCalculated = lic.dias;
+            } else if (inicioDate && fimDate) {
+                diasCalculated = DateUtils.diffInDays(inicioDate, fimDate) + 1;
+            } else {
+                diasCalculated = 30;
+            }
+
+            // Helper para extrair número de uma string
+            const parseNumber = (v) => {
+                if (v === undefined || v === null) return NaN;
+                if (typeof v === 'number') return v;
+                const s = String(v).trim().replace(',', '.');
+                const m = s.match(/(-?\d+(?:[\.,]\d+)?)/);
+                if (!m) return NaN;
+                const n = parseFloat(m[1].replace(',', '.'));
+                return isNaN(n) ? NaN : n;
+            };
+
+            // Regra: a duração do agendamento (`diasCalculated`) é, por definição, a
+            // quantidade de dias que o servidor irá gozar. Portanto `diasGozados` deverá
+            // refletir esse valor por padrão. Vamos ainda capturar o valor original da
+            // coluna GOZO (se existir) para auditoria e possíveis checagens posteriores.
+            let diasGozadosParsed = diasCalculated;
+            let diasGozadosSource = 'period'; // indica que veio do período (inicio/fim)
+
+            const gozoOriginal = parseNumber(lic.diasGozados !== undefined ? lic.diasGozados : (lic.GOZO || lic.gozo));
+            if (!isNaN(gozoOriginal)) {
+                // Se houver um GOZO explícito, registremos mas NÃO sobrepor o cálculo
+                // baseado em datas (seguindo sua regra de negócio).
+                diasGozadosSource = (gozoOriginal === diasCalculated) ? 'gozo' : 'gozo_mismatch';
+            }
+
+            // saldo numérico usado apenas para referência/cálculo auxiliar
+            let saldoParsed = parseNumber(lic.restando || lic.RESTANDO || lic.saldo);
+
             const licNormalizada = {
-                inicio: ensureDate(lic.inicio || lic.dataInicio),
-                fim: ensureDate(lic.fim || lic.dataFim),
+                inicio: inicioDate,
+                fim: fimDate,
                 tipo: lic.tipo || 'prevista',
                 descricao: lic.descricao || '',
-                dias: lic.dias || 30,
-                // tornar explícito o número de dias gozados/GOZO para compatibilidade
-                diasGozados: (lic.diasGozados !== undefined && lic.diasGozados !== null) ? lic.diasGozados : (lic.dias || (lic.GOZO || lic.gozo || 0)),
-                meses: lic.meses || Math.ceil((lic.dias || 30) / 30),
+                dias: diasCalculated,
+                diasGozados: diasGozadosParsed,
+                meses: lic.meses || Math.ceil(diasCalculated / 30),
                 restando: lic.restando || lic.RESTANDO || '',
                 // saldo numérico (parse de strings como '30(DIAS)' ou '30') — usado em totais
                 saldo: (function(r){
-                    if (r === undefined || r === null) return 0;
-                    const s = String(r).trim();
-                    const m = s.match(/(\d+)/);
-                    return m ? parseInt(m[1],10) : 0;
+                    const s = parseNumber(r);
+                    return isNaN(s) ? 0 : Math.round(s);
                 })(lic.restando || lic.RESTANDO || lic.saldo || 0),
                 aquisitivoInicio: ensureDate(lic.aquisitivoInicio),
                 aquisitivoFim: ensureDate(lic.aquisitivoFim)
@@ -385,7 +423,7 @@ const DataTransformer = (function () {
         // Calcula estatísticas de licenças (se disponível)
         if (enriched.licencas && Array.isArray(enriched.licencas)) {
             enriched.totalLicencas = enriched.licencas.length;
-            enriched.totalDias = enriched.licencas.reduce((sum, lic) => sum + (lic.dias || 0), 0);
+            // `totalGozados` é a fonte-única canônica para total de dias consumidos
             enriched.totalGozados = enriched.licencas.reduce((sum, lic) => sum + (lic.diasGozados || 0), 0);
 
             // Calcular total gerado por períodos aquisitivos
@@ -409,7 +447,7 @@ const DataTransformer = (function () {
             enriched.totalSaldo = Math.max(0, totalGerado - enriched.totalGozados);
             enriched.totalDiasGanhos = totalGerado;
 
-            enriched.totalDiasFormatado = FormatUtils.formatDays(enriched.totalDias);
+            enriched.totalGozadosFormatado = FormatUtils.formatDays(enriched.totalGozados);
             enriched.totalSaldoFormatado = FormatUtils.formatDays(enriched.totalSaldo);
         }
 

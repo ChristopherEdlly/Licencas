@@ -56,14 +56,13 @@ console.log('🔍 Testando estatísticas básicas...\n');
 test('Calcula estatísticas básicas', () => {
     const stats = DataAggregator.calculateBasicStats(testData);
     assertEquals(stats.total, 5);
-    assertEquals(stats.totalDias, 120);
-    assertEquals(stats.totalGozados, 15);
+    assertEquals(stats.totalGozados, 120);
     assertEquals(stats.totalSaldo, 105);
 });
 
 test('Calcula médias corretamente', () => {
     const stats = DataAggregator.calculateBasicStats(testData);
-    assertEquals(stats.mediaDias, 24);
+    assertEquals(stats.mediaGozados, 24);
     assertEquals(stats.mediaSaldo, 21);
 });
 
@@ -156,9 +155,9 @@ console.log('\n🔍 Testando agrupamento com estatísticas...\n');
 test('Agrupa com estatísticas', () => {
     const grouped = DataAggregator.groupWithStats(testData, 'cargo');
     assertEquals(grouped['Auditor'].count, 2);
-    assertEquals(grouped['Auditor'].totalDias, 50);
+    assertEquals(grouped['Auditor'].totalGozados, 50);
     assertEquals(grouped['Analista'].count, 2);
-    assertEquals(grouped['Analista'].totalDias, 45);
+    assertEquals(grouped['Analista'].totalGozados, 45);
 });
 
 test('Estatísticas incluem saldo', () => {
@@ -387,7 +386,7 @@ test('Agregação real: múltiplos servidores', () => {
     
     const stats = DataAggregator.calculateBasicStats(realData);
     assertEquals(stats.total, 4);
-    assertEquals(stats.totalDias, 90);
+    assertEquals(stats.totalGozados, 90);
     
     const byUrgency = DataAggregator.countByUrgency(realData);
     assertEquals(byUrgency.critica, 1);

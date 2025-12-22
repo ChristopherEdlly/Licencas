@@ -31,10 +31,11 @@ const DataAggregator = (function () {
 
         return {
             total: data.length,
-            totalDias: data.reduce((sum, item) => sum + (item.dias || 0), 0),
+            // `totalGozados` é a métrica canônica para total de dias consumidos
             totalGozados: data.reduce((sum, item) => sum + (item.diasGozados || 0), 0),
             totalSaldo: data.reduce((sum, item) => sum + (item.saldo || 0), 0),
-            mediaDias: data.length > 0 ? data.reduce((sum, item) => sum + (item.dias || 0), 0) / data.length : 0,
+            // Média de consumo (dias gozados) — substitui a antiga `mediaDias`
+            mediaGozados: data.length > 0 ? data.reduce((sum, item) => sum + (item.diasGozados || 0), 0) / data.length : 0,
             mediaSaldo: data.length > 0 ? data.reduce((sum, item) => sum + (item.saldo || 0), 0) / data.length : 0
         };
     }
@@ -259,10 +260,10 @@ const DataAggregator = (function () {
     // ============================================================
 
     /**
-     * Agrupa e calcula estatísticas por campo
-     * @param {Array<Object>} data - Dados para agregar
-     * @param {string} field - Campo para agrupar
-     * @returns {Object} { valor: { count, totalDias, totalSaldo, items } }
+    * Agrupa e calcula estatísticas por campo
+    * @param {Array<Object>} data - Dados para agregar
+    * @param {string} field - Campo para agrupar
+    * @returns {Object} { valor: { count, totalGozados, totalSaldo, items } }
      */
     function groupWithStats(data, field) {
         if (!Array.isArray(data) || !field) return {};
@@ -275,7 +276,6 @@ const DataAggregator = (function () {
             if (!grouped[key]) {
                 grouped[key] = {
                     count: 0,
-                    totalDias: 0,
                     totalGozados: 0,
                     totalSaldo: 0,
                     items: []
@@ -283,8 +283,7 @@ const DataAggregator = (function () {
             }
 
             grouped[key].count++;
-            grouped[key].totalDias += item.dias || 0;
-            grouped[key].totalGozados += item.diasGozados || 0;
+            grouped[key].totalGozados += (item.diasGozados !== undefined && item.diasGozados !== null) ? item.diasGozados : (item.dias || 0);
             grouped[key].totalSaldo += item.saldo || 0;
             grouped[key].items.push(item);
         }
@@ -546,13 +545,13 @@ const DataAggregator = (function () {
             period2: stats2,
             difference: {
                 total: stats2.total - stats1.total,
-                totalDias: stats2.totalDias - stats1.totalDias,
-                totalSaldo: stats2.totalSaldo - stats1.totalSaldo
+                totalGozados: (stats2.totalGozados || 0) - (stats1.totalGozados || 0),
+                totalSaldo: (stats2.totalSaldo || 0) - (stats1.totalSaldo || 0)
             },
             percentChange: {
                 total: stats1.total > 0 ? ((stats2.total - stats1.total) / stats1.total) * 100 : 0,
-                totalDias: stats1.totalDias > 0 ? ((stats2.totalDias - stats1.totalDias) / stats1.totalDias) * 100 : 0,
-                totalSaldo: stats1.totalSaldo > 0 ? ((stats2.totalSaldo - stats1.totalSaldo) / stats1.totalSaldo) * 100 : 0
+                totalGozados: (stats1.totalGozados || 0) > 0 ? (((stats2.totalGozados || 0) - (stats1.totalGozados || 0)) / stats1.totalGozados) * 100 : 0,
+                totalSaldo: (stats1.totalSaldo || 0) > 0 ? ((stats2.totalSaldo - stats1.totalSaldo) / stats1.totalSaldo) * 100 : 0
             }
         };
     }

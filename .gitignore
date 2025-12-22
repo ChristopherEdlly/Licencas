@@ -28,10 +28,9 @@ env.config.js
 .claude/
 
 # Exemplos e  dados sensíveis
-Exemplos/*.csv
-Exemplos/*.xlsx
-Exemplos/*.xls
-Exemplos/
+exemplo/
+exemplo/*
+exemplo/NOTIFICACAO_DE_LICENCA_PREMIO_ATUALIZADA(Sheet1).csv
 Modelo*
 claude.md
 
@@ -53,3 +52,4 @@ react-builder
 /playwright/.cache/
 /playwright/.auth/
 tests/e2e/temp-*.csv
+

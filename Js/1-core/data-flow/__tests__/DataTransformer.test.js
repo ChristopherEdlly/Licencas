@@ -246,8 +246,8 @@ test('Enriquecimento calcula estatísticas de licenças', () => {
     };
     const enriched = DataTransformer.enrichServidor(servidor);
     assertEquals(enriched.totalLicencas, 2);
-    assertEquals(enriched.totalDias, 50);
-    assertEquals(enriched.totalGozados, 15);
+    // Após unificação, `totalGozados` é canônico e reflete o total consumido (por regra, diasGozados == dias)
+    assertEquals(enriched.totalGozados, 50);
     assertEquals(enriched.totalSaldo, 35);
 });
 
@@ -480,7 +480,7 @@ test('Processa múltiplas licenças de um servidor', () => {
     const servidores = DataTransformer.enrichServidoresWithLicencas(licencas);
     assertEquals(servidores.length, 1);
     assertEquals(servidores[0].totalLicencas, 2);
-    assertEquals(servidores[0].totalDias, 60);
+    assertEquals(servidores[0].totalGozados, 60);
 });
 
 // ============================================================

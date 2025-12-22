@@ -12,7 +12,7 @@ const acaciaRaw = parsed.find(s => (s.nome || '').toLowerCase().includes('acacia
 if (!acaciaRaw) { console.log('ACACIA not found'); process.exit(0); }
 const enriched = DT.enrichServidor ? DT.enrichServidor(acaciaRaw) : (DT && DT.default && DT.default.enrichServidor ? DT.default.enrichServidor(acaciaRaw) : null);
 console.log('Enriched acacia summary:');
-console.log(' totalDias', enriched.totalDias, 'totalGozados', enriched.totalGozados, 'totalSaldo', enriched.totalSaldo, 'totalLicencas', enriched.totalLicencas);
+console.log(' totalGozados', enriched.totalGozados, 'totalSaldo', enriched.totalSaldo, 'totalLicencas', enriched.totalLicencas);
 console.log('Per-license:');
 enriched.licencas.forEach((l, i) => {
     console.log(i, l.inicio ? l.inicio.toISOString().slice(0,10) : null, l.fim ? l.fim.toISOString().slice(0,10) : null, 'dias', l.dias, 'diasGozados', l.diasGozados, 'saldo', l.saldo, 'aquisitivoInicio', l.aquisitivoInicio ? l.aquisitivoInicio.toISOString().slice(0,10) : null, 'aquisitivoFim', l.aquisitivoFim ? l.aquisitivoFim.toISOString().slice(0,10) : null);

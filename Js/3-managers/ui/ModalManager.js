@@ -1307,10 +1307,26 @@ class ModalManager {
 
         console.log('[ModalManager] DEBUG - campos extraídos:', { cargo, lotacao, unidade, numero, cpf, rg });
 
-        // Calcular balanço (EXATO DO DASHBOARD ANTIGO - linha 6141-6143)
-        const balancoInfo = isLicencaPremio
-            ? this.calcularSaldoServidorCompleto(servidoresComMesmoNome)
-            : { dias: 0, diasGanhos: 0, diasUsados: 0, periodosTotal: 0 };
+        // Calcular balanço - preferir campos normalizados do core (DataTransformer)
+        let balancoInfo = { dias: 0, diasGanhos: 0, diasUsados: 0, periodosTotal: 0 };
+        if (isLicencaPremio) {
+            // Se o servidor já tiver totais calculados pelo core, use-os
+            if (servidor && (typeof servidor.totalSaldo !== 'undefined' || typeof servidor.totalGozados !== 'undefined')) {
+                const diasGanhos = Number(servidor.totalDiasGanhos || 0);
+                const diasUsados = Number(servidor.totalGozados || 0);
+                const dias = Number(servidor.totalSaldo || Math.max(0, diasGanhos - diasUsados));
+                const periodosTotal = diasGanhos > 0 ? Math.round(diasGanhos / 90) : 0;
+                balancoInfo = {
+                    dias: isNaN(dias) ? 0 : dias,
+                    diasGanhos: isNaN(diasGanhos) ? 0 : diasGanhos,
+                    diasUsados: isNaN(diasUsados) ? 0 : diasUsados,
+                    periodosTotal: isNaN(periodosTotal) ? 0 : periodosTotal
+                };
+            } else {
+                // Fallback para lógica legada que parseia GOZO/RESTANDO
+                balancoInfo = this.calcularSaldoServidorCompleto(servidoresComMesmoNome);
+            }
+        }
 
         console.log('[ModalManager] DEBUG - balancoInfo:', balancoInfo);
 
@@ -2450,64 +2466,85 @@ class ModalManager {
         if (!registros || registros.length === 0) {
             return { dias: 0, diasGanhos: 0, diasUsados: 0, periodosTotal: 0 };
         }
-
         // Agrupar por período aquisitivo (cada período = 5 anos = 90 dias de direito)
         const periodosAquisitivosMap = new Map();
 
         registros.forEach(registro => {
-            // Coletar dados APENAS das licenças, não do registro raiz
-            // (para evitar duplicação)
+            // Se o registro já contém licenças normalizadas (pipeline core), aproveite-as
+            if (registro.licencas && Array.isArray(registro.licencas) && registro.licencas.length > 0 && (registro.licencas[0].diasGozados !== undefined || registro.licencas[0].saldo !== undefined)) {
+                registro.licencas.forEach(lic => {
+                    const ai = lic.aquisitivoInicio || lic.AQUISITIVO_INICIO || null;
+                    const af = lic.aquisitivoFim || lic.AQUISITIVO_FIM || null;
+
+                    // Derivar chave: preferir aquisitivoInicio/FF, senão usar ano do inicio
+                    let chavePeriodo = null;
+                    if (ai) {
+                        const aiKey = (ai instanceof Date) ? ai.toISOString().slice(0,10) : String(ai);
+                        const afKey = af ? ((af instanceof Date) ? af.toISOString().slice(0,10) : String(af)) : '';
+                        if (aiKey.includes('1899') || aiKey.includes('29/12/1899')) return;
+                        chavePeriodo = `${aiKey}-${afKey}`;
+                    } else if (lic.inicio instanceof Date) {
+                        chavePeriodo = `aquisitivo-${lic.inicio.getFullYear()}`;
+                    } else if (lic.inicio) {
+                        const parsed = String(lic.inicio).slice(0,4);
+                        chavePeriodo = `aquisitivo-${parsed}`;
+                    } else {
+                        return; // não conseguimos derivar período
+                    }
+
+                    const gozo = Number(lic.diasGozados || 0);
+                    const restando = Number(lic.saldo || 0);
+
+                    if (!periodosAquisitivosMap.has(chavePeriodo)) {
+                        periodosAquisitivosMap.set(chavePeriodo, { diasUsados: 0, restando: 0, ultimoRestando: restando });
+                    }
+
+                    const periodo = periodosAquisitivosMap.get(chavePeriodo);
+                    periodo.diasUsados += isNaN(gozo) ? 0 : gozo;
+                    periodo.ultimoRestando = isNaN(restando) ? periodo.ultimoRestando : restando;
+                });
+
+                return; // próximo registro
+            }
+
+            // Legado: coletar dados APENAS das licenças, não do registro raiz
             const fontesTodas = [];
 
-            // Processar licenças do registro
             if (registro.licencas && Array.isArray(registro.licencas)) {
                 registro.licencas.forEach(lic => {
-                    // Preferir dados originais da licença
-                    if (lic.dadosOriginais) {
-                        fontesTodas.push(lic.dadosOriginais);
-                    } else {
-                        // Fallback: usar a própria licença
-                        fontesTodas.push(lic);
-                    }
+                    if (lic.dadosOriginais) fontesTodas.push(lic.dadosOriginais);
+                    else fontesTodas.push(lic);
                 });
             }
 
-            // Se não encontrou licenças, usar dadosOriginais do registro
             if (fontesTodas.length === 0 && registro.dadosOriginais) {
                 fontesTodas.push(registro.dadosOriginais);
             }
 
-            // Se ainda não tem dados, usar o próprio registro
             if (fontesTodas.length === 0) {
                 fontesTodas.push(registro);
             }
 
-            // Processar cada fonte de dados
+            // Processar cada fonte de dados (legado)
             fontesTodas.forEach(dados => {
                 const aquisitivoInicio = dados.AQUISITIVO_INICIO || dados.aquisitivoInicio;
                 const aquisitivoFim = dados.AQUISITIVO_FIM || dados.aquisitivoFim;
                 const gozo = this._parseNumero(dados.GOZO || dados.gozo || dados.diasGozo || 0);
                 const restando = this._parseRestando(dados.RESTANDO || dados.restando || '0');
 
-                // Ignorar registros sem período aquisitivo ou com data nula (1899)
                 if (!aquisitivoInicio) return;
                 const aquisitivoStr = String(aquisitivoInicio);
                 if (aquisitivoStr.includes('1899') || aquisitivoStr.includes('29/12/1899')) return;
 
-                // Criar chave do período aquisitivo (cada período = 5 anos = 90 dias)
                 const chavePeriodo = `${aquisitivoInicio}-${aquisitivoFim}`;
 
                 if (!periodosAquisitivosMap.has(chavePeriodo)) {
-                    periodosAquisitivosMap.set(chavePeriodo, {
-                        diasUsados: 0,
-                        restando: 0,
-                        ultimoRestando: restando // Rastrear o último RESTANDO deste período
-                    });
+                    periodosAquisitivosMap.set(chavePeriodo, { diasUsados: 0, restando: 0, ultimoRestando: restando });
                 }
 
                 const periodo = periodosAquisitivosMap.get(chavePeriodo);
-                periodo.diasUsados += gozo; // Somar todos os GOZO deste período aquisitivo
-                periodo.ultimoRestando = restando; // Atualizar com o último RESTANDO
+                periodo.diasUsados += gozo;
+                periodo.ultimoRestando = restando;
             });
         });
 
