@@ -197,9 +197,37 @@ const DataTransformer = (function () {
         if (value instanceof Date) return value;
 
         // Tentar parse direto (funciona com "YYYY-MM-DD HH:MM:SS")
-        const date = new Date(value);
-        if (!isNaN(date.getTime())) {
-            return date;
+        if (typeof value === 'string') {
+            const s = value.trim();
+
+            // ISO-like: YYYY-MM-DD or YYYY-MM-DD HH:MM:SS
+            const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (isoMatch) {
+                const year = parseInt(isoMatch[1], 10);
+                const month = parseInt(isoMatch[2], 10) - 1;
+                const day = parseInt(isoMatch[3], 10);
+                const d = new Date(year, month, day);
+                if (!isNaN(d.getTime())) return d;
+            }
+
+            // Brazilian format: DD/MM/YYYY or DD/MM/YYYY HH:MM:SS
+            const brMatch = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+            if (brMatch) {
+                const day = parseInt(brMatch[1], 10);
+                const month = parseInt(brMatch[2], 10) - 1;
+                const year = parseInt(brMatch[3], 10);
+                const d = new Date(year, month, day);
+                if (!isNaN(d.getTime())) return d;
+            }
+
+            // Fallback to Date constructor as last resort
+            const dateFallback = new Date(s);
+            if (!isNaN(dateFallback.getTime())) return dateFallback;
+        } else {
+            const date = new Date(value);
+            if (!isNaN(date.getTime())) {
+                return date;
+            }
         }
 
         // Tentar via CronogramaParser se disponível
@@ -309,8 +337,17 @@ const DataTransformer = (function () {
                 tipo: lic.tipo || 'prevista',
                 descricao: lic.descricao || '',
                 dias: lic.dias || 30,
+                // tornar explícito o número de dias gozados/GOZO para compatibilidade
+                diasGozados: (lic.diasGozados !== undefined && lic.diasGozados !== null) ? lic.diasGozados : (lic.dias || (lic.GOZO || lic.gozo || 0)),
                 meses: lic.meses || Math.ceil((lic.dias || 30) / 30),
-                restando: lic.restando || '',
+                restando: lic.restando || lic.RESTANDO || '',
+                // saldo numérico (parse de strings como '30(DIAS)' ou '30') — usado em totais
+                saldo: (function(r){
+                    if (r === undefined || r === null) return 0;
+                    const s = String(r).trim();
+                    const m = s.match(/(\d+)/);
+                    return m ? parseInt(m[1],10) : 0;
+                })(lic.restando || lic.RESTANDO || lic.saldo || 0),
                 aquisitivoInicio: ensureDate(lic.aquisitivoInicio),
                 aquisitivoFim: ensureDate(lic.aquisitivoFim)
             };

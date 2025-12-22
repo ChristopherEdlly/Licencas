@@ -883,6 +883,61 @@ class App {
         }
     }
 
+    /**
+     * Handler para clique no gráfico de status de licenças
+     * Abre os filtros avançados com o status pré-selecionado
+     * @param {string} statusKey - Chave do status clicado (agendadas, emAndamento, concluidas, naoAgendadas)
+     */
+    onStatusChartClick(statusKey) {
+        console.log(`📊 Clique no gráfico de status: ${statusKey}`);
+
+        // Verificar se AdvancedFiltersBuilder está disponível
+        const advancedFiltersBuilder = this.pages?.home?.advancedFiltersBuilder;
+        if (!advancedFiltersBuilder) {
+            console.warn('AdvancedFiltersBuilder não disponível');
+            return;
+        }
+
+        // Mapear o statusKey para o label com emoji
+        const statusLabels = {
+            'agendadas': '📅 Agendadas',
+            'emAndamento': '⏳ Em Andamento',
+            'concluidas': '✅ Concluídas',
+            'naoAgendadas': '❌ Não Agendadas'
+        };
+
+        const statusLabel = statusLabels[statusKey];
+        if (!statusLabel) {
+            console.warn(`Status desconhecido: ${statusKey}`);
+            return;
+        }
+
+        // Abrir modal de filtros avançados
+        advancedFiltersBuilder.openModal();
+
+        // Aguardar um momento para o modal renderizar
+        setTimeout(() => {
+            // Abrir popup de configuração do filtro de status
+            advancedFiltersBuilder.openFilterConfigPopup('status');
+
+            // Aguardar mais um momento para o formulário renderizar
+            setTimeout(() => {
+                // Selecionar automaticamente o status clicado
+                const availableList = document.querySelector('[data-dual-list="status"] .dual-list-available');
+                if (availableList) {
+                    // Encontrar o item na lista disponível
+                    const items = availableList.querySelectorAll('.dual-list-item');
+                    items.forEach(item => {
+                        if (item.textContent.trim() === statusLabel) {
+                            // Simular clique no item para selecioná-lo
+                            item.click();
+                        }
+                    });
+                }
+            }, 100);
+        }, 100);
+    }
+
 }
 
 // ==================== EXPORTAÇÃO E BACKWARD COMPATIBILITY ====================

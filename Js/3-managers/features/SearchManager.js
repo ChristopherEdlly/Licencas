@@ -27,6 +27,7 @@ class SearchManager {
         // Campos pesquisáveis
         this.searchableFields = [
             'servidor',
+            'nome',
             'cpf',
             'cargo',
             'lotacao',

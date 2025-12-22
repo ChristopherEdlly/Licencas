@@ -199,6 +199,24 @@ class HomePage {
     }
 
     /**
+     * Atualiza apenas a tabela e gráficos com um conjunto de resultados
+     * Usado por outros managers (ex: HeaderManager) para aplicar resultados de busca
+     * @param {Array} results - Array de servidores filtrados
+     */
+    updateTable(results) {
+        if (!this.isInitialized) {
+            this.init();
+        }
+
+        // Atualizar contador
+        this._updateServerCount(Array.isArray(results) ? results.length : 0);
+
+        // Atualizar tabela e gráficos diretamente
+        this._renderTable(results || []);
+        this._renderCharts(results || []);
+    }
+
+    /**
      * Obtém dados filtrados do DataStateManager
      * @private
      * @returns {Array} Array de servidores filtrados
@@ -258,7 +276,7 @@ class HomePage {
     }
 
     /**
-     * Renderiza gráfico de urgência
+     * Renderiza gráfico de próximas licenças
      * @private
      * @param {Array} servidores - Array de servidores
      */
@@ -267,19 +285,24 @@ class HomePage {
             return;
         }
 
-        // Atualizar total no header do gráfico
+        // Atualizar total no header do gráfico (total de licenças nos próximos 90 dias)
         if (this.elements.urgencyTotal) {
-            this.elements.urgencyTotal.textContent = servidores.length;
+            if (typeof LicenseAnalyzer !== 'undefined') {
+                const data = LicenseAnalyzer.contarProximasLicencas(servidores);
+                const total = (data.dias30 || 0) + (data.dias60 || 0) + (data.dias90 || 0);
+                this.elements.urgencyTotal.textContent = total;
+            } else {
+                this.elements.urgencyTotal.textContent = '0';
+            }
         }
 
         // Delegar renderização para ChartManager
-        // ChartManager.renderUrgencyChart(servidores, canvasId)
         const canvasId = this.elements.urgencyChart.id || 'urgencyChart';
-        this.chartManager.renderUrgencyChart(servidores, canvasId);
+        this.chartManager.renderProximasLicencasChart(servidores, canvasId);
     }
 
     /**
-     * Renderiza gráfico de cargos
+     * Renderiza gráfico de status de licenças
      * @private
      * @param {Array} servidores - Array de servidores
      */
@@ -294,51 +317,10 @@ class HomePage {
         }
 
         // Delegar renderização para ChartManager
-        // ChartManager.renderCargoChart(servidores, canvasId)
         const canvasId = this.elements.cargoChart.id || 'cargoChart';
-        this.chartManager.renderCargoChart(servidores, canvasId);
+        this.chartManager.renderStatusLicencasChart(servidores, canvasId);
     }
 
-    /**
-     * Conta servidores por urgência
-     * @private
-     * @param {Array} servidores - Array de servidores
-     * @returns {Object} Objeto com contagens por urgência
-     */
-    _countUrgencies(servidores) {
-        const counts = {
-            critica: 0,
-            alta: 0,
-            moderada: 0,
-            baixa: 0
-        };
-
-        servidores.forEach(servidor => {
-            const urgencia = (servidor.urgencia || '').toLowerCase();
-            if (counts.hasOwnProperty(urgencia)) {
-                counts[urgencia]++;
-            }
-        });
-
-        return counts;
-    }
-
-    /**
-     * Conta servidores por cargo
-     * @private
-     * @param {Array} servidores - Array de servidores
-     * @returns {Object} Objeto com contagens por cargo
-     */
-    _countCargos(servidores) {
-        const counts = {};
-
-        servidores.forEach(servidor => {
-            const cargo = servidor.cargo || 'Não informado';
-            counts[cargo] = (counts[cargo] || 0) + 1;
-        });
-
-        return counts;
-    }
 
     /**
      * Ativa a página (torna visível)

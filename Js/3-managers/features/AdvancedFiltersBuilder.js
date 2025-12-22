@@ -463,6 +463,8 @@ class AdvancedFiltersBuilder {
                 return this.renderSubsecretariaForm();
             case 'urgencia':
                 return this.renderUrgenciaForm();
+            case 'status':
+                return this.renderStatusForm();
             case 'servidor':
                 return this.renderServidorForm();
             case 'periodo':
@@ -1172,16 +1174,51 @@ class AdvancedFiltersBuilder {
     }
     
     /**
-     * Formulário: Status
+     * Formulário: Status de Licenças
      */
+    renderStatusForm() {
+        const statusOptions = [
+            // Status de período
+            { value: 'agendadas', label: '📅 Agendadas' },
+            { value: 'emAndamento', label: '⏳ Em Andamento' },
+            { value: 'concluidas', label: '✅ Concluídas' },
+            { value: 'naoAgendadas', label: '❌ Não Agendadas' },
+
+            // Status de saldo
+            { value: 'comSaldo', label: '💰 Com Saldo Disponível' },
+            { value: 'semSaldo', label: '🔴 Sem Saldo' }
+        ];
+
+        // Limpar marcador de listeners antes de recriar
+        const existingContainer = document.querySelector('[data-dual-list="status"]');
+        if (existingContainer) {
+            delete existingContainer.dataset.listenersAttached;
+        }
+
+        const dualListHtml = this.createDualListBox(
+            'status',
+            statusOptions.map(s => s.label),
+            [],
+            'Status Disponíveis',
+            'Status Selecionados'
+        );
+
+        // Configurar listeners após renderização
+        setTimeout(() => this.setupDualListBoxListeners('status'), 0);
+
+        return `
+            <div class="form-group">
+                <label>Selecione os Status de Licenças</label>
+                ${dualListHtml}
+            </div>
+        `;
+    }
+
     /**
-     * Formulário: Status de Licença
-     * REMOVIDO: O sistema apenas visualiza cronogramas de licenças.
-     * Não recebe informações sobre se a licença foi realmente usada,
-     * nem dados de servidores sem cronograma definido.
-     * Portanto, este filtro não é aplicável ao contexto do sistema.
+     * Formulário: Status (antigo - comentado)
+     * REMOVIDO: O sistema agora utiliza LicenseAnalyzer para calcular status real
      */
-    // renderStatusForm() {
+    // renderStatusFormOld() {
     //     return `
     //         <div class="form-group">
     //             <label>Selecione os status</label>
@@ -1617,18 +1654,25 @@ class AdvancedFiltersBuilder {
                 data.displayText = selected.join(', ');
                 break;
             }
-            // case 'status': {
-            //     const checked = Array.from(document.querySelectorAll('input[name="status"]:checked'))
-            //         .map(cb => cb.value);
-            //     if (checked.length === 0) return null;
-            //     data.value = checked;
-            //     data.displayText = checked.map(v => {
-            //         const labels = { 'com-licenca': 'Com Licença', 'sem-licenca': 'Sem Licença', 'vencidas': 'Vencidas' };
-            //         return labels[v] || v;
-            //     }).join(', ');
-            //     break;
-            // }
-            // REMOVIDO: Status não é gerenciado pelo sistema
+            case 'status': {
+                const selected = this.getDualListSelectedValues('status');
+                if (selected.length === 0) return null;
+                // Mapear de volta para os valores (remover emojis)
+                const values = selected.map(label => {
+                    // Status de período
+                    if (label.includes('Agendadas')) return 'agendadas';
+                    if (label.includes('Em Andamento')) return 'emAndamento';
+                    if (label.includes('Concluídas')) return 'concluidas';
+                    if (label.includes('Não Agendadas')) return 'naoAgendadas';
+                    // Status de saldo
+                    if (label.includes('Com Saldo Disponível')) return 'comSaldo';
+                    if (label.includes('Sem Saldo')) return 'semSaldo';
+                    return label;
+                });
+                data.value = values;
+                data.displayText = selected.join(', ');
+                break;
+            }
             case 'servidor': {
                 const selected = this.getDualListSelectedValues('servidor');
                 if (selected.length === 0) return null;
@@ -1767,6 +1811,7 @@ class AdvancedFiltersBuilder {
                 case 'subsecretaria':
                 case 'servidor':
                 case 'urgencia':
+                case 'status':
                     // Para dual list boxes, mover itens do array de valores para a lista de selecionados
                     this.populateDualListBox(filter.type, filter.value);
                     break;
@@ -2010,7 +2055,47 @@ class AdvancedFiltersBuilder {
                 // filter.value é array de níveis de urgência
                 const nivel = this._getField(servidor, ['nivelUrgencia', 'nivel_urgencia', 'urgencia', 'URGANCIA']) || servidor.nivelUrgencia || servidor.urgencia || '';
                 return filter.value.includes(nivel);
-                
+
+            case 'status':
+                // filter.value é array de status de licenças (período ou saldo)
+                // Usar LicenseAnalyzer para determinar o status do servidor
+                if (typeof LicenseAnalyzer === 'undefined') {
+                    console.warn('LicenseAnalyzer não disponível para filtro de status');
+                    return true;
+                }
+
+                // Verificar se é status de período ou saldo
+                const periodStatus = ['agendadas', 'emAndamento', 'concluidas', 'naoAgendadas'];
+                const saldoStatus = ['comSaldo', 'semSaldo'];
+
+                // Se filtro contém status de período
+                const hasPeriodFilter = filter.value.some(v => periodStatus.includes(v));
+                // Se filtro contém status de saldo
+                const hasSaldoFilter = filter.value.some(v => saldoStatus.includes(v));
+
+                let matchesPeriod = false;
+                let matchesSaldo = false;
+
+                if (hasPeriodFilter) {
+                    const servidorStatus = LicenseAnalyzer.getServidorStatus(servidor);
+                    matchesPeriod = filter.value.includes(servidorStatus);
+                }
+
+                if (hasSaldoFilter) {
+                    const servidorSaldoStatus = LicenseAnalyzer.getServidorSaldoStatus(servidor);
+                    matchesSaldo = filter.value.includes(servidorSaldoStatus);
+                }
+
+                // Se ambos tipos de filtro, precisa passar em ambos (AND)
+                // Se apenas um tipo, precisa passar nele
+                if (hasPeriodFilter && hasSaldoFilter) {
+                    return matchesPeriod && matchesSaldo;
+                } else if (hasPeriodFilter) {
+                    return matchesPeriod;
+                } else {
+                    return matchesSaldo;
+                }
+
             case 'servidor':
                 // filter.value é array de display names de servidores
                 // Aceitar correspondência por displayName ou somente por nome (tolerante a espaços/acentos)
@@ -2306,7 +2391,7 @@ class AdvancedFiltersBuilder {
             superintendencia: 'Superintendência',
             subsecretaria: 'Subsecretaria',
             urgencia: 'Urgência',
-            status: 'Status',
+            status: 'Status de Licenças',
             servidor: 'Servidor',
             periodo: 'Período de Gozo',
             meses: 'Meses Acumulados',

@@ -251,23 +251,26 @@ class TableManager {
             // Formatar Próxima Licença
             const proximaLicencaHtml = this._formatarProximaLicenca(servidor);
 
-            // Saldo (Cálculo Legado Complexo)
+            // Saldo: preferir valores calculados no core (`DataTransformer`) sobre re-calcular localmente
             let saldoDias = 0;
-            if (this.app && this.app.dataStateManager) {
-                const allServidores = this.app.dataStateManager.getAllServidores();
+
+            // Tenta pegar totalSaldo direto do objeto servidor (normalizado pelo core)
+            const coreSaldo = this._getKeyCaseInsensitive(servidor, 'totalSaldo') || this._getKeyCaseInsensitive(servidor, 'saldo');
+            if (coreSaldo !== undefined && coreSaldo !== null) {
+                saldoDias = Number(coreSaldo) || 0;
+            } else if (this.app && this.app.dataStateManager) {
+                // Fallback: se por algum motivo o objeto servidor não contém totals, usar registros no DataStateManager
+                const allServidores = this.app.dataStateManager.getAllServidores() || [];
                 if (allServidores.length > 0) {
-                    // Comparar nomes normalizados é mais seguro
+                    // Preferir comparar por campo normalizado `_nomeNormalizado` quando disponível
+                    const nomeNorm = (this._getKeyCaseInsensitive(servidor, '_nomeNormalizado') || (nomeRaw || '').toString().toLowerCase()).toString().trim();
                     const siblingRecords = allServidores.filter(s => {
-                        const sNome = this._getKeyCaseInsensitive(s, 'nome') || this._getKeyCaseInsensitive(s, 'servidor');
-                        return sNome === nomeRaw;
+                        const sNomeNorm = (this._getKeyCaseInsensitive(s, '_nomeNormalizado') || (this._getKeyCaseInsensitive(s, 'nome') || '').toString().toLowerCase()).toString().trim();
+                        return sNomeNorm === nomeNorm;
                     });
                     const saldoInfo = this._calculateLegacyBalance(siblingRecords);
                     saldoDias = saldoInfo.dias;
-                } else {
-                    saldoDias = this._getKeyCaseInsensitive(servidor, 'totalSaldo') || this._getKeyCaseInsensitive(servidor, 'saldo') || 0;
                 }
-            } else {
-                saldoDias = this._getKeyCaseInsensitive(servidor, 'totalSaldo') || this._getKeyCaseInsensitive(servidor, 'saldo') || 0;
             }
 
             const saldoClass = saldoDias > 0 ? 'saldo-positivo' : 'saldo-zerado';
@@ -362,18 +365,45 @@ class TableManager {
                 // Tenta chaves maiúsculas (CSV raw), camelCase ou snake_case (parseado)
                 const aquisitivoInicio = dados.AQUISITIVO_INICIO || dados.aquisitivoInicio || dados.aquisitivo_inicio;
                 const aquisitivoFim = dados.AQUISITIVO_FIM || dados.aquisitivoFim || dados.aquisitivo_fim;
-                const gozo = this._parseNumero(dados.GOZO || dados.gozo || dados.diasGozo || 0);
+                // GOZO may come in several shapes depending on parsing stage:
+                // - raw CSV: GOZO / gozo
+                // - normalized license object: dias
+                // - older variations: diasGozo
+                // Prefer explicit diasGozados produced by DataTransformer, then fallbacks
+                const gozo = this._parseNumero(
+                    (dados.diasGozados !== undefined && dados.diasGozados !== null) ? dados.diasGozados :
+                    (dados.GOZO || dados.gozo || dados.dias || dados.diasGozo || 0)
+                );
 
                 // RESTANDO é mapeado para 'saldo' no DataParser, mas verificamos originais também
                 const restando = this._parseRestando(dados.RESTANDO || dados.restando || dados.saldo || '0');
 
-                // Ignorar registros sem período aquisitivo ou com data nula (1899)
-                if (!aquisitivoInicio) return;
-                const aquisitivoStr = String(aquisitivoInicio);
-                if (aquisitivoStr.includes('1899') || aquisitivoStr.includes('29/12/1899')) return;
+                // Determinar chave do período aquisitivo.
+                // Preferir AQUISITIVO_INICIO/FIM, mas aceitar alternativas quando ausentes
+                let chavePeriodo = null;
 
-                // Criar chave do período aquisitivo
-                const chavePeriodo = `${aquisitivoInicio}-${aquisitivoFim}`;
+                const isInvalid1899 = v => {
+                    if (!v) return true;
+                    const s = String(v).toLowerCase();
+                    return s.includes('1899') || s.includes('29/12/1899') || s.includes('1899-12-29');
+                };
+
+                if (aquisitivoInicio && !isInvalid1899(aquisitivoInicio)) {
+                    const start = aquisitivoInicio;
+                    const end = aquisitivoFim || '';
+                    chavePeriodo = `${start}-${end}`;
+                } else {
+                    // Fallback: tentar A_PARTIR / TERMINO / inicio / periodo
+                    const partir = dados.A_PARTIR || dados.a_partir || dados.A_PARTIR || dados.aPartir || dados.inicio || dados.dataInicio || dados.periodo;
+                    const termino = dados.TERMINO || dados.termino || dados.fim || dados.dataFim;
+
+                    if (partir && !isInvalid1899(partir)) {
+                        chavePeriodo = `${partir}-${termino || ''}`;
+                    } else {
+                        // Sem informações de período válidas, usar um identificador genérico (nome + idx)
+                        chavePeriodo = `sem-aquisitivo-${Math.random().toString(36).slice(2,8)}`;
+                    }
+                }
 
                 if (!periodosAquisitivosMap.has(chavePeriodo)) {
                     periodosAquisitivosMap.set(chavePeriodo, {

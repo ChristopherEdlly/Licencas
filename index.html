@@ -248,11 +248,11 @@
 
                         <!-- Painéis de Gráficos -->
                         <div class="charts-grid">
-                            <!-- Gráfico de Urgência (Barras Horizontais) -->
+                            <!-- Gráfico de Próximas Licenças (Barras Verticais) -->
                             <div class="chart-panel">
                                 <div class="chart-panel-header">
-                                    <div class="chart-panel-title">Quantidade de Pessoas por Urgência</div>
-                                    <div class="chart-panel-subtitle">Total: <span id="urgencyTotal">0</span> pessoas
+                                    <div class="chart-panel-title">Próximas Licenças</div>
+                                    <div class="chart-panel-subtitle">Total (próximos 90 dias): <span id="urgencyTotal">0</span> licenças
                                     </div>
                                 </div>
                                 <div class="chart-panel-body">
@@ -260,10 +260,10 @@
                                 </div>
                             </div>
 
-                            <!-- Gráfico de Cargos (Pizza/Rosca) -->
+                            <!-- Gráfico de Status de Licenças (Pizza/Rosca) -->
                             <div class="chart-panel">
                                 <div class="chart-panel-header">
-                                    <div class="chart-panel-title">Servidores por Cargo</div>
+                                    <div class="chart-panel-title">Status de Licenças</div>
                                     <div class="chart-panel-subtitle">Total: <span id="cargoTotal">0</span> servidores
                                     </div>
                                 </div>
@@ -1271,11 +1271,11 @@
                                 <div class="filter-type-label">Lotação</div>
                             </button>
 
-                            <button type="button" class="filter-type-card" data-filter-type="urgencia">
+                            <button type="button" class="filter-type-card" data-filter-type="status">
                                 <div class="filter-type-icon">
-                                    <i class="bi bi-exclamation-triangle"></i>
+                                    <i class="bi bi-clipboard-check"></i>
                                 </div>
-                                <div class="filter-type-label">Urgência</div>
+                                <div class="filter-type-label">Status de Licenças</div>
                             </button>
 
                             <button type="button" class="filter-type-card" data-filter-type="servidor">
@@ -1437,6 +1437,7 @@
     <!-- 1.2 Business Logic (Regras de negócio) -->
     <script src="js/1-core/business-logic/AposentadoriaAnalyzer.js"></script>
     <script src="js/1-core/business-logic/LicencaCalculator.js"></script>
+    <script src="js/1-core/business-logic/LicenseAnalyzer.js"></script>
     <script src="js/1-core/business-logic/UrgencyAnalyzer.js"></script>
     <script src="js/1-core/business-logic/OperationalImpact.js"></script>
 

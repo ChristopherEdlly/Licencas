@@ -62,11 +62,11 @@ class ChartManager {
     }
 
     /**
-     * Cria gráfico de urgências (pizza/rosca)
+     * Cria gráfico de próximas licenças (barras verticais)
      * @param {string} canvasId - ID do canvas
-     * @param {Object} data - Dados agregados
+     * @param {Object} data - Dados { dias30, dias60, dias90 }
      */
-    createUrgencyChart(canvasId, data) {
+    createProximasLicencasChart(canvasId, data) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) {
             console.warn(`Canvas ${canvasId} não encontrado`);
@@ -80,19 +80,99 @@ class ChartManager {
 
         // Preparar dados
         const chartData = {
-            labels: ['Crítica', 'Alta', 'Moderada', 'Baixa'],
+            labels: ['0-30 dias', '31-60 dias', '61-90 dias'],
             datasets: [{
+                label: 'Licenças',
                 data: [
-                    data.critica || 0,
-                    data.alta || 0,
-                    data.moderada || 0,
-                    data.baixa || 0
+                    data.dias30 || 0,
+                    data.dias60 || 0,
+                    data.dias90 || 0
                 ],
                 backgroundColor: [
-                    this.colors.critica,
-                    this.colors.alta,
-                    this.colors.moderada,
-                    this.colors.baixa
+                    '#ef4444',  // Vermelho (urgente)
+                    '#f97316',  // Laranja (moderado)
+                    '#eab308'   // Amarelo (menos urgente)
+                ],
+                borderRadius: 6,
+                maxBarThickness: 60
+            }]
+        };
+
+        // Criar gráfico
+        this.charts.urgency = new Chart(canvas, {
+            type: 'bar',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const value = context.parsed.y;
+                                return `${value} licença${value !== 1 ? 's' : ''}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        },
+                        grid: {
+                            drawBorder: false
+                        }
+                    }
+                }
+            }
+        });
+
+        console.log('📊 Gráfico de próximas licenças criado');
+        return this.charts.urgency;
+    }
+
+    /**
+     * Cria gráfico de status de licenças (pizza/rosca)
+     * @param {string} canvasId - ID do canvas
+     * @param {Object} data - Dados { agendadas, emAndamento, concluidas, naoAgendadas }
+     */
+    createStatusLicencasChart(canvasId, data) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) {
+            console.warn(`Canvas ${canvasId} não encontrado`);
+            return null;
+        }
+
+        // Destruir gráfico existente
+        if (this.charts.cargo) {
+            this.charts.cargo.destroy();
+        }
+
+        // Preparar dados
+        const chartData = {
+            labels: ['Agendadas', 'Em Andamento', 'Concluídas', 'Não Agendadas'],
+            datasets: [{
+                data: [
+                    data.agendadas || 0,
+                    data.emAndamento || 0,
+                    data.concluidas || 0,
+                    data.naoAgendadas || 0
+                ],
+                backgroundColor: [
+                    '#3b82f6',  // Azul (agendadas)
+                    '#10b981',  // Verde (em andamento)
+                    '#6b7280',  // Cinza (concluídas)
+                    '#f59e0b'   // Âmbar (não agendadas)
                 ],
                 borderWidth: 2,
                 borderColor: '#ffffff'
@@ -100,19 +180,33 @@ class ChartManager {
         };
 
         // Criar gráfico
-        this.charts.urgency = new Chart(canvas, {
+        this.charts.cargo = new Chart(canvas, {
             type: 'doughnut',
             data: chartData,
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,  // Permite controlar a altura manualmente
+                layout: {
+                    padding: {
+                        top: 20,
+                        bottom: 20,
+                        left: 30,
+                        right: 30
+                    }
+                },
                 plugins: {
                     legend: {
-                        position: 'bottom',
+                        position: 'right',  // Legenda à direita para melhor aproveitamento do espaço
+                        align: 'center',    // Centraliza verticalmente
                         labels: {
                             padding: 15,
                             usePointStyle: true,
-                            pointStyle: 'circle'
+                            pointStyle: 'circle',
+                            font: {
+                                size: 13
+                            },
+                            boxWidth: 15,
+                            boxHeight: 15
                         }
                     },
                     tooltip: {
@@ -126,87 +220,19 @@ class ChartManager {
                             }
                         }
                     }
-                }
-            }
-        });
-
-        console.log('📊 Gráfico de urgências criado');
-        return this.charts.urgency;
-    }
-
-    /**
-     * Cria gráfico de cargos (barras horizontais)
-     * @param {string} canvasId - ID do canvas
-     * @param {Object} data - Dados por cargo
-     */
-    createCargoChart(canvasId, data) {
-        const canvas = document.getElementById(canvasId);
-        if (!canvas) {
-            console.warn(`Canvas ${canvasId} não encontrado`);
-            return null;
-        }
-
-        // Destruir gráfico existente
-        if (this.charts.cargo) {
-            this.charts.cargo.destroy();
-        }
-
-        // Preparar dados (top 10 cargos)
-        const sortedCargos = Object.entries(data)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 10);
-
-        const chartData = {
-            labels: sortedCargos.map(([cargo]) => cargo),
-            datasets: [{
-                label: 'Quantidade',
-                data: sortedCargos.map(([, count]) => count),
-                backgroundColor: this.colors.primary,
-                borderRadius: 6
-            }]
-        };
-
-        // Criar gráfico
-        this.charts.cargo = new Chart(canvas, {
-            type: 'bar',
-            data: chartData,
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => {
-                                return `Quantidade: ${context.parsed.x}`;
-                            }
-                        }
-                    }
                 },
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0
-                        },
-                        grid: {
-                            display: true,
-                            drawBorder: false
-                        }
-                    },
-                    y: {
-                        grid: {
-                            display: false
-                        }
+                onClick: (event, elements) => {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const statusKeys = ['agendadas', 'emAndamento', 'concluidas', 'naoAgendadas'];
+                        const statusKey = statusKeys[index];
+                        this._handleStatusChartClick(statusKey);
                     }
                 }
             }
         });
 
-        console.log('📊 Gráfico de cargos criado');
+        console.log('📊 Gráfico de status de licenças criado');
         return this.charts.cargo;
     }
 
@@ -365,6 +391,17 @@ class ChartManager {
     }
 
     /**
+     * Manipula clique no gráfico de status
+     * @private
+     * @param {string} statusKey - Chave do status clicado (agendadas, emAndamento, concluidas, naoAgendadas)
+     */
+    _handleStatusChartClick(statusKey) {
+        if (this.app && this.app.onStatusChartClick) {
+            this.app.onStatusChartClick(statusKey);
+        }
+    }
+
+    /**
      * Atualiza dados de um gráfico existente
      * @param {string} chartType - Tipo do gráfico (urgency, cargo, timeline)
      * @param {Object} newData - Novos dados
@@ -379,19 +416,20 @@ class ChartManager {
 
         // Atualizar dados
         if (chartType === 'urgency') {
+            // Novo formato: próximas licenças (30/60/90 dias)
             chart.data.datasets[0].data = [
-                newData.critica || 0,
-                newData.alta || 0,
-                newData.moderada || 0,
-                newData.baixa || 0
+                newData.dias30 || 0,
+                newData.dias60 || 0,
+                newData.dias90 || 0
             ];
         } else if (chartType === 'cargo') {
-            const sortedCargos = Object.entries(newData)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 10);
-
-            chart.data.labels = sortedCargos.map(([cargo]) => cargo);
-            chart.data.datasets[0].data = sortedCargos.map(([, count]) => count);
+            // Novo formato: status de licenças
+            chart.data.datasets[0].data = [
+                newData.agendadas || 0,
+                newData.emAndamento || 0,
+                newData.concluidas || 0,
+                newData.naoAgendadas || 0
+            ];
         }
 
         chart.update();
@@ -468,76 +506,53 @@ class ChartManager {
      * @returns {Object}
      */
     /**
-     * Renderiza gráfico de urgência (wrapper para compatibilidade)
-     * Agrega dados e chama createUrgencyChart
+     * Renderiza gráfico de próximas licenças
+     * Calcula licenças nos próximos 30/60/90 dias usando LicenseAnalyzer
      * @param {Array<Object>} servidores - Array de servidores
      * @param {string} canvasId - ID do canvas (padrão: 'urgencyChart')
      */
-    renderUrgencyChart(servidores, canvasId = 'urgencyChart') {
+    renderProximasLicencasChart(servidores, canvasId = 'urgencyChart') {
         if (!servidores || servidores.length === 0) {
-            console.warn('⚠️ Sem dados para renderizar gráfico de urgência');
+            console.warn('⚠️ Sem dados para renderizar gráfico de próximas licenças');
             return;
         }
 
-        // Agregar dados por nível de urgência
-        const urgencyData = {
-            critica: 0,
-            alta: 0,
-            moderada: 0,
-            baixa: 0
-        };
+        // Verificar se LicenseAnalyzer está disponível
+        if (typeof LicenseAnalyzer === 'undefined') {
+            console.error('❌ LicenseAnalyzer não está carregado');
+            return;
+        }
 
-        servidores.forEach(servidor => {
-            // Helper para busca case-insensitive
-            const getKey = (obj, key) => {
-                const found = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
-                return found ? obj[found] : undefined;
-            };
+        // Usar LicenseAnalyzer para calcular dados
+        const data = LicenseAnalyzer.contarProximasLicencas(servidores);
 
-            const urgenciaData = getKey(servidor, 'urgencia');
-            const nivelUrgenciaData = getKey(servidor, 'nivelUrgencia');
-
-            const urgencia = urgenciaData || nivelUrgenciaData || 'baixa';
-            const nivel = String(urgencia).toLowerCase().trim();
-
-            if (urgencyData.hasOwnProperty(nivel)) {
-                urgencyData[nivel]++;
-            } else {
-                urgencyData.baixa++; // Fallback para urgência desconhecida
-            }
-        });
-
-        // Criar gráfico usando método existente
-        return this.createUrgencyChart(canvasId, urgencyData);
+        // Criar gráfico
+        return this.createProximasLicencasChart(canvasId, data);
     }
 
     /**
-     * Renderiza gráfico de cargos (wrapper para compatibilidade)
+     * Renderiza gráfico de status de licenças
+     * Classifica licenças por status usando LicenseAnalyzer
      * @param {Array<Object>} servidores - Array de servidores
      * @param {string} canvasId - ID do canvas (padrão: 'cargoChart')
      */
-    renderCargoChart(servidores, canvasId = 'cargoChart') {
+    renderStatusLicencasChart(servidores, canvasId = 'cargoChart') {
         if (!servidores || servidores.length === 0) {
-            console.warn('⚠️ Sem dados para renderizar gráfico de cargos');
+            console.warn('⚠️ Sem dados para renderizar gráfico de status de licenças');
             return;
         }
 
-        // Agregar dados por cargo
-        const cargoData = {};
+        // Verificar se LicenseAnalyzer está disponível
+        if (typeof LicenseAnalyzer === 'undefined') {
+            console.error('❌ LicenseAnalyzer não está carregado');
+            return;
+        }
 
-        servidores.forEach(servidor => {
-            // Tenta encontrar a chave 'cargo' de forma case-insensitive
-            const cargoKey = Object.keys(servidor).find(k => k.toLowerCase() === 'cargo');
-            const cargo = cargoKey ? servidor[cargoKey] : 'Não informado';
+        // Usar LicenseAnalyzer para calcular dados
+        const data = LicenseAnalyzer.contarStatusLicencas(servidores);
 
-            // Ignorar valores vazios ou nulos se necessário, ou agrupar como "Não informado"
-            const cargoLabel = (cargo && cargo.trim() !== '') ? cargo.trim().toUpperCase() : 'NÃO INFORMADO';
-
-            cargoData[cargoLabel] = (cargoData[cargoLabel] || 0) + 1;
-        });
-
-        // Criar gráfico usando método existente
-        return this.createCargoChart(canvasId, cargoData);
+        // Criar gráfico
+        return this.createStatusLicencasChart(canvasId, data);
     }
 
     getDebugInfo() {

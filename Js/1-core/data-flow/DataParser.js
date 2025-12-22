@@ -203,6 +203,22 @@ class DataParser {
             return [];
         }
 
+        // Detectar se o CSV contém colunas de período/gozo (uma linha por licença)
+        // Se sim, agrupar linhas por servidor e retornar servidores com array `licencas`
+        try {
+            const firstRow = rawData[0] || {};
+            const headersStr = Object.keys(firstRow).join(',').toLowerCase();
+            const looksLikeLicenca = headersStr.includes('a_parte') || headersStr.includes('a_partir') || headersStr.includes('a partir') || headersStr.includes('inicio') || headersStr.includes('termino') || headersStr.includes('gozo') || headersStr.includes('aquisitivo');
+
+            if (looksLikeLicenca && typeof this.groupByServidor === 'function') {
+                console.log('[DataParser] CSV identificado como licenças (linhas por licença) — agrupando por servidor');
+                return this.groupByServidor(rawData);
+            }
+        } catch (e) {
+            // Falhar silenciosamente e continuar com o fluxo normal
+            console.warn('[DataParser] Falha ao detectar tipo de CSV para agrupamento:', e && e.message);
+        }
+
         // 2. Mapear headers
         const headers = Object.keys(rawData[0]);
         const headerMap = this.mapHeaders(headers);
