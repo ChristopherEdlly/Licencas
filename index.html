@@ -1422,61 +1422,61 @@
     <!-- ============================================================ -->
 
     <!-- ==================== CONFIGURAÇÃO ==================== -->
-    <script src="js/0-config/Config.js"></script>
+    <script src="Js/0-config/Config.js"></script>
 
     <!-- ==================== CAMADA 1: CORE ==================== -->
     <!-- Fundação - Lógica de negócio pura (funções puras)         -->
 
     <!-- 1.1 Utilities (Funções puras sem dependências) -->
-    <script src="js/1-core/utilities/DateUtils.js"></script>
-    <script src="js/1-core/utilities/FormatUtils.js"></script>
-    <script src="js/1-core/utilities/ValidationUtils.js"></script>
-    <script src="js/1-core/utilities/MathUtils.js"></script>
+    <script src="Js/1-core/utilities/DateUtils.js"></script>
+    <script src="Js/1-core/utilities/FormatUtils.js"></script>
+    <script src="Js/1-core/utilities/ValidationUtils.js"></script>
+    <script src="Js/1-core/utilities/MathUtils.js"></script>
     <script src="Js/1-core/utilities/FuzzySearch.js"></script>
 
     <!-- 1.2 Business Logic (Regras de negócio) -->
-    <script src="js/1-core/business-logic/AposentadoriaAnalyzer.js"></script>
-    <script src="js/1-core/business-logic/LicencaCalculator.js"></script>
-    <script src="js/1-core/business-logic/LicenseAnalyzer.js"></script>
-    <script src="js/1-core/business-logic/UrgencyAnalyzer.js"></script>
-    <script src="js/1-core/business-logic/OperationalImpact.js"></script>
+    <script src="Js/1-core/business-logic/AposentadoriaAnalyzer.js"></script>
+    <script src="Js/1-core/business-logic/LicencaCalculator.js"></script>
+    <script src="Js/1-core/business-logic/LicenseAnalyzer.js"></script>
+    <script src="Js/1-core/business-logic/UrgencyAnalyzer.js"></script>
+    <script src="Js/1-core/business-logic/OperationalImpact.js"></script>
 
     <!-- 1.3 Data Flow (Pipeline de dados) -->
-    <script src="js/1-core/data-flow/DataLoader.js"></script>
-    <script src="js/1-core/data-flow/DataParser.js"></script>
-    <script src="js/1-core/data-flow/CronogramaParser.js"></script>
-    <script src="js/1-core/data-flow/DataTransformer.js"></script>
-    <script src="js/1-core/data-flow/DataFilter.js"></script>
-    <script src="js/1-core/data-flow/DataAggregator.js"></script>
+    <script src="Js/1-core/data-flow/DataLoader.js"></script>
+    <script src="Js/1-core/data-flow/DataParser.js"></script>
+    <script src="Js/1-core/data-flow/CronogramaParser.js"></script>
+    <script src="Js/1-core/data-flow/DataTransformer.js"></script>
+    <script src="Js/1-core/data-flow/DataFilter.js"></script>
+    <script src="Js/1-core/data-flow/DataAggregator.js"></script>
 
     <!-- ==================== CAMADA 2: SERVICES ==================== -->
     <!-- Serviços e integrações externas                               -->
 
-    <script src="js/2-services/FileService.js"></script>
-    <script src="js/2-services/CacheService.js"></script>
-    <script src="js/2-services/ExportService.js"></script>
-    <script src="js/2-services/NotificationService.js"></script>
-    <script src="js/2-services/SharePointService.js"></script>
-    <script src="js/2-services/AuthenticationService.js"></script>
+    <script src="Js/2-services/FileService.js"></script>
+    <script src="Js/2-services/CacheService.js"></script>
+    <script src="Js/2-services/ExportService.js"></script>
+    <script src="Js/2-services/NotificationService.js"></script>
+    <script src="Js/2-services/SharePointService.js"></script>
+    <script src="Js/2-services/AuthenticationService.js"></script>
     <script src="Js/2-services/CustomDatePicker.js"></script>
 
     <!-- ==================== CAMADA 3: MANAGERS ==================== -->
     <!-- Gerenciadores de estado e UI                                  -->
 
     <!-- 3.1 State Managers (Gerenciamento de estado global) -->
-    <script src="js/3-managers/state/DataStateManager.js"></script>
-    <script src="js/3-managers/state/FilterStateManager.js"></script>
-    <script src="js/3-managers/state/UIStateManager.js"></script>
+    <script src="Js/3-managers/state/DataStateManager.js"></script>
+    <script src="Js/3-managers/state/FilterStateManager.js"></script>
+    <script src="Js/3-managers/state/UIStateManager.js"></script>
 
     <!-- 3.2 UI Managers (Gerenciamento de componentes UI) -->
-    <script src="js/3-managers/ui/TableManager.js"></script>
-    <script src="js/3-managers/ui/ChartManager.js"></script>
-    <script src="js/3-managers/ui/ModalManager.js"></script>
+    <script src="Js/3-managers/ui/TableManager.js"></script>
+    <script src="Js/3-managers/ui/ChartManager.js"></script>
+    <script src="Js/3-managers/ui/ModalManager.js"></script>
     <script src="Js/3-managers/ui/HeaderManager.js"></script>
 	<script src="Js/3-managers/ui/HierarchyFilterModal.js"></script>
 
-    <script src="js/3-managers/ui/SidebarManager.js"></script>
-    <script src="js/3-managers/ui/ThemeManager.js"></script>
+    <script src="Js/3-managers/ui/SidebarManager.js"></script>
+    <script src="Js/3-managers/ui/ThemeManager.js"></script>
 
     <!-- Hierarquia Organizacional (dados + manager) -->
     <script src="Js/1-core/data/lotacaoHierarchy.js"></script>
@@ -1486,34 +1486,34 @@
     <script src="Js/3-managers/features/AdvancedFiltersBuilder.js"></script>
 
     <!-- 3.3 Feature Managers (Features específicas) -->
-    <script src="js/3-managers/features/SearchManager.js"></script>
-    <script src="js/3-managers/features/FilterManager.js"></script>
-    <script src="js/3-managers/features/CalendarManager.js"></script>
-    <script src="js/3-managers/features/TimelineManager.js"></script>
-    <script src="js/3-managers/features/ReportsManager.js"></script>
-    <script src="js/3-managers/features/KeyboardManager.js"></script>
+    <script src="Js/3-managers/features/SearchManager.js"></script>
+    <script src="Js/3-managers/features/FilterManager.js"></script>
+    <script src="Js/3-managers/features/CalendarManager.js"></script>
+    <script src="Js/3-managers/features/TimelineManager.js"></script>
+    <script src="Js/3-managers/features/ReportsManager.js"></script>
+    <script src="Js/3-managers/features/KeyboardManager.js"></script>
 
     <!-- ==================== CAMADA 4: PAGES ==================== -->
     <!-- Controllers das páginas (MVC pattern)                       -->
 
-    <script src="js/4-pages/HomePage.js"></script>
-    <script src="js/4-pages/CalendarPage.js"></script>
-    <script src="js/4-pages/TimelinePage.js"></script>
-    <script src="js/4-pages/ReportsPage.js"></script>
-    <script src="js/4-pages/SettingsPage.js"></script>
-    <script src="js/4-pages/TipsPage.js"></script>
+    <script src="Js/4-pages/HomePage.js"></script>
+    <script src="Js/4-pages/CalendarPage.js"></script>
+    <script src="Js/4-pages/TimelinePage.js"></script>
+    <script src="Js/4-pages/ReportsPage.js"></script>
+    <script src="Js/4-pages/SettingsPage.js"></script>
+    <script src="Js/4-pages/TipsPage.js"></script>
 
     <!-- ==================== CAMADA 5: APP ==================== -->
     <!-- Orquestrador principal da aplicação                        -->
 
-    <script src="js/5-app/EventBus.js"></script>
-    <script src="js/5-app/Router.js"></script>
-    <script src="js/5-app/App.js"></script>
+    <script src="Js/5-app/EventBus.js"></script>
+    <script src="Js/5-app/Router.js"></script>
+    <script src="Js/5-app/App.js"></script>
 
     <!-- ==================== COMPATIBILITY BRIDGE ==================== -->
     <!-- Ponte de compatibilidade com código legado                      -->
 
-    <script src="js/compatibility-bridge.js"></script>
+    <script src="Js/compatibility-bridge.js"></script>
 
     <!-- ==================== INICIALIZAÇÃO ==================== -->
     <!-- Inicializar aplicação após carregamento completo         -->
