@@ -124,8 +124,7 @@ class SharePointDataLoader {
         return {
             driveId: file.parentReference.driveId,
             itemId: file.id,
-            name: file.name,
-            webUrl: file.webUrl
+            name: file.name
         };
     }
 

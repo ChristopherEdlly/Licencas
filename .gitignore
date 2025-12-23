@@ -15,7 +15,7 @@ out/
 .env.local
 .env.production
 .env.exemple
-env.config.js
+# env.config.js - PERMITIDO: contém apenas CLIENT_ID público (seguro para commitar)
 .playwright-mcp/
 
 # Editors

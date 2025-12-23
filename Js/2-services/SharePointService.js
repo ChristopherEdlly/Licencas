@@ -179,7 +179,6 @@ class SharePointService {
                 name: fileInfo.name,
                 size: fileInfo.size,
                 lastModified: fileInfo.lastModifiedDateTime,
-                webUrl: fileInfo.webUrl,
                 source: 'sharepoint'
             }
         };

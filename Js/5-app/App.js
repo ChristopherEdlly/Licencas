@@ -123,6 +123,13 @@ class App {
             // 11. Restaurar cache (se existir)
             await this._restoreCache();
 
+            // Após restaurar cache, tentar carregar dados automaticamente
+            try {
+                await this._loadPrimaryData();
+            } catch (e) {
+                console.warn('Auto-load de dados primários não realizado:', e && e.message);
+            }
+
             this.isInitialized = true;
             console.log('✅ Aplicação inicializada com sucesso');
 
@@ -270,10 +277,19 @@ class App {
                 return;
             }
 
+            const redirectUri = (function() {
+                // If running on localhost, prefer auto to allow dev redirect
+                try {
+                    const host = window.location && window.location.hostname;
+                    if (host === 'localhost' || host === '127.0.0.1') return 'auto';
+                } catch (e) {}
+                return config.AZURE_REDIRECT_URI || window.location.origin;
+            })();
+
             await this.authService.init({
                 clientId: config.AZURE_CLIENT_ID,
                 tenantId: config.AZURE_TENANT_ID,
-                redirectUri: config.AZURE_REDIRECT_URI || window.location.origin
+                redirectUri
             });
 
             // Verificar se já está autenticado
@@ -328,6 +344,16 @@ class App {
                 alert: (msg, title) => this.modalManager.alert(msg, title),
                 confirm: (msg, title) => this.modalManager.confirm(msg, title)
             };
+            // LicenseEditModal (UI para editar/criar linhas na tabela do SharePoint)
+            if (typeof LicenseEditModal !== 'undefined') {
+                try {
+                    this.licenseEditModal = new LicenseEditModal(this);
+                    if (typeof this.licenseEditModal.init === 'function') this.licenseEditModal.init();
+                    console.log('✅ LicenseEditModal inicializado');
+                } catch (e) {
+                    console.warn('⚠️ Falha ao inicializar LicenseEditModal:', e);
+                }
+            }
         }
 
         // HeaderManager
@@ -428,6 +454,15 @@ class App {
         if (typeof KeyboardManager !== 'undefined') {
             this.keyboardManager = new KeyboardManager(this);
             console.log('✅ KeyboardManager inicializado');
+        }
+
+        // LicenseEditModal (SharePoint CRUD)
+        if (typeof LicenseEditModal !== 'undefined') {
+            this.licenseEditModal = new LicenseEditModal(this);
+            this.licenseEditModal.init();
+            console.log('✅ LicenseEditModal inicializado');
+        } else {
+            console.log('ℹ️ LicenseEditModal não disponível');
         }
     }
 
@@ -906,6 +941,56 @@ class App {
         }
     }
 
+    /**
+     * Tenta carregar os dados primários automaticamente se possível.
+     * Faz uma tentativa silenciosa de obter token antes de acionar o loader para evitar popups inesperados.
+     * @private
+     */
+    async _loadPrimaryData() {
+        try {
+            if (!this.dataStateManager) return;
+
+            // Se já temos dados carregados do cache, não forçar reload
+            if (this.dataStateManager.hasData()) {
+                console.log('Auto-load: dados já presentes, pulando carregamento automático');
+                return;
+            }
+
+            // Tentar obter token silencioso para Files.Read — se não houver token, não forçar interação
+            if (!this.authService) {
+                console.warn('Auto-load: AuthenticationService não disponível — pulando carregamento automático');
+                return;
+            }
+
+            const silentToken = await this.authService.acquireTokenSilentOnly(['Files.Read']);
+            if (!silentToken) {
+                console.log('Auto-load: token silencioso não disponível — não iniciando fluxo interativo automaticamente');
+                return;
+            }
+
+            console.log('Auto-load: token silencioso disponível — iniciando DataLoader.loadFromSource');
+
+            if (typeof DataLoader === 'undefined' || !DataLoader.loadFromSource) {
+                console.warn('DataLoader não disponível para carregar dados primários');
+                return;
+            }
+
+            const data = await DataLoader.loadFromSource('primary');
+            if (data && Array.isArray(data)) {
+                console.log(`Auto-load: ${data.length} registros carregados do source 'primary'`);
+                // DataLoader already populates dataStateManager, but ensure it's set
+                try {
+                    this.dataStateManager.setAllServidores(data);
+                    this.dataStateManager.setFilteredServidores(data);
+                } catch (e) { /* ignore */ }
+            }
+
+        } catch (error) {
+            console.warn('Auto-load failure:', error && (error.message || error));
+            throw error;
+        }
+    }
+
     // ==================== AUTENTICAÇÃO ====================
 
     /**
@@ -1069,6 +1154,9 @@ class App {
             // Tentar obter foto do usuário
             this._loadUserPhoto();
 
+            // Mostrar botão de novo registro se usuário autenticado e tem dados do SharePoint
+            this._updateNewRecordButton();
+
         } else {
             // Estado não autenticado
             if (userAvatar) {
@@ -1090,6 +1178,73 @@ class App {
                 }
             }
             if (logoutButton) logoutButton.style.display = 'none';
+
+            // Esconder botão de novo registro
+            const newRecordButton = document.getElementById('newRecordButton');
+            if (newRecordButton) newRecordButton.style.display = 'none';
+        }
+    }
+
+    /**
+     * Atualiza visibilidade e estado do botão de novo registro
+     * @private
+     */
+    async _updateNewRecordButton() {
+        const newRecordButton = document.getElementById('newRecordButton');
+        if (!newRecordButton) return;
+
+        try {
+            // Verificar se tem metadados do SharePoint (fileId disponível)
+            const meta = this.dataStateManager && typeof this.dataStateManager.getSourceMetadata === 'function'
+                ? this.dataStateManager.getSourceMetadata()
+                : null;
+
+            if (!meta || !meta.fileId) {
+                newRecordButton.style.display = 'none';
+                return;
+            }
+
+            // Verificar permissões de escrita
+            if (typeof PermissionsService !== 'undefined') {
+                const canEdit = await PermissionsService.canEdit(meta.fileId);
+                if (canEdit) {
+                    newRecordButton.style.display = 'inline-flex';
+
+                    // Adicionar event listener (apenas uma vez)
+                    if (!newRecordButton._clickListenerAttached) {
+                        newRecordButton.addEventListener('click', () => this._handleNewRecord());
+                        newRecordButton._clickListenerAttached = true;
+                    }
+                } else {
+                    newRecordButton.style.display = 'none';
+                }
+            } else {
+                // Se PermissionsService não disponível, mostrar o botão
+                newRecordButton.style.display = 'inline-flex';
+
+                if (!newRecordButton._clickListenerAttached) {
+                    newRecordButton.addEventListener('click', () => this._handleNewRecord());
+                    newRecordButton._clickListenerAttached = true;
+                }
+            }
+        } catch (error) {
+            console.warn('Erro ao atualizar botão de novo registro:', error);
+            newRecordButton.style.display = 'none';
+        }
+    }
+
+    /**
+     * Manipula clique no botão de novo registro
+     * @private
+     */
+    _handleNewRecord() {
+        if (this.licenseEditModal && typeof this.licenseEditModal.open === 'function') {
+            this.licenseEditModal.open({ mode: 'create', row: null, rowIndex: null });
+        } else {
+            console.warn('LicenseEditModal não disponível');
+            if (this.notificationService) {
+                this.notificationService.error('Modal de edição não disponível');
+            }
         }
     }
 

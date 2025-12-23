@@ -631,12 +631,23 @@ class SettingsPage {
             return;
         }
 
-        const isAuthenticated = this.authenticationManager.isAuthenticated();
+        const isAuthenticated = (typeof this.authenticationManager?.isAuthenticated === 'function')
+            ? this.authenticationManager.isAuthenticated()
+            : Boolean(this.authenticationManager && (this.authenticationManager.currentAccount || this.authenticationManager.currentUser));
 
         if (this.elements.azureIntegrationStatus) {
             if (isAuthenticated) {
-                const account = this.authenticationManager.getAccount();
-                const name = account?.name || 'Usuário';
+                let account = null;
+                try {
+                        if (typeof this.authenticationManager?.getAccount === 'function') account = this.authenticationManager.getAccount();
+                        else if (typeof this.authenticationManager?.getCurrentUser === 'function') account = this.authenticationManager.getCurrentUser();
+                        else if (this.authenticationManager?.currentAccount) account = this.authenticationManager.currentAccount;
+                        else if (this.authenticationManager?.currentUser) account = this.authenticationManager.currentUser;
+                } catch (e) {
+                    account = null;
+                }
+
+                const name = account?.name || account?.username || 'Usuário';
                 this.elements.azureIntegrationStatus.textContent = `Conectado como ${name}`;
                 this.elements.azureIntegrationStatus.classList.add('status-connected');
             } else {
@@ -656,10 +667,20 @@ class SettingsPage {
 
         // Habilitar/desabilitar input de SharePoint
         if (this.elements.sharepointLinkInput) {
-            this.elements.sharepointLinkInput.disabled = !isAuthenticated;
-            this.elements.sharepointLinkInput.placeholder = isAuthenticated
-                ? 'Cole o link da planilha do SharePoint'
-                : 'Conecte-se para usar SharePoint';
+            const env = (typeof window !== 'undefined' && window.__ENV__) ? window.__ENV__ : {};
+            const envConfigured = env.AZURE_SITE_HOSTNAME && env.AZURE_SITE_PATH && env.AZURE_FILE_RELATIVE_PATH;
+
+            if (envConfigured) {
+                // Central configuration exists: do not allow manual link entry
+                this.elements.sharepointLinkInput.disabled = true;
+                this.elements.sharepointLinkInput.placeholder = 'Planilha configurada centralmente (somente admin)';
+                this.elements.sharepointLinkInput.value = '';
+            } else {
+                this.elements.sharepointLinkInput.disabled = !isAuthenticated;
+                this.elements.sharepointLinkInput.placeholder = isAuthenticated
+                    ? 'Cole o link da planilha do SharePoint'
+                    : 'Conecte-se para usar SharePoint';
+            }
         }
     }
 

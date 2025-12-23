@@ -26,8 +26,28 @@ class DataStateManager {
         // Histórico
         this._history = [];                 // Histórico de mudanças
         this._maxHistorySize = 50;
+        // Metadata da fonte atual (ex: SharePoint fileId, tableName, tableInfo)
+        this._sourceMetadata = null;
 
         console.log('✅ DataStateManager criado');
+    }
+
+    /**
+     * Define metadata da fonte de dados atual (ex: arquivo SharePoint)
+     * @param {Object} meta
+     */
+    setSourceMetadata(meta) {
+        this._sourceMetadata = meta || null;
+        this._notifyChange('source-metadata-changed', { metadata: this._sourceMetadata });
+        console.log('📎 Source metadata set:', this._sourceMetadata);
+    }
+
+    /**
+     * Retorna metadata da fonte de dados atual
+     * @returns {Object|null}
+     */
+    getSourceMetadata() {
+        return this._sourceMetadata;
     }
 
     // ==================== AÇÕES DE FILTRO ====================

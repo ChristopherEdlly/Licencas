@@ -56,7 +56,7 @@ class TableManager {
         this._setupEventListeners();
     }
 
-    render(data) {
+    async render(data) {
         if (!this.tableBody) return;
         this.tableBody.innerHTML = '';
 
@@ -80,11 +80,17 @@ class TableManager {
         const endIndex = startIndex + this.rowsPerPage;
         const pageData = sortedData.slice(startIndex, endIndex);
 
+        // OTIMIZAÇÃO: Verificar permissões UMA ÚNICA VEZ antes de renderizar todas as linhas
+        await this._checkEditPermissions();
+
         // Renderizar linhas
         pageData.forEach((servidor, index) => {
             const row = this._createRow(servidor, startIndex + index);
             this.tableBody.appendChild(row);
         });
+
+        // Aplicar botões de edição DEPOIS de renderizar todas as linhas
+        this._applyEditButtonsState();
 
         // Aplicar Deduplicação Visual (Legacy Feature)
         this._applyVisualDeduplication();
@@ -286,6 +292,9 @@ class TableManager {
                     <button class="btn-icon" data-action="view" title="Ver detalhes">
                         <i class="bi bi-eye"></i>
                     </button>
+                    <button class="btn-icon btn-edit-record" data-action="edit" data-row-index="${servidor.__rowIndex || index}" title="Editar registro no SharePoint">
+                        <i class="bi bi-pencil"></i>
+                    </button>
                 </td>
             `;
         } else {
@@ -313,6 +322,9 @@ class TableManager {
                 <td class="actions">
                     <button class="btn-icon" data-action="view" title="Ver detalhes">
                         <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="btn-icon btn-edit-record" data-action="edit" data-row-index="${servidor.__rowIndex || index}" title="Editar registro no SharePoint" disabled>
+                        <i class="bi bi-pencil"></i>
                     </button>
                 </td>
             `;
@@ -615,6 +627,12 @@ class TableManager {
                 const index = parseInt(row.dataset.index);
                 this._handleAction('view', index);
             }
+            const editBtn = e.target.closest('[data-action="edit"]');
+            if (editBtn) {
+                const row = editBtn.closest('tr');
+                const index = parseInt(row.dataset.index);
+                this._handleAction('edit', index);
+            }
         });
 
         // Initial attach for static headers
@@ -633,6 +651,24 @@ class TableManager {
 
         if (servidor && this.app && this.app.showServidorDetails) {
             this.app.showServidorDetails(servidor);
+        }
+
+        // Edit action: open edit modal if available
+        if (action === 'edit' && servidor) {
+            try {
+                // If LicenseEditModal is registered on app, open it
+                if (this.app && this.app.licenseEditModal && typeof this.app.licenseEditModal.open === 'function') {
+                    this.app.licenseEditModal.open({ mode: 'edit', row: servidor, rowIndex: index });
+                } else if (typeof window.LicenseEditModal !== 'undefined') {
+                    // Fallback: global modal
+                    const m = new window.LicenseEditModal(this.app);
+                    if (m && typeof m.open === 'function') m.open({ mode: 'edit', row: servidor, rowIndex: index });
+                } else {
+                    console.warn('LicenseEditModal não disponível');
+                }
+            } catch (e) {
+                console.error('Erro ao abrir edit modal:', e);
+            }
         }
     }
 
@@ -680,6 +716,85 @@ class TableManager {
             }
         };
         paginationContainer.appendChild(nextBtn);
+    }
+
+    /**
+     * Verifica permissões de edição UMA ÚNICA VEZ (evita loop de autenticação)
+     * @private
+     */
+    async _checkEditPermissions() {
+        // Inicializa cache de permissões se não existir
+        if (!this._editPermissionsCache) {
+            this._editPermissionsCache = {
+                canEdit: false,
+                checked: false,
+                timestamp: 0
+            };
+        }
+
+        // Se já verificou nos últimos 5 minutos, reutiliza resultado
+        const FIVE_MINUTES = 5 * 60 * 1000;
+        if (this._editPermissionsCache.checked &&
+            (Date.now() - this._editPermissionsCache.timestamp) < FIVE_MINUTES) {
+            return;
+        }
+
+        try {
+            const meta = this.app && this.app.dataStateManager &&
+                typeof this.app.dataStateManager.getSourceMetadata === 'function'
+                ? this.app.dataStateManager.getSourceMetadata()
+                : null;
+
+            if (!meta || !meta.fileId) {
+                this._editPermissionsCache = {
+                    canEdit: false,
+                    checked: true,
+                    timestamp: Date.now()
+                };
+                return;
+            }
+
+            // Verificar permissões (UMA ÚNICA chamada para toda a tabela)
+            let canEdit = false;
+            if (typeof window.PermissionsService !== 'undefined' &&
+                typeof window.PermissionsService.canEdit === 'function') {
+                canEdit = await window.PermissionsService.canEdit(meta.fileId);
+            } else if (typeof window.SharePointExcelService !== 'undefined' &&
+                       typeof window.SharePointExcelService.userHasWritePermission === 'function') {
+                canEdit = await window.SharePointExcelService.userHasWritePermission(meta.fileId);
+            }
+
+            this._editPermissionsCache = {
+                canEdit,
+                checked: true,
+                timestamp: Date.now()
+            };
+
+        } catch (e) {
+            console.warn('Erro ao verificar permissões de edição:', e && e.message);
+            this._editPermissionsCache = {
+                canEdit: false,
+                checked: true,
+                timestamp: Date.now()
+            };
+        }
+    }
+
+    /**
+     * Aplica estado dos botões de edição baseado no cache de permissões
+     * @private
+     */
+    _applyEditButtonsState() {
+        if (!this.tableBody || !this._editPermissionsCache || !this._editPermissionsCache.checked) {
+            return;
+        }
+
+        const canEdit = this._editPermissionsCache.canEdit;
+        const editButtons = this.tableBody.querySelectorAll('[data-action="edit"]');
+
+        editButtons.forEach(btn => {
+            btn.disabled = !canEdit;
+        });
     }
 }
 

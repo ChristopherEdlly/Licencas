@@ -15,6 +15,17 @@ const DataLoader = (function () {
     // Dependências (Node.js / Browser)
     const DataParser = (typeof window !== 'undefined' && window.DataParser) || (typeof require !== 'undefined' && require('./DataParser.js'));
     const ValidationUtils = (typeof window !== 'undefined' && window.ValidationUtils) || (typeof require !== 'undefined' && require('../utilities/ValidationUtils.js'));
+    function getSharePointExcelService() {
+        if (typeof window !== 'undefined' && window.SharePointExcelService) return window.SharePointExcelService;
+        if (typeof require !== 'undefined') {
+            try {
+                return require('../../2-services/SharePointExcelService.js');
+            } catch (e) {
+                return null;
+            }
+        }
+        return null;
+    }
 
     /**
      * Estados de carregamento
@@ -506,6 +517,143 @@ const DataLoader = (function () {
     }
 
     /**
+     * Carrega dados a partir de uma tabela Excel hospedada no SharePoint/OneDrive via Graph
+     * @param {string} fileId - ID do arquivo no drive
+     * @param {string} tableName - Nome da tabela (ListObject) dentro do workbook
+     * @param {Object} [options]
+     */
+    async function loadFromSharePointExcel(fileId, tableName, options = {}) {
+        try {
+            const SharePointExcelService = getSharePointExcelService();
+            if (!SharePointExcelService) throw new Error('SharePointExcelService não disponível');
+
+            // If fileId/tableName not provided, attempt automatic resolution from env config
+            let resolvedFileId = fileId;
+            let resolvedTableName = tableName;
+            if (!resolvedFileId || !resolvedTableName) {
+                try {
+                    const resolved = await SharePointExcelService.resolveFileFromEnv();
+                    resolvedFileId = resolvedFileId || resolved.fileId;
+                    resolvedTableName = resolvedTableName || resolved.tableName;
+                } catch (e) {
+                    // If resolution fails, continue and let getTableInfo throw a clear error
+                    console.warn('SharePoint env resolution failed:', e && e.message);
+                }
+            }
+
+            let tableInfo;
+            let rows;
+            try {
+                tableInfo = await SharePointExcelService.getTableInfo(resolvedFileId, resolvedTableName);
+                rows = await SharePointExcelService.getTableRows(resolvedFileId, resolvedTableName);
+            } catch (err) {
+                // If Graph workbook endpoints are not available (e.g., old .xls files or WAC errors),
+                // attempt download+parse fallback using the XLSX library (read-only).
+                console.warn('Workbook API failed, attempting download+parse fallback:', err && err.message);
+                try {
+                    const fallback = await SharePointExcelService.downloadAndParseWorkbook(resolvedFileId, resolvedTableName);
+                    tableInfo = fallback.tableInfo;
+                    rows = fallback.rows;
+                } catch (fallbackErr) {
+                    throw fallbackErr;
+                }
+            }
+
+            const columns = (tableInfo.columns || []).map(c => c.name);
+
+            const data = (rows || []).map((row, idx) => {
+                const values = Array.isArray(row.values) && row.values.length > 0 ? row.values[0] : [];
+                const obj = {};
+                columns.forEach((col, i) => obj[col] = values[i] ?? null);
+                // metadata
+                obj.__rowIndex = idx;
+                obj.__odata = { row: row };
+                return obj;
+            });
+
+            // validação básica
+            const validation = validateData(data, { type: 'licenca' });
+            if (!validation.valid) {
+                return {
+                    source: 'sharepoint-excel',
+                    state: LOADING_STATES.ERROR,
+                    error: 'Dados inválidos: ' + validation.errors.join('; '),
+                    data: null,
+                    timestamp: Date.now(),
+                    validation
+                };
+            }
+
+            // salvar no cache
+            const cacheKey = `spx:${resolvedFileId}:${resolvedTableName}`;
+            saveToCache(cacheKey, data, { ttl: options.ttl });
+
+            // Informar DataStateManager sobre a fonte atual para UI (fileId, tableName, tableInfo)
+            try {
+                if (typeof window !== 'undefined' && window.dataStateManager && typeof window.dataStateManager.setSourceMetadata === 'function') {
+                    window.dataStateManager.setSourceMetadata({ fileId: resolvedFileId, tableName: resolvedTableName, tableInfo });
+                }
+            } catch (e) {
+                console.warn('Não foi possível setar source metadata no DataStateManager:', e && e.message);
+            }
+
+            return {
+                source: 'sharepoint-excel',
+                state: LOADING_STATES.SUCCESS,
+                data,
+                count: data.length,
+                timestamp: Date.now(),
+                metadata: {
+                    fileId: resolvedFileId,
+                    tableName: resolvedTableName,
+                    tableInfo
+                }
+            };
+
+        } catch (error) {
+            return {
+                source: 'sharepoint-excel',
+                state: LOADING_STATES.ERROR,
+                error: error.message,
+                data: null,
+                timestamp: Date.now()
+            };
+        }
+    }
+
+    /**
+     * Backwards-compatible loader used by higher-level services.
+     * Supported sources:
+     *  - 'primary' -> SharePoint/OneDrive Excel resolved from env
+     */
+    async function loadFromSource(source = 'primary', options = {}) {
+        if (source === 'primary') {
+            // Attempt to use env resolution; caller may pass explicit fileId/tableName in options
+            const fileId = options.fileId || null;
+            const tableName = options.tableName || null;
+            const result = await loadFromSharePointExcel(fileId, tableName, options);
+            if (result && result.state === LOADING_STATES.SUCCESS) {
+                // If a global DataStateManager exists, populate it so UI components receive updates
+                try {
+                    if (typeof window !== 'undefined' && window.dataStateManager && typeof window.dataStateManager.setAllServidores === 'function') {
+                        window.dataStateManager.setAllServidores(result.data);
+                        window.dataStateManager.setFilteredServidores(result.data);
+                    }
+                } catch (e) {
+                    console.warn('Failed to populate dataStateManager with loaded data:', e && e.message);
+                }
+
+                return result.data;
+            }
+
+            // propagate error for callers expecting exceptions
+            throw new Error(result && result.error ? result.error : 'Failed to load primary data source');
+        }
+
+        throw new Error(`Unknown data source: ${source}`);
+    }
+
+    /**
      * Pré-carrega dados em cache
      * 
      * @param {Object} sources - Mapa de fontes (key -> loadFn)
@@ -549,6 +697,7 @@ const DataLoader = (function () {
         saveToLocalStorage,
         loadFromSessionStorage,
         loadFromMultipleSources,
+        loadFromSource,
 
         // Gerenciamento de cache
         isCacheValid,
