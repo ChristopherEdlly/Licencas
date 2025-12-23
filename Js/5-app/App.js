@@ -66,6 +66,11 @@ class App {
         this.cacheService = null;
         this.exportService = null;
         this.notificationService = null;
+        this.authService = null;
+
+        // Authentication state
+        this.isAuthenticated = false;
+        this.currentUser = null;
 
         console.log('✅ App instanciado');
     }
@@ -94,8 +99,8 @@ class App {
             // 3. Inicializar State Managers
             this._initStateManagers();
 
-            // 4. Inicializar Services
-            this._initServices();
+            // 4. Inicializar Services (incluindo autenticação)
+            await this._initServices();
 
             // 5. Inicializar UI Managers
             this._initUIManagers();
@@ -220,7 +225,7 @@ class App {
      * Inicializa Services
      * @private
      */
-    _initServices() {
+    async _initServices() {
         // FileService
         if (typeof FileService !== 'undefined') {
             this.fileService = FileService;
@@ -243,6 +248,49 @@ class App {
         if (typeof NotificationService !== 'undefined') {
             this.notificationService = NotificationService;
             console.log('✅ NotificationService disponível');
+        }
+
+        // AuthenticationService
+        if (typeof AuthenticationService !== 'undefined') {
+            this.authService = AuthenticationService;
+            await this._initAuthenticationService();
+        }
+    }
+
+    /**
+     * Inicializa o serviço de autenticação Microsoft
+     * @private
+     */
+    async _initAuthenticationService() {
+        try {
+            const config = window.__ENV__ || {};
+
+            if (!config.AZURE_CLIENT_ID || !config.AZURE_TENANT_ID) {
+                console.warn('⚠️ Configuração Azure incompleta - autenticação desabilitada');
+                return;
+            }
+
+            await this.authService.init({
+                clientId: config.AZURE_CLIENT_ID,
+                tenantId: config.AZURE_TENANT_ID,
+                redirectUri: config.AZURE_REDIRECT_URI || window.location.origin
+            });
+
+            // Verificar se já está autenticado
+            if (this.authService.isAuthenticated()) {
+                this.isAuthenticated = true;
+                this.currentUser = this.authService.getCurrentUser();
+                console.log('✅ Usuário já autenticado:', this.currentUser.username);
+                this._updateAuthUI();
+            } else {
+                // Mostrar tela de login se não autenticado
+                this._showLoginScreen();
+            }
+
+            console.log('✅ AuthenticationService inicializado');
+
+        } catch (error) {
+            console.error('❌ Erro ao inicializar AuthenticationService:', error);
         }
     }
 
@@ -858,11 +906,220 @@ class App {
         }
     }
 
+    // ==================== AUTENTICAÇÃO ====================
+
+    /**
+     * Mostra a tela de login personalizada
+     * @private
+     */
+    _showLoginScreen() {
+        const loginScreen = document.getElementById('loginScreen');
+        if (loginScreen) {
+            loginScreen.style.display = 'flex';
+            loginScreen.setAttribute('aria-hidden', 'false');
+
+            // Setup do botão de login (remover listeners duplicados)
+            const loginButton = document.getElementById('loginButton');
+            if (loginButton && !loginButton._loginListenerAttached) {
+                loginButton.addEventListener('click', () => this.login());
+                loginButton._loginListenerAttached = true;
+            }
+        }
+    }
+
+    /**
+     * Esconde a tela de login
+     * @private
+     */
+    _hideLoginScreen() {
+        const loginScreen = document.getElementById('loginScreen');
+        if (loginScreen) {
+            loginScreen.style.display = 'none';
+            loginScreen.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    /**
+     * Realiza login via Microsoft
+     * @returns {Promise<void>}
+     */
+    async login() {
+        if (!this.authService) {
+            console.error('AuthenticationService não disponível');
+            return;
+        }
+
+        try {
+            const loginButton = document.getElementById('loginButton');
+            if (loginButton) {
+                loginButton.disabled = true;
+                loginButton.innerHTML = `
+                    <svg width="20" height="20" fill="white" viewBox="0 0 23 23">
+                        <path d="M0 0h11v11H0zM12 0h11v11H12zM0 12h11v11H0zM12 12h11v11H12z"/>
+                    </svg>
+                    Abrindo popup...
+                `;
+            }
+
+            const userInfo = await this.authService.login();
+
+            this.isAuthenticated = true;
+            this.currentUser = userInfo;
+
+            console.log('✅ Login realizado com sucesso:', userInfo.username);
+
+            this._hideLoginScreen();
+            this._updateAuthUI();
+
+            if (this.notificationService) {
+                this.notificationService.success(`Bem-vindo, ${userInfo.name || userInfo.username}!`);
+            }
+
+        } catch (error) {
+            console.error('Erro no login:', error);
+
+            const loginButton = document.getElementById('loginButton');
+            if (loginButton) {
+                loginButton.disabled = false;
+                loginButton.innerHTML = `
+                    <svg width="20" height="20" fill="white" viewBox="0 0 23 23">
+                        <path d="M0 0h11v11H0zM12 0h11v11H12zM0 12h11v11H0zM12 12h11v11H12z"/>
+                    </svg>
+                    Entrar com Conta Microsoft
+                `;
+            }
+
+            if (this.notificationService) {
+                this.notificationService.error('Falha no login. Tente novamente.');
+            }
+        }
+    }
+
+    /**
+     * Realiza logout
+     * @returns {Promise<void>}
+     */
+    async logout() {
+        if (!this.authService) {
+            console.error('AuthenticationService não disponível');
+            return;
+        }
+
+        try {
+            await this.authService.logout();
+
+            this.isAuthenticated = false;
+            this.currentUser = null;
+
+            this._updateAuthUI();
+            this._showLoginScreen();
+
+            if (this.notificationService) {
+                this.notificationService.info('Sessão encerrada com sucesso');
+            }
+
+        } catch (error) {
+            console.error('Erro no logout:', error);
+
+            if (this.notificationService) {
+                this.notificationService.error('Erro ao encerrar sessão');
+            }
+        }
+    }
+
+    /**
+     * Atualiza UI com informações de autenticação
+     * @private
+     */
+    _updateAuthUI() {
+        // Atualizar sidebar user account
+        const userAvatar = document.getElementById('sidebarUserAvatar');
+        const userName = document.getElementById('sidebarUserName');
+        const userEmail = document.getElementById('sidebarUserEmail');
+        const loginButton = document.getElementById('sidebarUserLogin');
+        const logoutButton = document.getElementById('sidebarUserLogout');
+
+        if (this.isAuthenticated && this.currentUser) {
+            // Atualizar avatar
+            if (userAvatar) {
+                const initials = this.currentUser.name
+                    ? this.currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+                    : 'U';
+                userAvatar.querySelector('span').textContent = initials;
+            }
+
+            // Atualizar nome e email
+            if (userName) {
+                userName.textContent = this.currentUser.name || 'Usuário';
+            }
+            if (userEmail) {
+                userEmail.textContent = this.currentUser.username || 'Não conectado';
+            }
+
+            // Mostrar botão de logout
+            if (loginButton) loginButton.style.display = 'none';
+            if (logoutButton) {
+                logoutButton.style.display = 'block';
+                if (!logoutButton._logoutListenerAttached) {
+                    logoutButton.addEventListener('click', () => this.logout());
+                    logoutButton._logoutListenerAttached = true;
+                }
+            }
+
+            // Tentar obter foto do usuário
+            this._loadUserPhoto();
+
+        } else {
+            // Estado não autenticado
+            if (userAvatar) {
+                userAvatar.querySelector('span').textContent = 'U';
+            }
+            if (userName) {
+                userName.textContent = 'Usuário';
+            }
+            if (userEmail) {
+                userEmail.textContent = 'Não conectado';
+            }
+
+            // Mostrar botão de login
+            if (loginButton) {
+                loginButton.style.display = 'block';
+                if (!loginButton._loginListenerAttached) {
+                    loginButton.addEventListener('click', () => this.login());
+                    loginButton._loginListenerAttached = true;
+                }
+            }
+            if (logoutButton) logoutButton.style.display = 'none';
+        }
+    }
+
+    /**
+     * Carrega foto do usuário do Microsoft Graph
+     * @private
+     */
+    async _loadUserPhoto() {
+        if (!this.authService || !this.isAuthenticated) return;
+
+        try {
+            const photoUrl = await this.authService.getUserPhoto();
+            if (photoUrl) {
+                const userAvatar = document.getElementById('sidebarUserAvatar');
+                if (userAvatar) {
+                    userAvatar.style.backgroundImage = `url(${photoUrl})`;
+                    userAvatar.style.backgroundSize = 'cover';
+                    userAvatar.querySelector('span').style.display = 'none';
+                }
+            }
+        } catch (error) {
+            console.warn('Não foi possível carregar foto do usuário:', error);
+        }
+    }
+
     // ==================== INTERAÇÃO UI ====================
 
     /**
      * Manipula clique na linha da tabela
-     * @param {Object} servidor 
+     * @param {Object} servidor
      */
     onRowClick(servidor) {
         this.showServidorDetails(servidor);
