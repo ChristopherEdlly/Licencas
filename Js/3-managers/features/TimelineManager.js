@@ -146,7 +146,7 @@ class TimelineManager {
         // Obter período selecionado
         const {selectedYear, selectedMonth, periodStart, periodEnd} = this._getSelectedPeriod(viewType);
 
-        console.log('[TimelineManager] Período selecionado:', {selectedYear, selectedMonth, periodStart, periodEnd});
+        // Período selecionado obtido
 
         // Criar esqueleto de períodos
         this._createPeriodSkeleton(data, viewType, selectedYear, selectedMonth, periodStart, periodEnd);
@@ -316,12 +316,14 @@ class TimelineManager {
                 const [startYear, startMonth] = startInput.value.split('-').map(Number);
                 const [endYear, endMonth] = endInput.value.split('-').map(Number);
                 periodStart = new Date(startYear, startMonth - 1, 1);
-                periodEnd = new Date(endYear, endMonth - 1, 28);
+                // Usar o último dia do mês (não dia 28 fixo)
+                periodEnd = new Date(endYear, endMonth, 0); // Dia 0 do próximo mês = último dia do mês atual
             }
             // fallback default: last 12 months
             if (!periodStart || !periodEnd) {
                 const now = new Date();
-                const end = new Date(now.getFullYear(), now.getMonth(), 28);
+                // Usar o último dia do mês (não dia 28 fixo)
+                const end = new Date(now.getFullYear(), now.getMonth() + 1, 0); // Dia 0 do próximo mês = último dia do mês atual
                 const start = new Date(now.getFullYear(), now.getMonth(), 1);
                 start.setMonth(start.getMonth() - 11);
                 periodStart = start;
@@ -427,35 +429,30 @@ class TimelineManager {
 
     /**
      * Processa licença para view monthly
+     * Nova lógica: Para cada MÊS do período, verificar se a licença está ativa naquele mês
      * @private
      */
     _processMonthlyLicense(data, inicio, fim, servidor, periodStart, periodEnd, selectedYear) {
-        const current = new Date(inicio);
-        const end = new Date(fim);
+        // Para cada mês já criado no skeleton
+        Object.keys(data).forEach(key => {
+            const monthData = data[key];
+            const { year, month } = monthData.period;
 
-        while (current <= end) {
-            const year = current.getFullYear();
-            const month = current.getMonth();
-            const key = `${year}-${month.toString().padStart(2, '0')}`;
+            // Primeiro e último dia deste mês
+            const monthStart = new Date(year, month, 1);
+            const monthEnd = new Date(year, month + 1, 0);
 
-            // Filtrar por range se existir
-            if (periodStart && periodEnd) {
-                if (current < periodStart || current > periodEnd) {
-                    current.setMonth(current.getMonth() + 1);
-                    continue;
+            // Verificar se a licença (inicio-fim) se sobrepõe com este mês (monthStart-monthEnd)
+            // Há sobreposição se: licença.fim >= mês.inicio E licença.inicio <= mês.fim
+            if (fim >= monthStart && inicio <= monthEnd) {
+                const skey = this._getServidorKey(servidor);
+
+                if (!monthData.servidoresSet.has(skey)) {
+                    monthData.servidoresSet.add(skey);
+                    monthData.servidores.push(servidor);
                 }
             }
-
-            if (!data[key]) {
-                data[key] = {count: 0, period: {type: 'month', year, month}, servidores: [], servidoresSet: new Set()};
-            }
-            const skey = this._getServidorKey(servidor);
-            if (!data[key].servidoresSet.has(skey)) {
-                data[key].servidoresSet.add(skey);
-                data[key].servidores.push(servidor);
-            }
-            current.setMonth(current.getMonth() + 1);
-        }
+        });
     }
 
     /**
@@ -511,7 +508,8 @@ class TimelineManager {
 
         sortedKeys.forEach(key => {
             const item = data[key];
-            item.count = item.servidores.length; // Array em vez de Set
+            // CRÍTICO: Usar Set para contar servidores únicos (não duplicar o mesmo servidor)
+            item.count = item.servidoresSet ? item.servidoresSet.size : item.servidores.length;
 
             // Label
             if (viewType === 'daily') {
