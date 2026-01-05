@@ -97,6 +97,20 @@
     font-weight: 600;
 }
 
+.sidebar-user-email {
+    color: #9ca3af;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+/* Tema claro - email deve ter cor média */
+[data-theme="light"] .sidebar-user-email {
+    color: #6b7280;
+}
+
 .sidebar-user-login,
 .sidebar-user-logout {
     color: #9ca3af;
