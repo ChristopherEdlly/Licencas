@@ -2124,13 +2124,25 @@ class AdvancedFiltersBuilder {
                 const normalizeDate = (raw) => {
                     if (!raw) return null;
                     if (raw instanceof Date) return isNaN(raw.getTime()) ? null : raw;
-                    // try common formats and legacy field names
-                    const candidates = [raw, raw.A_PARTIR, raw.aPartir, raw.inicio, raw.INICIO, raw.dataInicio, raw.DATA_INICIO, raw.A_PARTIR];
-                    for (const c of candidates) {
-                        if (!c) continue;
-                        const d = new Date(c);
+                    
+                    // Usar DateUtils se disponível para parsear datas brasileiras
+                    if (typeof raw === 'string') {
+                        // Tentar com DateUtils primeiro (formato brasileiro DD/MM/YYYY)
+                        if (typeof DateUtils !== 'undefined' && typeof DateUtils.parseBrazilianDate === 'function') {
+                            const parsed = DateUtils.parseBrazilianDate(raw);
+                            if (parsed && !isNaN(parsed.getTime())) return parsed;
+                        }
+                        
+                        // Fallback: tentar ISO e formato americano
+                        const d = new Date(raw);
                         if (!isNaN(d.getTime())) return d;
                     }
+                    
+                    if (typeof raw === 'number') {
+                        const d = new Date(raw);
+                        if (!isNaN(d.getTime())) return d;
+                    }
+                    
                     return null;
                 };
 

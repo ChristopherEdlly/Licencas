@@ -47,7 +47,8 @@ class DateUtils {
             
             if (month !== undefined && !isNaN(year)) {
                 if (DateUtils.DEBUG) console.log(`[DateUtils] ✓ Parsed como mês/ano: ${month + 1}/${year}`);
-                return new Date(year, month, 1);
+                // Criar data ao meio-dia para evitar problemas de timezone
+                return new Date(year, month, 1, 12, 0, 0);
             }
         }
 
@@ -61,7 +62,8 @@ class DateUtils {
             
             if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && !isNaN(year)) {
                 if (DateUtils.DEBUG) console.log(`[DateUtils] ✓ Parsed como DD/MM/YYYY: ${day}/${month + 1}/${year}`);
-                return new Date(year, month, day);
+                // Criar data ao meio-dia para evitar problemas de timezone
+                return new Date(year, month, day, 12, 0, 0);
             }
         }
 
@@ -74,7 +76,8 @@ class DateUtils {
             
             if (month >= 0 && month <= 11 && !isNaN(year)) {
                 if (DateUtils.DEBUG) console.log(`[DateUtils] ✓ Parsed como MM/YYYY: ${month + 1}/${year}`);
-                return new Date(year, month, 1);
+                // Criar data ao meio-dia para evitar problemas de timezone
+                return new Date(year, month, 1, 12, 0, 0);
             }
         }
 
@@ -88,7 +91,8 @@ class DateUtils {
             
             if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && !isNaN(year)) {
                 if (DateUtils.DEBUG) console.log(`[DateUtils] ✓ Parsed como ISO: ${year}-${month + 1}-${day}`);
-                return new Date(year, month, day);
+                // Criar data ao meio-dia para evitar problemas de timezone
+                return new Date(year, month, day, 12, 0, 0);
             }
         }
 

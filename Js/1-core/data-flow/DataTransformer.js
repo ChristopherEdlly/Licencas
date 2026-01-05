@@ -206,7 +206,8 @@ const DataTransformer = (function () {
                 const year = parseInt(isoMatch[1], 10);
                 const month = parseInt(isoMatch[2], 10) - 1;
                 const day = parseInt(isoMatch[3], 10);
-                const d = new Date(year, month, day);
+                // Criar data ao meio-dia para evitar problemas de timezone
+                const d = new Date(year, month, day, 12, 0, 0);
                 if (!isNaN(d.getTime())) return d;
             }
 
@@ -216,7 +217,8 @@ const DataTransformer = (function () {
                 const day = parseInt(brMatch[1], 10);
                 const month = parseInt(brMatch[2], 10) - 1;
                 const year = parseInt(brMatch[3], 10);
-                const d = new Date(year, month, day);
+                // Criar data ao meio-dia para evitar problemas de timezone
+                const d = new Date(year, month, day, 12, 0, 0);
                 if (!isNaN(d.getTime())) return d;
             }
 

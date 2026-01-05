@@ -232,7 +232,8 @@ class CronogramaParser {
             const mes = parseInt(brMatch[2], 10);
             const ano = parseInt(brMatch[3], 10);
             if (!isValidDateParts(ano, mes, dia)) return null;
-            return new Date(ano, mes - 1, dia);
+            // Criar data ao meio-dia para evitar problemas de timezone
+            return new Date(ano, mes - 1, dia, 12, 0, 0);
         }
 
         // 2. jan/2025, fev/2026 (mês texto/ano)
@@ -242,7 +243,8 @@ class CronogramaParser {
             const ano = parseInt(mesTextoAnoMatch[2], 10);
             const mes = this.parseMesTexto(mesNome);
             if (mes && isValidDateParts(ano, mes, 1)) {
-                return new Date(ano, mes - 1, 1); // Dia 1
+                // Criar data ao meio-dia para evitar problemas de timezone
+                return new Date(ano, mes - 1, 1, 12, 0, 0); // Dia 1
             }
         }
 
@@ -254,7 +256,8 @@ class CronogramaParser {
             const ano = anoAbrev >= 0 && anoAbrev <= 99 ? 2000 + anoAbrev : null;
             const mes = this.parseMesTexto(mesNome);
             if (mes && ano && isValidDateParts(ano, mes, 1)) {
-                return new Date(ano, mes - 1, 1);
+                // Criar data ao meio-dia para evitar problemas de timezone
+                return new Date(ano, mes - 1, 1, 12, 0, 0);
             }
         }
 
@@ -264,7 +267,8 @@ class CronogramaParser {
             const mes = parseInt(mesAnoMatch[1], 10);
             const ano = parseInt(mesAnoMatch[2], 10);
             if (isValidDateParts(ano, mes, 1)) {
-                return new Date(ano, mes - 1, 1); // Dia 1
+                // Criar data ao meio-dia para evitar problemas de timezone
+                return new Date(ano, mes - 1, 1, 12, 0, 0); // Dia 1
             }
         }
 
@@ -275,7 +279,8 @@ class CronogramaParser {
             const mes = parseInt(isoMatch[2], 10);
             const dia = parseInt(isoMatch[3], 10);
             if (!isValidDateParts(ano, mes, dia)) return null;
-            return new Date(ano, mes - 1, dia);
+            // Criar data ao meio-dia para evitar problemas de timezone
+            return new Date(ano, mes - 1, dia, 12, 0, 0);
         }
 
         // 6. Tentar parse genérico e validar

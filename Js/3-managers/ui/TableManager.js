@@ -92,8 +92,8 @@ class TableManager {
         // Aplicar botões de edição DEPOIS de renderizar todas as linhas
         this._applyEditButtonsState();
 
-        // Aplicar Deduplicação Visual (Legacy Feature)
-        this._applyVisualDeduplication();
+        // ⚠️ Deduplicação Visual DESABILITADA - dados já vêm agrupados por servidor do DataParser
+        // this._applyVisualDeduplication();
 
         this._updatePaginationControls(data.length);
 
@@ -252,6 +252,12 @@ class TableManager {
         const cargoEscapado = escapeHtml(cargoRaw || '--');
         const lotacaoEscapada = escapeHtml(lotacaoRaw || '--');
 
+        // 📊 Contador de períodos/licenças
+        const numLicencas = (servidor.licencas && Array.isArray(servidor.licencas)) ? servidor.licencas.length : 0;
+        const contadorBadge = numLicencas > 0 
+            ? `<span style="font-size:0.8rem;color:var(--text-tertiary);padding-left:0.25rem;font-weight:600;"> (${numLicencas})</span>` 
+            : '';
+
         if (this.isLicencaPremio) {
             // ================== LAYOUT LICENÇA PRÊMIO ==================
             // Formatar Próxima Licença
@@ -283,13 +289,13 @@ class TableManager {
             const saldoTexto = saldoDias > 0 ? `${saldoDias} dias` : '0';
 
             row.innerHTML = `
-                <td><strong class="servidor-nome-cell" data-nome="${nomeEscapado}">${nomeEscapado}</strong></td>
+                <td><strong class="servidor-nome-cell" data-nome="${nomeEscapado}">${nomeEscapado}${contadorBadge}</strong></td>
                 <td><span class="cargo-badge">${cargoEscapado}</span></td>
                 <td><span class="lotacao-badge">${lotacaoEscapada}</span></td>
                 <td>${proximaLicencaHtml}</td>
                 <td><span class="saldo-badge ${saldoClass}">${saldoTexto}</span></td>
                 <td class="actions">
-                    <button class="btn-icon" data-action="view" title="Ver detalhes">
+                    <button class="btn-icon" data-action="view" data-row-index="${servidor.__rowIndex || index}" title="Ver detalhes">
                         <i class="bi bi-eye"></i>
                     </button>
                     <button class="btn-icon btn-edit-record" data-action="edit" data-row-index="${servidor.__rowIndex || index}" title="Editar registro no SharePoint">
@@ -302,7 +308,7 @@ class TableManager {
             const nivelUrgencia = urgenciaRaw || '';
             const periodoLicencaCompleto = this._formatarPeriodoLicencaCompleto(servidor);
 
-            let rowHtml = `<td><strong class="servidor-nome-cell" data-nome="${nomeEscapado}">${nomeEscapado}</strong></td>`;
+            let rowHtml = `<td><strong class="servidor-nome-cell" data-nome="${nomeEscapado}">${nomeEscapado}${contadorBadge}</strong></td>`;
             rowHtml += `<td><span class="cargo-badge">${cargoEscapado}</span></td>`;
 
             if (this.visibleColumns.idade) {
@@ -619,13 +625,12 @@ class TableManager {
     _setupEventListeners() {
         if (!this.tableElement) return;
 
-        // View Action
+        // View and Edit Actions
         this.tableElement.addEventListener('click', (e) => {
-            const btn = e.target.closest('[data-action="view"]');
-            if (btn) {
-                const row = btn.closest('tr');
-                const index = parseInt(row.dataset.index);
-                this._handleAction('view', index);
+            const viewBtn = e.target.closest('[data-action="view"]');
+            if (viewBtn) {
+                const rowIndex = parseInt(viewBtn.dataset.rowIndex);
+                this._handleAction('view', rowIndex);
             }
             const editBtn = e.target.closest('[data-action="edit"]');
             if (editBtn) {
@@ -640,24 +645,37 @@ class TableManager {
 
     _handleAction(action, rowIndex) {
         const allData = this.app?.dataStateManager?.getAllServidores() || [];
+        
+        // DEBUG: Verificar estrutura dos dados
+        if (allData.length > 0) {
+            console.log('[TableManager] DEBUG - Primeiro servidor:', {
+                temRowIndex: '__rowIndex' in allData[0],
+                rowIndex: allData[0].__rowIndex,
+                keys: Object.keys(allData[0]).filter(k => k.startsWith('_'))
+            });
+        }
+        
         const servidor = allData.find(s => s.__rowIndex === rowIndex);  // ✅ BUSCA PELO __rowIndex
 
         if (!servidor) {
             console.error('Servidor não encontrado com __rowIndex:', rowIndex);
+            console.error('Total de servidores:', allData.length);
+            console.error('Amostra de __rowIndex disponíveis:', allData.slice(0, 5).map(s => s.__rowIndex));
             return;
         }
 
         console.log('[TableManager] DEBUG - Servidor clicado:', {
+            action,
             rowIndex,
-            servidor,
-            campos: servidor ? Object.keys(servidor) : []
+            servidor: servidor ? servidor.nome || servidor.NOME || servidor.SERVIDOR : null
         });
 
-        if (servidor && this.app && this.app.showServidorDetails) {
+        // View action: open details modal
+        if (action === 'view' && servidor && this.app && this.app.showServidorDetails) {
             this.app.showServidorDetails(servidor);
         }
 
-        // Edit action: open edit modal if available
+        // Edit action: open edit modal only
         if (action === 'edit' && servidor) {
             try {
                 // If LicenseEditModal is registered on app, open it

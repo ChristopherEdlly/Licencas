@@ -353,6 +353,10 @@ class AuthenticationService {
             });
 
             if (!response.ok) {
+                // 404 é esperado quando usuário não tem foto - não é erro
+                if (response.status !== 404) {
+                    console.debug(`Photo API returned ${response.status}, using default avatar`);
+                }
                 return null;
             }
 
@@ -360,6 +364,7 @@ class AuthenticationService {
             return URL.createObjectURL(blob);
 
         } catch (error) {
+            // Foto não crítica - falhar silenciosamente
             return null;
         }
     }

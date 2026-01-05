@@ -368,11 +368,8 @@
                     </div>
                     <div class="sidebar-user-info">
                         <div class="sidebar-user-name" id="sidebarUserName">Usuário</div>
-                        <div class="sidebar-user-email" id="sidebarUserEmail">Não conectado</div>
+                        <div class="sidebar-user-email" id="sidebarUserEmail">Conectado</div>
                     </div>
-                    <button class="sidebar-user-login" id="sidebarUserLogin" title="Entrar com Microsoft">
-                        <i class="bi bi-box-arrow-in-right"></i>
-                    </button>
                     <button class="sidebar-user-logout" id="sidebarUserLogout" title="Sair" style="display: none;">
                         <i class="bi bi-box-arrow-right"></i>
                     </button>
@@ -494,13 +491,9 @@
                     </div>
                 </div>
 
-                <!-- Autenticação Microsoft -->
-                <div class="auth-wrapper" id="authWrapper">
-                    <button class="btn-microsoft" id="microsoftLoginButton">
-                        <i class="bi bi-microsoft"></i>
-                        <span>Entrar com Microsoft</span>
-                    </button>
-                    <div class="account-chip" id="microsoftAccountChip" style="display: none;">
+                <!-- Autenticação Microsoft - Usuário já autenticado -->
+                <div class="auth-wrapper" id="authWrapper" style="display: none;">
+                    <div class="account-chip" id="microsoftAccountChip">
                         <i class="bi bi-person-circle"></i>
                         <div class="account-details">
                             <span class="account-name" id="microsoftAccountName">Usuário</span>

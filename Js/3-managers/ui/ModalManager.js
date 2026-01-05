@@ -1279,13 +1279,9 @@ class ModalManager {
         // Extrair dados do primeiro registro (DEVE VIR ANTES)
         const primeiroRegistro = servidor.todosOsDadosOriginais?.[0] || {};
 
-        console.log('[ModalManager] DEBUG - primeiroRegistro:', primeiroRegistro);
-        console.log('[ModalManager] DEBUG - campos disponíveis:', Object.keys(primeiroRegistro));
-
         // IMPORTANTE: Como só existe licença prêmio no sistema, sempre TRUE
         const isLicencaPremio = true;
 
-        console.log('[ModalManager] isLicencaPremio:', isLicencaPremio);
         // Helper para buscar campo
         const buscarCampo = (keys, exclude = []) => {
             const entrada = Object.entries(primeiroRegistro).find(([k]) => {
@@ -1304,8 +1300,6 @@ class ModalManager {
         const numero = buscarCampo(['NUMERO', 'NÚMERO']);
         const cpf = buscarCampo(['CPF']);
         const rg = buscarCampo(['RG'], ['CARGO']);
-
-        console.log('[ModalManager] DEBUG - campos extraídos:', { cargo, lotacao, unidade, numero, cpf, rg });
 
         // Calcular balanço - preferir campos normalizados do core (DataTransformer)
         let balancoInfo = { dias: 0, diasGanhos: 0, diasUsados: 0, periodosTotal: 0 };
@@ -1327,8 +1321,6 @@ class ModalManager {
                 balancoInfo = this.calcularSaldoServidorCompleto(servidoresComMesmoNome);
             }
         }
-
-        console.log('[ModalManager] DEBUG - balancoInfo:', balancoInfo);
 
         const percentualUsado = balancoInfo.diasGanhos > 0 
             ? Math.round((balancoInfo.diasUsados / balancoInfo.diasGanhos) * 100) 
@@ -1415,11 +1407,15 @@ class ModalManager {
                 if (typeof d === 'string') {
                     let match = d.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
                     if (match) {
-                        return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
+                        // Criar data ao meio-dia para evitar problemas de timezone
+                        const date = new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]), 12, 0, 0);
+                        return date;
                     }
                     match = d.match(/(\d{4})-(\d{2})-(\d{2})/);
                     if (match) {
-                        return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+                        // Criar data ao meio-dia para evitar problemas de timezone
+                        const date = new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]), 12, 0, 0);
+                        return date;
                     }
                     const parsed = new Date(d);
                     if (!isNaN(parsed)) return parsed;
@@ -1430,6 +1426,16 @@ class ModalManager {
             const fim = parseDate(dataFim);
             let blocos = [];
             let totalDiasCalculado = 0;
+            
+            // Função auxiliar para formatar data como dd/mm/yyyy sem problemas de timezone
+            const formatDateSafe = (d) => {
+                if (!d) return '-';
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const year = d.getFullYear();
+                return `${day}/${month}/${year}`;
+            };
+            
             if (inicio && fim && !isNaN(inicio) && !isNaN(fim)) {
                 totalDiasCalculado = Math.ceil((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
                 let dataAtual = new Date(inicio);
@@ -1452,8 +1458,8 @@ class ModalManager {
                         tipo: tipoBloco,
                         label: labelBloco,
                         dias: diasNoBloco,
-                        inicio: dataAtual.toLocaleDateString('pt-BR'),
-                        fim: dataFimBloco.toLocaleDateString('pt-BR')
+                        inicio: formatDateSafe(dataAtual),
+                        fim: formatDateSafe(dataFimBloco)
                     });
                     dataAtual = new Date(dataFimBloco);
                     dataAtual.setDate(dataAtual.getDate() + 1);
@@ -1507,9 +1513,30 @@ class ModalManager {
         // ==================== PERÍODOS AQUISITIVOS ====================
         let periodosHTML = '';
         const periodosMap = new Map();
+        
+        // Função helper para limpar datas que podem vir duplicadas
+        const cleanDate = (date) => {
+            if (!date) return date;
+            if (typeof date === 'string') {
+                // Se já está no formato dd/mm/yyyy, retornar direto
+                if (/^\d{2}\/\d{2}\/\d{4}$/.test(date.trim())) {
+                    return date.trim();
+                }
+                // Se está duplicado (ex: "02/01/2026 02/02/2026"), pegar só a primeira parte
+                if (date.includes(' ')) {
+                    const parts = date.split(' ');
+                    const firstPart = parts[0].trim();
+                    if (/^\d{2}\/\d{2}\/\d{4}$/.test(firstPart)) {
+                        return firstPart;
+                    }
+                }
+            }
+            return date;
+        };
+        
         servidor.licencas.forEach(licenca => {
-            const aquisitivoInicio = licenca.AQUISITIVO_INICIO || licenca.aquisitivoInicio;
-            const aquisitivoFim = licenca.AQUISITIVO_FIM || licenca.aquisitivoFim;
+            const aquisitivoInicio = cleanDate(licenca.AQUISITIVO_INICIO || licenca.aquisitivoInicio);
+            const aquisitivoFim = cleanDate(licenca.AQUISITIVO_FIM || licenca.aquisitivoFim);
             if (aquisitivoInicio && aquisitivoFim) {
                 const periodoKey = `${aquisitivoInicio}-${aquisitivoFim}`;
                 if (!periodosMap.has(periodoKey)) {
@@ -1531,11 +1558,13 @@ class ModalManager {
                         if (typeof d === 'string') {
                             let match = d.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
                             if (match) {
-                                return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
+                                // Criar data ao meio-dia para evitar problemas de timezone
+                                return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]), 12, 0, 0);
                             }
                             match = d.match(/(\d{4})-(\d{2})-(\d{2})/);
                             if (match) {
-                                return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+                                // Criar data ao meio-dia para evitar problemas de timezone
+                                return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]), 12, 0, 0);
                             }
                             const parsed = new Date(d);
                             if (!isNaN(parsed)) return parsed;
@@ -1619,11 +1648,13 @@ class ModalManager {
                         if (typeof d === 'string') {
                             let match = d.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
                             if (match) {
-                                return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
+                                // Criar data ao meio-dia para evitar problemas de timezone
+                                return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]), 12, 0, 0);
                             }
                             match = d.match(/(\d{4})-(\d{2})-(\d{2})/);
                             if (match) {
-                                return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+                                // Criar data ao meio-dia para evitar problemas de timezone
+                                return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]), 12, 0, 0);
                             }
                             const parsed = new Date(d);
                             if (!isNaN(parsed)) return parsed;
@@ -1632,20 +1663,46 @@ class ModalManager {
                     };
                     const dataInicioRaw = gozo.A_PARTIR || gozo.aPartir || gozo.inicio;
                     const dataFimRaw = gozo.TERMINO || gozo.termino || gozo.fim;
+                    
                     // Função para formatar datas no padrão dd/mm/yyyy
                     const formatDateBR = (date) => {
                         if (!date) return '-';
-                        if (typeof date === 'string') {
-                            const d = new Date(date.replace(' ', 'T'));
-                            if (!isNaN(d)) {
-                                return d.toLocaleDateString('pt-BR');
+                        
+                        // Se já está no formato dd/mm/yyyy, retornar direto
+                        if (typeof date === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(date.trim())) {
+                            return date.trim();
+                        }
+                        
+                        // Se está duplicado (ex: "02/01/2026 31/01/2026"), pegar só a primeira parte
+                        if (typeof date === 'string' && date.includes(' ')) {
+                            const parts = date.split(' ');
+                            const firstPart = parts[0].trim();
+                            if (/^\d{2}\/\d{2}\/\d{4}$/.test(firstPart)) {
+                                return firstPart;
                             }
-                            // fallback: tentar manualmente
+                        }
+                        
+                        if (typeof date === 'string') {
+                            // Tentar formato yyyy-mm-dd primeiro
                             const match = date.match(/(\d{4})-(\d{2})-(\d{2})/);
                             if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+                            
+                            // Se tiver que parsear, usar hora do meio-dia para evitar problemas de timezone
+                            const d = new Date(date.replace(' ', 'T') + 'T12:00:00');
+                            if (!isNaN(d)) {
+                                const day = String(d.getDate()).padStart(2, '0');
+                                const month = String(d.getMonth() + 1).padStart(2, '0');
+                                const year = d.getFullYear();
+                                return `${day}/${month}/${year}`;
+                            }
                             return date;
                         }
-                        if (date instanceof Date) return date.toLocaleDateString('pt-BR');
+                        if (date instanceof Date) {
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const year = date.getFullYear();
+                            return `${day}/${month}/${year}`;
+                        }
                         return String(date);
                     };
                     const dataInicio = formatDateBR(dataInicioRaw);

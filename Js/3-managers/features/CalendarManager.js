@@ -68,14 +68,18 @@ class CalendarManager {
             const licenses = this._getLicensesForServidor(servidor);
             const servidorKey = this._getServidorKey(servidor);
             licenses.forEach(licenca => {
-                const start = this._parseDate(licenca.inicio || licenca.dataInicio || licenca.INICIO || licenca.AQUISITIVO_INICIO || licenca.inicioLicenca || licenca.dataInicioRaw || licenca.Emissao || licenca.EMISSAO || licenca.A_PARTIR);
-                let end = this._parseDate(licenca.fim || licenca.dataFim || licenca.TERMINO || licenca.AQUISITIVO_FIM || licenca.fimLicenca) || null;
+                const start = this._parseDate(licenca.inicio || licenca.dataInicio || licenca.INICIO || licenca.A_PARTIR || licenca.inicioLicenca || licenca.dataInicioRaw);
+                let end = this._parseDate(licenca.fim || licenca.dataFim || licenca.TERMINO || licenca.fimLicenca) || null;
                 if (!start || isNaN(start)) return;
                 if (!end) { const tmp = new Date(start); tmp.setMonth(tmp.getMonth()+1); tmp.setDate(tmp.getDate()-1); end = tmp; }
 
+                // Normalizar datas para comparação (apenas dia/mês/ano)
+                const startNorm = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+                const endNorm = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
                 // Intersect with year
-                const s = start <= yearStart ? yearStart : start;
-                const e = end >= yearEnd ? yearEnd : end;
+                const s = startNorm <= yearStart ? yearStart : startNorm;
+                const e = endNorm >= yearEnd ? yearEnd : endNorm;
                 if (s > e) return;
 
                 let cur = new Date(s);
@@ -137,20 +141,23 @@ class CalendarManager {
             const licenses = this._getLicensesForServidor(servidor);
             const servidorKey = this._getServidorKey(servidor);
             licenses.forEach(licenca => {
-                const start = this._parseDate(licenca.inicio || licenca.dataInicio || licenca.INICIO || licenca.AQUISITIVO_INICIO || licenca.inicioLicenca || licenca.dataInicioRaw || licenca.Emissao || licenca.EMISSAO || licenca.A_PARTIR);
-                let end = this._parseDate(licenca.fim || licenca.dataFim || licenca.TERMINO || licenca.AQUISITIVO_FIM || licenca.fimLicenca) || null;
+                const start = this._parseDate(licenca.inicio || licenca.dataInicio || licenca.INICIO || licenca.A_PARTIR || licenca.inicioLicenca || licenca.dataInicioRaw);
+                let end = this._parseDate(licenca.fim || licenca.dataFim || licenca.TERMINO || licenca.fimLicenca) || null;
                 if (!start || isNaN(start)) return;
                 if (!end) { const tmp = new Date(start); tmp.setMonth(tmp.getMonth() + 1); tmp.setDate(tmp.getDate() - 1); end = tmp; }
 
+                // Normalizar datas para comparação (apenas dia/mês/ano)
+                const startNorm = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+                const endNorm = new Date(end.getFullYear(), end.getMonth(), end.getDate());
                 const monthStart = new Date(year, month, 1);
                 const monthEnd = new Date(year, month + 1, 0);
 
-                if (start <= monthEnd && end >= monthStart) {
-                    let sDay = (start <= monthStart) ? 1 : start.getDate();
-                    let eDay = (end >= monthEnd) ? monthEnd.getDate() : end.getDate();
+                if (startNorm <= monthEnd && endNorm >= monthStart) {
+                    let sDay = (startNorm <= monthStart) ? 1 : startNorm.getDate();
+                    let eDay = (endNorm >= monthEnd) ? monthEnd.getDate() : endNorm.getDate();
                     if (servidor && servidor.tipoTabela === 'licenca-premio') {
-                        if (start <= monthStart) sDay = 1;
-                        if (end >= monthEnd) eDay = monthEnd.getDate();
+                        if (startNorm <= monthStart) sDay = 1;
+                        if (endNorm >= monthEnd) eDay = monthEnd.getDate();
                     }
                     for (let d = sDay; d <= eDay; d++) {
                         if (!daySets[d]) daySets[d] = new Set();
@@ -222,16 +229,23 @@ class CalendarManager {
     _handleDayClick(year, month, day) {
         const servidores = this.app && this.app.dataStateManager ? this.app.dataStateManager.getFilteredData() : [];
         const targetDate = new Date(year, month, day);
+        targetDate.setHours(0, 0, 0, 0); // Normalizar para meia-noite
+        
         // Encontrar todas as entradas (cada linha/registro) que ocupam o dia
         const entradasNoDia = [];
         servidores.forEach(servidor => {
             const licenses = this._getLicensesForServidor(servidor);
             licenses.forEach(lic => {
-                const s = this._parseDate(lic.inicio || lic.dataInicio || lic.INICIO || lic.A_PARTIR || lic.AQUISITIVO_INICIO || lic.inicioLicenca || lic.Emissao || lic.EMISSAO);
-                let e = this._parseDate(lic.fim || lic.dataFim || lic.TERMINO || lic.AQUISITIVO_FIM || lic.fimLicenca) || null;
+                const s = this._parseDate(lic.inicio || lic.dataInicio || lic.INICIO || lic.A_PARTIR || lic.inicioLicenca);
+                let e = this._parseDate(lic.fim || lic.dataFim || lic.TERMINO || lic.fimLicenca) || null;
                 if (!s) return;
                 if (!e) { const t = new Date(s); t.setMonth(t.getMonth()+1); t.setDate(t.getDate()-1); e = t; }
-                if (targetDate >= s && targetDate <= e) {
+                
+                // Normalizar datas para comparação (apenas dia/mês/ano, ignorar hora)
+                const sNorm = new Date(s.getFullYear(), s.getMonth(), s.getDate());
+                const eNorm = new Date(e.getFullYear(), e.getMonth(), e.getDate());
+                
+                if (targetDate >= sNorm && targetDate <= eNorm) {
                     entradasNoDia.push({ servidor, lic });
                 }
             });
@@ -313,15 +327,20 @@ class CalendarManager {
                 const registro = arr[i];
                 const licencas = this._getLicensesForServidor(registro);
                 const active = licencas.find(l => {
-                    const s = this._parseDate(l.inicio || l.dataInicio || l.A_PARTIR || l.AQUISITIVO_INICIO || l.INICIO);
-                    let e = this._parseDate(l.fim || l.dataFim || l.TERMINO || l.AQUISITIVO_FIM || l.FIM) || null;
+                    const s = this._parseDate(l.inicio || l.dataInicio || l.A_PARTIR || l.INICIO);
+                    let e = this._parseDate(l.fim || l.dataFim || l.TERMINO || l.FIM) || null;
                     if (!s) return false;
                     if (!e) { const t = new Date(s); t.setMonth(t.getMonth()+1); t.setDate(t.getDate()-1); e = t; }
-                    return targetDate >= s && targetDate <= e;
+                    
+                    // Normalizar datas para comparação (apenas dia/mês/ano)
+                    const sNorm = new Date(s.getFullYear(), s.getMonth(), s.getDate());
+                    const eNorm = new Date(e.getFullYear(), e.getMonth(), e.getDate());
+                    
+                    return targetDate >= sNorm && targetDate <= eNorm;
                 });
                 if (active) {
-                    const s = this._parseDate(active.inicio || active.dataInicio || active.A_PARTIR || active.AQUISITIVO_INICIO || active.INICIO);
-                    const e = this._parseDate(active.fim || active.dataFim || active.TERMINO || active.AQUISITIVO_FIM || active.FIM) || null;
+                    const s = this._parseDate(active.inicio || active.dataInicio || active.A_PARTIR || active.INICIO);
+                    const e = this._parseDate(active.fim || active.dataFim || active.TERMINO || active.FIM) || null;
                     const sStr = s ? s.toLocaleDateString('pt-BR') : '-';
                     const eStr = e ? e.toLocaleDateString('pt-BR') : '-';
                     licenseInfo = `${sStr} até ${eStr}`;

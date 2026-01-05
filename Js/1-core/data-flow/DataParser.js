@@ -363,6 +363,11 @@ class DataParser {
         // Converter Map para Array
         const servidoresArray = Array.from(servidoresMap.values());
 
+        // ✅ ADICIONAR __rowIndex SEQUENCIAL para cada servidor agrupado
+        servidoresArray.forEach((servidor, index) => {
+            servidor.__rowIndex = index;
+        });
+
         console.log(`[DataParser] ✓ Agrupadas ${rows.length} linhas em ${servidoresArray.length} servidores`);
         console.log(`[DataParser] Exemplo: ${servidoresArray[0]?.nome} tem ${servidoresArray[0]?.licencas.length} licenças`);
 

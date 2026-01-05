@@ -14,6 +14,7 @@ const DataLoader = (function () {
 
     // Dependências (Node.js / Browser)
     const DataParser = (typeof window !== 'undefined' && window.DataParser) || (typeof require !== 'undefined' && require('./DataParser.js'));
+    const DataTransformer = (typeof window !== 'undefined' && window.DataTransformer) || (typeof require !== 'undefined' && require('./DataTransformer.js'));
     const ValidationUtils = (typeof window !== 'undefined' && window.ValidationUtils) || (typeof require !== 'undefined' && require('../utilities/ValidationUtils.js'));
     function getSharePointExcelService() {
         if (typeof window !== 'undefined' && window.SharePointExcelService) return window.SharePointExcelService;
@@ -53,7 +54,7 @@ const DataLoader = (function () {
      * Configuração de cache
      */
     const CACHE_CONFIG = {
-        DEFAULT_TTL: 5 * 60 * 1000, // 5 minutos
+        DEFAULT_TTL: 10 * 60 * 1000, // 10 minutos
         MAX_SIZE: 100, // Máximo de entradas
         STORAGE_KEY: 'licencas_cache'
     };
@@ -546,35 +547,37 @@ const DataLoader = (function () {
             try {
                 tableInfo = await SharePointExcelService.getTableInfo(resolvedFileId, resolvedTableName);
                 rows = await SharePointExcelService.getTableRows(resolvedFileId, resolvedTableName);
+                console.log('✅ Dados carregados via Workbook API (arquivo .xlsx moderno)');
             } catch (err) {
                 // If Graph workbook endpoints are not available (e.g., old .xls files or WAC errors),
                 // attempt download+parse fallback using the XLSX library (read-only).
-                console.warn('Workbook API failed, attempting download+parse fallback:', err && err.message);
+                console.log('📦 Workbook API não disponível (arquivo .xls antigo?) - usando método alternativo de leitura...');
                 try {
                     const fallback = await SharePointExcelService.downloadAndParseWorkbook(resolvedFileId, resolvedTableName);
                     tableInfo = fallback.tableInfo;
                     rows = fallback.rows;
+                    console.log('✅ Arquivo lido com sucesso via método alternativo (XLSX library)');
                 } catch (fallbackErr) {
+                    console.error('❌ Falha ao ler arquivo mesmo com método alternativo:', fallbackErr.message);
                     throw fallbackErr;
                 }
             }
 
             const columns = (tableInfo.columns || []).map(c => c.name);
-
+            
             const data = (rows || []).map((row, idx) => {
                 const values = Array.isArray(row.values) && row.values.length > 0 ? row.values[0] : [];
+                
                 const obj = {};
 
-                // Mapear colunas para nomes padronizados (minúsculas, sem acentos)
+                // Mapear colunas para nomes padronizados (maiúsculas para compatibilidade com DataParser)
                 columns.forEach((col, i) => {
-                    // Manter nome original
-                    obj[col] = values[i] ?? null;
+                    // Manter nome original em MAIÚSCULAS (padrão do DataParser)
+                    const normalizedCol = col.toUpperCase();
+                    obj[normalizedCol] = values[i] ?? null;
 
-                    // Adicionar versão normalizada (minúsculas) para compatibilidade com SearchManager
-                    const normalizedKey = col.toLowerCase();
-                    if (normalizedKey !== col) {
-                        obj[normalizedKey] = values[i] ?? null;
-                    }
+                    // Adicionar versão lowercase para compatibilidade
+                    obj[col.toLowerCase()] = values[i] ?? null;
                 });
 
                 // metadata
@@ -582,6 +585,8 @@ const DataLoader = (function () {
                 obj.__odata = { row: row };
                 return obj;
             });
+
+            console.log(`[DataLoader] ✓ SharePoint: ${data.length} linhas carregadas (formato RAW)`);
 
             // validação básica
             const validation = validateData(data, { type: 'licenca' });
@@ -637,6 +642,9 @@ const DataLoader = (function () {
      * Backwards-compatible loader used by higher-level services.
      * Supported sources:
      *  - 'primary' -> SharePoint/OneDrive Excel resolved from env
+     * 
+     * RETORNA DADOS RAW (não processados) para que o chamador (App.js) processe
+     * da mesma forma que processa dados locais (CSV)
      */
     async function loadFromSource(source = 'primary', options = {}) {
         if (source === 'primary') {
@@ -645,16 +653,9 @@ const DataLoader = (function () {
             const tableName = options.tableName || null;
             const result = await loadFromSharePointExcel(fileId, tableName, options);
             if (result && result.state === LOADING_STATES.SUCCESS) {
-                // If a global DataStateManager exists, populate it so UI components receive updates
-                try {
-                    if (typeof window !== 'undefined' && window.dataStateManager && typeof window.dataStateManager.setAllServidores === 'function') {
-                        window.dataStateManager.setAllServidores(result.data);
-                        window.dataStateManager.setFilteredServidores(result.data);
-                    }
-                } catch (e) {
-                    console.warn('Failed to populate dataStateManager with loaded data:', e && e.message);
-                }
-
+                // Retornar dados RAW sem processar
+                // O processamento (groupByServidor + enrichServidoresBatch) será feito pelo App.js
+                console.log(`[DataLoader] ✓ Retornando ${result.data.length} linhas RAW para processamento`);
                 return result.data;
             }
 

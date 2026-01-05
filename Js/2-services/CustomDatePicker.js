@@ -388,6 +388,42 @@ class CustomDatePicker {
         }
     }
 
+    /**
+     * Define o valor do picker programaticamente
+     * @param {string} dateStr - Data no formato YYYY-MM-DD (para date), YYYY-MM (para month), ou YYYY (para year)
+     */
+    setValue(dateStr) {
+        if (!dateStr) return;
+        
+        this.input.value = dateStr;
+        this.hasValue = true;
+
+        if (this.type === 'date') {
+            const date = new Date(dateStr + 'T00:00:00');
+            this.selectedYear = date.getFullYear();
+            this.selectedMonth = date.getMonth();
+            this.selectedDay = date.getDate();
+            this.currentYear = this.selectedYear;
+            this.currentMonth = this.selectedMonth;
+        } else if (this.type === 'month') {
+            const [year, month] = dateStr.split('-').map(Number);
+            this.selectedYear = year;
+            this.selectedMonth = month - 1;
+            this.currentYear = year;
+            this.currentMonth = month - 1;
+        } else if (this.type === 'year') {
+            const year = parseInt(dateStr, 10);
+            this.selectedYear = year;
+            this.currentYear = year;
+        }
+
+        this.updateTriggerButton();
+        
+        if (this.pickerElement) {
+            this.updatePicker();
+        }
+    }
+
     handleDocumentClick(event) {
         const clickedInsideWrapper = this.wrapper && this.wrapper.contains(event.target);
         const clickedInsidePicker = this.pickerElement && this.pickerElement.contains(event.target);

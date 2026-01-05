@@ -26,14 +26,12 @@ class SharePointExcelService {
             return null;
         }
 
-        // Excel epoch: 01/01/1900 (mas Excel considera 1900 bissexto incorretamente)
-        // Precisamos compensar: dias 1-59 são Jan-Fev 1900, dia 60 é o "29/02/1900" fictício
-        const EXCEL_EPOCH = new Date(1899, 11, 30); // 30/12/1899 (dia antes do início)
+        // Excel epoch: 30/12/1899 ao meio-dia UTC
+        // IMPORTANTE: A biblioteca XLSX com raw:true já corrige o bug do Excel (dia 60 = 29/02/1900 fictício)
+        // Por isso NÃO fazemos ajuste de -1 aqui, usamos o serial direto
+        const EXCEL_EPOCH = new Date(Date.UTC(1899, 11, 30, 12, 0, 0));
 
-        // Se for antes do bug do Excel (60 = 29/02/1900 que não existe)
-        const adjustedSerial = excelSerial > 59 ? excelSerial - 1 : excelSerial;
-
-        const milliseconds = adjustedSerial * 24 * 60 * 60 * 1000;
+        const milliseconds = excelSerial * 24 * 60 * 60 * 1000;
         const date = new Date(EXCEL_EPOCH.getTime() + milliseconds);
 
         return date;
@@ -119,6 +117,47 @@ class SharePointExcelService {
     }
 
     /**
+     * Processa e normaliza os dados retornados para facilitar acesso
+     * @param {Array} rows - Linhas da tabela
+     * @param {Object} tableInfo - Informações da tabela
+     * @returns {Array} - Dados normalizados
+     */
+    static normalizeTableData(rows, tableInfo) {
+        const columns = (tableInfo.columns || []).map(c => c.name);
+        
+        return rows.map((row, rowIndex) => {
+            const rowData = {};
+            const values = row.values && row.values[0] ? row.values[0] : [];
+            
+            columns.forEach((colName, colIdx) => {
+                const value = values[colIdx];
+                rowData[colName] = value;
+                
+                // Log apenas para ZILDA nas colunas de data
+                if (String(values[0]).toUpperCase().includes('ZILDA')) {
+                    const isDateColumn = colName && (
+                        colName.toLowerCase().includes('data') ||
+                        colName.toLowerCase().includes('inicio') ||
+                        colName.toLowerCase().includes('fim') ||
+                        colName.toLowerCase().includes('partir') ||
+                        colName.toLowerCase().includes('termino') ||
+                        colName.toLowerCase().includes('aquisitivo')
+                    );
+                    
+                    if (isDateColumn) {
+                        console.log(`[ZILDA-NORMALIZE] Coluna "${colName}":`, {
+                            value,
+                            type: typeof value
+                        });
+                    }
+                }
+            });
+            
+            return rowData;
+        });
+    }
+
+    /**
      * Identifica quais colunas contêm datas baseado nos nomes
      * @private
      */
@@ -150,9 +189,10 @@ class SharePointExcelService {
     static _formatDateForDisplay(date) {
         if (!(date instanceof Date) || isNaN(date)) return null;
 
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
+        // Usar UTC para evitar problemas de timezone
+        const day = String(date.getUTCDate()).padStart(2, '0');
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const year = date.getUTCFullYear();
 
         return `${day}/${month}/${year}`;
     }
@@ -405,7 +445,9 @@ class SharePointExcelService {
 
         let workbook;
         try {
-            workbook = XLSX.read(data, { type: 'array' });
+            // IMPORTANTE: raw: true mantém valores brutos do Excel (números seriais para datas)
+            // sem isso, XLSX converte datas automaticamente causando problemas de timezone
+            workbook = XLSX.read(data, { type: 'array', cellDates: false, raw: true });
         } catch (e) {
             throw new Error('Failed to parse workbook via XLSX: ' + (e && e.message));
         }
@@ -415,7 +457,8 @@ class SharePointExcelService {
         if (!targetSheetName) throw new Error('No sheets found in workbook');
 
         const sheet = workbook.Sheets[targetSheetName];
-        const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false });
+        // IMPORTANTE: raw: true mantém números seriais do Excel para datas
+        const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, raw: true });
 
         if (!raw || raw.length === 0) {
             return { tableInfo: { columns: [] }, rows: [] };
@@ -513,8 +556,8 @@ class SharePointExcelService {
                 if (fileId) return { siteId, fileId, tableName };
             }
         } catch (e) {
-            // continue to fallback strategies
-            console.warn('Site-based resolution failed:', e && e.message);
+            // Estratégia A falhou, tentar próxima (debug apenas - não é erro)
+            console.debug('📍 Strategy A (site path) - not found, trying next...');
         }
 
         // Strategy B: user's personal drive (OneDrive for Business) via /me/drive
@@ -522,9 +565,12 @@ class SharePointExcelService {
             const itemEndpoint = `/me/drive/root:/${rel}`;
             const itemJson = await this._graphFetch(itemEndpoint, { method: 'GET' }, ['Files.Read']);
             const fileId = itemJson && itemJson.id;
-            if (fileId) return { siteId: null, fileId, tableName };
+            if (fileId) {
+                console.log('✅ Arquivo encontrado via Strategy B (OneDrive pessoal)');
+                return { siteId: null, fileId, tableName };
+            }
         } catch (e) {
-            console.warn('User-drive resolution failed:', e && e.message);
+            console.debug('📍 Strategy B (user drive) - not found, trying next...');
         }
 
         // Strategy C: attempt to treat sitePath as a site-id directly
@@ -532,9 +578,12 @@ class SharePointExcelService {
             const itemEndpoint = `/sites/${sitePath}/drive/root:/${rel}`;
             const itemJson = await this._graphFetch(itemEndpoint, { method: 'GET' }, ['Files.Read']);
             const fileId = itemJson && itemJson.id;
-            if (fileId) return { siteId: sitePath, fileId, tableName };
+            if (fileId) {
+                console.log('✅ Arquivo encontrado via Strategy C (site ID direto)');
+                return { siteId: sitePath, fileId, tableName };
+            }
         } catch (e) {
-            console.warn('Direct-siteid resolution failed:', e && e.message);
+            console.debug('📍 Strategy C (direct site-id) - not found, trying next...');
         }
 
         // Strategy D: attempt search by file name in user's drive (useful for personal OneDrive or when path differs)
@@ -548,11 +597,12 @@ class SharePointExcelService {
                     // prefer exact name match
                     const exact = items.find(i => i.name && i.name.toLowerCase() === decodedName.toLowerCase());
                     const chosen = exact || items[0];
+                    console.log('✅ Arquivo encontrado via Strategy D (busca por nome)');
                     return { siteId: null, fileId: chosen.id, tableName };
                 }
             }
         } catch (e) {
-            console.warn('Search-by-name resolution failed:', e && e.message);
+            console.debug('📍 Strategy D (search) - not found');
         }
 
         throw new Error('Could not resolve fileId from env config via any known strategy');

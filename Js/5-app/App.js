@@ -685,6 +685,13 @@ class App {
             // 4. Transformar dados
             const transformedData = await this._transformData(parsedData);
 
+            // ✅ GARANTIR que todos têm __rowIndex
+            transformedData.forEach((servidor, index) => {
+                if (!('__rowIndex' in servidor)) {
+                    servidor.__rowIndex = index;
+                }
+            });
+
             // 5. Armazenar no DataStateManager
             if (this.dataStateManager) {
                 this.dataStateManager.setAllServidores(transformedData);
@@ -769,22 +776,36 @@ class App {
     }
 
     /**
-     * Parseia dados CSV
+     * Parseia dados CSV ou array de objetos
      * @private
-     * @param {string} rawData - Dados brutos
+     * @param {string|Array} rawData - Dados brutos (CSV string ou array de objetos)
      * @returns {Promise<Array>}
      */
     async _parseData(rawData) {
         if (typeof DataParser !== 'undefined') {
-            // 1. Parse do CSV (cada linha vira um objeto)
-            const rawRows = DataParser.parseCSV(rawData);
-            console.log(`📋 CSV parseado: ${rawRows.length} linhas`);
+            // Se for string, é CSV que precisa ser parseado
+            if (typeof rawData === 'string') {
+                // 1. Parse do CSV (cada linha vira um objeto)
+                const rawRows = DataParser.parseCSV(rawData);
+                console.log(`📋 CSV parseado: ${rawRows.length} linhas`);
 
-            // 2. Agrupar por servidor (agregando licenças)
-            const servidores = DataParser.groupByServidor(rawRows);
-            console.log(`👥 Servidores agregados: ${servidores.length} servidores`);
+                // 2. Agrupar por servidor (agregando licenças)
+                const servidores = DataParser.groupByServidor(rawRows);
+                console.log(`👥 Servidores agregados: ${servidores.length} servidores`);
 
-            return servidores;
+                return servidores;
+            }
+            
+            // Se for array, são dados já parseados (ex: SharePoint) que só precisam ser agrupados
+            if (Array.isArray(rawData)) {
+                console.log(`📋 Array recebido: ${rawData.length} linhas`);
+                
+                // Agrupar por servidor
+                const servidores = DataParser.groupByServidor(rawData);
+                console.log(`👥 Servidores agregados: ${servidores.length} servidores`);
+                
+                return servidores;
+            }
         }
 
         // Fallback: usar parser legado se disponível
@@ -828,6 +849,15 @@ class App {
                 console.log('💾 Restaurando dados do cache...');
 
                 let restored = cached.data;
+                
+                // ✅ GARANTIR que todos têm __rowIndex (cache antigo pode não ter)
+                restored = restored.map((servidor, index) => {
+                    if (!('__rowIndex' in servidor)) {
+                        servidor.__rowIndex = index;
+                    }
+                    return servidor;
+                });
+                
                 // Se disponível, garantir que dados restaurados sejam enriquecidos/normalizados
                 try {
                     if (typeof DataTransformer !== 'undefined' && DataTransformer.enrichServidoresBatch) {
@@ -943,16 +973,47 @@ class App {
 
     /**
      * Tenta carregar os dados primários automaticamente se possível.
-     * Faz uma tentativa silenciosa de obter token antes de acionar o loader para evitar popups inesperados.
+     * Verifica cache primeiro (TTL 10 min), só carrega do SharePoint se necessário.
      * @private
      */
     async _loadPrimaryData() {
         try {
             if (!this.dataStateManager) return;
 
-            // Se já temos dados carregados do cache, não forçar reload
+            // 1. VERIFICAR CACHE PRIMEIRO
+            if (this.cacheService) {
+                const cached = await this.cacheService.getLatestCache();
+                if (cached && cached.data) {
+                    const cacheAge = Date.now() - (cached.timestamp || 0);
+                    const CACHE_TTL = 10 * 60 * 1000; // 10 minutos
+
+                    // Se cache ainda é válido (< 10 min), usar dados em cache
+                    if (cacheAge < CACHE_TTL) {
+                        console.log(`💾 Auto-load: Cache válido (${Math.round(cacheAge / 1000)}s), usando dados em cache`);
+                        
+                        // Restaurar do cache com enriquecimento
+                        let restored = cached.data;
+                        if (typeof DataTransformer !== 'undefined' && DataTransformer.enrichServidoresBatch) {
+                            restored = DataTransformer.enrichServidoresBatch(restored);
+                        }
+                        
+                        this.dataStateManager.setAllServidores(restored);
+                        this.dataStateManager.setFilteredServidores(restored);
+                        
+                        if (this.notificationService) {
+                            this.notificationService.info('Dados carregados do cache');
+                        }
+                        
+                        return;
+                    } else {
+                        console.log(`⏱️ Auto-load: Cache expirado (${Math.round(cacheAge / 1000)}s), recarregando do SharePoint`);
+                    }
+                }
+            }
+
+            // 2. SE CACHE INVÁLIDO/INEXISTENTE, CARREGAR DO SHAREPOINT
             if (this.dataStateManager.hasData()) {
-                console.log('Auto-load: dados já presentes, pulando carregamento automático');
+                console.log('Auto-load: dados já presentes (sem cache), pulando carregamento automático');
                 return;
             }
 
@@ -968,25 +1029,69 @@ class App {
                 return;
             }
 
-            console.log('Auto-load: token silencioso disponível — iniciando DataLoader.loadFromSource');
+            console.log('Auto-load: token silencioso disponível — iniciando carregamento do SharePoint');
 
             if (typeof DataLoader === 'undefined' || !DataLoader.loadFromSource) {
                 console.warn('DataLoader não disponível para carregar dados primários');
                 return;
             }
 
-            const data = await DataLoader.loadFromSource('primary');
-            if (data && Array.isArray(data)) {
-                console.log(`Auto-load: ${data.length} registros carregados do source 'primary'`);
-                // DataLoader already populates dataStateManager, but ensure it's set
-                try {
-                    this.dataStateManager.setAllServidores(data);
-                    this.dataStateManager.setFilteredServidores(data);
-                } catch (e) { /* ignore */ }
+            // 1. Carregar dados RAW do SharePoint (formato flat, como CSV)
+            const rawData = await DataLoader.loadFromSource('primary');
+            if (!rawData || !Array.isArray(rawData)) {
+                console.warn('Auto-load: dados inválidos recebidos do SharePoint');
+                return;
             }
+
+            console.log(`📥 Auto-load: ${rawData.length} linhas carregadas do SharePoint (RAW)`);
+
+            // 2. PROCESSAR DADOS usando MESMO CAMINHO que upload local
+            // Agrupar por servidor
+            console.log('👥 Auto-load: Agrupando por servidor...');
+            const parsedData = DataParser.groupByServidor(rawData);
+            console.log(`✓ ${parsedData.length} servidores agrupados`);
+
+            // 3. Enriquecer dados
+            console.log('💎 Auto-load: Enriquecendo dados...');
+            const transformedData = await this._transformData(parsedData);
+            console.log(`✓ ${transformedData.length} servidores enriquecidos`);
+
+            // ✅ GARANTIR que todos têm __rowIndex
+            transformedData.forEach((servidor, index) => {
+                if (!('__rowIndex' in servidor)) {
+                    servidor.__rowIndex = index;
+                }
+            });
+
+            // 4. Salvar no DataStateManager
+            this.dataStateManager.setAllServidores(transformedData);
+            this.dataStateManager.setFilteredServidores(transformedData);
+
+            // 5. Salvar no cache
+            if (this.cacheService) {
+                await this.cacheService.saveToCache('sharepoint-data', transformedData, {
+                    source: 'sharepoint',
+                    timestamp: Date.now()
+                });
+                console.log('💾 Auto-load: Dados salvos no cache');
+            }
+
+            // 6. Notificar usuário
+            if (this.notificationService) {
+                this.notificationService.success(
+                    `Dados carregados do SharePoint: ${transformedData.length} servidores`
+                );
+            }
+
+            console.log('✅ Auto-load: Fluxo completo finalizado - dados prontos para uso');
 
         } catch (error) {
             console.warn('Auto-load failure:', error && (error.message || error));
+            
+            if (this.notificationService) {
+                this.notificationService.error(`Erro ao carregar dados: ${error.message}`);
+            }
+            
             throw error;
         }
     }

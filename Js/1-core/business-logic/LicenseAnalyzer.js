@@ -95,8 +95,6 @@ const LicenseAnalyzer = {
             return result;
         }
 
-        console.log(`[DEBUG contarStatusLicencas] Processando ${servidores.length} servidores`);
-
         // Normalizar data de referência
         const refDate = new Date(referenceDate);
         refDate.setHours(0, 0, 0, 0);
@@ -185,8 +183,6 @@ const LicenseAnalyzer = {
                 result.naoAgendadas++;
             }
         });
-
-        console.log('[DEBUG contarStatusLicencas] Resultado:', result);
 
         return result;
     },
@@ -374,15 +370,6 @@ const LicenseAnalyzer = {
                 meses: lic.meses
             }));
 
-            console.log(`[DEBUG] Servidor: ${servidor.servidor || servidor.nome}`, {
-                hoje: refDate.toISOString().split('T')[0],
-                licencas: debugInfo,
-                primeirasLicencas: licencasDebug,
-                hasEmAndamento,
-                hasAgendada,
-                hasConcluida,
-                hasValidLicense
-            });
             this._debugCount++;
         }
 
@@ -427,17 +414,6 @@ const LicenseAnalyzer = {
             'TotalSaldo',
             'TOTALSALDO'
         ]);
-
-        // Debug logging (apenas primeiros 5 servidores)
-        if (this._debugSaldoCount === undefined) this._debugSaldoCount = 0;
-        if (this._debugSaldoCount < 5) {
-            console.log(`[DEBUG SALDO] Servidor: ${servidor.servidor || servidor.nome}`, {
-                licencaAConceder,
-                saldo,
-                campos: Object.keys(servidor).filter(k => k.toLowerCase().includes('saldo') || k.toLowerCase().includes('conceder'))
-            });
-            this._debugSaldoCount++;
-        }
 
         // Se tem informação de saldo
         if (licencaAConceder !== undefined && licencaAConceder !== null) {
