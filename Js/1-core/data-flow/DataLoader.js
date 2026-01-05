@@ -564,7 +564,19 @@ const DataLoader = (function () {
             const data = (rows || []).map((row, idx) => {
                 const values = Array.isArray(row.values) && row.values.length > 0 ? row.values[0] : [];
                 const obj = {};
-                columns.forEach((col, i) => obj[col] = values[i] ?? null);
+
+                // Mapear colunas para nomes padronizados (minúsculas, sem acentos)
+                columns.forEach((col, i) => {
+                    // Manter nome original
+                    obj[col] = values[i] ?? null;
+
+                    // Adicionar versão normalizada (minúsculas) para compatibilidade com SearchManager
+                    const normalizedKey = col.toLowerCase();
+                    if (normalizedKey !== col) {
+                        obj[normalizedKey] = values[i] ?? null;
+                    }
+                });
+
                 // metadata
                 obj.__rowIndex = idx;
                 obj.__odata = { row: row };

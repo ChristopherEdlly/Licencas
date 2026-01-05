@@ -629,9 +629,8 @@ class TableManager {
             }
             const editBtn = e.target.closest('[data-action="edit"]');
             if (editBtn) {
-                const row = editBtn.closest('tr');
-                const index = parseInt(row.dataset.index);
-                this._handleAction('edit', index);
+                const rowIndex = parseInt(editBtn.dataset.rowIndex);  // ✅ USA __rowIndex DO BOTÃO
+                this._handleAction('edit', rowIndex);
             }
         });
 
@@ -639,12 +638,17 @@ class TableManager {
         this._reattachSortListeners();
     }
 
-    _handleAction(action, index) {
-        const sortedData = this._sortData(this.app?.dataStateManager?.getFilteredServidores() || []);
-        const servidor = sortedData[index];
+    _handleAction(action, rowIndex) {
+        const allData = this.app?.dataStateManager?.getAllServidores() || [];
+        const servidor = allData.find(s => s.__rowIndex === rowIndex);  // ✅ BUSCA PELO __rowIndex
+
+        if (!servidor) {
+            console.error('Servidor não encontrado com __rowIndex:', rowIndex);
+            return;
+        }
 
         console.log('[TableManager] DEBUG - Servidor clicado:', {
-            index,
+            rowIndex,
             servidor,
             campos: servidor ? Object.keys(servidor) : []
         });
@@ -658,11 +662,21 @@ class TableManager {
             try {
                 // If LicenseEditModal is registered on app, open it
                 if (this.app && this.app.licenseEditModal && typeof this.app.licenseEditModal.open === 'function') {
-                    this.app.licenseEditModal.open({ mode: 'edit', row: servidor, rowIndex: index });
+                    this.app.licenseEditModal.open({
+                        mode: 'edit',
+                        row: servidor,
+                        rowIndex: servidor.__rowIndex  // ✅ PASSA O __rowIndex CORRETO
+                    });
                 } else if (typeof window.LicenseEditModal !== 'undefined') {
                     // Fallback: global modal
                     const m = new window.LicenseEditModal(this.app);
-                    if (m && typeof m.open === 'function') m.open({ mode: 'edit', row: servidor, rowIndex: index });
+                    if (m && typeof m.open === 'function') {
+                        m.open({
+                            mode: 'edit',
+                            row: servidor,
+                            rowIndex: servidor.__rowIndex  // ✅ PASSA O __rowIndex CORRETO
+                        });
+                    }
                 } else {
                     console.warn('LicenseEditModal não disponível');
                 }

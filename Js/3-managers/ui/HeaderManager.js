@@ -150,6 +150,8 @@ class HeaderManager {
      * @param {string} query - Termo de busca
      */
     _executeSearch(query) {
+        console.log('🔍 [DEBUG] _executeSearch chamado:', { query, hasSearchManager: !!this.app.searchManager });
+
         if (!this.app.searchManager) {
             console.warn('⚠️ SearchManager não disponível');
             return;
@@ -159,6 +161,8 @@ class HeaderManager {
         const data = this.app.dataStateManager?.getAllServidores() ||
                      this.app.allServidores ||
                      [];
+
+        console.log('🔍 [DEBUG] Dados disponíveis:', { count: data.length, sample: data[0] });
 
         if (data.length === 0) {
             console.log('ℹ️ Nenhum dado para buscar');
@@ -170,7 +174,12 @@ class HeaderManager {
         // Executar busca
         const results = this.app.searchManager.search(query, data);
 
-        console.log(`🔍 Busca no header: "${query}" → ${results.length} resultados`);
+        console.log(`🔍 Busca no header: "${query}" → ${results.length} resultados`, {
+            queryLength: query.length,
+            dataCount: data.length,
+            resultsCount: results.length,
+            firstResult: results[0]
+        });
 
         // Atualizar dados filtrados
         if (this.app.dataStateManager) {
