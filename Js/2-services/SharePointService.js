@@ -17,7 +17,7 @@ class SharePointService {
      */
     static CONFIG = {
         GRAPH_API_BASE: 'https://graph.microsoft.com/v1.0',
-        SCOPES: ['Files.Read', 'Files.Read.All', 'Sites.Read.All'],
+        SCOPES: ['Files.Read'], // Removido Files.Read.All e Sites.Read.All (requerem admin consent)
         MAX_SEARCH_RESULTS: 25
     };
 

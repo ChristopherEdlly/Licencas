@@ -303,7 +303,7 @@ class SharePointExcelService {
             const me = await this._graphFetch('/me', { method: 'GET' }, ['User.Read']);
 
             // obter permissões do item
-            const perms = await this._graphFetch(`/me/drive/items/${fileId}/permissions`, { method: 'GET' }, ['Files.Read.All']);
+            const perms = await this._graphFetch(`/me/drive/items/${fileId}/permissions`, { method: 'GET' }, ['Files.Read']);
             const entries = perms.value || [];
 
             const userEmail = (me.userPrincipalName || me.mail || '').toLowerCase();
