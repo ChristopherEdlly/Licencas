@@ -698,9 +698,15 @@ class App {
                 this.dataStateManager.setFilteredServidores(transformedData);
             }
 
-            // 6. Salvar no cache
+            // 6. Salvar no cache (arquivos locais não têm metadados SharePoint)
             if (this.cacheService) {
-                await this.cacheService.saveToCache(file.name, transformedData);
+                await this.cacheService.saveToCache(file.name, transformedData, {
+                    source: 'local',
+                    fileName: file.name,
+                    timestamp: Date.now()
+                });
+
+                console.log('[App] 💾 Arquivo local salvo no cache:', file.name);
             }
 
             // Emitir evento de sucesso
@@ -866,6 +872,34 @@ class App {
                     }
                 } catch (e) {
                     console.warn('⚠️ Falha ao enriquecer dados do cache, usando dados originais', e);
+                }
+
+                // CRÍTICO: Restaurar metadados do SharePoint se existirem no cache
+                if (cached.metadata && this.dataStateManager) {
+                    const { fileId, tableName, tableInfo, ...otherMeta } = cached.metadata;
+
+                    if (fileId && tableName && tableInfo) {
+                        // Reconstituir objeto de metadados
+                        const sourceMetadata = {
+                            fileId: fileId,
+                            tableName: tableName,
+                            tableInfo: tableInfo
+                        };
+
+                        this.dataStateManager.setSourceMetadata(sourceMetadata);
+
+                        console.log('[App] ✅ Metadados restaurados do cache:', {
+                            fileId: fileId,
+                            tableName: tableName,
+                            columnCount: tableInfo?.columns?.length || 0
+                        });
+                    } else {
+                        console.warn('[App] ⚠️ Cache tem metadata mas faltam campos críticos:', {
+                            hasFileId: !!fileId,
+                            hasTableName: !!tableName,
+                            hasTableInfo: !!tableInfo
+                        });
+                    }
                 }
 
                 if (this.dataStateManager) {
@@ -1067,13 +1101,25 @@ class App {
             this.dataStateManager.setAllServidores(transformedData);
             this.dataStateManager.setFilteredServidores(transformedData);
 
-            // 5. Salvar no cache
+            // 5. Salvar no cache COM METADADOS
             if (this.cacheService) {
+                // CRÍTICO: Obter metadados completos do DataStateManager
+                const sourceMetadata = this.dataStateManager.getSourceMetadata();
+
                 await this.cacheService.saveToCache('sharepoint-data', transformedData, {
                     source: 'sharepoint',
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    // Adicionar metadados do SharePoint para restaurar após reload
+                    fileId: sourceMetadata?.fileId,
+                    tableName: sourceMetadata?.tableName,
+                    tableInfo: sourceMetadata?.tableInfo
                 });
-                console.log('💾 Auto-load: Dados salvos no cache');
+
+                console.log('[App] 💾 Cache salvo com metadados:', {
+                    fileId: sourceMetadata?.fileId,
+                    tableName: sourceMetadata?.tableName,
+                    hasTableInfo: !!sourceMetadata?.tableInfo
+                });
             }
 
             // 6. Notificar usuário
@@ -1295,8 +1341,15 @@ class App {
      * @private
      */
     async _updateNewRecordButton() {
+        console.log('[App] 🔍 _updateNewRecordButton chamado');
+
         const addRecordButton = document.getElementById('addRecordButton');
-        if (!addRecordButton) return;
+        if (!addRecordButton) {
+            console.warn('[App] ❌ Botão addRecordButton não encontrado no DOM');
+            return;
+        }
+
+        console.log('[App] ✅ Botão addRecordButton encontrado');
 
         try {
             // Verificar se tem metadados do SharePoint (fileId disponível)
@@ -1304,27 +1357,41 @@ class App {
                 ? this.dataStateManager.getSourceMetadata()
                 : null;
 
+            console.log('[App] 📊 Metadados do SharePoint:', {
+                hasMeta: !!meta,
+                hasFileId: !!meta?.fileId,
+                fileId: meta?.fileId
+            });
+
             if (!meta || !meta.fileId) {
+                console.log('[App] ⚠️ Sem metadados do SharePoint, escondendo botão');
                 addRecordButton.style.display = 'none';
                 return;
             }
 
             // Verificar permissões de escrita
             if (typeof PermissionsService !== 'undefined') {
+                console.log('[App] 🔐 Verificando permissões com PermissionsService...');
                 const canEdit = await PermissionsService.canEdit(meta.fileId);
+                console.log('[App] 🔑 Permissão para editar:', canEdit);
+
                 if (canEdit) {
+                    console.log('[App] ✅ Mostrando botão adicionar');
                     addRecordButton.style.display = 'inline-flex';
 
                     // Adicionar event listener (apenas uma vez)
                     if (!addRecordButton._clickListenerAttached) {
                         addRecordButton.addEventListener('click', () => this._handleNewRecord());
                         addRecordButton._clickListenerAttached = true;
+                        console.log('[App] 🎧 Event listener adicionado ao botão');
                     }
                 } else {
+                    console.log('[App] ⛔ Sem permissão para editar, escondendo botão');
                     addRecordButton.style.display = 'none';
                 }
             } else {
                 // Se PermissionsService não disponível, mostrar o botão
+                console.log('[App] ⚠️ PermissionsService não disponível, mostrando botão de qualquer forma');
                 addRecordButton.style.display = 'inline-flex';
 
                 if (!addRecordButton._clickListenerAttached) {
@@ -1333,7 +1400,7 @@ class App {
                 }
             }
         } catch (error) {
-            console.warn('Erro ao atualizar botão de adicionar:', error);
+            console.error('[App] ❌ Erro ao atualizar botão de adicionar:', error);
             addRecordButton.style.display = 'none';
         }
     }
