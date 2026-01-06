@@ -206,7 +206,9 @@ class SharePointExcelService {
         try {
             const canWrite = await this.userHasWritePermission(fileId);
             if (!canWrite) {
-                await this.AuditService.logAction('FORBIDDEN_CREATE', { fileId, tableName, values: rowValuesArray });
+                if (this.AuditService && typeof this.AuditService.logAction === 'function') {
+                    await this.AuditService.logAction('FORBIDDEN_CREATE', { fileId, tableName, values: rowValuesArray });
+                }
                 throw new Error('Usuário não possui permissão de escrita para este arquivo');
             }
         } catch (err) {
@@ -218,12 +220,30 @@ class SharePointExcelService {
         const body = { values: [rowValuesArray] };
         try {
             const res = await this._graphFetch(path, { method: 'POST', body: JSON.stringify(body) }, ['Files.ReadWrite']);
-            await this.AuditService.logAction('CREATE', { fileId, tableName, values: rowValuesArray });
+            if (this.AuditService && typeof this.AuditService.logAction === 'function') {
+                await this.AuditService.logAction('CREATE', { fileId, tableName, values: rowValuesArray });
+            }
             return res;
         } catch (err) {
+            // Tratar erro 403 especificamente
             if (err.status === 403) {
-                await this.AuditService.logAction('FORBIDDEN_CREATE', { fileId, tableName, values: rowValuesArray, error: err.message });
+                if (this.AuditService && typeof this.AuditService.logAction === 'function') {
+                    await this.AuditService.logAction('FORBIDDEN_CREATE', { fileId, tableName, values: rowValuesArray, error: err.message });
+                }
+                
+                // Mensagem específica para arquivo .xls
+                const errorMsg = err.message || '';
+                if (errorMsg.includes('Could not obtain a WAC access token') || errorMsg.includes('AccessDenied')) {
+                    throw new Error('ERRO: O arquivo está no formato .XLS (antigo). A API do SharePoint só permite escrita em arquivos .XLSX (novo formato). Por favor, converta o arquivo para .XLSX no Excel e tente novamente.');
+                }
             }
+            
+            // Tratar erro 404 especificamente - tabela não encontrada
+            if (err.message && (err.message.includes('404') || err.message.includes('ItemNotFound'))) {
+                console.error('[SharePointExcelService] Tabela não encontrada:', { fileId, tableName });
+                throw new Error(`ERRO 404: A tabela '${tableName}' não foi encontrada no arquivo Excel.\n\nPossíveis causas:\n1. A tabela não foi criada (Selecione os dados → Inserir → Tabela)\n2. O nome da tabela está incorreto (Clique na tabela → Design → verifique o Nome da Tabela)\n3. O arquivo não foi salvo após criar a tabela\n4. O arquivo precisa ser fechado e reaberto no SharePoint\n\nVerifique e tente novamente.`);
+            }
+            
             throw err;
         }
     }
@@ -270,7 +290,9 @@ class SharePointExcelService {
             try {
                 const canWrite = await this.userHasWritePermission(fileId);
                 if (!canWrite) {
-                    await this.AuditService.logAction('FORBIDDEN_UPDATE', { fileId, tableName, rowIndex, updates });
+                    if (this.AuditService && typeof this.AuditService.logAction === 'function') {
+                        await this.AuditService.logAction('FORBIDDEN_UPDATE', { fileId, tableName, rowIndex, updates });
+                    }
                     throw new Error('Usuário não possui permissão de escrita para este arquivo');
                 }
             } catch (permErr) {
@@ -282,7 +304,9 @@ class SharePointExcelService {
                 headers,
                 body: JSON.stringify({ values: [newValues] })
             }, ['Files.ReadWrite']);
-            await this.AuditService.logAction('UPDATE', { fileId, tableName, rowIndex, updates: newValues });
+            if (this.AuditService && typeof this.AuditService.logAction === 'function') {
+                await this.AuditService.logAction('UPDATE', { fileId, tableName, rowIndex, updates: newValues });
+            }
             return res;
         } catch (err) {
             // Fallback: atualizar via worksheet range
@@ -318,11 +342,15 @@ class SharePointExcelService {
                         body: JSON.stringify({ values: [newValues] }),
                         headers
                     }, ['Files.ReadWrite']);
-                    await this.AuditService.logAction('UPDATE', { fileId, tableName, rowIndex, updates: newValues, fallback: true });
+                    if (this.AuditService && typeof this.AuditService.logAction === 'function') {
+                        await this.AuditService.logAction('UPDATE', { fileId, tableName, rowIndex, updates: newValues, fallback: true });
+                    }
                     return res2;
                 } catch (errRange) {
                     if (errRange.status === 403) {
-                        await this.AuditService.logAction('FORBIDDEN_UPDATE', { fileId, tableName, rowIndex, updates: newValues, error: errRange.message });
+                        if (this.AuditService && typeof this.AuditService.logAction === 'function') {
+                            await this.AuditService.logAction('FORBIDDEN_UPDATE', { fileId, tableName, rowIndex, updates: newValues, error: errRange.message });
+                        }
                     }
                     throw errRange;
                 }

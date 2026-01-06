@@ -678,14 +678,23 @@ class TableManager {
         // Edit action: open edit modal only
         if (action === 'edit' && servidor) {
             try {
-                // If LicenseEditModal is registered on app, open it
-                if (this.app && this.app.licenseEditModal && typeof this.app.licenseEditModal.open === 'function') {
+                // Preferir WizardModal se disponível
+                if (this.app && this.app.wizardModal && typeof this.app.wizardModal.open === 'function') {
+                    console.log('[TableManager] Abrindo WizardModal para editar');
+                    this.app.wizardModal.open('edit', servidor, servidor);
+                } else if (this.app && this.app.licenseEditModal && typeof this.app.licenseEditModal.open === 'function') {
+                    console.log('[TableManager] Fallback: abrindo LicenseEditModal');
                     this.app.licenseEditModal.open({
                         mode: 'edit',
                         row: servidor,
                         rowIndex: servidor.__rowIndex  // ✅ PASSA O __rowIndex CORRETO
                     });
+                } else if (typeof window.WizardModal !== 'undefined') {
+                    console.log('[TableManager] Criando instância de WizardModal');
+                    const m = new window.WizardModal(this.app);
+                    m.open('edit', servidor, servidor);
                 } else if (typeof window.LicenseEditModal !== 'undefined') {
+                    console.log('[TableManager] Fallback: criando instância de LicenseEditModal');
                     // Fallback: global modal
                     const m = new window.LicenseEditModal(this.app);
                     if (m && typeof m.open === 'function') {
@@ -696,7 +705,7 @@ class TableManager {
                         });
                     }
                 } else {
-                    console.warn('LicenseEditModal não disponível');
+                    console.warn('Nenhum modal de edição disponível (WizardModal ou LicenseEditModal)');
                 }
             } catch (e) {
                 console.error('Erro ao abrir edit modal:', e);

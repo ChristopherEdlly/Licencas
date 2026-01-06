@@ -246,6 +246,115 @@ const DataTransformer = (function () {
     // ============================================================
 
     /**
+     * Calcula períodos aquisitivos de licença prêmio (5 anos de ciclos)
+     * @param {Object} servidor - Servidor com licenças
+     * @returns {Array<Object>} Array de períodos aquisitivos
+     */
+    function calcularPeriodosAquisitivos(servidor) {
+        const periodos = [];
+        const hoje = new Date();
+        
+        // Primeiro, tentar extrair períodos reais das licenças existentes
+        const periodosReais = new Map();
+        
+        if (servidor.licencas && Array.isArray(servidor.licencas)) {
+            servidor.licencas.forEach(lic => {
+                const aquisitivoInicio = ensureDate(lic.aquisitivoInicio || lic.AQUISITIVO_INICIO);
+                const aquisitivoFim = ensureDate(lic.aquisitivoFim || lic.AQUISITIVO_FIM);
+                
+                if (aquisitivoInicio && aquisitivoFim) {
+                    const key = `${aquisitivoInicio.toISOString()}_${aquisitivoFim.toISOString()}`;
+                    if (!periodosReais.has(key)) {
+                        periodosReais.set(key, {
+                            inicio: aquisitivoInicio,
+                            fim: aquisitivoFim,
+                            diasGozados: 0
+                        });
+                    }
+                    // Somar dias gozados neste período
+                    periodosReais.get(key).diasGozados += (lic.diasGozados || lic.dias || 0);
+                }
+            });
+        }
+        
+        // Se encontrou períodos reais, usar eles
+        if (periodosReais.size > 0) {
+            console.log(`[DataTransformer] Encontrados ${periodosReais.size} períodos aquisitivos reais para ${servidor.nome || servidor.NOME}`);
+            
+            periodosReais.forEach((periodo, key) => {
+                const diasGerados = 90;
+                const disponivel = Math.max(0, diasGerados - periodo.diasGozados);
+                
+                const anoInicio = periodo.inicio.getFullYear();
+                const anoFim = periodo.fim.getFullYear();
+                const label = anoInicio === anoFim ? `${anoInicio}` : `${anoInicio}-${anoFim}`;
+                
+                periodos.push({
+                    label: label,
+                    inicio: periodo.inicio,
+                    fim: periodo.fim,
+                    anoInicio: anoInicio,
+                    anoFim: anoFim,
+                    diasGerados: diasGerados,
+                    diasGozados: periodo.diasGozados,
+                    disponivel: disponivel,
+                    estaVencido: periodo.fim < hoje
+                });
+            });
+            
+            // Ordenar por data de início
+            periodos.sort((a, b) => a.inicio - b.inicio);
+            
+            // Adicionar próximo período (futuro)
+            if (periodos.length > 0) {
+                const ultimoPeriodo = periodos[periodos.length - 1];
+                const proximoInicio = new Date(ultimoPeriodo.fim);
+                proximoInicio.setDate(proximoInicio.getDate() + 1);
+                
+                const proximoFim = new Date(proximoInicio);
+                proximoFim.setFullYear(proximoFim.getFullYear() + 5);
+                proximoFim.setDate(proximoFim.getDate() - 1);
+                
+                periodos.push({
+                    label: `${proximoInicio.getFullYear()}-${proximoFim.getFullYear()}`,
+                    inicio: proximoInicio,
+                    fim: proximoFim,
+                    anoInicio: proximoInicio.getFullYear(),
+                    anoFim: proximoFim.getFullYear(),
+                    diasGerados: 90,
+                    diasGozados: 0,
+                    disponivel: 90,
+                    estaVencido: false
+                });
+            }
+        } else {
+            // Fallback: gerar períodos genéricos de 1 ano (últimos 5 anos)
+            console.log(`[DataTransformer] Sem períodos reais, gerando períodos genéricos para ${servidor.nome || servidor.NOME}`);
+            
+            const anoAtual = hoje.getFullYear();
+            for (let i = 0; i < 5; i++) {
+                const anoInicio = anoAtual - (4 - i);
+                const inicio = new Date(anoInicio, 0, 1);
+                const fim = new Date(anoInicio, 11, 31);
+                
+                periodos.push({
+                    label: `${anoInicio}`,
+                    inicio: inicio,
+                    fim: fim,
+                    anoInicio: anoInicio,
+                    anoFim: anoInicio,
+                    diasGerados: 90,
+                    diasGozados: 0,
+                    disponivel: 90,
+                    estaVencido: fim < hoje
+                });
+            }
+        }
+        
+        return periodos;
+    }
+
+    /**
      * Enriquece um registro de servidor com dados calculados
      * @param {Object} servidor - Registro de servidor básico
      * @returns {Object} Servidor enriquecido
@@ -421,6 +530,10 @@ const DataTransformer = (function () {
         }
 
         // === FIM DA NORMALIZAÇÃO ===
+
+        // ===  CÁLCULO DE PERÍODOS AQUISITIVOS ===
+        // Gera períodos aquisitivos de 5 anos com dias disponíveis
+        enriched.periodosAquisitivos = calcularPeriodosAquisitivos(enriched);
 
         // Calcula estatísticas de licenças (se disponível)
         if (enriched.licencas && Array.isArray(enriched.licencas)) {

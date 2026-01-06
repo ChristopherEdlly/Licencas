@@ -257,6 +257,14 @@ class App {
             console.log('✅ NotificationService disponível');
         }
 
+        // SharePointExcelService
+        if (typeof SharePointExcelService !== 'undefined') {
+            this.sharePointExcelService = SharePointExcelService;
+            console.log('✅ SharePointExcelService disponível');
+        } else {
+            console.warn('⚠️ SharePointExcelService não disponível - operações de CRUD desabilitadas');
+        }
+
         // AuthenticationService
         if (typeof AuthenticationService !== 'undefined') {
             this.authService = AuthenticationService;
@@ -352,6 +360,16 @@ class App {
                     console.log('✅ LicenseEditModal inicializado');
                 } catch (e) {
                     console.warn('⚠️ Falha ao inicializar LicenseEditModal:', e);
+                }
+            }
+            
+            // WizardModal (Nova UI em wizard para adicionar/editar licenças)
+            if (typeof WizardModal !== 'undefined') {
+                try {
+                    this.wizardModal = new WizardModal(this);
+                    console.log('✅ WizardModal inicializado');
+                } catch (e) {
+                    console.warn('⚠️ Falha ao inicializar WizardModal:', e);
                 }
             }
         }
@@ -463,6 +481,14 @@ class App {
             console.log('✅ LicenseEditModal inicializado');
         } else {
             console.log('ℹ️ LicenseEditModal não disponível');
+        }
+        
+        // WizardModal (Nova UI em wizard)
+        if (typeof WizardModal !== 'undefined') {
+            this.wizardModal = new WizardModal(this);
+            console.log('✅ WizardModal inicializado');
+        } else {
+            console.log('ℹ️ WizardModal não disponível');
         }
     }
 
@@ -851,7 +877,15 @@ class App {
 
         try {
             const cached = await this.cacheService.getLatestCache();
-                if (cached && cached.data) {
+
+            console.log('[App] 🔍 Cache obtido:', {
+                hasCached: !!cached,
+                hasData: !!(cached && cached.data),
+                hasMetadata: !!(cached && cached.metadata),
+                fileId: cached?.metadata?.fileId
+            });
+
+            if (cached && cached.data) {
                 console.log('💾 Restaurando dados do cache...');
 
                 let restored = cached.data;
@@ -912,6 +946,36 @@ class App {
                 }
 
                 console.log(`✅ Cache restaurado: ${cached.data.length} registros`);
+
+                // CRÍTICO: Atualizar UI após restaurar metadados
+                if (cached.metadata && cached.metadata.fileId) {
+                    console.log('[App] 🔄 Atualizando UI com metadados restaurados...');
+
+                    // Atualizar botão "Adicionar"
+                    await this._updateNewRecordButton();
+
+                    // Aguardar a tabela ser renderizada e então aplicar permissões
+                    // Usar setTimeout mais longo para garantir renderização completa
+                    setTimeout(async () => {
+                        console.log('[App] 🔍 Iniciando verificação de permissões após timeout...');
+
+                        if (this.tableManager) {
+                            // Verificar permissões (assíncrono)
+                            if (typeof this.tableManager._checkEditPermissions === 'function') {
+                                await this.tableManager._checkEditPermissions();
+                                console.log('[App] ✅ Permissões verificadas');
+
+                                // APÓS verificar, aplicar estado nos botões
+                                if (typeof this.tableManager._applyEditButtonsState === 'function') {
+                                    this.tableManager._applyEditButtonsState();
+                                    console.log('[App] ✅ Estado dos botões de edição aplicado');
+                                }
+                            }
+                        } else {
+                            console.warn('[App] ⚠️ TableManager não disponível para aplicar permissões');
+                        }
+                    }, 500); // 500ms delay para garantir que a tabela foi completamente renderizada
+                }
             }
         } catch (error) {
             console.warn('⚠️ Erro ao restaurar cache:', error);
@@ -1130,6 +1194,9 @@ class App {
             }
 
             console.log('✅ Auto-load: Fluxo completo finalizado - dados prontos para uso');
+
+            // 7. Atualizar botão de adicionar
+            await this._updateNewRecordButton();
 
         } catch (error) {
             console.warn('Auto-load failure:', error && (error.message || error));
@@ -1370,9 +1437,9 @@ class App {
             }
 
             // Verificar permissões de escrita
-            if (typeof PermissionsService !== 'undefined') {
+            if (typeof window !== 'undefined' && window.PermissionsService && typeof window.PermissionsService.canEdit === 'function') {
                 console.log('[App] 🔐 Verificando permissões com PermissionsService...');
-                const canEdit = await PermissionsService.canEdit(meta.fileId);
+                const canEdit = await window.PermissionsService.canEdit(meta.fileId);
                 console.log('[App] 🔑 Permissão para editar:', canEdit);
 
                 if (canEdit) {
@@ -1410,10 +1477,15 @@ class App {
      * @private
      */
     _handleNewRecord() {
-        if (this.licenseEditModal && typeof this.licenseEditModal.open === 'function') {
+        // Preferir WizardModal se disponível
+        if (this.wizardModal && typeof this.wizardModal.open === 'function') {
+            console.log('[App] Abrindo WizardModal (add mode)');
+            this.wizardModal.open('add');
+        } else if (this.licenseEditModal && typeof this.licenseEditModal.open === 'function') {
+            console.log('[App] Fallback para LicenseEditModal');
             this.licenseEditModal.open({ mode: 'create', row: null, rowIndex: null });
         } else {
-            console.warn('LicenseEditModal não disponível');
+            console.warn('Nenhum modal de edição disponível');
             if (this.notificationService) {
                 this.notificationService.error('Modal de edição não disponível');
             }
@@ -1520,6 +1592,159 @@ class App {
                 }
             }, 100);
         }, 100);
+    }
+
+    /**
+     * Adiciona nova licença (chamado pelo WizardModal)
+     * @param {Object} licenseData - Dados da licença
+     */
+    async addNewLicense(licenseData) {
+        console.log('[App] addNewLicense chamado:', licenseData);
+        
+        try {
+            // Validar dados obrigatórios
+            if (!licenseData.NOME || !licenseData.CPF) {
+                throw new Error('Dados do servidor são obrigatórios');
+            }
+            
+            if (!licenseData.NUMERO || !licenseData.EMISSAO) {
+                throw new Error('Dados da licença são obrigatórios');
+            }
+            
+            // Obter metadados do SharePoint
+            const metadata = this.dataStateManager.getSourceMetadata();
+            
+            if (!metadata || !metadata.fileId || !metadata.tableName) {
+                throw new Error('Metadados do SharePoint não disponíveis. Recarregue os dados.');
+            }
+            
+            console.log('[App] Adicionando linha ao SharePoint:', {
+                fileId: metadata.fileId,
+                tableName: metadata.tableName
+            });
+            
+            // Verificar se SharePointExcelService está disponível
+            if (!this.sharePointExcelService) {
+                throw new Error('SharePointExcelService não disponível');
+            }
+            
+            // Adicionar linha ao SharePoint
+            const result = await this.sharePointExcelService.addTableRow(
+                metadata.fileId,
+                metadata.tableName,
+                licenseData
+            );
+            
+            // Registrar no audit log se disponível
+            if (typeof AuditService !== 'undefined' && AuditService.logAction) {
+                AuditService.logAction('CREATE', 'License', licenseData);
+            }
+            
+            console.log('[App] Linha adicionada com sucesso:', result);
+            
+            // Recarregar dados
+            await this._loadPrimaryData();
+            
+            // Mostrar notificação de sucesso
+            if (this.notificationService) {
+                this.notificationService.success('Licença adicionada com sucesso!');
+            }
+            
+            return result;
+            
+        } catch (error) {
+            console.error('[App] Erro ao adicionar licença:', error);
+            
+            // Mensagem de erro mais específica para 403
+            let errorMessage = error.message;
+            if (error.message && error.message.includes('403')) {
+                errorMessage = 'Sem permissão de escrita no arquivo. Verifique se você tem acesso de edição ao arquivo Excel no SharePoint.';
+            } else if (error.message && error.message.includes('Could not obtain a WAC access token')) {
+                errorMessage = 'Não foi possível obter permissão de escrita. O arquivo pode estar aberto por outro usuário ou você não tem permissões de edição.';
+            }
+            
+            if (this.notificationService) {
+                this.notificationService.error('Erro ao adicionar licença: ' + errorMessage);
+            }
+            
+            throw error;
+        }
+    }
+
+    /**
+     * Atualiza licença existente (chamado pelo WizardModal)
+     * @param {Object} originalData - Dados originais da licença
+     * @param {Object} updatedData - Dados atualizados
+     */
+    async updateLicense(originalData, updatedData) {
+        console.log('[App] updateLicense chamado:', { originalData, updatedData });
+        
+        try {
+            // Validar dados obrigatórios
+            if (!updatedData.NOME || !updatedData.CPF) {
+                throw new Error('Dados do servidor são obrigatórios');
+            }
+            
+            if (!updatedData.NUMERO || !updatedData.EMISSAO) {
+                throw new Error('Dados da licença são obrigatórios');
+            }
+            
+            // Obter metadados do SharePoint
+            const metadata = this.dataStateManager.getSourceMetadata();
+            
+            if (!metadata || !metadata.fileId || !metadata.tableName) {
+                throw new Error('Metadados do SharePoint não disponíveis. Recarregue os dados.');
+            }
+            
+            // Determinar o índice da linha (baseado no __rowIndex ou buscar no Excel)
+            let rowIndex = originalData.__rowIndex;
+            
+            if (!rowIndex) {
+                console.warn('[App] __rowIndex não disponível, buscando linha no Excel...');
+                // TODO: Implementar busca da linha no Excel se necessário
+                throw new Error('Índice da linha não disponível');
+            }
+            
+            console.log('[App] Atualizando linha do SharePoint:', {
+                fileId: metadata.fileId,
+                tableName: metadata.tableName,
+                rowIndex: rowIndex
+            });
+            
+            // Verificar se SharePointExcelService está disponível
+            if (!this.sharePointExcelService) {
+                throw new Error('SharePointExcelService não disponível');
+            }
+            
+            // Atualizar linha no SharePoint
+            const result = await this.sharePointExcelService.updateTableRow(
+                metadata.fileId,
+                metadata.tableName,
+                rowIndex,
+                updatedData
+            );
+            
+            console.log('[App] Linha atualizada com sucesso:', result);
+            
+            // Recarregar dados
+            await this._loadPrimaryData();
+            
+            // Mostrar notificação de sucesso
+            if (this.notificationService) {
+                this.notificationService.success('Licença atualizada com sucesso!');
+            }
+            
+            return result;
+            
+        } catch (error) {
+            console.error('[App] Erro ao atualizar licença:', error);
+            
+            if (this.notificationService) {
+                this.notificationService.error('Erro ao atualizar licença: ' + error.message);
+            }
+            
+            throw error;
+        }
     }
 
 }
