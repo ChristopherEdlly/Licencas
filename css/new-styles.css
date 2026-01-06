@@ -1704,15 +1704,44 @@ body.sidebar-collapsed .sidebar .nav-link.active {
     margin-left: auto;
 }
 
-/* Botão Importar */
+/* Botão Adicionar (destaque principal) */
+.btn-add-record {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+
+.btn-add-record:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-add-record i {
+    font-size: 1.125rem;
+    font-weight: bold;
+}
+
+/* Botão Importar (estilo secundário) */
 .btn-import {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
-    background: var(--primary);
-    color: white;
-    border: none;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
     border-radius: 8px;
     font-size: 0.875rem;
     font-weight: 600;
@@ -1722,9 +1751,10 @@ body.sidebar-collapsed .sidebar .nav-link.active {
 }
 
 .btn-import:hover {
-    background: var(--primary-hover);
+    background: var(--bg-hover);
+    border-color: var(--primary);
+    color: var(--primary);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
 }
 
 .btn-import i {

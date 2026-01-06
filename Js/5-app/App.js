@@ -1284,19 +1284,19 @@ class App {
             }
             if (logoutButton) logoutButton.style.display = 'none';
 
-            // Esconder botão de novo registro
-            const newRecordButton = document.getElementById('newRecordButton');
-            if (newRecordButton) newRecordButton.style.display = 'none';
+            // Esconder botão de adicionar
+            const addRecordButton = document.getElementById('addRecordButton');
+            if (addRecordButton) addRecordButton.style.display = 'none';
         }
     }
 
     /**
-     * Atualiza visibilidade e estado do botão de novo registro
+     * Atualiza visibilidade e estado do botão de adicionar registro
      * @private
      */
     async _updateNewRecordButton() {
-        const newRecordButton = document.getElementById('newRecordButton');
-        if (!newRecordButton) return;
+        const addRecordButton = document.getElementById('addRecordButton');
+        if (!addRecordButton) return;
 
         try {
             // Verificar se tem metadados do SharePoint (fileId disponível)
@@ -1305,7 +1305,7 @@ class App {
                 : null;
 
             if (!meta || !meta.fileId) {
-                newRecordButton.style.display = 'none';
+                addRecordButton.style.display = 'none';
                 return;
             }
 
@@ -1313,28 +1313,28 @@ class App {
             if (typeof PermissionsService !== 'undefined') {
                 const canEdit = await PermissionsService.canEdit(meta.fileId);
                 if (canEdit) {
-                    newRecordButton.style.display = 'inline-flex';
+                    addRecordButton.style.display = 'inline-flex';
 
                     // Adicionar event listener (apenas uma vez)
-                    if (!newRecordButton._clickListenerAttached) {
-                        newRecordButton.addEventListener('click', () => this._handleNewRecord());
-                        newRecordButton._clickListenerAttached = true;
+                    if (!addRecordButton._clickListenerAttached) {
+                        addRecordButton.addEventListener('click', () => this._handleNewRecord());
+                        addRecordButton._clickListenerAttached = true;
                     }
                 } else {
-                    newRecordButton.style.display = 'none';
+                    addRecordButton.style.display = 'none';
                 }
             } else {
                 // Se PermissionsService não disponível, mostrar o botão
-                newRecordButton.style.display = 'inline-flex';
+                addRecordButton.style.display = 'inline-flex';
 
-                if (!newRecordButton._clickListenerAttached) {
-                    newRecordButton.addEventListener('click', () => this._handleNewRecord());
-                    newRecordButton._clickListenerAttached = true;
+                if (!addRecordButton._clickListenerAttached) {
+                    addRecordButton.addEventListener('click', () => this._handleNewRecord());
+                    addRecordButton._clickListenerAttached = true;
                 }
             }
         } catch (error) {
-            console.warn('Erro ao atualizar botão de novo registro:', error);
-            newRecordButton.style.display = 'none';
+            console.warn('Erro ao atualizar botão de adicionar:', error);
+            addRecordButton.style.display = 'none';
         }
     }
 
