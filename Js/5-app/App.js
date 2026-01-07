@@ -474,22 +474,6 @@ class App {
             console.log('✅ KeyboardManager inicializado');
         }
 
-        // LicenseEditModal (SharePoint CRUD)
-        if (typeof LicenseEditModal !== 'undefined') {
-            this.licenseEditModal = new LicenseEditModal(this);
-            this.licenseEditModal.init();
-            console.log('✅ LicenseEditModal inicializado');
-        } else {
-            console.log('ℹ️ LicenseEditModal não disponível');
-        }
-        
-        // WizardModal (Nova UI em wizard)
-        if (typeof WizardModal !== 'undefined') {
-            this.wizardModal = new WizardModal(this);
-            console.log('✅ WizardModal inicializado');
-        } else {
-            console.log('ℹ️ WizardModal não disponível');
-        }
     }
 
     /**
@@ -1618,9 +1602,14 @@ class App {
                 throw new Error('Metadados do SharePoint não disponíveis. Recarregue os dados.');
             }
             
+            if (!metadata.tableInfo || !metadata.tableInfo.columns) {
+                throw new Error('Informações de colunas da tabela não disponíveis. Recarregue os dados.');
+            }
+            
             console.log('[App] Adicionando linha ao SharePoint:', {
                 fileId: metadata.fileId,
-                tableName: metadata.tableName
+                tableName: metadata.tableName,
+                columns: metadata.tableInfo.columns.map(c => c.name)
             });
             
             // Verificar se SharePointExcelService está disponível
@@ -1628,11 +1617,19 @@ class App {
                 throw new Error('SharePointExcelService não disponível');
             }
             
+            // Converter objeto para array na ordem das colunas
+            const rowValuesArray = this.sharePointExcelService.convertLicenseObjectToArray(
+                licenseData,
+                metadata.tableInfo
+            );
+            
+            console.log('[App] Array de valores para inserir:', rowValuesArray);
+            
             // Adicionar linha ao SharePoint
             const result = await this.sharePointExcelService.addTableRow(
                 metadata.fileId,
                 metadata.tableName,
-                licenseData
+                rowValuesArray
             );
             
             // Registrar no audit log se disponível

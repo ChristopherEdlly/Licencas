@@ -309,6 +309,7 @@ class DataParser {
                 servidoresMap.set(chave, {
                     nome: nome.trim(),
                     cpf: cpf || '',
+                    rg: row.RG || row.rg || '',
                     cargo: row.CARGO || row.cargo || '',
                     lotacao: row.LOTACAO || row.LOTAÇÃO || row.lotacao || '',
                     unidade: row.UNIDADE || row.unidade || '',

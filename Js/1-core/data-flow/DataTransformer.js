@@ -405,6 +405,12 @@ const DataTransformer = (function () {
             enriched.cpfFormatado = FormatUtils.formatCPF(enriched.cpf);
         }
 
+        // Formata RG
+        if (enriched.rg || enriched.RG) {
+            const rgValue = enriched.rg || enriched.RG;
+            enriched.rgFormatado = FormatUtils.formatRG(rgValue);
+        }
+
         // Formata nome
         if (enriched.nome) {
             enriched.nomeFormatado = FormatUtils.formatProperName(enriched.nome);

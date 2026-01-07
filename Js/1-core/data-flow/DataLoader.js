@@ -545,8 +545,27 @@ const DataLoader = (function () {
             let tableInfo;
             let rows;
             try {
+                // Buscar tableInfo primeiro
                 tableInfo = await SharePointExcelService.getTableInfo(resolvedFileId, resolvedTableName);
-                rows = await SharePointExcelService.getTableRows(resolvedFileId, resolvedTableName);
+                
+                // 🔧 CORREÇÃO CRÍTICA: Se tableInfo.columns está vazio, criar fallback ANTES de processar linhas
+                if (!tableInfo.columns || tableInfo.columns.length === 0) {
+                    console.error('🚨 [DataLoader] tableInfo.columns VAZIO! Criando fallback antes de processar linhas...');
+                    console.error('   tableInfo original:', JSON.stringify(tableInfo, null, 2));
+                    
+                    // Criar colunas padrão da BD_LPREMIO
+                    const fallbackColumnNames = [
+                        'NUMERO', 'EMISSAO', 'UNIDADE', 'LOTACAO', 'NOME', 'CARGO', 'REF',
+                        'CPF', 'RG', 'AQUISITIVO_INICIO', 'AQUISITIVO_FIM', 'A_PARTIR',
+                        'TERMINO', 'RESTANDO', 'GOZO'
+                    ];
+                    
+                    tableInfo.columns = fallbackColumnNames.map(name => ({ name }));
+                    console.log('   ✅ Fallback aplicado:', tableInfo.columns.length, 'colunas criadas');
+                }
+                
+                // Passar tableInfo (já corrigido se necessário) para getTableRows evitar chamada duplicada
+                rows = await SharePointExcelService.getTableRows(resolvedFileId, resolvedTableName, tableInfo);
                 console.log('✅ Dados carregados via Workbook API (arquivo .xlsx moderno)');
             } catch (err) {
                 // If Graph workbook endpoints are not available (e.g., old .xls files or WAC errors),
@@ -563,7 +582,20 @@ const DataLoader = (function () {
                 }
             }
 
-            const columns = (tableInfo.columns || []).map(c => c.name);
+            let columns = (tableInfo.columns || []).map(c => c.name);
+            
+            // NOTA: Se chegou aqui com columns vazio, o fallback já foi aplicado acima em tableInfo.columns
+            // Este segundo fallback é redundante mas mantemos como safety net
+            if (!columns || columns.length === 0) {
+                console.error('🚨 [DataLoader] ERRO CRÍTICO: columns ainda vazio mesmo após fallback!');
+                columns = [
+                    'NUMERO', 'EMISSAO', 'UNIDADE', 'LOTACAO', 'NOME', 'CARGO', 'REF',
+                    'CPF', 'RG', 'AQUISITIVO_INICIO', 'AQUISITIVO_FIM', 'A_PARTIR',
+                    'TERMINO', 'RESTANDO', 'GOZO'
+                ];
+            }
+            
+            console.log('[DataLoader] Usando', columns.length, 'colunas:', columns.slice(0, 5), '...');
             
             const data = (rows || []).map((row, idx) => {
                 const values = Array.isArray(row.values) && row.values.length > 0 ? row.values[0] : [];

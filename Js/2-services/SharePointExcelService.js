@@ -77,19 +77,34 @@ class SharePointExcelService {
      */
     static async getTableInfo(fileId, tableName) {
         const path = `/me/drive/items/${fileId}/workbook/tables/${encodeURIComponent(tableName)}`;
-        return await this._graphFetch(path, { method: 'GET' });
+        const result = await this._graphFetch(path, { method: 'GET' });
+        
+        if (!result.columns || result.columns.length === 0) {
+            console.warn(`[SharePointExcelService] ⚠️ getTableInfo "${tableName}": Nenhuma coluna retornada pela API`);
+        }
+        
+        return result;
     }
 
     /**
      * Lista todas as linhas da tabela (com conversão automática de datas serializadas do Excel)
+     * @param {string} fileId - ID do arquivo
+     * @param {string} tableName - Nome da tabela
+     * @param {Object} [tableInfo] - Informações da tabela (opcional, se não fornecido será buscado)
      */
-    static async getTableRows(fileId, tableName) {
+    static async getTableRows(fileId, tableName, tableInfo = null) {
+        console.log(`[SharePointExcelService] 📋 getTableRows: "${tableName}"${tableInfo ? ' (com tableInfo)' : ' (SEM tableInfo - fará chamada extra!)'}`);
         const path = `/me/drive/items/${fileId}/workbook/tables/${encodeURIComponent(tableName)}/rows`;
         const json = await this._graphFetch(path, { method: 'GET' });
         const rows = json.value || [];
 
         // Obter nomes das colunas para identificar campos de data
-        const tableInfo = await this.getTableInfo(fileId, tableName);
+        // Se tableInfo foi fornecido, usar ele; caso contrário, buscar
+        if (!tableInfo) {
+            console.warn('[SharePointExcelService] ⚠️ getTableRows: tableInfo não fornecido, fazendo chamada extra à API');
+            tableInfo = await this.getTableInfo(fileId, tableName);
+        }
+        
         const dateColumns = this._identifyDateColumns(tableInfo);
 
         // Processar cada linha convertendo datas seriais do Excel
@@ -102,11 +117,31 @@ class SharePointExcelService {
                 if (!Array.isArray(rowArray)) return rowArray;
 
                 return rowArray.map((cellValue, colIdx) => {
-                    // Se é uma coluna de data E parece um serial date, converter
-                    if (dateColumns.has(colIdx) && this.looksLikeExcelDate(cellValue)) {
-                        const date = this.excelSerialToDate(cellValue);
-                        // Retornar como string ISO ou formato brasileiro
-                        return date ? this._formatDateForDisplay(date) : cellValue;
+                    // Se é uma coluna de data, processar conversão
+                    if (dateColumns.has(colIdx)) {
+                        // Caso 1: É um número serial do Excel
+                        if (this.looksLikeExcelDate(cellValue)) {
+                            const date = this.excelSerialToDate(cellValue);
+                            return date ? this._formatDateForDisplay(date) : cellValue;
+                        } 
+                        // Caso 2: É uma string ISO (YYYY-MM-DD) da API
+                        else if (typeof cellValue === 'string' && /^\d{4}-\d{2}-\d{2}/.test(cellValue)) {
+                            try {
+                                const date = new Date(cellValue + 'T00:00:00.000Z'); // Force UTC
+                                return this._formatDateForDisplay(date);
+                            } catch (e) {
+                                console.warn(`[SharePointExcelService] Erro ao converter data ISO: ${cellValue}`);
+                                return cellValue;
+                            }
+                        }
+                        // Caso 3: É uma string de data brasileiro (DD/MM/YYYY) - já está formatado
+                        else if (typeof cellValue === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(cellValue)) {
+                            return cellValue;
+                        }
+                        // Caso 4: Valor nulo, vazio ou outros formatos
+                        else {
+                            return cellValue;
+                        }
                     }
                     return cellValue;
                 });
@@ -164,7 +199,7 @@ class SharePointExcelService {
     static _identifyDateColumns(tableInfo) {
         const dateKeywords = [
             'data', 'date', 'inicio', 'fim', 'termino', 'partir',
-            'aquisitivo', 'nascimento', 'admissao', 'DN', 'ADMISSÃO'
+            'aquisitivo', 'nascimento', 'admissao', 'DN', 'ADMISSÃO', 'emissao'
         ];
 
         const dateColumns = new Set();
@@ -177,6 +212,8 @@ class SharePointExcelService {
                     dateColumns.add(idx);
                 }
             });
+        } else {
+            console.warn('[SharePointExcelService] ⚠️ tableInfo.columns vazio - nenhuma coluna de data será identificada');
         }
 
         return dateColumns;
@@ -195,6 +232,48 @@ class SharePointExcelService {
         const year = date.getUTCFullYear();
 
         return `${day}/${month}/${year}`;
+    }
+
+    /**
+     * Converte objeto de licença para array de valores na ordem das colunas da tabela
+     * @param {Object} licenseObject - Objeto com dados da licença
+     * @param {Object} tableInfo - Informações da tabela com colunas
+     * @returns {Array} - Array de valores na ordem das colunas
+     */
+    static convertLicenseObjectToArray(licenseObject, tableInfo) {
+        if (!tableInfo || !tableInfo.columns || !Array.isArray(tableInfo.columns)) {
+            throw new Error('tableInfo com colunas é obrigatório para converter objeto em array');
+        }
+
+        console.log('[SharePointExcelService] Convertendo objeto para array:', {
+            licenseObject,
+            columns: tableInfo.columns.map(c => c.name)
+        });
+
+        const valuesArray = tableInfo.columns.map(col => {
+            const colName = col.name;
+            let value = licenseObject[colName];
+
+            // Se valor é undefined ou null, usar string vazia
+            if (value === undefined || value === null) {
+                return '';
+            }
+
+            // Converter números para número (não string)
+            if (typeof value === 'number') {
+                return value;
+            }
+
+            // Garantir que datas estão em formato string
+            if (value instanceof Date) {
+                return value.toISOString().split('T')[0]; // YYYY-MM-DD
+            }
+
+            return String(value);
+        });
+
+        console.log('[SharePointExcelService] Array de valores:', valuesArray);
+        return valuesArray;
     }
 
     /**
@@ -259,7 +338,7 @@ class SharePointExcelService {
         const tableInfo = await this.getTableInfo(fileId, tableName);
         const columns = (tableInfo.columns || []).map(c => c.name);
 
-        const rows = await this.getTableRows(fileId, tableName);
+        const rows = await this.getTableRows(fileId, tableName, tableInfo);
         const row = rows[rowIndex];
         if (!row) throw new Error('Row not found at index ' + rowIndex);
 
@@ -419,8 +498,8 @@ class SharePointExcelService {
      * Filtra linhas localmente por pares chave/valor
      */
     static async filterTableRows(fileId, tableName, filterObj) {
-        const rows = await this.getTableRows(fileId, tableName);
         const tableInfo = await this.getTableInfo(fileId, tableName);
+        const rows = await this.getTableRows(fileId, tableName, tableInfo);
         const columns = (tableInfo.columns || []).map(c => c.name);
 
         return rows.filter(row => {
