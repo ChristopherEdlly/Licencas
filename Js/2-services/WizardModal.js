@@ -683,43 +683,35 @@ class WizardModal {
         const queryCPFClean = query.replace(/\D/g, '');
         console.log('[WizardModal] Query normalizada para CPF:', queryCPFClean);
         
-        // Buscar por CPF ou nome
-        const found = searchData.find(s => {
+        // Buscar por CPF ou nome - TODOS os resultados
+        const foundResults = searchData.filter(s => {
             // Busca por CPF (remove todos caracteres não-numéricos)
             if (queryCPFClean.length >= 3) {
                 const cpfValue = s.cpf || s.CPF || '';
                 const cpfClean = String(cpfValue).replace(/\D/g, '');
-                console.log('[WizardModal] Comparando CPF:', { query: queryCPFClean, cpf: cpfClean, original: cpfValue });
                 if (cpfClean && cpfClean.includes(queryCPFClean)) {
-                    console.log('[WizardModal] ✓ Match por CPF!');
                     return true;
                 }
             }
-            
+
             // Busca por nome (case insensitive, partial match)
             const nome = (s.nome || s.NOME || '').toLowerCase().trim();
             const queryNome = query.toLowerCase().trim();
             if (queryNome.length >= 3) {
-                console.log('[WizardModal] Comparando nome:', { query: queryNome, nome: nome, original: s.nome || s.NOME });
                 if (nome && nome.includes(queryNome)) {
-                    console.log('[WizardModal] ✓ Match por nome!');
                     return true;
                 }
             }
-            
+
             return false;
         });
-        
+
+        console.log('[WizardModal] Resultados encontrados:', foundResults.length);
+
         // Simular delay para mostrar loading (em produção, isso seria uma chamada async)
         setTimeout(() => {
-            if (found) {
-                console.log('[WizardModal] Servidor encontrado:', found);
-                this._fillServidorData(found);
-                // Re-renderizar step 1 para atualizar os campos com as badges (auto)
-                this._showStep(1);
-                this._showNotification(`✓ Servidor encontrado: ${found.nome || found.NOME}`, 'success', 3000);
-                console.log('[WizardModal] Campos atualizados com sucesso');
-            } else {
+            if (foundResults.length === 0) {
+                // Nenhum resultado
                 console.log('[WizardModal] Nenhum servidor encontrado para:', query);
                 this._showNotification('Nenhum servidor encontrado com esse CPF ou Nome', 'warning', 4000);
 
@@ -728,8 +720,107 @@ class WizardModal {
                 searchBtn.innerHTML = originalBtnText;
                 searchInput.disabled = false;
                 searchInput.focus();
+            } else if (foundResults.length === 1) {
+                // Apenas 1 resultado - preencher automaticamente
+                const found = foundResults[0];
+                console.log('[WizardModal] Servidor encontrado:', found);
+                this._fillServidorData(found);
+                this._showStep(1);
+                this._showNotification(`✓ Servidor encontrado: ${found.nome || found.NOME}`, 'success', 3000);
+                console.log('[WizardModal] Campos atualizados com sucesso');
+            } else {
+                // Múltiplos resultados - mostrar lista para escolher
+                console.log('[WizardModal] Múltiplos resultados encontrados:', foundResults.length);
+                this._showMultipleResults(foundResults, originalBtnText);
             }
         }, 300); // Delay mínimo para mostrar loading
+    }
+
+    /**
+     * Mostra lista de múltiplos resultados para o usuário escolher
+     */
+    _showMultipleResults(results, originalBtnText) {
+        const searchBtn = document.getElementById('wizardSearchBtn');
+        const searchInput = document.getElementById('wizardSearch');
+
+        // Restaurar botão
+        searchBtn.disabled = false;
+        searchBtn.innerHTML = originalBtnText;
+        searchInput.disabled = false;
+
+        // Criar lista de resultados
+        const resultsList = results.map((servidor, index) => {
+            const nome = servidor.nome || servidor.NOME || 'Sem nome';
+            const cpf = servidor.cpf || servidor.CPF || '';
+            const cargo = servidor.cargo || servidor.CARGO || '';
+            const lotacao = servidor.lotacao || servidor.LOTACAO || servidor.lotação || servidor.LOTAÇÃO || '';
+
+            return `
+                <div class="wizard-search-result-item" data-index="${index}">
+                    <div class="wizard-search-result-main">
+                        <span class="wizard-search-result-name">${nome}</span>
+                        ${cpf ? `<span class="wizard-search-result-cpf">CPF: ${cpf}</span>` : ''}
+                    </div>
+                    <div class="wizard-search-result-details">
+                        ${cargo ? `<span class="wizard-search-result-detail">${cargo}</span>` : ''}
+                        ${lotacao ? `<span class="wizard-search-result-detail">• ${lotacao}</span>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Mostrar notificação com lista
+        const notification = this.modal.querySelector('.wizard-notification');
+        if (notification) notification.remove();
+
+        const resultsBox = document.createElement('div');
+        resultsBox.className = 'wizard-search-results';
+        resultsBox.innerHTML = `
+            <div class="wizard-search-results-header">
+                <span class="wizard-search-results-icon">👥</span>
+                <span class="wizard-search-results-title">Encontrados ${results.length} servidores</span>
+                <button class="wizard-search-results-close" aria-label="Fechar">×</button>
+            </div>
+            <div class="wizard-search-results-subtitle">Clique em um para selecionar:</div>
+            <div class="wizard-search-results-list">
+                ${resultsList}
+            </div>
+        `;
+
+        // Inserir no modal body (antes do divider)
+        const divider = this.modal.querySelector('.wizard-divider');
+        if (divider) {
+            divider.parentElement.insertBefore(resultsBox, divider);
+        } else {
+            const modalBody = this.modal.querySelector('.wizard-body');
+            modalBody.insertBefore(resultsBox, modalBody.firstChild.nextSibling);
+        }
+
+        // Animar entrada
+        setTimeout(() => resultsBox.classList.add('wizard-search-results-show'), 10);
+
+        // Event listeners
+        const closeBtn = resultsBox.querySelector('.wizard-search-results-close');
+        closeBtn.addEventListener('click', () => {
+            resultsBox.classList.remove('wizard-search-results-show');
+            setTimeout(() => resultsBox.remove(), 300);
+        });
+
+        // Click em cada resultado
+        const items = resultsBox.querySelectorAll('.wizard-search-result-item');
+        items.forEach((item, index) => {
+            item.addEventListener('click', () => {
+                const selected = results[index];
+                console.log('[WizardModal] Servidor selecionado da lista:', selected);
+                this._fillServidorData(selected);
+                this._showStep(1);
+                this._showNotification(`✓ Servidor selecionado: ${selected.nome || selected.NOME}`, 'success', 3000);
+
+                // Remover lista
+                resultsBox.classList.remove('wizard-search-results-show');
+                setTimeout(() => resultsBox.remove(), 300);
+            });
+        });
     }
 
     /**
