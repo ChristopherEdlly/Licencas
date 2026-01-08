@@ -55,7 +55,30 @@ class AdvancedFilterManager {
             filtered = filtered.filter(s => applyMatch(s.cargo, this.activeFilters.cargo));
         }
         if (this.activeFilters.lotacao) {
-            filtered = filtered.filter(s => applyMatch(s.lotacao, this.activeFilters.lotacao));
+            // Suporte a array de lotações (do HierarchyFilterModal) E match por siglas/hierarquia
+            const lotacaoFilter = this.activeFilters.lotacao;
+            const lotacoes = Array.isArray(lotacaoFilter) ? lotacaoFilter : [lotacaoFilter];
+            
+            filtered = filtered.filter(servidor => {
+                const servidorLotacao = (servidor.lotacao || '').toUpperCase().trim();
+                const servidorLotacaoNormalizada = servidor._lotacaoNormalizada || servidorLotacao;
+                
+                return lotacoes.some(filtroLotacao => {
+                    const filtroNormalizado = (filtroLotacao || '').toUpperCase().trim();
+                    
+                    // Match exato
+                    if (servidorLotacao === filtroNormalizado) return true;
+                    
+                    // Match por lotação normalizada
+                    if (servidorLotacaoNormalizada === filtroNormalizado) return true;
+                    
+                    // Match parcial (siglas: SUTRI, GECAP, etc)
+                    if (servidorLotacao.includes(filtroNormalizado)) return true;
+                    if (servidorLotacaoNormalizada.includes(filtroNormalizado)) return true;
+                    
+                    return false;
+                });
+            });
         }
         if (this.activeFilters.superintendencia) {
             filtered = filtered.filter(s => applyMatch(s.superintendencia, this.activeFilters.superintendencia));

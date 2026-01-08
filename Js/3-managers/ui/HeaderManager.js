@@ -226,11 +226,9 @@ class HeaderManager {
      * @param {Array} results - Resultados
      */
     _notifySearchResults(query, results) {
-        // Atualizar tabela na HomePage
-        if (this.app.pages?.home) {
-            this.app.pages.home.updateTable(results);
-        }
-
+        // REMOVIDA chamada direta updateTable() - já é disparada pelo evento 'filtered-data-changed'
+        // quando setFilteredServidores() é chamado em _executeSearch
+        
         // Atualizar contador
         const totalCount = this.app.dataStateManager?.getAllServidores()?.length ||
                           this.app.allServidores?.length ||

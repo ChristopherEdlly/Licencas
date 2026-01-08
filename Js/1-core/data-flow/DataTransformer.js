@@ -263,12 +263,19 @@ const DataTransformer = (function () {
                 const aquisitivoFim = ensureDate(lic.aquisitivoFim || lic.AQUISITIVO_FIM);
                 
                 if (aquisitivoInicio && aquisitivoFim) {
-                    const key = `${aquisitivoInicio.toISOString()}_${aquisitivoFim.toISOString()}`;
+                    // IMPORTANTE: Agrupar por ANO para evitar duplicados por diferença de dias
+                    // (ex: 04/04/2013-04/04/2018 vs 06/04/2013-05/04/2018 devem ser o mesmo período)
+                    const anoInicio = aquisitivoInicio.getFullYear();
+                    const anoFim = aquisitivoFim.getFullYear();
+                    const key = `${anoInicio}_${anoFim}`;
+                    
                     if (!periodosReais.has(key)) {
                         periodosReais.set(key, {
                             inicio: aquisitivoInicio,
                             fim: aquisitivoFim,
-                            diasGozados: 0
+                            diasGozados: 0,
+                            anoInicio: anoInicio,
+                            anoFim: anoFim
                         });
                     }
                     // Somar dias gozados neste período
@@ -286,8 +293,9 @@ const DataTransformer = (function () {
                 const diasGerados = 90;
                 const disponivel = Math.max(0, diasGerados - periodo.diasGozados);
                 
-                const anoInicio = periodo.inicio.getFullYear();
-                const anoFim = periodo.fim.getFullYear();
+                // Usar anos já armazenados no período
+                const anoInicio = periodo.anoInicio;
+                const anoFim = periodo.anoFim;
                 const label = anoInicio === anoFim ? `${anoInicio}` : `${anoInicio}-${anoFim}`;
                 
                 periodos.push({
@@ -551,12 +559,15 @@ const DataTransformer = (function () {
 
             // Calcular total gerado por períodos aquisitivos
             // Identificar períodos aquisitivos únicos e assumir 90 dias gerados por período
+            // IMPORTANTE: Agrupar por ANO para evitar que pequenas diferenças de dias
+            // (ex: 04/04/2013 vs 06/04/2013) criem períodos duplicados
             const uniqueAquisitivos = new Set();
             enriched.licencas.forEach(lic => {
                 if (lic.aquisitivoInicio instanceof Date || lic.aquisitivoFim instanceof Date) {
-                    const inicioKey = lic.aquisitivoInicio ? lic.aquisitivoInicio.toISOString().slice(0,10) : '';
-                    const fimKey = lic.aquisitivoFim ? lic.aquisitivoFim.toISOString().slice(0,10) : '';
-                    uniqueAquisitivos.add(`${inicioKey}-${fimKey}`);
+                    // Usar APENAS o ano para agrupar períodos (tolerância para diferenças de dias)
+                    const anoInicio = lic.aquisitivoInicio ? lic.aquisitivoInicio.getFullYear() : '';
+                    const anoFim = lic.aquisitivoFim ? lic.aquisitivoFim.getFullYear() : '';
+                    uniqueAquisitivos.add(`${anoInicio}-${anoFim}`);
                 } else if (lic.inicio instanceof Date) {
                     // fallback: use year window
                     uniqueAquisitivos.add(`aquisitivo-${lic.inicio.getFullYear()}`);

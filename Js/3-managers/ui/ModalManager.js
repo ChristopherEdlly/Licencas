@@ -1534,96 +1534,46 @@ class ModalManager {
             return date;
         };
         
-        servidor.licencas.forEach(licenca => {
-            const aquisitivoInicio = cleanDate(licenca.AQUISITIVO_INICIO || licenca.aquisitivoInicio);
-            const aquisitivoFim = cleanDate(licenca.AQUISITIVO_FIM || licenca.aquisitivoFim);
-            if (aquisitivoInicio && aquisitivoFim) {
-                const periodoKey = `${aquisitivoInicio}-${aquisitivoFim}`;
-                if (!periodosMap.has(periodoKey)) {
-                    periodosMap.set(periodoKey, {
-                        inicio: aquisitivoInicio,
-                        fim: aquisitivoFim,
-                        gozos: [],
-                        diasGozados: 0,
-                        diasRestando: 0
-                    });
-                }
-                const periodo = periodosMap.get(periodoKey);
-                periodo.gozos.push(licenca);
-                let gozo = parseInt(licenca.GOZO || licenca.gozo || 0);
-                if (gozo === 0) {
-                    const parseDate = (d) => {
-                        if (!d) return null;
-                        if (d instanceof Date) return d;
-                        if (typeof d === 'string') {
-                            let match = d.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-                            if (match) {
-                                // Criar data ao meio-dia para evitar problemas de timezone
-                                return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]), 12, 0, 0);
-                            }
-                            match = d.match(/(\d{4})-(\d{2})-(\d{2})/);
-                            if (match) {
-                                // Criar data ao meio-dia para evitar problemas de timezone
-                                return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]), 12, 0, 0);
-                            }
-                            const parsed = new Date(d);
-                            if (!isNaN(parsed)) return parsed;
-                        }
-                        return null;
-                    };
-                    const dataInicioRaw = licenca.A_PARTIR || licenca.aPartir || licenca.inicio;
-                    const dataFimRaw = licenca.TERMINO || licenca.termino || licenca.fim;
-                    const inicio = parseDate(dataInicioRaw);
-                    const fim = parseDate(dataFimRaw);
-                    if (inicio && fim && !isNaN(inicio) && !isNaN(fim)) {
-                        gozo = Math.ceil((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
-                    }
-                }
-                periodo.diasGozados += gozo;
-            }
-        });
-
-        // Recalcular saldo restante de cada período
-        periodosMap.forEach((periodo) => {
-            // Cada período = 90 dias de direito
-            // Se gozou >= 90, restante = 0 (completo)
-            // Se gozou < 90, restante = 90 - gozado
-            periodo.diasRestando = Math.max(0, 90 - periodo.diasGozados);
-        });
-        if (periodosMap.size > 0) {
-            let periodoIndex = 0;
-            periodosMap.forEach((periodo, key) => {
-                const diasDireito = 90;
-                const percentual = Math.min(100, Math.round((periodo.diasGozados / diasDireito) * 100));
+        // ===== USAR PERÍODOS JÁ CALCULADOS PELO DataTransformer =====
+        // Evita recálculo e garante consistência com o resto da aplicação
+        if (servidor.periodosAquisitivos && Array.isArray(servidor.periodosAquisitivos) && servidor.periodosAquisitivos.length > 0) {
+            // Períodos já calculados pelo DataTransformer - usar diretamente!
+            console.log('[ModalManager] Usando periodosAquisitivos já calculados:', servidor.periodosAquisitivos.length);
+            
+            servidor.periodosAquisitivos.forEach((periodo, periodoIndex) => {
+                const diasDireito = periodo.diasGerados || 90;
+                const diasGozados = periodo.diasGozados || 0;
+                const diasRestantes = periodo.disponivel !== undefined ? periodo.disponivel : Math.max(0, diasDireito - diasGozados);
+                const percentual = Math.min(100, Math.round((diasGozados / diasDireito) * 100));
                 const progressClassPeriodo = percentual < 50 ? 'baixo' : percentual < 80 ? 'medio' : 'alto';
                 const isFirst = periodoIndex === 0;
-                const extractYear = (date) => {
-                    if (!date) return '?';
-                    if (typeof date === 'string') {
-                        const match = date.match(/(\d{4})/);
-                        return match ? match[1] : date.substring(0, 4);
-                    }
-                    return date instanceof Date ? date.getFullYear() : String(date).substring(0, 4);
-                };
-                const anoInicio = extractYear(periodo.inicio);
-                const anoFim = extractYear(periodo.fim);
-                const periodoLabel = `${anoInicio} - ${anoFim}`;
+                
+                // Usar label já calculado ou construir um
+                const periodoLabel = periodo.label || `${periodo.anoInicio || '?'} - ${periodo.anoFim || '?'}`;
                 const numeroOrdinal = periodoIndex + 1;
+                
+                // Buscar licenças deste período
+                const licencasDoPeriodo = (servidor.licencas || []).filter(lic => {
+                    const licAnoInicio = lic.aquisitivoInicio ? (lic.aquisitivoInicio instanceof Date ? lic.aquisitivoInicio.getFullYear() : parseInt(String(lic.aquisitivoInicio).match(/(\d{4})/)?.[1])) : null;
+                    const licAnoFim = lic.aquisitivoFim ? (lic.aquisitivoFim instanceof Date ? lic.aquisitivoFim.getFullYear() : parseInt(String(lic.aquisitivoFim).match(/(\d{4})/)?.[1])) : null;
+                    return (licAnoInicio === periodo.anoInicio && licAnoFim === periodo.anoFim);
+                });
+                
                 periodosHTML += `
                     <div class="periodo-accordion ${isFirst ? 'active' : ''}">
                         <div class="periodo-accordion-header">
-                            <div class="periodo-indicator ${periodo.diasRestando > 0 ? 'parcial' : 'completo'}">
+                            <div class="periodo-indicator ${diasRestantes > 0 ? 'parcial' : 'completo'}">
                                 ${numeroOrdinal}º
                             </div>
                             <div class="periodo-info">
                                 <div class="periodo-dates">Período Aquisitivo: ${periodoLabel}</div>
-                                <div class="periodo-summary">${periodo.diasGozados}/${diasDireito} dias utilizados</div>
+                                <div class="periodo-summary">${diasGozados}/${diasDireito} dias utilizados</div>
                             </div>
                             <div class="periodo-progress-mini">
                                 <div class="periodo-progress-mini-fill ${progressClassPeriodo}" style="width: ${percentual}%"></div>
                             </div>
-                            <span class="periodo-saldo-badge ${periodo.diasRestando > 0 ? 'positivo' : 'zerado'}">
-                                ${periodo.diasRestando > 0 ? `${periodo.diasRestando}d restantes` : 'Completo'}
+                            <span class="periodo-saldo-badge ${diasRestantes > 0 ? 'positivo' : 'zerado'}">
+                                ${diasRestantes > 0 ? `${diasRestantes}d restantes` : 'Completo'}
                             </span>
                             <i class="bi bi-chevron-down periodo-expand-icon"></i>
                         </div>
@@ -1631,11 +1581,11 @@ class ModalManager {
                             <div class="periodo-accordion-body">
                                 <div class="periodo-gozos-header">
                                     <i class="bi bi-calendar-event"></i>
-                                    <span>Licenças gozadas</span>
+                                    <span>Licenças gozadas (${licencasDoPeriodo.length})</span>
                                 </div>
                                 <div class="gozos-timeline">
                 `;
-                periodo.gozos.forEach((gozo, gozoIdx) => {
+                licencasDoPeriodo.forEach((gozo, gozoIdx) => {
                     const formatDate = (date) => {
                         if (!date) return '-';
                         if (typeof date === 'string') return date;
@@ -1732,18 +1682,17 @@ class ModalManager {
                                 <div class="periodo-resumo">
                                     <div class="periodo-resumo-item">
                                         <span class="periodo-resumo-label">Total utilizado:</span>
-                                        <span class="periodo-resumo-value">${periodo.diasGozados} dias</span>
+                                        <span class="periodo-resumo-value">${diasGozados} dias</span>
                                     </div>
                                     <div class="periodo-resumo-item">
                                         <span class="periodo-resumo-label">Saldo restante:</span>
-                                        <span class="periodo-resumo-value">${periodo.diasRestando} dias</span>
+                                        <span class="periodo-resumo-value">${diasRestantes} dias</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 `;
-                periodoIndex++;
             });
         } else {
             periodosHTML = `
@@ -2046,11 +1995,28 @@ class ModalManager {
             }];
         }
         // Agrupar licenças por período aquisitivo
+        // Helper: extrair ano de data para agrupar períodos (evita duplicados por diferença de dias)
+        const extractYearFromPeriodo = (dateStr) => {
+            if (!dateStr) return '';
+            // Formato DD/MM/YYYY
+            const match = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+            if (match) return match[3];
+            // Formato YYYY-MM-DD
+            const match2 = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+            if (match2) return match2[1];
+            // Formato YYYY
+            if (/^\d{4}$/.test(dateStr)) return dateStr;
+            return '';
+        };
+        
         const periodosMap = new Map();
         (servidor.licencas || []).forEach(licenca => {
             const aquisitivoInicio = licenca.AQUISITIVO_INICIO || licenca.aquisitivoInicio || licenca.aquisitivo_inicio || licenca.inicio || '';
             const aquisitivoFim = licenca.AQUISITIVO_FIM || licenca.aquisitivoFim || licenca.aquisitivo_fim || licenca.fim || '';
-            const periodoKey = `${aquisitivoInicio}-${aquisitivoFim}`;
+            // IMPORTANTE: Agrupar por ANO para evitar duplicados (ex: 04/04/2013 vs 06/04/2013)
+            const anoInicio = extractYearFromPeriodo(aquisitivoInicio);
+            const anoFim = extractYearFromPeriodo(aquisitivoFim);
+            const periodoKey = `${anoInicio}-${anoFim}`;
             if (!periodosMap.has(periodoKey)) {
                 periodosMap.set(periodoKey, {
                     inicio: aquisitivoInicio,
