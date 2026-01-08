@@ -279,7 +279,8 @@ const DataTransformer = (function () {
         
         // Se encontrou períodos reais, usar eles
         if (periodosReais.size > 0) {
-            console.log(`[DataTransformer] Encontrados ${periodosReais.size} períodos aquisitivos reais para ${servidor.nome || servidor.NOME}`);
+            // Debug desabilitado para evitar spam no console
+            // console.log(`[DataTransformer] Encontrados ${periodosReais.size} períodos aquisitivos reais para ${servidor.nome || servidor.NOME}`);
             
             periodosReais.forEach((periodo, key) => {
                 const diasGerados = 90;
@@ -329,7 +330,8 @@ const DataTransformer = (function () {
             }
         } else {
             // Fallback: gerar períodos genéricos de 1 ano (últimos 5 anos)
-            console.log(`[DataTransformer] Sem períodos reais, gerando períodos genéricos para ${servidor.nome || servidor.NOME}`);
+            // Debug desabilitado para evitar spam no console
+            // console.log(`[DataTransformer] Sem períodos reais, gerando períodos genéricos para ${servidor.nome || servidor.NOME}`);
             
             const anoAtual = hoje.getFullYear();
             for (let i = 0; i < 5; i++) {

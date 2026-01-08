@@ -25,5 +25,7 @@ Object.assign(window.__ENV__, {
   "AZURE_SITE_HOSTNAME": "sefazsegovbr-my.sharepoint.com",
   "AZURE_SITE_PATH": "personal/christopher_caldas_fazenda_se_gov_br",
   "AZURE_FILE_RELATIVE_PATH": "Documents/NOTIFICACAO DE LICENÇA PRÊMIO-3 VERSÃO ATUAL-3.xls", // guessed common OneDrive folder (confirm if in root or another folder)
-  "AZURE_TABLE_NAME": "BD_LPREMIO"
+  "AZURE_TABLE_NAME": "BD_LPREMIO",
+
+
 });

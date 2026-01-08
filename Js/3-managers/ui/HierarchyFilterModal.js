@@ -1,7 +1,14 @@
 /* Migrated from js - old/components/HierarchyFilterModal.js */
 class HierarchyFilterModal {
     constructor(options = {}) {
-        this.hierarchyManager = window.lotacaoHierarchyManager || new LotacaoHierarchyManager();
+        // CRÍTICO: Usar o gerenciador global que já tem HierarchyService inicializado
+        this.hierarchyManager = window.lotacaoHierarchyManager;
+
+        if (!this.hierarchyManager) {
+            console.error('❌ [HierarchyFilterModal] LotacaoHierarchyManager global não encontrado!');
+            console.error('   Certifique-se de que window.lotacaoHierarchyManager foi inicializado em App.js');
+        }
+
         this.onApply = options.onApply || (() => {});
         this.onClose = options.onClose || (() => {});
         this.selected = {
@@ -22,9 +29,33 @@ class HierarchyFilterModal {
     }
 
     loadData() {
+        if (!this.hierarchyManager) {
+            console.error('❌ [HierarchyFilterModal] Não é possível carregar dados - hierarchyManager não disponível');
+            this.data.subsecretarias = [];
+            this.data.superintendencias = [];
+            this.data.lotacoes = [];
+            return;
+        }
+
+        // Verificar se a hierarquia foi carregada
+        if (!this.hierarchyManager.loaded) {
+            console.warn('⚠️ [HierarchyFilterModal] Hierarquia ainda não carregada do SharePoint');
+            this.data.subsecretarias = [];
+            this.data.superintendencias = [];
+            this.data.lotacoes = [];
+            return;
+        }
+
+        // Carregar dados normalmente
         this.data.subsecretarias = this.hierarchyManager.getSubsecretarias();
         this.data.superintendencias = this.hierarchyManager.getSuperintendencias();
         this.data.lotacoes = this.hierarchyManager.getGerencias();
+
+        console.log(`[HierarchyFilterModal] Dados carregados:`, {
+            subsecretarias: this.data.subsecretarias.length,
+            superintendencias: this.data.superintendencias.length,
+            lotacoes: this.data.lotacoes.length
+        });
     }
 
     createModal() {
@@ -161,6 +192,26 @@ class HierarchyFilterModal {
     }
 
     open(initialSelection = null) {
+        // Recarregar dados ao abrir (garante dados atualizados do SharePoint)
+        this.loadData();
+
+        // Se ainda não tiver dados, mostrar erro
+        if (this.data.subsecretarias.length === 0 &&
+            this.data.superintendencias.length === 0 &&
+            this.data.lotacoes.length === 0) {
+            console.error('❌ [HierarchyFilterModal] Impossível abrir modal - hierarquia não carregada');
+
+            if (window.app?.notificationService) {
+                window.app.notificationService.error(
+                    'Hierarquia não disponível',
+                    'Aguarde o carregamento dos dados do SharePoint ou verifique sua conexão.'
+                );
+            } else {
+                alert('Erro: A hierarquia de lotações ainda não foi carregada do SharePoint. Por favor, aguarde alguns segundos e tente novamente.');
+            }
+            return;
+        }
+
         if (initialSelection) {
             this.selected.subsecretarias = new Set(initialSelection.subsecretarias || []);
             this.selected.superintendencias = new Set(initialSelection.superintendencias || []);
@@ -215,7 +266,10 @@ class HierarchyFilterModal {
         let filteredItems = items;
         if (searchTerm) {
             filteredItems = items.filter(item => {
-                const searchIn = `${item.name} ${item.subsecretaria || ''} ${item.superintendencia || ''}`.toLowerCase();
+                // Buscar no nome completo, código/sigla, subsecretaria e superintendência
+                const sigla = this.extractSigla(item.name) || '';
+                const codigo = item.code || '';
+                const searchIn = `${item.name} ${sigla} ${codigo} ${item.subsecretaria || ''} ${item.superintendencia || ''}`.toLowerCase();
                 return searchIn.includes(searchTerm);
             });
         }
@@ -253,6 +307,8 @@ class HierarchyFilterModal {
         const path = this.getItemPath(item, level);
         const highlightClass = isSelected ? 'hierarchy-item-selected' : '';
         const sigla = this.extractSigla(item.name);
+        const cleanedName = this.cleanName(item.name);
+
         return `
             <div class="hierarchy-item ${highlightClass}" data-name="${item.name}">
                 <label>
@@ -260,7 +316,7 @@ class HierarchyFilterModal {
                     <span class="hierarchy-item-checkbox"></span>
                     <span class="hierarchy-item-content">
                         <span class="hierarchy-item-name" title="${item.name}">
-                            ${sigla ? `<strong>${sigla}</strong> - ${item.name.replace(/^[A-Z0-9/]+\s*-\s*/, '')}` : item.name}
+                            ${sigla ? `<strong>${sigla}</strong> - ${cleanedName}` : cleanedName}
                         </span>
                         ${path ? `<span class="hierarchy-item-path">${path}</span>` : ''}
                     </span>
@@ -280,17 +336,57 @@ class HierarchyFilterModal {
             return match ? match[1].trim() : null;
         }
     }
+
+    /**
+     * Remove prefixos comuns (Subsecretaria de/da/do, Superintendência de/da/do, Gerência de/da/do)
+     * e retorna apenas a parte significativa do nome
+     */
+    cleanName(name, tipo = null) {
+        if (!name) return name;
+
+        let cleaned = name;
+
+        // Remove sigla inicial se existir (ex: "SUFIP - Superintendência..." → "Superintendência...")
+        const withoutSigla = name.replace(/^[A-Z0-9/]+\s*-\s*/i, '');
+
+        // Padrões a remover baseado no tipo
+        const patterns = [
+            /^Subsecretaria\s+(de|da|do)\s+/i,
+            /^Superintendência\s+(de|da|do)\s+/i,
+            /^Gerência\s+(de|da|do)\s+/i,
+        ];
+
+        cleaned = withoutSigla;
+        for (const pattern of patterns) {
+            cleaned = cleaned.replace(pattern, '');
+        }
+
+        return cleaned.trim();
+    }
     getItemPath(item, level) {
         if (level === 'subsecretaria') return null;
+
         if (level === 'superintendencia') {
-            if (item.subsecretaria) { const sigla = this.extractSigla(item.subsecretaria); return sigla || item.subsecretaria.substring(0, 15); } return null;
+            if (item.subsecretaria) {
+                const sigla = this.extractSigla(item.subsecretaria);
+                return sigla || this.cleanName(item.subsecretaria).substring(0, 20);
+            }
+            return null;
         }
+
         if (level === 'lotacao') {
             const parts = [];
-            if (item.subsecretaria) parts.push(this.extractSigla(item.subsecretaria) || item.subsecretaria.substring(0, 10));
-            if (item.superintendencia) parts.push(this.extractSigla(item.superintendencia) || item.superintendencia.substring(0, 10));
+            if (item.subsecretaria) {
+                const sigla = this.extractSigla(item.subsecretaria);
+                parts.push(sigla || this.cleanName(item.subsecretaria).substring(0, 15));
+            }
+            if (item.superintendencia) {
+                const sigla = this.extractSigla(item.superintendencia);
+                parts.push(sigla || this.cleanName(item.superintendencia).substring(0, 15));
+            }
             return parts.length > 0 ? parts.join(' › ') : null;
         }
+
         return null;
     }
 

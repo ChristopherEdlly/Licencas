@@ -670,19 +670,34 @@ class WizardModal {
             }
         }
         
-        const searchData = allServidores.length > 0 ? allServidores : this.app.dataStateManager.getFilteredServidores();
+        let searchData = allServidores.length > 0 ? allServidores : this.app.dataStateManager.getFilteredServidores();
         console.log('[WizardModal] Buscando em', searchData.length, 'registros');
-        
+
+        // IMPORTANTE: Remover duplicados por CPF (problema comum em caches)
+        const seen = new Set();
+        searchData = searchData.filter(s => {
+            const cpfRaw = s.cpf || s.CPF || '';
+            const cpf = String(cpfRaw).replace(/\D/g, '');
+            if (!cpf) return true; // Manter registros sem CPF
+            if (seen.has(cpf)) {
+                console.warn('[WizardModal] Duplicado removido:', s.nome || s.NOME, 'CPF:', cpf);
+                return false;
+            }
+            seen.add(cpf);
+            return true;
+        });
+        console.log('[WizardModal] Após remoção de duplicados:', searchData.length, 'registros');
+
         // Mostrar amostra dos dados para debug
         if (searchData.length > 0) {
             console.log('[WizardModal] Amostra do primeiro registro:', searchData[0]);
             console.log('[WizardModal] Chaves disponíveis:', Object.keys(searchData[0]));
         }
-        
+
         // Normalizar query para busca por CPF
         const queryCPFClean = query.replace(/\D/g, '');
         console.log('[WizardModal] Query normalizada para CPF:', queryCPFClean);
-        
+
         // Buscar por CPF ou nome - TODOS os resultados
         const foundResults = searchData.filter(s => {
             // Busca por CPF (remove todos caracteres não-numéricos)

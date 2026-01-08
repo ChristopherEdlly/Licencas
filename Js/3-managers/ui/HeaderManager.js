@@ -158,11 +158,27 @@ class HeaderManager {
         }
 
         // Obter dados para buscar
-        const data = this.app.dataStateManager?.getAllServidores() ||
-                     this.app.allServidores ||
-                     [];
+        let data = this.app.dataStateManager?.getAllServidores() ||
+                   this.app.allServidores ||
+                   [];
 
-        console.log('🔍 [DEBUG] Dados disponíveis:', { count: data.length, sample: data[0] });
+        console.log('🔍 [DEBUG] Dados disponíveis (antes dedup):', { count: data.length, sample: data[0] });
+
+        // IMPORTANTE: Remover duplicados por CPF antes de buscar
+        const seen = new Set();
+        data = data.filter(s => {
+            const cpfRaw = s.cpf || s.CPF || '';
+            const cpf = String(cpfRaw).replace(/\D/g, '');
+            if (!cpf) return true; // Manter registros sem CPF
+            if (seen.has(cpf)) {
+                console.warn('[HeaderManager] Duplicado removido da busca:', s.nome || s.NOME, 'CPF:', cpf);
+                return false;
+            }
+            seen.add(cpf);
+            return true;
+        });
+
+        console.log('🔍 [DEBUG] Dados disponíveis (após dedup):', { count: data.length });
 
         if (data.length === 0) {
             console.log('ℹ️ Nenhum dado para buscar');

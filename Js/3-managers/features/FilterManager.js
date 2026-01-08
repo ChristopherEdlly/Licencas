@@ -170,11 +170,29 @@ class FilterManager {
 
     /**
      * Filtro por lotações
+     * Suporta siglas e nomes completos (ex: SUTRI, GECAP, etc)
      * @private
      */
     _filterByLotacoes(data, lotacoes) {
         return data.filter(servidor => {
-            return lotacoes.includes(servidor.lotacao);
+            const servidorLotacao = (servidor.lotacao || '').toUpperCase().trim();
+            const servidorLotacaoNormalizada = servidor._lotacaoNormalizada || servidorLotacao;
+            
+            return lotacoes.some(filtroLotacao => {
+                const filtroNormalizado = (filtroLotacao || '').toUpperCase().trim();
+                
+                // Match exato
+                if (servidorLotacao === filtroNormalizado) return true;
+                
+                // Match por lotação normalizada
+                if (servidorLotacaoNormalizada === filtroNormalizado) return true;
+                
+                // Match parcial (contém)
+                if (servidorLotacao.includes(filtroNormalizado)) return true;
+                if (servidorLotacaoNormalizada.includes(filtroNormalizado)) return true;
+                
+                return false;
+            });
         });
     }
 

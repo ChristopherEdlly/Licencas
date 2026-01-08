@@ -2,72 +2,139 @@
  * LotacaoHierarchyManager.js
  * Gerenciador de hierarquia de lotação para visualização e filtragem
  * Fornece funções de mapeamento, busca e filtragem hierárquica
+ *
+ * VERSÃO 2.0: Agora carrega hierarquia do SharePoint via HierarchyService
  */
 
 class LotacaoHierarchyManager {
-    constructor() {
-        this.hierarchy = window.LOTACAO_HIERARCHY || {};
+    constructor(hierarchyService = null) {
+        // Serviço de hierarquia (SharePoint) - OBRIGATÓRIO
+        this.hierarchyService = hierarchyService;
+
+        // Mapas de busca
         this.flatMap = new Map(); // Mapa lotação -> caminho hierárquico
         this.reverseMap = new Map(); // Mapa de siglas para nomes completos
-        this.buildMaps();
+
+        // Estado
+        this.loaded = false;
+        this.loading = false;
+
+        // Validação: HierarchyService é obrigatório
+        if (!this.hierarchyService) {
+            console.error('❌ LotacaoHierarchyManager: HierarchyService é obrigatório!');
+            throw new Error('HierarchyService não fornecido ao LotacaoHierarchyManager');
+        }
     }
 
     /**
-     * Constrói mapas para busca rápida
+     * Carrega hierarquia do SharePoint (assíncrono)
+     * @param {boolean} forceRefresh - Forçar recarregamento
      */
-    buildMaps() {
+    async loadFromSharePoint(forceRefresh = false) {
+        if (!this.hierarchyService) {
+            console.warn('[LotacaoHierarchyManager] HierarchyService não disponível');
+            return false;
+        }
+
+        if (this.loading) {
+            console.log('[LotacaoHierarchyManager] Já está carregando...');
+            await this._waitForLoading();
+            return this.loaded;
+        }
+
+        try {
+            this.loading = true;
+            console.log('[LotacaoHierarchyManager] Carregando do SharePoint...');
+
+            const data = await this.hierarchyService.loadHierarchy(forceRefresh);
+
+            // Construir mapas a partir dos dados do SharePoint
+            this.buildMapsFromSharePoint(data);
+
+            this.loaded = true;
+            console.log('[LotacaoHierarchyManager] ✓ Hierarquia carregada do SharePoint');
+            return true;
+
+        } catch (error) {
+            console.error('[LotacaoHierarchyManager] ❌ Erro ao carregar do SharePoint:', error);
+            this.loaded = false;
+            throw error; // Propaga erro para que App.js possa tratar
+
+        } finally {
+            this.loading = false;
+        }
+    }
+
+    /**
+     * Constrói mapas a partir dos dados do SharePoint
+     */
+    buildMapsFromSharePoint(data) {
         this.flatMap.clear();
         this.reverseMap.clear();
 
-        const processLevel = (obj, path = [], level = 0) => {
-            if (Array.isArray(obj)) {
-                // Nível de gerências (folhas)
-                obj.forEach(gerencia => {
-                    if (gerencia && gerencia !== 'nan') {
-                        const fullPath = [...path, gerencia];
-                        this.flatMap.set(gerencia.toLowerCase().trim(), {
-                            name: gerencia,
-                            path: fullPath,
-                            level: level,
-                            type: 'gerencia',
-                            secretaria: path[0] || null,
-                            subsecretaria: path[1] || null,
-                            superintendencia: path[2] || null
-                        });
-                        this.extractAndStoreSigla(gerencia, fullPath, 'gerencia');
-                    }
-                });
-            } else if (typeof obj === 'object' && obj !== null) {
-                Object.entries(obj).forEach(([key, value]) => {
-                    if (key && key !== 'nan') {
-                        const newPath = [...path, key];
-                        const type = this.getLevelType(level);
-                        
-                        this.flatMap.set(key.toLowerCase().trim(), {
-                            name: key,
-                            path: newPath,
-                            level: level,
-                            type: type,
-                            secretaria: newPath[0] || null,
-                            subsecretaria: level >= 1 ? newPath[1] : null,
-                            superintendencia: level >= 2 ? newPath[2] : null
-                        });
-                        this.extractAndStoreSigla(key, newPath, type);
-                        
-                        processLevel(value, newPath, level + 1);
-                    }
-                });
-            }
-        };
+        console.log(`[LotacaoHierarchyManager] Construindo mapas de ${data.length} registros...`);
 
-        processLevel(this.hierarchy);
+        data.forEach(item => {
+            // Obter caminho completo (do filho até a raiz)
+            const path = this.hierarchyService.getPath(item.codigo);
+
+            // Mapear por código e nome normalizado
+            const key = item.nomeNorm;
+
+            this.flatMap.set(key, {
+                name: item.nome,
+                codigo: item.codigo,
+                path: path.map(p => p.nome),
+                level: path.length - 1,
+                type: item.tipo.toLowerCase(),
+                secretaria: path.length > 0 ? path[0].nome : null,
+                subsecretaria: path.length > 1 ? path[1].nome : null,
+                superintendencia: path.length > 2 ? path[2].nome : null,
+                gerencia: path.length > 3 ? path[3].nome : null
+            });
+
+            // Mapear também por código
+            this.flatMap.set(item.codigoNorm, this.flatMap.get(key));
+
+            // Armazenar no reverseMap (sigla -> info) usando método auxiliar
+            this.extractAndStoreSigla(
+                item.nome,
+                item.codigo,
+                path.map(p => p.nome),
+                item.tipo.toLowerCase()
+            );
+        });
+
+        console.log(`[LotacaoHierarchyManager] ✓ ${this.flatMap.size} entradas no flatMap`);
     }
 
     /**
-     * Extrai e armazena sigla do nome
+     * Aguarda carregamento
      */
-    extractAndStoreSigla(name, path, type) {
-        // Extrai sigla antes do " - "
+    async _waitForLoading() {
+        return new Promise((resolve) => {
+            const check = setInterval(() => {
+                if (!this.loading) {
+                    clearInterval(check);
+                    resolve();
+                }
+            }, 100);
+        });
+    }
+
+    /**
+     * Extrai e armazena sigla do nome (do SharePoint)
+     */
+    extractAndStoreSigla(name, codigo, path, type) {
+        // Adiciona pelo código
+        this.reverseMap.set(codigo.toLowerCase(), {
+            sigla: codigo,
+            fullName: name,
+            path,
+            type
+        });
+
+        // Também extrai sigla do nome se tiver padrão "SIGLA - Nome"
         const match = name.match(/^([A-Z0-9/]+)\s*-/);
         if (match) {
             const sigla = match[1].trim();
@@ -78,14 +145,6 @@ class LotacaoHierarchyManager {
                 type
             });
         }
-    }
-
-    /**
-     * Retorna o tipo baseado no nível
-     */
-    getLevelType(level) {
-        const types = ['secretaria', 'subsecretaria', 'superintendencia', 'gerencia'];
-        return types[level] || 'unknown';
     }
 
     /**
@@ -163,119 +222,99 @@ class LotacaoHierarchyManager {
     }
 
     /**
-     * Obtém subsecretarias da hierarquia
+     * Obtém subsecretarias da hierarquia (NOVO: usa SharePoint)
      * @returns {Array} Lista de subsecretarias
      */
     getSubsecretarias() {
-        const subsecretarias = [];
-        const secretaria = this.hierarchy['SEFAZ - secretaria de estado da fazenda'];
-        
-        if (secretaria) {
-            Object.keys(secretaria).forEach(subsec => {
-                if (subsec && subsec !== 'nan') {
-                    subsecretarias.push({
-                        code: this.extractSigla(subsec),
-                        name: subsec,
-                        fullName: subsec
-                    });
-                }
-            });
+        if (!this.hierarchyService) {
+            console.error('[LotacaoHierarchyManager] HierarchyService não disponível');
+            return [];
         }
-        
-        return subsecretarias.sort((a, b) => a.name.localeCompare(b.name));
+
+        const subsecretarias = this.hierarchyService.getByType('Subsecretaria');
+        return subsecretarias.map(sub => ({
+            code: sub.codigo,
+            name: sub.nome,
+            fullName: sub.nome
+        })).sort((a, b) => a.name.localeCompare(b.name));
     }
 
     /**
-     * Obtém superintendências de uma subsecretaria
-     * @param {string} subsecretaria - Nome da subsecretaria
+     * Obtém superintendências de uma subsecretaria (NOVO: usa SharePoint)
+     * @param {string} subsecretaria - Nome ou código da subsecretaria
      * @returns {Array} Lista de superintendências
      */
     getSuperintendencias(subsecretaria = null) {
-        const superintendencias = [];
-        const secretaria = this.hierarchy['SEFAZ - secretaria de estado da fazenda'];
-        
-        if (!secretaria) return superintendencias;
+        if (!this.hierarchyService) {
+            console.error('[LotacaoHierarchyManager] HierarchyService não disponível');
+            return [];
+        }
 
-        const processSubsec = (subsecObj, subsecName) => {
-            Object.keys(subsecObj).forEach(super_name => {
-                if (super_name && super_name !== 'nan') {
-                    superintendencias.push({
-                        code: this.extractSigla(super_name),
-                        name: super_name,
-                        fullName: super_name,
-                        subsecretaria: subsecName
-                    });
-                }
-            });
-        };
+        let superintendencias = this.hierarchyService.getByType('Superintendência');
 
+        // Se especificou subsecretaria, filtrar apenas as que pertencem a ela
         if (subsecretaria) {
-            const normalizedSubsec = subsecretaria.toLowerCase().trim();
-            Object.entries(secretaria).forEach(([key, value]) => {
-                if (key.toLowerCase().includes(normalizedSubsec) || normalizedSubsec.includes(key.toLowerCase())) {
-                    processSubsec(value, key);
-                }
-            });
-        } else {
-            Object.entries(secretaria).forEach(([key, value]) => {
-                if (typeof value === 'object' && !Array.isArray(value)) {
-                    processSubsec(value, key);
-                }
+            const subsecNorm = subsecretaria.toLowerCase().trim();
+            superintendencias = superintendencias.filter(sup => {
+                const path = this.hierarchyService.getPath(sup.codigo);
+                return path.some(p =>
+                    p.nome.toLowerCase().includes(subsecNorm) ||
+                    p.codigo.toLowerCase() === subsecNorm
+                );
             });
         }
 
-        return superintendencias.sort((a, b) => a.name.localeCompare(b.name));
+        return superintendencias.map(sup => {
+            const path = this.hierarchyService.getPath(sup.codigo);
+            const subsec = path.find(p => p.tipo.toLowerCase() === 'subsecretaria');
+
+            return {
+                code: sup.codigo,
+                name: sup.nome,
+                fullName: sup.nome,
+                subsecretaria: subsec ? subsec.nome : null
+            };
+        }).sort((a, b) => a.name.localeCompare(b.name));
     }
 
     /**
-     * Obtém gerências de uma superintendência
-     * @param {string} superintendencia - Nome da superintendência
+     * Obtém gerências de uma superintendência (NOVO: usa SharePoint)
+     * @param {string} superintendencia - Nome ou código da superintendência
      * @returns {Array} Lista de gerências
      */
     getGerencias(superintendencia = null) {
-        const gerencias = [];
-        const secretaria = this.hierarchy['SEFAZ - secretaria de estado da fazenda'];
-        
-        if (!secretaria) return gerencias;
+        if (!this.hierarchyService) {
+            console.error('[LotacaoHierarchyManager] HierarchyService não disponível');
+            return [];
+        }
 
-        const processSuper = (superArray, superName, subsecName) => {
-            if (Array.isArray(superArray)) {
-                superArray.forEach(gerencia => {
-                    if (gerencia && gerencia !== 'nan') {
-                        gerencias.push({
-                            code: this.extractSigla(gerencia),
-                            name: gerencia,
-                            fullName: gerencia,
-                            superintendencia: superName,
-                            subsecretaria: subsecName
-                        });
-                    }
-                });
-            }
-        };
+        let gerencias = this.hierarchyService.getByType('Gerência');
 
+        // Se especificou superintendência, filtrar apenas as que pertencem a ela
         if (superintendencia) {
-            const normalizedSuper = superintendencia.toLowerCase().trim();
-            Object.entries(secretaria).forEach(([subsecKey, subsecValue]) => {
-                if (typeof subsecValue === 'object' && !Array.isArray(subsecValue)) {
-                    Object.entries(subsecValue).forEach(([superKey, superValue]) => {
-                        if (superKey.toLowerCase().includes(normalizedSuper) || normalizedSuper.includes(superKey.toLowerCase())) {
-                            processSuper(superValue, superKey, subsecKey);
-                        }
-                    });
-                }
-            });
-        } else {
-            Object.entries(secretaria).forEach(([subsecKey, subsecValue]) => {
-                if (typeof subsecValue === 'object' && !Array.isArray(subsecValue)) {
-                    Object.entries(subsecValue).forEach(([superKey, superValue]) => {
-                        processSuper(superValue, superKey, subsecKey);
-                    });
-                }
+            const superNorm = superintendencia.toLowerCase().trim();
+            gerencias = gerencias.filter(ger => {
+                const path = this.hierarchyService.getPath(ger.codigo);
+                return path.some(p =>
+                    p.nome.toLowerCase().includes(superNorm) ||
+                    p.codigo.toLowerCase() === superNorm
+                );
             });
         }
 
-        return gerencias.sort((a, b) => a.name.localeCompare(b.name));
+        return gerencias.map(ger => {
+            const path = this.hierarchyService.getPath(ger.codigo);
+            const super_ = path.find(p => p.tipo.toLowerCase() === 'superintendência');
+            const subsec = path.find(p => p.tipo.toLowerCase() === 'subsecretaria');
+
+            return {
+                code: ger.codigo,
+                name: ger.nome,
+                fullName: ger.nome,
+                superintendencia: super_ ? super_.nome : null,
+                subsecretaria: subsec ? subsec.nome : null
+            };
+        }).sort((a, b) => a.name.localeCompare(b.name));
     }
 
     /**

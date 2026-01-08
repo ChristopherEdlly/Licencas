@@ -200,16 +200,8 @@ class App {
             console.error('❌ DataStateManager não disponível');
         }
 
-        // LotacaoHierarchyManager (Singleton global para hierarquia organizacional)
-        if (typeof LotacaoHierarchyManager !== 'undefined') {
-            if (!window.lotacaoHierarchyManager) {
-                window.lotacaoHierarchyManager = new LotacaoHierarchyManager();
-            }
-            this.lotacaoHierarchyManager = window.lotacaoHierarchyManager;
-            console.log('✅ LotacaoHierarchyManager inicializado');
-        } else {
-            console.warn('⚠️ LotacaoHierarchyManager não disponível');
-        }
+        // LotacaoHierarchyManager - Inicialização será feita depois do HierarchyService
+        // (veja abaixo após AuthenticationService)
 
         // FilterStateManager (Singleton global)
         if (typeof window !== 'undefined' && window.filterStateManager) {
@@ -269,6 +261,49 @@ class App {
         if (typeof AuthenticationService !== 'undefined') {
             this.authService = AuthenticationService;
             await this._initAuthenticationService();
+        }
+
+        // HierarchyService (carrega hierarquia de lotação do SharePoint) - OBRIGATÓRIO
+        if (typeof HierarchyService !== 'undefined' && this.authService && this.sharePointExcelService) {
+            this.hierarchyService = new HierarchyService(this.authService, this.sharePointExcelService);
+            console.log('✅ HierarchyService inicializado');
+        } else {
+            console.error('❌ HierarchyService não disponível - hierarquia organizacional NÃO funcionará');
+            console.error('   Verifique: AuthenticationService e SharePointExcelService devem estar disponíveis');
+            throw new Error('HierarchyService não pode ser inicializado');
+        }
+
+        // LotacaoHierarchyManager (Singleton global para hierarquia organizacional) - OBRIGATÓRIO
+        if (typeof LotacaoHierarchyManager !== 'undefined') {
+            if (!window.lotacaoHierarchyManager) {
+                // HierarchyService é obrigatório agora
+                window.lotacaoHierarchyManager = new LotacaoHierarchyManager(this.hierarchyService);
+            }
+            this.lotacaoHierarchyManager = window.lotacaoHierarchyManager;
+            console.log('✅ LotacaoHierarchyManager inicializado');
+
+            // Carregar hierarquia do SharePoint (assíncrono, em background)
+            this.hierarchyService.loadHierarchy().then(() => {
+                console.log('✅ Hierarquia carregada do SharePoint');
+                return this.lotacaoHierarchyManager.loadFromSharePoint();
+            }).then(() => {
+                console.log('✅ LotacaoHierarchyManager atualizado com dados do SharePoint');
+            }).catch(error => {
+                console.error('❌ ERRO CRÍTICO ao carregar hierarquia do SharePoint:', error);
+                console.error('   A hierarquia organizacional NÃO está disponível!');
+                console.error('   Verifique se a aba "hierarquia" e tabela "lotacao" existem no SharePoint');
+
+                // Mostrar notificação visual ao usuário
+                if (this.notificationService) {
+                    this.notificationService.error(
+                        'Erro ao carregar hierarquia organizacional',
+                        'Verifique se a aba "hierarquia" existe no SharePoint com a tabela "lotacao"'
+                    );
+                }
+            });
+        } else {
+            console.error('❌ LotacaoHierarchyManager não disponível');
+            throw new Error('LotacaoHierarchyManager não pode ser inicializado');
         }
     }
 
@@ -1639,6 +1674,12 @@ class App {
             
             console.log('[App] Linha adicionada com sucesso:', result);
             
+            // Limpar dados antigos para evitar duplicação
+            if (this.dataStateManager) {
+                this.dataStateManager.setAllServidores([]);
+                this.dataStateManager.setFilteredServidores([]);
+            }
+            
             // Recarregar dados
             await this._loadPrimaryData();
             
@@ -1722,6 +1763,12 @@ class App {
             );
             
             console.log('[App] Linha atualizada com sucesso:', result);
+            
+            // Limpar dados antigos para evitar duplicação
+            if (this.dataStateManager) {
+                this.dataStateManager.setAllServidores([]);
+                this.dataStateManager.setFilteredServidores([]);
+            }
             
             // Recarregar dados
             await this._loadPrimaryData();

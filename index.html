@@ -1745,6 +1745,7 @@
     <script src="Js/2-services/NotificationService.js"></script>
     <script src="Js/2-services/SharePointService.js"></script>
     <script src="Js/2-services/SharePointExcelService.js"></script>
+    <script src="Js/2-services/HierarchyService.js"></script>
     <script src="Js/2-services/PermissionsService.js"></script>
     <script src="Js/2-services/AuthenticationService.js"></script>
     <script src="Js/2-services/CustomDatePicker.js"></script>
@@ -1769,8 +1770,9 @@
     <script src="Js/3-managers/ui/SidebarManager.js"></script>
     <script src="Js/3-managers/ui/ThemeManager.js"></script>
 
-    <!-- Hierarquia Organizacional (dados + manager) -->
-    <script src="Js/1-core/data/lotacaoHierarchy.js"></script>
+    <!-- Hierarquia Organizacional (manager) -->
+    <!-- NOTA: Hierarquia agora carrega SOMENTE do SharePoint via HierarchyService -->
+    <!-- <script src="Js/1-core/data/lotacaoHierarchy.js"></script> REMOVIDO - não é mais usado -->
     <script src="Js/3-managers/data/LotacaoHierarchyManager.js"></script>
 
     <script src="Js/3-managers/features/AdvancedFilterManager.js"></script>
