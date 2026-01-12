@@ -126,24 +126,71 @@ class WizardModal {
         console.log('[WizardModal] Abrindo modal:', { mode, servidorData, licenseData });
         
         this.mode = mode;
-        this.currentStep = 1;
         this.servidorData = servidorData;
         this.originalLicenseData = licenseData;
         
-        // Resetar dados
-        this._resetData();
+        // Resetar dados (sem data atual se for edição)
+        const isEditMode = mode === 'edit' || mode === 'edit-license' || mode === 'edit-servidor';
+        this._resetData(!isEditMode);
         
-        // Se for edição, preencher dados
-        if (mode === 'edit' && licenseData) {
+        // Se for edição (qualquer modo), preencher dados
+        if (isEditMode && licenseData) {
             this._fillDataFromLicense(licenseData);
         }
         
-        // Atualizar título
+        // Atualizar título e configuração de steps
         const titleText = this.modal.querySelector('.wizard-title-text');
-        titleText.textContent = mode === 'edit' ? 'Editar Licença' : 'Nova Licença';
+        const stepIndicator = this.modal.querySelector('.wizard-step-indicator');
+        const footer = this.modal.querySelector('.wizard-footer');
+        const backBtn = this.modal.querySelector('.wizard-button-back');
+        const nextBtn = this.modal.querySelector('.wizard-button-next');
+        const saveBtn = this.modal.querySelector('.wizard-button-save');
         
-        // Renderizar step 1
-        this._showStep(1);
+        if (mode === 'edit') {
+            // Modo edit legado (compatível) - mostra tudo
+            titleText.textContent = '✏️ Editar Licença';
+            stepIndicator.style.display = 'none';
+            
+            const body = this.modal.querySelector('.wizard-body');
+            body.innerHTML = this._renderEditPage();
+            this._attachEditPageListeners();
+            
+            backBtn.style.display = 'none';
+            nextBtn.style.display = 'none';
+            saveBtn.style.display = 'block';
+        } else if (mode === 'edit-license') {
+            // NOVO: Editar apenas dados da licença específica
+            titleText.textContent = '✏️ Editar Licença';
+            stepIndicator.style.display = 'none';
+            
+            const body = this.modal.querySelector('.wizard-body');
+            body.innerHTML = this._renderEditLicensePage();
+            this._attachEditLicenseListeners();
+            
+            backBtn.style.display = 'none';
+            nextBtn.style.display = 'none';
+            saveBtn.style.display = 'block';
+        } else if (mode === 'edit-servidor') {
+            // NOVO: Editar dados do servidor (atualiza todas linhas)
+            titleText.textContent = '👤 Editar Dados do Servidor';
+            stepIndicator.style.display = 'none';
+            
+            const body = this.modal.querySelector('.wizard-body');
+            body.innerHTML = this._renderEditServidorPage();
+            this._attachEditServidorListeners();
+            
+            backBtn.style.display = 'none';
+            nextBtn.style.display = 'none';
+            saveBtn.style.display = 'block';
+        } else {
+            titleText.textContent = 'Nova Licença';
+            this.currentStep = 1;
+            this.totalSteps = 2;
+            stepIndicator.style.display = '';
+            
+            // Começar pelo Step 1
+            this._showStep(1);
+        }
         
         // Mostrar modal
         this.modal.classList.add('active');
@@ -202,24 +249,59 @@ class WizardModal {
      * Preenche dados a partir de uma licença existente
      */
     _fillDataFromLicense(license) {
-        // Dados do servidor
-        this.data.nome = license.NOME || '';
-        this.data.cpf = license.CPF || '';
-        this.data.rg = license.RG || '';
-        this.data.cargo = license.CARGO || '';
-        this.data.lotacao = license.LOTACAO || '';
-        this.data.unidade = license.UNIDADE || '';
-        this.data.ref = license.REF || '';
+        console.log('[WizardModal] Preenchendo dados da licença:', license);
         
-        // Dados da licença
-        this.data.numero = license.NUMERO || '';
-        this.data.emissao = license.EMISSAO || '';
-        this.data.aquisitivo_inicio = license.AQUISITIVO_INICIO || '';
-        this.data.aquisitivo_fim = license.AQUISITIVO_FIM || '';
-        this.data.a_partir = license.A_PARTIR || '';
-        this.data.gozo = license.GOZO || '';
-        this.data.termino = license.TERMINO || '';
-        this.data.restando = license.RESTANDO || '';
+        // Helper para normalizar datas para formato yyyy-mm-dd
+        const normalizeDate = (dateValue) => {
+            if (!dateValue) return '';
+            
+            // Se já está no formato yyyy-mm-dd, retornar
+            if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+                return dateValue;
+            }
+            
+            // Se é Date object
+            if (dateValue instanceof Date && !isNaN(dateValue)) {
+                const year = dateValue.getFullYear();
+                const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+                const day = String(dateValue.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+            
+            // Se está no formato dd/mm/yyyy, converter
+            if (typeof dateValue === 'string') {
+                const match = dateValue.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+                if (match) {
+                    return `${match[3]}-${match[2]}-${match[1]}`;
+                }
+            }
+            
+            return String(dateValue);
+        };
+        
+        // Dados do servidor (suporta minúsculo e MAIÚSCULO)
+        this.data.nome = license.NOME || license.nome || '';
+        this.data.cpf = license.CPF || license.cpf || '';
+        this.data.rg = license.RG || license.rg || '';
+        this.data.cargo = license.CARGO || license.cargo || '';
+        this.data.lotacao = license.LOTACAO || license.lotacao || '';
+        this.data.unidade = license.UNIDADE || license.unidade || '';
+        this.data.ref = license.REF || license.ref || '';
+        
+        // Dados da licença (suporta minúsculo e MAIÚSCULO) - normalizar datas
+        this.data.numero = license.NUMERO || license.numero || '';
+        this.data.emissao = normalizeDate(license.EMISSAO || license.emissao);
+        this.data.aquisitivo_inicio = normalizeDate(license.AQUISITIVO_INICIO || license.aquisitivo_inicio);
+        this.data.aquisitivo_fim = normalizeDate(license.AQUISITIVO_FIM || license.aquisitivo_fim);
+        this.data.a_partir = normalizeDate(license.A_PARTIR || license.a_partir);
+        this.data.gozo = license.GOZO || license.gozo || '';
+        this.data.termino = normalizeDate(license.TERMINO || license.termino);
+        this.data.restando = license.RESTANDO || license.restando || '';
+        
+        console.log('[WizardModal] Dados preenchidos:', this.data);
+        
+        // Armazenar cópia dos dados originais para permitir reset
+        this.originalData = { ...this.data };
     }
 
     /**
@@ -256,6 +338,437 @@ class WizardModal {
             body.innerHTML = this._renderStep2();
             this._attachStep2Listeners();
         }
+    }
+
+    /**
+     * Mostra apenas step de licença (para modo edit)
+     * @private
+     */
+    /**
+     * Renderiza página de edição completa (todos os campos em uma tela)
+     * @private
+     */
+    _renderEditPage() {
+        // Calcular períodos disponíveis
+        this._calcularPeriodosAquisitivos();
+        
+        const periodosOptions = this.periodosDisponiveis.map((p, index) => {
+            const inicioStr = p.inicio instanceof Date ? this._dateToISO(p.inicio) : p.inicio;
+            const fimStr = p.fim instanceof Date ? this._dateToISO(p.fim) : p.fim;
+            const disponivel = p.disponivel !== undefined ? p.disponivel : p.disponiveis || 0;
+            const isSelected = this.selectedPeriodoIndex === index;
+            const inicioFormatted = this._formatDate(p.inicio instanceof Date ? this._dateToISO(p.inicio) : p.inicio);
+            const fimFormatted = this._formatDate(p.fim instanceof Date ? this._dateToISO(p.fim) : p.fim);
+
+            let statusIcon = '';
+            if (disponivel >= 90) statusIcon = '✓✓✓';
+            else if (disponivel >= 60) statusIcon = '✓✓';
+            else if (disponivel >= 30) statusIcon = '✓';
+            else if (disponivel > 0) statusIcon = '⚠';
+            else statusIcon = '✕';
+
+            return `<option value="${index}" ${isSelected ? 'selected' : ''}>${statusIcon} ${inicioFormatted} a ${fimFormatted} • ${disponivel} dias disponíveis</option>`;
+        }).join('');
+        
+        const gozoSuggestions = [30, 60, 90].map(dias => `
+            <button type="button" class="wizard-gozo-quick-btn" data-dias="${dias}" title="Preencher com ${dias} dias">${dias} dias</button>
+        `).join('');
+        
+        // Banner mostrando qual licença está editando
+        const nomeServidor = this.data.nome || '(sem nome)';
+        const periodoAtual = this.data.aquisitivo_inicio && this.data.aquisitivo_fim 
+            ? `${this._formatDate(this.data.aquisitivo_inicio)} a ${this._formatDate(this.data.aquisitivo_fim)}`
+            : '(não definido)';
+        const licencaAtual = this.data.a_partir 
+            ? `${this._formatDate(this.data.a_partir)} - ${this.data.gozo} dias`
+            : '(não definido)';
+        
+        return `
+            <div class="wizard-edit-page">
+                <!-- Banner: O que está editando -->
+                <div class="wizard-edit-banner">
+                    <div class="wizard-edit-banner-icon">📝</div>
+                    <div class="wizard-edit-banner-content">
+                        <div class="wizard-edit-banner-title">Editando Licença</div>
+                        <div class="wizard-edit-banner-info">
+                            <div><strong>Servidor:</strong> ${nomeServidor}</div>
+                            <div><strong>Período Aquisitivo:</strong> ${periodoAtual}</div>
+                            <div><strong>Licença:</strong> ${licencaAtual}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="wizard-edit-columns">
+                    <!-- COLUNA ESQUERDA: Dados do Servidor -->
+                    <div class="wizard-edit-column">
+                        <h3 class="wizard-section-title">
+                            <span class="wizard-section-icon">👤</span>
+                            <span>Dados do Servidor</span>
+                        </h3>
+                        
+                        <div class="wizard-field">
+                            <label class="wizard-field-label">Nome Completo</label>
+                            <input type="text" id="wizardNome" class="wizard-field-input" value="${this.data.nome}" />
+                        </div>
+                        
+                        <div class="wizard-field-group">
+                            <div class="wizard-field">
+                                <label class="wizard-field-label">CPF</label>
+                                <input type="text" id="wizardCPF" class="wizard-field-input" value="${this.data.cpf}" placeholder="000.000.000-00" />
+                            </div>
+                            <div class="wizard-field">
+                                <label class="wizard-field-label">RG</label>
+                                <input type="text" id="wizardRG" class="wizard-field-input" value="${this.data.rg}" />
+                            </div>
+                        </div>
+                        
+                        <div class="wizard-field">
+                            <label class="wizard-field-label">Cargo</label>
+                            <input type="text" id="wizardCargo" class="wizard-field-input" value="${this.data.cargo}" />
+                        </div>
+                        
+                        <div class="wizard-field">
+                            <label class="wizard-field-label">Lotação</label>
+                            <input type="text" id="wizardLotacao" class="wizard-field-input" value="${this.data.lotacao}" />
+                        </div>
+                        
+                        <div class="wizard-field-group">
+                            <div class="wizard-field">
+                                <label class="wizard-field-label">Unidade</label>
+                                <input type="text" id="wizardUnidade" class="wizard-field-input" value="${this.data.unidade}" />
+                            </div>
+                            <div class="wizard-field">
+                                <label class="wizard-field-label">Referência</label>
+                                <input type="text" id="wizardRef" class="wizard-field-input" value="${this.data.ref}" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- COLUNA DIREITA: Dados da Licença -->
+                    <div class="wizard-edit-column">
+                        <h3 class="wizard-section-title">
+                            <span class="wizard-section-icon">📅</span>
+                            <span>Dados da Licença</span>
+                        </h3>
+                        
+                        <div class="wizard-field">
+                            <label class="wizard-field-label">Número do Processo</label>
+                            <input type="text" id="wizardNumero" class="wizard-field-input" value="${this.data.numero}" />
+                        </div>
+                        
+                        <div class="wizard-field">
+                            <label class="wizard-field-label">Data de Emissão</label>
+                            <input type="date" id="wizardEmissao" class="wizard-field-input" value="${this.data.emissao}" readonly />
+                        </div>
+                        
+                        <div class="wizard-field">
+                            <label class="wizard-field-label">Período Aquisitivo</label>
+                            <select id="wizardPeriodo" class="wizard-field-input wizard-field-select">
+                                <option value="">Selecione um período...</option>
+                                ${periodosOptions}
+                                <option value="personalizado">📝 Personalizado...</option>
+                            </select>
+                        </div>
+                        
+                        ${this.isPeriodoPersonalizado ? `
+                            <div class="wizard-field-group" id="periodoPersonalizadoGroup">
+                                <div class="wizard-field">
+                                    <label class="wizard-field-label">Início do Período</label>
+                                    <input type="date" id="wizardAquisitivoInicio" class="wizard-field-input" value="${this.data.aquisitivo_inicio}" />
+                                </div>
+                                <div class="wizard-field">
+                                    <label class="wizard-field-label">Fim do Período</label>
+                                    <input type="date" id="wizardAquisitivoFim" class="wizard-field-input" value="${this.data.aquisitivo_fim}" />
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="wizard-field-group">
+                            <div class="wizard-field">
+                                <label class="wizard-field-label">Início (A partir de)</label>
+                                <input type="date" id="wizardAPartir" class="wizard-field-input" value="${this.data.a_partir}" />
+                            </div>
+                            <div class="wizard-field">
+                                <label class="wizard-field-label">Término <span class="wizard-field-calc-tag">(calculado)</span></label>
+                                <input type="date" id="wizardTermino" class="wizard-field-input calculated" value="${this.data.termino}" readonly />
+                            </div>
+                        </div>
+                        
+                        <div class="wizard-field">
+                            <label class="wizard-field-label">Dias de Gozo</label>
+                            <div class="wizard-gozo-wrapper">
+                                <input type="number" id="wizardGozo" class="wizard-field-input" value="${this.data.gozo}" placeholder="Ex: 30, 60, 90..." min="1" step="1" />
+                                <div class="wizard-gozo-quick">${gozoSuggestions}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="wizard-field">
+                            <label class="wizard-field-label">Restando <span class="wizard-field-calc-tag">(calculado)</span></label>
+                            <input type="number" id="wizardRestando" class="wizard-field-input calculated" value="${this.data.restando}" readonly />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Renderiza página de edição de licença (sem dados do servidor)
+     * @private
+     */
+    _renderEditLicensePage() {
+        this._calcularPeriodosAquisitivos();
+        
+        const periodosOptions = this.periodosDisponiveis.map((p, index) => {
+            const disponivel = p.disponivel !== undefined ? p.disponivel : p.disponiveis || 0;
+            const isSelected = this.selectedPeriodoIndex === index;
+            const inicioFormatted = this._formatDate(p.inicio instanceof Date ? this._dateToISO(p.inicio) : p.inicio);
+            const fimFormatted = this._formatDate(p.fim instanceof Date ? this._dateToISO(p.fim) : p.fim);
+
+            let statusIcon = disponivel >= 90 ? '✓✓✓' : disponivel >= 60 ? '✓✓' : disponivel >= 30 ? '✓' : disponivel > 0 ? '⚠' : '✕';
+            return `<option value="${index}" ${isSelected ? 'selected' : ''}>${statusIcon} ${inicioFormatted} a ${fimFormatted} • ${disponivel} dias disponíveis</option>`;
+        }).join('');
+        
+        const gozoSuggestions = [30, 60, 90].map(dias => `
+            <button type="button" class="wizard-gozo-quick-btn" data-dias="${dias}">${dias} dias</button>
+        `).join('');
+        
+        const nomeServidor = this.data.nome || '(sem nome)';
+        const licencaAtual = this.data.a_partir ? `${this._formatDate(this.data.a_partir)} - ${this.data.gozo} dias` : '(não definido)';
+        
+        return `
+            <div class="wizard-edit-single">
+                <div class="wizard-edit-banner-compact">
+                    <strong>${nomeServidor}</strong> • Licença: ${licencaAtual}
+                </div>
+                
+                <div class="wizard-field">
+                    <label class="wizard-field-label">Número do Processo</label>
+                    <div class="wizard-field-with-reset">
+                        <input type="text" id="wizardNumero" class="wizard-field-input" value="${this.data.numero}" data-original="${this.data.numero}" />
+                        <button type="button" class="wizard-reset-btn" data-field="wizardNumero" title="Restaurar valor original">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="wizard-field">
+                    <label class="wizard-field-label">Data de Emissão</label>
+                    <input type="date" id="wizardEmissao" class="wizard-field-input" value="${this.data.emissao}" readonly />
+                </div>
+                
+                <div class="wizard-field">
+                    <label class="wizard-field-label">Período Aquisitivo</label>
+                    <select id="wizardPeriodo" class="wizard-field-input wizard-field-select">
+                        <option value="">Selecione um período...</option>
+                        ${periodosOptions}
+                        <option value="personalizado">📝 Personalizado...</option>
+                    </select>
+                </div>
+                
+                ${this.isPeriodoPersonalizado ? `
+                    <div class="wizard-field-group">
+                        <div class="wizard-field">
+                            <label class="wizard-field-label">Início do Período</label>
+                            <input type="date" id="wizardAquisitivoInicio" class="wizard-field-input" value="${this.data.aquisitivo_inicio}" />
+                        </div>
+                        <div class="wizard-field">
+                            <label class="wizard-field-label">Fim do Período</label>
+                            <input type="date" id="wizardAquisitivoFim" class="wizard-field-input" value="${this.data.aquisitivo_fim}" />
+                        </div>
+                    </div>
+                ` : ''}
+                
+                <div class="wizard-field-group">
+                    <div class="wizard-field">
+                        <label class="wizard-field-label">Início (A partir de)</label>
+                        <div class="wizard-field-with-reset">
+                            <input type="date" id="wizardAPartir" class="wizard-field-input" value="${this.data.a_partir}" data-original="${this.data.a_partir}" />
+                            <button type="button" class="wizard-reset-btn" data-field="wizardAPartir" title="Restaurar valor original">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="wizard-field">
+                        <label class="wizard-field-label">Término <span class="wizard-field-calc-tag">(auto)</span></label>
+                        <input type="date" id="wizardTermino" class="wizard-field-input calculated" value="${this.data.termino}" readonly />
+                    </div>
+                </div>
+                
+                <div class="wizard-field">
+                    <label class="wizard-field-label">Dias de Gozo</label>
+                    <div class="wizard-gozo-wrapper">
+                        <div class="wizard-field-with-reset" style="flex: 1;">
+                            <input type="number" id="wizardGozo" class="wizard-field-input" value="${this.data.gozo}" data-original="${this.data.gozo}" placeholder="Ex: 30, 60, 90..." min="1" step="1" />
+                            <button type="button" class="wizard-reset-btn" data-field="wizardGozo" title="Restaurar valor original">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                        <div class="wizard-gozo-quick">${gozoSuggestions}</div>
+                    </div>
+                </div>
+                
+                <div class="wizard-field">
+                    <label class="wizard-field-label">Restando <span class="wizard-field-calc-tag">(auto)</span></label>
+                    <input type="number" id="wizardRestando" class="wizard-field-input calculated" value="${this.data.restando}" readonly />
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Renderiza página de edição de dados do servidor
+     * @private
+     */
+    _renderEditServidorPage() {
+        const nomeServidor = this.data.nome || '(sem nome)';
+        const cpf = this.data.cpf || '';
+        
+        return `
+            <div class="wizard-edit-single">
+                <div class="wizard-edit-banner-compact wizard-edit-banner-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Essas alterações serão aplicadas em <strong>todas as licenças</strong> de ${nomeServidor}
+                </div>
+                
+                <div class="wizard-field">
+                    <label class="wizard-field-label">Nome Completo</label>
+                    <div class="wizard-field-with-reset">
+                        <input type="text" id="wizardNome" class="wizard-field-input" value="${this.data.nome || ''}" data-original="${this.data.nome || ''}" />
+                        <button type="button" class="wizard-reset-btn" data-field="wizardNome" title="Restaurar valor original">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="wizard-field-group">
+                    <div class="wizard-field">
+                        <label class="wizard-field-label">CPF</label>
+                        <div class="wizard-field-with-reset">
+                            <input type="text" id="wizardCPF" class="wizard-field-input" value="${this.data.cpf || ''}" data-original="${this.data.cpf || ''}" placeholder="000.000.000-00" />
+                            <button type="button" class="wizard-reset-btn" data-field="wizardCPF" title="Restaurar valor original">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="wizard-field">
+                        <label class="wizard-field-label">RG</label>
+                        <div class="wizard-field-with-reset">
+                            <input type="text" id="wizardRG" class="wizard-field-input" value="${this.data.rg || ''}" data-original="${this.data.rg || ''}" />
+                            <button type="button" class="wizard-reset-btn" data-field="wizardRG" title="Restaurar valor original">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="wizard-field">
+                    <label class="wizard-field-label">Cargo</label>
+                    <div class="wizard-field-with-reset">
+                        <input type="text" id="wizardCargo" class="wizard-field-input" value="${this.data.cargo || ''}" data-original="${this.data.cargo || ''}" />
+                        <button type="button" class="wizard-reset-btn" data-field="wizardCargo" title="Restaurar valor original">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="wizard-field">
+                    <label class="wizard-field-label">Lotação</label>
+                    <div class="wizard-field-with-reset">
+                        <input type="text" id="wizardLotacao" class="wizard-field-input" value="${this.data.lotacao || ''}" data-original="${this.data.lotacao || ''}" />
+                        <button type="button" class="wizard-reset-btn" data-field="wizardLotacao" title="Restaurar valor original">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="wizard-field-group">
+                    <div class="wizard-field">
+                        <label class="wizard-field-label">Unidade</label>
+                        <div class="wizard-field-with-reset">
+                            <input type="text" id="wizardUnidade" class="wizard-field-input" value="${this.data.unidade || ''}" data-original="${this.data.unidade || ''}" />
+                            <button type="button" class="wizard-reset-btn" data-field="wizardUnidade" title="Restaurar valor original">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="wizard-field">
+                        <label class="wizard-field-label">Referência</label>
+                        <div class="wizard-field-with-reset">
+                            <input type="text" id="wizardRef" class="wizard-field-input" value="${this.data.ref || ''}" data-original="${this.data.ref || ''}" />
+                            <button type="button" class="wizard-reset-btn" data-field="wizardRef" title="Restaurar valor original">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Anexa listeners da página de edição de licença
+     * @private
+     */
+    _attachEditLicenseListeners() {
+        // Reutilizar listeners do Step 2
+        this._attachStep2Listeners();
+        
+        // Adicionar listeners para botões de reset
+        this._attachResetButtonListeners();
+    }
+
+    /**
+     * Anexa listeners da página de edição de servidor
+     * @private
+     */
+    _attachEditServidorListeners() {
+        // Reutilizar listeners do Step 1 (campos do servidor)
+        this._attachStep1Listeners();
+        
+        // Adicionar listeners para botões de reset
+        this._attachResetButtonListeners();
+    }
+    
+    /**
+     * Anexa listeners para botões de reset
+     * @private
+     */
+    _attachResetButtonListeners() {
+        const resetButtons = this.modal.querySelectorAll('.wizard-reset-btn');
+        resetButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const fieldId = btn.dataset.field;
+                const input = document.getElementById(fieldId);
+                
+                if (input) {
+                    const originalValue = input.dataset.original || '';
+                    input.value = originalValue;
+                    
+                    // Trigger change event para atualizar this.data
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    
+                    // Feedback visual
+                    btn.style.color = '#22c55e';
+                    setTimeout(() => {
+                        btn.style.color = '';
+                    }, 500);
+                }
+            });
+        });
+    }
+
+    /**
+     * Anexa listeners da página de edição completa
+     * @private
+     */
+    _attachEditPageListeners() {
+        // Reutilizar listeners existentes
+        this._attachStep1Listeners();
+        this._attachStep2Listeners();
     }
 
     /**
@@ -362,7 +875,7 @@ class WizardModal {
      */
     _renderStep1() {
         const isEditMode = this.mode === 'edit';
-        const readonlyAttr = isEditMode ? 'readonly' : '';
+        const readonlyAttr = ''; // Permitir edição sempre
 
         console.log('[WizardModal] Renderizando Step 1 com dados:', {
             hasServidorData: !!this.servidorData,
@@ -378,7 +891,12 @@ class WizardModal {
                     <span>Dados do Servidor</span>
                 </h3>
                 
-                ${!isEditMode ? `
+                ${isEditMode ? `
+                    <div class="wizard-alert wizard-alert-info">
+                        <span class="wizard-alert-icon">ℹ️</span>
+                        <span>Você pode editar os dados do servidor. Essas mudanças afetam apenas esta linha da planilha.</span>
+                    </div>
+                ` : `
                     <div class="wizard-search-wrapper">
                         <div class="wizard-search-box">
                             <input
@@ -397,7 +915,7 @@ class WizardModal {
                     <div class="wizard-divider">
                         <span>ou preencha manualmente</span>
                     </div>
-                ` : ''}
+                `}
                 
                 <div class="wizard-subsection">
                     <h4 class="wizard-subsection-title">Dados Pessoais</h4>
@@ -412,7 +930,6 @@ class WizardModal {
                                 id="wizardNome"
                                 class="wizard-field-input ${this._isFieldAutofilled('nome') ? 'wizard-field-autofilled' : ''}"
                                 value="${this.data.nome}"
-                                ${readonlyAttr}
                                 required
                             />
                         </div>
@@ -429,7 +946,6 @@ class WizardModal {
                                 id="wizardCPF"
                                 class="wizard-field-input ${this._isFieldAutofilled('cpf') ? 'wizard-field-autofilled' : ''}"
                                 value="${this.data.cpf}"
-                                ${readonlyAttr}
                                 placeholder="000.000.000-00"
                                 required
                             />
@@ -444,7 +960,6 @@ class WizardModal {
                                 id="wizardRG"
                                 class="wizard-field-input ${this._isFieldAutofilled('rg') ? 'wizard-field-autofilled' : ''}"
                                 value="${this.data.rg}"
-                                ${readonlyAttr}
                             />
                         </div>
                     </div>
@@ -515,7 +1030,7 @@ class WizardModal {
                 ${isEditMode ? `
                     <div class="wizard-alert wizard-alert-warning">
                         <span class="wizard-alert-icon">⚠️</span>
-                        <span>Dados pessoais e profissionais afetarão todas as licenças deste servidor.</span>
+                        <span>As alterações nos dados do servidor afetam apenas esta linha da planilha.</span>
                     </div>
                 ` : ''}
             </div>
@@ -965,9 +1480,11 @@ class WizardModal {
             `;
         }).join('');
         
-        // Opções de gozo (30, 60, 90 dias)
-        const gozoOptions = [30, 60, 90].map(dias => `
-            <option value="${dias}" ${this.data.gozo == dias ? 'selected' : ''}>${dias} dias</option>
+        // Sugestões de gozo (30, 60, 90 dias) - agora como badges clicáveis
+        const gozoSuggestions = [30, 60, 90].map(dias => `
+            <button type="button" class="wizard-gozo-quick-btn" data-dias="${dias}" title="Preencher com ${dias} dias">
+                ${dias} dias
+            </button>
         `).join('');
         
         return `
@@ -1102,14 +1619,21 @@ class WizardModal {
                                 Dias de Gozo *
                                 <span class="wizard-field-calc-tag" id="gozoCalcTag" style="display:none">(calculado)</span>
                             </label>
-                            <select 
-                                id="wizardGozo" 
-                                class="wizard-field-input wizard-field-select"
-                                required
-                            >
-                                <option value="">Selecione...</option>
-                                ${gozoOptions}
-                            </select>
+                            <div class="wizard-gozo-wrapper">
+                                <input 
+                                    type="number" 
+                                    id="wizardGozo" 
+                                    class="wizard-field-input"
+                                    value="${this.data.gozo}"
+                                    placeholder="Ex: 30, 60, 90..."
+                                    min="1"
+                                    step="1"
+                                    required
+                                />
+                                <div class="wizard-gozo-quick">
+                                    ${gozoSuggestions}
+                                </div>
+                            </div>
                         </div>
                         <div class="wizard-field">
                             <label class="wizard-field-label">
@@ -1208,7 +1732,15 @@ class WizardModal {
                     this.isPeriodoPersonalizado = true;
                     this.selectedPeriodo = null;
                     this.selectedPeriodoIndex = null;
-                    this._showStep(2); // Re-renderizar
+                    
+                    // Re-renderizar: se estiver em modo edit-license, atualizar body diretamente
+                    if (this.mode === 'edit-license') {
+                        const body = this.modal.querySelector('.wizard-body');
+                        body.innerHTML = this._renderEditLicensePage();
+                        this._attachEditLicenseListeners();
+                    } else {
+                        this._showStep(2);
+                    }
                 } else {
                     // Período predefinido
                     this.isPeriodoPersonalizado = false;
@@ -1232,11 +1764,16 @@ class WizardModal {
                             'tipo fim': typeof this.data.aquisitivo_fim
                         });
 
-                        // Re-renderizar para mostrar info box
-                        // IMPORTANTE: Não perdemos os dados ao re-renderizar porque eles estão em this.data
-                        this._showStep(2);
+                        // Re-renderizar: se estiver em modo edit-license, atualizar body diretamente
+                        if (this.mode === 'edit-license') {
+                            const body = this.modal.querySelector('.wizard-body');
+                            body.innerHTML = this._renderEditLicensePage();
+                            this._attachEditLicenseListeners();
+                        } else {
+                            this._showStep(2);
+                        }
 
-                        console.log('[WizardModal] 🔍 Após re-renderizar Step 2, verificando this.data:', {
+                        console.log('[WizardModal] 🔍 Após re-renderizar, verificando this.data:', {
                             'this.data.aquisitivo_inicio': this.data.aquisitivo_inicio,
                             'this.data.aquisitivo_fim': this.data.aquisitivo_fim
                         });
@@ -1293,11 +1830,23 @@ class WizardModal {
             });
         }
 
+        // Botões rápidos de gozo
+        const gozoBtns = document.querySelectorAll('.wizard-gozo-quick-btn');
+        gozoBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const dias = btn.dataset.dias;
+                if (gozo) {
+                    gozo.value = dias;
+                    gozo.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            });
+        });
+
         if (gozo) {
-            gozo.addEventListener('change', (e) => {
+            gozo.addEventListener('input', (e) => {
                 this.data.gozo = e.target.value;
 
-                // Validação em tempo real: múltiplo de 30 e não exceder disponível
+                // Validação em tempo real
                 const gozoValue = parseInt(e.target.value);
                 const disponivel = this.selectedPeriodo ? (this.selectedPeriodo.disponivel || this.selectedPeriodo.disponiveis) : undefined;
 
@@ -1605,6 +2154,15 @@ class WizardModal {
 
         try {
             console.log('[WizardModal] 💾 Iniciando _save()...');
+            
+            // Mostrar preview antes de salvar (exceto para edit-license e edit-servidor)
+            if (this.mode === 'edit') {
+                const confirmar = await this._showPreview();
+                if (!confirmar) {
+                    this._isSaving = false;
+                    return;
+                }
+            }
             console.log('[WizardModal] 🔍 ANTES do sync - this.data:', {
                 aquisitivo_inicio: this.data.aquisitivo_inicio,
                 aquisitivo_fim: this.data.aquisitivo_fim,
@@ -1660,35 +2218,73 @@ class WizardModal {
         }
         
         try {
-            // Preparar objeto de dados
-            const licenseData = {
-                NOME: this.data.nome,
-                CPF: this.data.cpf,
-                RG: this.data.rg,
-                CARGO: this.data.cargo,
-                LOTACAO: this.data.lotacao,
-                UNIDADE: this.data.unidade,
-                REF: this.data.ref,
-                NUMERO: this.data.numero,
-                EMISSAO: this.data.emissao,
-                AQUISITIVO_INICIO: this.data.aquisitivo_inicio,
-                AQUISITIVO_FIM: this.data.aquisitivo_fim,
-                A_PARTIR: this.data.a_partir,
-                GOZO: this.data.gozo,
-                TERMINO: this.data.termino,
-                RESTANDO: this.data.restando
-            };
+            
+            // Preparar objeto de dados baseado no modo
+            let licenseData;
+            
+            if (this.mode === 'edit-license') {
+                // Modo edit-license: atualizar SÓ campos da licença
+                licenseData = {
+                    NUMERO: this.data.numero,
+                    EMISSAO: this.data.emissao,
+                    AQUISITIVO_INICIO: this.data.aquisitivo_inicio,
+                    AQUISITIVO_FIM: this.data.aquisitivo_fim,
+                    A_PARTIR: this.data.a_partir,
+                    GOZO: this.data.gozo,
+                    TERMINO: this.data.termino,
+                    RESTANDO: this.data.restando
+                };
+            } else if (this.mode === 'edit-servidor') {
+                // Modo edit-servidor: atualizar SÓ campos do servidor
+                licenseData = {
+                    NOME: this.data.nome,
+                    CPF: this.data.cpf,
+                    RG: this.data.rg,
+                    CARGO: this.data.cargo,
+                    LOTACAO: this.data.lotacao,
+                    UNIDADE: this.data.unidade,
+                    REF: this.data.ref
+                };
+            } else {
+                // Modo 'edit' ou 'add': todos os campos
+                licenseData = {
+                    NOME: this.data.nome,
+                    CPF: this.data.cpf,
+                    RG: this.data.rg,
+                    CARGO: this.data.cargo,
+                    LOTACAO: this.data.lotacao,
+                    UNIDADE: this.data.unidade,
+                    REF: this.data.ref,
+                    NUMERO: this.data.numero,
+                    EMISSAO: this.data.emissao,
+                    AQUISITIVO_INICIO: this.data.aquisitivo_inicio,
+                    AQUISITIVO_FIM: this.data.aquisitivo_fim,
+                    A_PARTIR: this.data.a_partir,
+                    GOZO: this.data.gozo,
+                    TERMINO: this.data.termino,
+                    RESTANDO: this.data.restando
+                };
+            }
             
             // Chamar método apropriado do App
-            if (this.mode === 'edit') {
-                // TODO: Implementar edição
+            if (this.mode === 'edit-license') {
+                // Editar SÓ uma licença específica (1 linha na planilha)
+                await this.app.updateLicense(this.originalLicenseData, licenseData);
+                this._showNotification('Licença atualizada com sucesso!', 'success');
+            } else if (this.mode === 'edit-servidor') {
+                // Editar dados do servidor em TODAS as licenças dele (múltiplas linhas)
+                await this.app.updateServidorData(this.data.cpf, licenseData);
+                this._showNotification('Dados do servidor atualizados em todas as licenças!', 'success');
+            } else if (this.mode === 'edit') {
+                // Modo legado: edição completa
                 await this.app.updateLicense(this.originalLicenseData, licenseData);
                 this._showNotification('Licença atualizada com sucesso!', 'success');
             } else {
-                // TODO: Implementar adição
+                // Adicionar nova licença
                 await this.app.addNewLicense(licenseData);
                 this._showNotification('Licença adicionada com sucesso!', 'success');
             }
+
             
             // Fechar modal
             setTimeout(() => this.close(), 1500);
@@ -1701,6 +2297,98 @@ class WizardModal {
             // Garantir que a flag seja resetada em qualquer caso
             this._isSaving = false;
         }
+    }
+
+    /**
+     * Mostra preview das mudanças antes de salvar
+     * @returns {Promise<boolean>} - true se confirmar, false se cancelar
+     */
+    async _showPreview() {
+        return new Promise((resolve) => {
+            // Sincronizar dados do DOM
+            this._syncDataFromDOM();
+            
+            const changes = [];
+            const original = this.originalLicenseData;
+            
+            // Comparar valores
+            const fields = [
+                { key: 'NUMERO', label: 'Número do Processo' },
+                { key: 'EMISSAO', label: 'Data de Emissão', format: 'date' },
+                { key: 'AQUISITIVO_INICIO', label: 'Período Início', format: 'date' },
+                { key: 'AQUISITIVO_FIM', label: 'Período Fim', format: 'date' },
+                { key: 'A_PARTIR', label: 'Início da Licença', format: 'date' },
+                { key: 'GOZO', label: 'Dias de Gozo' },
+                { key: 'TERMINO', label: 'Término', format: 'date' },
+                { key: 'RESTANDO', label: 'Dias Restando' }
+            ];
+            
+            fields.forEach(field => {
+                const oldVal = original[field.key];
+                const newVal = this.data[field.key.toLowerCase()];
+                
+                if (oldVal != newVal) {
+                    changes.push({
+                        label: field.label,
+                        old: field.format === 'date' ? this._formatDate(oldVal) : oldVal,
+                        new: field.format === 'date' ? this._formatDate(newVal) : newVal
+                    });
+                }
+            });
+            
+            if (changes.length === 0) {
+                this._showNotification('ℹ️ Nenhuma alteração detectada', 'info', 3000);
+                resolve(false);
+                return;
+            }
+            
+            // Renderizar preview
+            const previewHTML = `
+                <div class="wizard-preview">
+                    <div class="wizard-preview-header">
+                        <h4>📋 Confirmar Alterações</h4>
+                        <p>Revise as mudanças antes de salvar:</p>
+                    </div>
+                    <div class="wizard-preview-changes">
+                        ${changes.map(ch => `
+                            <div class="wizard-preview-change">
+                                <div class="wizard-preview-label">${ch.label}</div>
+                                <div class="wizard-preview-values">
+                                    <span class="wizard-preview-old">${ch.old || '(vazio)'}</span>
+                                    <span class="wizard-preview-arrow">→</span>
+                                    <span class="wizard-preview-new">${ch.new || '(vazio)'}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="wizard-preview-footer">
+                        <button class="wizard-button wizard-button-cancel" id="previewCancel">Cancelar</button>
+                        <button class="wizard-button wizard-button-primary" id="previewConfirm">✓ Confirmar e Salvar</button>
+                    </div>
+                </div>
+            `;
+            
+            const modalBody = this.modal.querySelector('.wizard-body');
+            const originalContent = modalBody.innerHTML;
+            modalBody.innerHTML = previewHTML;
+            
+            // Esconder footer original
+            const footer = this.modal.querySelector('.wizard-footer');
+            footer.style.display = 'none';
+            
+            // Listeners
+            document.getElementById('previewConfirm').addEventListener('click', () => {
+                modalBody.innerHTML = originalContent;
+                footer.style.display = '';
+                resolve(true);
+            });
+            
+            document.getElementById('previewCancel').addEventListener('click', () => {
+                modalBody.innerHTML = originalContent;
+                footer.style.display = '';
+                resolve(false);
+            });
+        });
     }
 
     /**

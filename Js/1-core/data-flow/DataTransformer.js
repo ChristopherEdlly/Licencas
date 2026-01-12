@@ -313,6 +313,7 @@ const DataTransformer = (function () {
             let diasSemDuplicacao = 0;
             let diasComDuplicacao = 0;
             const licencasInvalidas = [];
+            let restanteUltimaLicencaValida = null;
             
             licencas.forEach((lic, index) => {
                 const gozoDias = lic.diasGozados || lic.dias || parseInt(lic.GOZO || lic.gozo || 0);
@@ -334,6 +335,7 @@ const DataTransformer = (function () {
                     // Licença válida
                     diasSemDuplicacao += gozoDias;
                     lic._invalidada = false;
+                    restanteUltimaLicencaValida = restante; // Guardar RESTANDO da última válida
                 }
                 
                 restanteAnterior = restante;
@@ -344,6 +346,8 @@ const DataTransformer = (function () {
             // IMPORTANTE: Usar diasSemDuplicacao como valor oficial
             periodo.diasGozadosRegistrados = diasSemDuplicacao;
             periodo.licencasInvalidas = licencasInvalidas;
+            // Guardar RESTANDO da última licença válida para inferência de períodos
+            periodo.restanteValido = restanteUltimaLicencaValida;
         });
         
         if (periodosReais.size === 0) {
@@ -373,11 +377,21 @@ const DataTransformer = (function () {
         // ETAPA 2: Processar cada período e detectar inconsistências
         periodosReais.forEach((periodo, key) => {
             let diasGerados = 90; // Inicialmente assumir 1 quinquênio
-            let diasGozadosTotal = 0;
             let ultimoRestando = null;
 
-            // Processar cada licença deste período
+            // Usar dias já calculados (sem duplicação) da ETAPA 1.5
+            const diasGozadosValidos = periodo.diasGozadosRegistrados || 0;
+
+            // Usar RESTANDO da última licença VÁLIDA (calculado na ETAPA 1.5)
+            ultimoRestando = periodo.restanteValido;
+            
+            // Processar licenças com GOZO > 90 para criar períodos inferidos
             periodo.licencas.forEach(lic => {
+                // Pular licenças invalidadas
+                if (lic._invalidada) {
+                    return;
+                }
+                
                 const gozo = lic.diasGozados || lic.dias || 0;
 
                 // CASO 1: GOZO > 90 → Dividir entre múltiplos períodos
@@ -388,10 +402,7 @@ const DataTransformer = (function () {
                     while (gozoRestante > 0) {
                         const diasDesteperiodo = Math.min(gozoRestante, 90);
 
-                        if (offsetAnos === 0) {
-                            // Primeiro período (o registrado)
-                            diasGozadosTotal += diasDesteperiodo;
-                        } else {
+                        if (offsetAnos > 0) {
                             // Períodos anteriores (inferidos)
                             const anoInicioInferido = periodo.anoInicio - (offsetAnos * 5);
                             const anoFimInferido = periodo.anoFim - (offsetAnos * 5);
@@ -422,15 +433,6 @@ const DataTransformer = (function () {
                         gozoRestante -= diasDesteperiodo;
                         offsetAnos++;
                     }
-                } else {
-                    // GOZO normal (≤ 90)
-                    diasGozadosTotal += gozo;
-                }
-
-                // Capturar último RESTANDO (para detecção de licenças antigas)
-                const restando = lic.saldo; // Já foi parseado como número em enrichServidor
-                if (restando !== null && restando !== undefined && !isNaN(restando)) {
-                    ultimoRestando = restando;
                 }
             });
 
@@ -442,46 +444,52 @@ const DataTransformer = (function () {
             diasGerados = numQuinquenios * 90;
 
             // CASO 2: Detectar licenças antigas não registradas (via RESTANDO)
+            let diasGozadosComInferencia = diasGozadosValidos; // Começa com apenas os válidos
+            
             if (ultimoRestando !== null) {
-                const restanteCalculado = Math.max(0, diasGerados - diasGozadosTotal);
+                const restanteCalculado = Math.max(0, diasGerados - diasGozadosValidos);
 
                 if (restanteCalculado !== ultimoRestando) {
                     const divergencia = restanteCalculado - ultimoRestando;
 
                     if (divergencia > 0) {
                         // CASO 2.1: restanteCalculado > ultimoRestando
+                        // Ex: calculado=30 mas real=0
                         // Significa que há GOZO não registrado no período ATUAL
-                        // (ex: planilha mostra RESTANDO=0 mas só temos 30 dias de GOZO registrado → faltam 60 dias)
-                        // CORREÇÃO: Ajustar diasGozadosTotal para refletir o uso real
-                        diasGozadosTotal = diasGerados - ultimoRestando;
-
-                        // NÃO criar período anterior - os dias faltantes pertencem ao período atual
+                        // Ajustar diasGozados para refletir o uso real (incluindo não registrados)
+                        diasGozadosComInferencia = diasGerados - ultimoRestando;
                     } else if (divergencia < 0) {
                         // CASO 2.2: restanteCalculado < ultimoRestando
-                        // Servidor tem mais dias disponíveis do que o calculado
-                        // Isso indica que há saldo de período(s) ANTERIOR(es) não registrado(s)
+                        // Ex: calculado=30 mas real=60
+                        // Servidor tem MAIS dias disponíveis do que o calculado
+                        // Isso indica SALDO de período(s) anterior(es) transferido
                         const diasDeOutroPeriodo = Math.abs(divergencia);
 
-                        const periodoAntigoInferido = {
-                            label: `Anterior a ${periodo.anoInicio}`,
-                            anoInicio: periodo.anoInicio - 5,
-                            anoFim: periodo.anoInicio,
-                            diasGerados: 90,
-                            diasGozados: 0, // Período não foi usado, saldo foi transferido
-                            disponivel: diasDeOutroPeriodo,
-                            tipo: 'inferido',
-                            motivo: 'saldo_transferido',
-                            nota: `Saldo de período anterior (${diasDeOutroPeriodo} dias acumulados)`
-                        };
+                        const temLicencasValidas = periodo.restanteValido !== null;
+                        const divergenciaSignificativa = diasDeOutroPeriodo > 5;
+                        
+                        if (temLicencasValidas && divergenciaSignificativa) {
+                            const periodoAntigoInferido = {
+                                label: `Anterior a ${periodo.anoInicio}`,
+                                anoInicio: periodo.anoInicio - 5,
+                                anoFim: periodo.anoInicio - 1,
+                                diasGerados: 90,
+                                diasGozados: 0, // Período não foi usado, saldo foi transferido
+                                disponivel: diasDeOutroPeriodo,
+                                tipo: 'inferido',
+                                motivo: 'saldo_transferido',
+                                nota: `Saldo de período anterior (${diasDeOutroPeriodo} dias acumulados)`
+                            };
 
-                        periodosInferidos.push(periodoAntigoInferido);
+                            periodosInferidos.push(periodoAntigoInferido);
+                        }
                     }
                 }
             }
 
             // Se após ajuste via RESTANDO o GOZO exceder a capacidade, recalcular quinquênios
-            if (diasGozadosTotal > diasGerados) {
-                const numQuinqueniosNecessarios = Math.ceil(diasGozadosTotal / 90);
+            if (diasGozadosComInferencia > diasGerados) {
+                const numQuinqueniosNecessarios = Math.ceil(diasGozadosComInferencia / 90);
                 numQuinquenios = Math.max(numQuinquenios, numQuinqueniosNecessarios);
                 diasGerados = numQuinquenios * 90;
             }
@@ -489,7 +497,7 @@ const DataTransformer = (function () {
             const diasTotaisDisponiveis = diasGerados;
 
             // Criar período principal (registrado)
-            const disponivel = Math.max(0, diasGerados - diasGozadosTotal);
+            const disponivel = Math.max(0, diasGerados - diasGozadosComInferencia);
             const label = periodo.anoInicio === periodo.anoFim ? `${periodo.anoInicio}` : `${periodo.anoInicio}-${periodo.anoFim}`;
 
             periodos.push({
@@ -499,7 +507,7 @@ const DataTransformer = (function () {
                 anoInicio: periodo.anoInicio,
                 anoFim: periodo.anoFim,
                 diasGerados: diasGerados, // Agora reflete múltiplos quinquênios se necessário
-                diasGozados: diasGozadosTotal,
+                diasGozados: diasGozadosComInferencia, // Inclui dias inferidos via RESTANDO
                 disponivel: disponivel,
                 estaVencido: periodo.fim < hoje,
                 tipo: 'registrado',
@@ -511,6 +519,7 @@ const DataTransformer = (function () {
                 temDuplicacao: periodo.temDuplicacao,
                 diasMinimo: periodo.diasMinimo,
                 diasMaximo: periodo.diasMaximo,
+                licencasInvalidas: periodo.licencasInvalidas || [],
                 avisoRegistroDuvidoso: periodo.temDuplicacao ? 'Registro com RESTANDO duplicado detectado' : null
             });
         });

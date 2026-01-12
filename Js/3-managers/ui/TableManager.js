@@ -298,9 +298,7 @@ class TableManager {
                     <button class="btn-icon" data-action="view" data-row-index="${servidor.__rowIndex || index}" title="Ver detalhes">
                         <i class="bi bi-eye"></i>
                     </button>
-                    <button class="btn-icon btn-edit-record" data-action="edit" data-row-index="${servidor.__rowIndex || index}" title="Editar registro no SharePoint">
-                        <i class="bi bi-pencil"></i>
-                    </button>
+
                 </td>
             `;
         } else {
@@ -328,9 +326,6 @@ class TableManager {
                 <td class="actions">
                     <button class="btn-icon" data-action="view" title="Ver detalhes">
                         <i class="bi bi-eye"></i>
-                    </button>
-                    <button class="btn-icon btn-edit-record" data-action="edit" data-row-index="${servidor.__rowIndex || index}" title="Editar registro no SharePoint" disabled>
-                        <i class="bi bi-pencil"></i>
                     </button>
                 </td>
             `;
@@ -625,18 +620,15 @@ class TableManager {
     _setupEventListeners() {
         if (!this.tableElement) return;
 
-        // View and Edit Actions
+        // View Actions
         this.tableElement.addEventListener('click', (e) => {
             const viewBtn = e.target.closest('[data-action="view"]');
             if (viewBtn) {
                 const rowIndex = parseInt(viewBtn.dataset.rowIndex);
                 this._handleAction('view', rowIndex);
             }
-            const editBtn = e.target.closest('[data-action="edit"]');
-            if (editBtn) {
-                const rowIndex = parseInt(editBtn.dataset.rowIndex);  // ✅ USA __rowIndex DO BOTÃO
-                this._handleAction('edit', rowIndex);
-            }
+            // REMOVIDO: Botão de editar da tabela
+            // Agora edição é feita através do modal de detalhes do servidor
         });
 
         // Initial attach for static headers

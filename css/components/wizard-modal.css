@@ -19,7 +19,7 @@
     display: none;
     align-items: center;
     justify-content: center;
-    z-index: 10000;
+    z-index: 10200;
     animation: fadeIn 0.2s ease-out;
 }
 
@@ -593,6 +593,55 @@ body.dark-mode .wizard-search-result-cpf {
    FIELD INPUT
    ======================================== */
 
+.wizard-field-with-reset {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+}
+
+.wizard-field-with-reset .wizard-field-input {
+    flex: 1;
+}
+
+.wizard-reset-btn {
+    padding: 0.75rem;
+    border: 2px solid var(--border, #e0e0e0);
+    border-radius: 8px;
+    background: var(--bg-primary, #ffffff);
+    color: var(--text-secondary, #666666);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 42px;
+    font-size: 1rem;
+}
+
+.wizard-reset-btn:hover {
+    background: var(--bg-secondary, #f3f4f6);
+    border-color: var(--primary, #2563eb);
+    color: var(--primary, #2563eb);
+    transform: rotate(-15deg);
+}
+
+.wizard-reset-btn:active {
+    transform: scale(0.95) rotate(-15deg);
+}
+
+body.dark-mode .wizard-reset-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.6);
+}
+
+body.dark-mode .wizard-reset-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
 .wizard-field-input {
     padding: 0.75rem 1rem;
     border: 2px solid var(--border, #e0e0e0);
@@ -1145,6 +1194,304 @@ body.dark-mode .wizard-notification-close:hover {
 
 body.dark-mode .wizard-field-error {
     color: #f87171;
+}
+
+/* ========================================
+   GOZO INPUT COM SUGESTÕES RÁPIDAS
+   ======================================== */
+
+.wizard-gozo-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.wizard-gozo-quick {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.wizard-gozo-quick-btn {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--bg-secondary, #f5f5f5);
+    border: 1px solid var(--border, #e0e0e0);
+    border-radius: 6px;
+    color: var(--text-primary, #333);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.wizard-gozo-quick-btn:hover {
+    background: var(--primary, #2563eb);
+    color: white;
+    border-color: var(--primary, #2563eb);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.wizard-gozo-quick-btn:active {
+    transform: translateY(0);
+}
+
+body.dark-mode .wizard-gozo-quick-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #e0e0e0;
+}
+
+body.dark-mode .wizard-gozo-quick-btn:hover {
+    background: var(--primary, #2563eb);
+    color: white;
+}
+
+/* ========================================
+   PREVIEW DE ALTERAÇÕES
+   ======================================== */
+
+.wizard-preview {
+    background: var(--bg-primary, #ffffff);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.wizard-preview-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border, #e0e0e0);
+}
+
+.wizard-preview-header h4 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary, #333);
+    margin: 0 0 0.5rem 0;
+}
+
+.wizard-preview-header p {
+    font-size: 0.875rem;
+    color: var(--text-secondary, #666);
+    margin: 0;
+}
+
+.wizard-preview-changes {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.wizard-preview-change {
+    background: var(--bg-secondary, #f5f5f5);
+    border: 1px solid var(--border, #e0e0e0);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.wizard-preview-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary, #666);
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.05em;
+}
+
+.wizard-preview-values {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+}
+
+.wizard-preview-old {
+    padding: 0.375rem 0.75rem;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 4px;
+    color: #dc2626;
+    text-decoration: line-through;
+    flex: 1;
+}
+
+.wizard-preview-arrow {
+    font-size: 1.25rem;
+    color: var(--text-secondary, #666);
+    font-weight: bold;
+}
+
+.wizard-preview-new {
+    padding: 0.375rem 0.75rem;
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    border-radius: 4px;
+    color: #16a34a;
+    font-weight: 600;
+    flex: 1;
+}
+
+.wizard-preview-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border, #e0e0e0);
+}
+
+.wizard-button-primary {
+    background: var(--primary, #2563eb);
+    color: white;
+}
+
+.wizard-button-primary:hover {
+    background: var(--primary-hover, #1d4ed8);
+}
+
+body.dark-mode .wizard-preview {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+body.dark-mode .wizard-preview-change {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .wizard-preview-old {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #f87171;
+}
+
+body.dark-mode .wizard-preview-new {
+    background: rgba(34, 197, 94, 0.2);
+    border-color: rgba(34, 197, 94, 0.4);
+    color: #4ade80;
+}
+
+/* ========================================
+   PÁGINA DE EDIÇÃO (2 COLUNAS)
+   ======================================== */
+
+.wizard-edit-page {
+    padding: 0;
+}
+
+/* Banner mostrando o que está editando */
+.wizard-edit-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.wizard-edit-banner-icon {
+    font-size: 2rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.wizard-edit-banner-content {
+    flex: 1;
+    color: white;
+}
+
+.wizard-edit-banner-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    opacity: 0.95;
+}
+
+.wizard-edit-banner-info {
+    font-size: 0.875rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    opacity: 0.9;
+}
+
+.wizard-edit-banner-info strong {
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+.wizard-edit-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+.wizard-edit-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.wizard-edit-column .wizard-section-title {
+    margin: 0 0 1rem 0;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--border, #e0e0e0);
+    font-size: 1rem;
+}
+
+/* Responsivo: empilhar em telas pequenas */
+@media (max-width: 768px) {
+    .wizard-edit-columns {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+}
+
+body.dark-mode .wizard-edit-column .wizard-section-title {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .wizard-edit-banner {
+    background: linear-gradient(135deg, #4c51bf 0%, #5a3f7a 100%);
+}
+
+/* ========================================
+   EDIÇÃO SINGLE-PAGE (SÓ LICENÇA OU SÓ SERVIDOR)
+   ======================================== */
+
+.wizard-edit-single {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.wizard-edit-banner-compact {
+    background: var(--bg-tertiary, #f5f5f5);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+
+.wizard-edit-banner-warning {
+    background: rgba(251, 146, 60, 0.1);
+    border-color: rgba(251, 146, 60, 0.3);
+    color: #ea580c;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+body.dark-mode .wizard-edit-banner-compact {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode .wizard-edit-banner-warning {
+    background: rgba(251, 146, 60, 0.15);
+    color: #fb923c;
 }
 
 /* ========================================

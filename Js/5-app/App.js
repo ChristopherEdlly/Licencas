@@ -1791,6 +1791,98 @@ class App {
         }
     }
 
+    /**
+     * Atualiza dados do servidor em TODAS as licenças dele
+     * @param {string} cpf - CPF do servidor
+     * @param {Object} servidorData - Dados a atualizar (NOME, CPF, RG, CARGO, LOTACAO, UNIDADE, REF)
+     */
+    async updateServidorData(cpf, servidorData) {
+        console.log('[App] updateServidorData chamado:', { cpf, servidorData });
+        
+        try {
+            // Validar dados obrigatórios
+            if (!cpf) {
+                throw new Error('CPF é obrigatório');
+            }
+            
+            if (!servidorData.NOME || !servidorData.CPF) {
+                throw new Error('Dados do servidor são obrigatórios');
+            }
+            
+            // Obter metadados do SharePoint
+            const metadata = this.dataStateManager.getSourceMetadata();
+            
+            if (!metadata || !metadata.fileId || !metadata.tableName) {
+                throw new Error('Metadados do SharePoint não disponíveis. Recarregue os dados.');
+            }
+            
+            // Verificar se SharePointExcelService está disponível
+            if (!this.sharePointExcelService) {
+                throw new Error('SharePointExcelService não disponível');
+            }
+            
+            // Buscar todas as licenças do servidor
+            const allLicenses = this.dataStateManager.getAllServidores(); // Cada item = 1 linha
+            const licensesToUpdate = allLicenses.filter(lic => lic.cpf === cpf);
+            
+            if (licensesToUpdate.length === 0) {
+                throw new Error('Nenhuma licença encontrada para este servidor');
+            }
+            
+            console.log(`[App] Encontradas ${licensesToUpdate.length} licenças para atualizar`);
+            
+            // Atualizar cada linha no SharePoint
+            const updatePromises = licensesToUpdate.map(license => {
+                const rowIndex = license.__rowIndex;
+                
+                if (!rowIndex) {
+                    console.warn('[App] Licença sem __rowIndex, pulando:', license);
+                    return Promise.resolve(null);
+                }
+                
+                console.log(`[App] Atualizando linha ${rowIndex}...`);
+                
+                return this.sharePointExcelService.updateTableRow(
+                    metadata.fileId,
+                    metadata.tableName,
+                    rowIndex,
+                    servidorData
+                );
+            });
+            
+            // Aguardar todas as atualizações
+            const results = await Promise.all(updatePromises);
+            const successCount = results.filter(r => r !== null).length;
+            
+            console.log(`[App] ${successCount} linhas atualizadas com sucesso`);
+            
+            // Limpar dados antigos
+            if (this.dataStateManager) {
+                this.dataStateManager.setAllServidores([]);
+                this.dataStateManager.setFilteredServidores([]);
+            }
+            
+            // Recarregar dados
+            await this._loadPrimaryData();
+            
+            // Mostrar notificação de sucesso
+            if (this.notificationService) {
+                this.notificationService.success(`Dados atualizados em ${successCount} licença(s)!`);
+            }
+            
+            return { successCount, totalCount: licensesToUpdate.length };
+            
+        } catch (error) {
+            console.error('[App] Erro ao atualizar dados do servidor:', error);
+            
+            if (this.notificationService) {
+                this.notificationService.error('Erro ao atualizar dados: ' + error.message);
+            }
+            
+            throw error;
+        }
+    }
+
 }
 
 // ==================== EXPORTAÇÃO E BACKWARD COMPATIBILITY ====================

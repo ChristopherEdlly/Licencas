@@ -81,6 +81,31 @@
     flex-wrap: wrap;
 }
 
+#detailsModal .hero-actions {
+    flex-shrink: 0;
+}
+
+#detailsModal .btn-edit-servidor {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#detailsModal .btn-edit-servidor:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
 #detailsModal .hero-info {
     flex: 1;
     min-width: 200px;
@@ -496,6 +521,41 @@
     border-radius: 6px;
     padding: 0.65rem 0.75rem;
     border: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+#detailsModal .gozo-main-info {
+    flex: 1;
+    min-width: 0;
+}
+
+#detailsModal .btn-edit-license {
+    padding: 0.375rem 0.625rem;
+    font-size: 0.875rem;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#detailsModal .btn-edit-license:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+#detailsModal .btn-edit-license:active {
+    transform: translateY(0);
 }
 
 #detailsModal .gozo-dates {

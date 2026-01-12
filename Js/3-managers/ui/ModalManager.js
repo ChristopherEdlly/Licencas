@@ -1339,6 +1339,11 @@ class ModalManager {
                         ${numero ? `<span class="hero-meta-item"><i class="bi bi-hash"></i> ${this.escapeHtml(numero)}</span>` : ''}
                     </div>
                 </div>
+                <div class="hero-actions">
+                    <button class="btn-edit-servidor" data-servidor-cpf="${cpf || ''}" title="Editar dados do servidor">
+                        <i class="bi bi-pencil"></i> Editar Dados
+                    </button>
+                </div>
                 <div class="hero-saldo">
                     <div class="hero-saldo-label">Saldo Disponível</div>
                     <div class="hero-saldo-value ${balancoInfo.dias > 0 ? 'positivo' : 'zerado'}">${balancoInfo.dias}</div>
@@ -1581,7 +1586,7 @@ class ModalManager {
                                     <div style="color: #856404; font-weight: 600; margin-bottom: 4px;">Licença(s) invalidada(s):</div>
                                     <div style="color: #856404; font-size: 0.9em;">${licencasTexto}</div>
                                     <div style="color: #856404; font-size: 0.85em; margin-top: 4px; font-style: italic;">
-                                        RESTANDO duplicado detectado - verifique se foi cancelada na planilha
+                                        Restando não bate com os cálculos - verifique na planilha
                                     </div>
                                 </div>
                             </div>
@@ -1633,11 +1638,60 @@ class ModalManager {
                 const motivoInferencia = periodo.motivo || '';
                 const notaInferencia = periodo.nota || '';
                 
-                // Buscar licenças deste período
-                const licencasDoPeriodo = (servidor.licencas || []).filter(lic => {
+                // Buscar licenças deste período nos dados brutos (para ter __rowIndex)
+                const allRawData = this.app?.dataStateManager?.getAllServidores() || [];
+                const servidorCpf = servidor.cpf || servidor.CPF;
+                
+                console.log(`[ModalManager] Buscando licenças para CPF ${servidorCpf} no período ${periodo.anoInicio}-${periodo.anoFim}`);
+                console.log('[ModalManager] Total de dados brutos:', allRawData.length);
+                
+                // Buscar licenças transformadas deste período primeiro (para ter referência)
+                const licencasTransformadas = (servidor.licencas || []).filter(lic => {
                     const licAnoInicio = lic.aquisitivoInicio ? (lic.aquisitivoInicio instanceof Date ? lic.aquisitivoInicio.getFullYear() : parseInt(String(lic.aquisitivoInicio).match(/(\d{4})/)?.[1])) : null;
                     const licAnoFim = lic.aquisitivoFim ? (lic.aquisitivoFim instanceof Date ? lic.aquisitivoFim.getFullYear() : parseInt(String(lic.aquisitivoFim).match(/(\d{4})/)?.[1])) : null;
                     return (licAnoInicio === periodo.anoInicio && licAnoFim === periodo.anoFim);
+                });
+                
+                console.log(`[ModalManager] Período ${periodo.anoInicio}-${periodo.anoFim}: ${licencasTransformadas.length} licenças transformadas`);
+                
+                // Mapear cada licença transformada para dados brutos usando data de início
+                const licencasDoPeriodo = licencasTransformadas.map((lic, idx) => {
+                    // Buscar pela data de início (A_PARTIR) que é único
+                    const dataInicio = lic.inicio || lic.dataInicio;
+                    
+                    let licencaBruta = null;
+                    if (dataInicio) {
+                        const dataInicioStr = dataInicio instanceof Date ? 
+                            `${dataInicio.getFullYear()}-${String(dataInicio.getMonth() + 1).padStart(2, '0')}-${String(dataInicio.getDate()).padStart(2, '0')}` :
+                            String(dataInicio);
+                        
+                        licencaBruta = allRawData.find(row => {
+                            const rowCpf = row.cpf || row.CPF;
+                            if (rowCpf !== servidorCpf) return false;
+                            
+                            const rowAPartir = row.a_partir || row.A_PARTIR || '';
+                            const rowAPartirStr = rowAPartir instanceof Date ?
+                                `${rowAPartir.getFullYear()}-${String(rowAPartir.getMonth() + 1).padStart(2, '0')}-${String(rowAPartir.getDate()).padStart(2, '0')}` :
+                                String(rowAPartir);
+                            
+                            // Comparar datas (suporta formatos yyyy-mm-dd e dd/mm/yyyy)
+                            return rowAPartirStr.includes(dataInicioStr.substring(0, 10)) || 
+                                   dataInicioStr.includes(rowAPartirStr.substring(0, 10));
+                        });
+                    }
+                    
+                    const rowIndex = licencaBruta ? licencaBruta.__rowIndex : null;
+                    
+                    console.log(`[ModalManager] Licença ${idx} (início: ${dataInicio}): rowIndex=${rowIndex}`, licencaBruta ? 'ENCONTRADA' : 'NÃO ENCONTRADA');
+                    if (!licencaBruta && dataInicio) {
+                        console.warn('[ModalManager] Licença não encontrada nos dados brutos:', { dataInicio, cpf: servidorCpf });
+                    }
+                    
+                    return {
+                        ...lic,
+                        _isInvalida: lic._invalidada === true,
+                        __rowIndex: rowIndex
+                    };
                 });
                 
                 periodosHTML += `
@@ -1671,6 +1725,7 @@ class ModalManager {
                                 </div>
                                 <div class="gozos-timeline">
                 `;
+                
                 licencasDoPeriodo.forEach((gozo, gozoIdx) => {
                     const formatDate = (date) => {
                         if (!date) return '-';
@@ -1752,13 +1807,25 @@ class ModalManager {
                         }
                     }
                     const saldoPos = parseInt(gozo.RESTANDO || gozo.restando || 0);
+                    const isInvalidada = gozo._isInvalida === true;
+                    const estiloInvalidado = isInvalidada ? 'opacity: 0.5; text-decoration: line-through;' : '';
+                    const iconeInvalidado = isInvalidada ? '<i class="bi bi-x-circle" style="color: #dc3545; margin-left: 8px;" title="Licença invalidada - RESTANDO não diminuiu"></i>' : '';
+                    const rowIndex = gozo.__rowIndex || null;
+                    
                     periodosHTML += `
-                        <div class="gozo-timeline-item">
+                        <div class="gozo-timeline-item" style="${estiloInvalidado}">
                             <div class="gozo-content">
-                                <div class="gozo-dates">${dataInicio} → ${dataFim}</div>
-                                <div class="gozo-info">
-                                    <span class="gozo-dias"><i class="bi bi-calendar-check"></i> ${diasGozo} dias</span>
+                                <div class="gozo-main-info">
+                                    <div class="gozo-dates">${dataInicio} → ${dataFim}${iconeInvalidado}</div>
+                                    <div class="gozo-info">
+                                        <span class="gozo-dias"><i class="bi bi-calendar-check"></i> ${diasGozo} dias</span>
+                                    </div>
                                 </div>
+                                ${rowIndex !== null ? `
+                                    <button class="btn-edit-license" data-row-index="${rowIndex}" title="Editar esta licença">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                ` : ''}
                             </div>
                         </div>
                     `;
@@ -2610,6 +2677,58 @@ class ModalManager {
                 const accordion = header.parentElement;
                 accordion.classList.toggle('active');
             });
+        });
+        
+        // Event delegation para botões de editar licença
+        modal.addEventListener('click', async (e) => {
+            const editBtn = e.target.closest('.btn-edit-license');
+            if (editBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const rowIndex = parseInt(editBtn.dataset.rowIndex);
+                if (isNaN(rowIndex)) {
+                    console.error('[ModalManager] rowIndex inválido:', editBtn.dataset.rowIndex);
+                    return;
+                }
+                
+                // Buscar dados da licença
+                const allData = this.app?.dataStateManager?.getAllServidores() || [];
+                const licenca = allData.find(s => s.__rowIndex === rowIndex);
+                
+                if (!licenca) {
+                    console.error('[ModalManager] Licença não encontrada para rowIndex:', rowIndex);
+                    return;
+                }
+                
+                // Abrir modal de edição
+                if (this.app?.wizardModal) {
+                    this.app.wizardModal.open('edit-license', licenca, licenca);
+                }
+            }
+            
+            // Event delegation para botão de editar dados do servidor
+            const editServidorBtn = e.target.closest('.btn-edit-servidor');
+            if (editServidorBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const cpf = editServidorBtn.dataset.servidorCpf;
+                
+                // Buscar primeira licença do servidor
+                const allData = this.app?.dataStateManager?.getAllServidores() || [];
+                const primeiraLicenca = allData.find(s => (s.CPF || s.cpf) === cpf);
+                
+                if (!primeiraLicenca) {
+                    console.error('[ModalManager] Servidor não encontrado');
+                    return;
+                }
+                
+                // Abrir modal de edição de servidor
+                if (this.app?.wizardModal) {
+                    this.app.wizardModal.open('edit-servidor', primeiraLicenca, primeiraLicenca);
+                }
+            }
         });
     }
 
