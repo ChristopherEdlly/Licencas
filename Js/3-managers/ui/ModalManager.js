@@ -1541,7 +1541,11 @@ class ModalManager {
             console.log('[ModalManager] Usando periodosAquisitivos já calculados:', servidor.periodosAquisitivos.length);
             
             servidor.periodosAquisitivos.forEach((periodo, periodoIndex) => {
-                const diasDireito = periodo.diasGerados || 90;
+                // MELHORIA: Usar diasTotais para períodos múltiplos (ex: 10 anos = 2 quinquênios = 180 dias)
+                const isPeriodoMultiplo = periodo.isPeriodoMultiplo || false;
+                const numQuinquenios = periodo.numQuinquenios || 1;
+                const diasDireito = isPeriodoMultiplo ? (periodo.diasTotais || 90) : (periodo.diasGerados || 90);
+
                 const diasGozados = periodo.diasGozados || 0;
                 const diasRestantes = periodo.disponivel !== undefined ? periodo.disponivel : Math.max(0, diasDireito - diasGozados);
                 const percentual = Math.min(100, Math.round((diasGozados / diasDireito) * 100));
@@ -1551,6 +1555,77 @@ class ModalManager {
                 // Usar label já calculado ou construir um
                 const periodoLabel = periodo.label || `${periodo.anoInicio || '?'} - ${periodo.anoFim || '?'}`;
                 const numeroOrdinal = periodoIndex + 1;
+                
+                // Detectar se há duplicação/cancelamento
+                const temDuplicacao = periodo.temDuplicacao || false;
+                const licencasInvalidas = periodo.licencasInvalidas || [];
+                
+                let avisoHTML = '';
+                if (temDuplicacao && licencasInvalidas.length > 0) {
+                    const formatarData = (data) => {
+                        if (!data) return 'data não especificada';
+                        if (typeof data === 'string') return data;
+                        if (data instanceof Date) return data.toLocaleDateString('pt-BR');
+                        return String(data);
+                    };
+                    
+                    const licencasTexto = licencasInvalidas.map(lic => 
+                        `${formatarData(lic.dataInicio)} (${lic.gozo} dias)`
+                    ).join(', ');
+                    
+                    avisoHTML = `
+                        <div style="background: #fff3cd; border-left: 3px solid #ffc107; padding: 8px 12px; margin: 8px 0; border-radius: 4px;">
+                            <div style="display: flex; align-items: start; gap: 8px;">
+                                <i class="bi bi-exclamation-triangle" style="color: #856404; margin-top: 2px;"></i>
+                                <div style="flex: 1;">
+                                    <div style="color: #856404; font-weight: 600; margin-bottom: 4px;">Licença(s) invalidada(s):</div>
+                                    <div style="color: #856404; font-size: 0.9em;">${licencasTexto}</div>
+                                    <div style="color: #856404; font-size: 0.85em; margin-top: 4px; font-style: italic;">
+                                        RESTANDO duplicado detectado - verifique se foi cancelada na planilha
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Gerar tooltip detalhado para períodos múltiplos
+                let tooltipDetalhado = '';
+                if (isPeriodoMultiplo && numQuinquenios > 1) {
+                    // Função para formatar Date em dd/mm/aaaa
+                    const formatDate = (date) => {
+                        if (!date || !(date instanceof Date) || isNaN(date)) {
+                            return 'Data inválida';
+                        }
+                        return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    };
+
+                    tooltipDetalhado = `${numQuinquenios} períodos (${numQuinquenios} × 90 = ${diasDireito} dias):\n`;
+
+                    // Usar datas REAIS do período para calcular quinquênios
+                    if (periodo.inicio && periodo.fim) {
+                        const dataInicio = new Date(periodo.inicio);
+                        const dataFim = new Date(periodo.fim);
+
+                        for (let i = 0; i < numQuinquenios; i++) {
+                            const quinquenioInicio = new Date(dataInicio);
+                            quinquenioInicio.setFullYear(dataInicio.getFullYear() + (i * 5));
+
+                            const quinquenioFim = new Date(quinquenioInicio);
+                            quinquenioFim.setFullYear(quinquenioInicio.getFullYear() + 5);
+                            quinquenioFim.setDate(quinquenioFim.getDate() - 1); // Último dia antes do próximo período
+
+                            // Se for o último quinquênio, usar data fim real
+                            const fimFinal = i === (numQuinquenios - 1) ? dataFim : quinquenioFim;
+
+                            tooltipDetalhado += `${formatDate(quinquenioInicio)} - ${formatDate(fimFinal)}\n`;
+                        }
+                    } else {
+                        tooltipDetalhado = `${numQuinquenios} períodos (${diasDireito} dias)`;
+                    }
+                } else {
+                    tooltipDetalhado = `${numQuinquenios} quinquênio (${diasDireito} dias)`;
+                }
 
                 // Detectar se é período inferido
                 const isInferido = periodo.tipo === 'inferido';
@@ -1574,7 +1649,7 @@ class ModalManager {
                             <div class="periodo-info">
                                 <div class="periodo-dates">
                                     ${isInferido ? '<span class="badge-inferido" title="Período calculado automaticamente">Calculado</span> ' : ''}
-                                    Período Aquisitivo: ${periodoLabel}
+                                    Período Aquisitivo: ${periodoLabel}${isPeriodoMultiplo ? ` <span class="periodo-count" title="${tooltipDetalhado}">(${numQuinquenios})</span>` : ''}
                                 </div>
                                 <div class="periodo-summary">${diasGozados}/${diasDireito} dias utilizados</div>
                                 ${isInferido && notaInferencia ? `<div class="periodo-nota-inferencia"><i class="bi bi-info-circle"></i> ${notaInferencia}</div>` : ''}
@@ -1589,6 +1664,7 @@ class ModalManager {
                         </div>
                         <div class="periodo-accordion-content">
                             <div class="periodo-accordion-body">
+                                ${avisoHTML}
                                 <div class="periodo-gozos-header">
                                     <i class="bi bi-calendar-event"></i>
                                     <span>Licenças gozadas (${licencasDoPeriodo.length})</span>
@@ -1687,6 +1763,55 @@ class ModalManager {
                         </div>
                     `;
                 });
+
+                // MELHORIA: Adicionar item para dias não registrados (detectados via RESTANDO)
+                const diasRegistrados = licencasDoPeriodo.reduce((sum, gozo) => {
+                    let dias = parseInt(gozo.GOZO || gozo.gozo || 0);
+                    if (dias === 0) {
+                        const parseDate = (d) => {
+                            if (!d) return null;
+                            if (d instanceof Date) return d;
+                            if (typeof d === 'string') {
+                                let match = d.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+                                if (match) return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]), 12, 0, 0);
+                                match = d.match(/(\d{4})-(\d{2})-(\d{2})/);
+                                if (match) return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]), 12, 0, 0);
+                                const parsed = new Date(d);
+                                if (!isNaN(parsed)) return parsed;
+                            }
+                            return null;
+                        };
+                        const inicio = parseDate(gozo.A_PARTIR || gozo.aPartir || gozo.inicio);
+                        const fim = parseDate(gozo.TERMINO || gozo.termino || gozo.fim);
+                        if (inicio && fim && !isNaN(inicio) && !isNaN(fim)) {
+                            dias = Math.ceil((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
+                        }
+                    }
+                    return sum + dias;
+                }, 0);
+
+                const diasNaoRegistrados = diasGozados - diasRegistrados;
+
+                if (diasNaoRegistrados > 0) {
+                    periodosHTML += `
+                        <div class="gozo-timeline-item gozo-nao-registrado">
+                            <div class="gozo-content">
+                                <div class="gozo-dates">
+                                    <i class="bi bi-question-circle"></i> Data de uso não registrada
+                                </div>
+                                <div class="gozo-info">
+                                    <span class="gozo-dias gozo-dias-inferido">
+                                        <i class="bi bi-calendar-x"></i> ${diasNaoRegistrados} dias
+                                    </span>
+                                    <span class="gozo-nota">
+                                        <i class="bi bi-info-circle"></i> Uso detectado via calculo, usando a "RESTANDO" como indicador 
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
                 periodosHTML += `
                                 </div>
                                 <div class="periodo-resumo">
@@ -2581,7 +2706,26 @@ class ModalManager {
             });
         });
 
-        // Converter map para array ordenado
+        // Converter map para array ordenado e calcular total de dias considerando múltiplos quinquênios
+        const periodosArray = Array.from(periodosAquisitivosMap.entries());
+
+        // MELHORIA: Calcular diasGanhos considerando períodos com múltiplos quinquênios
+        let totalDiasGanhos = 0;
+        periodosArray.forEach(([chavePeriodo, dadosPeriodo]) => {
+            // Extrair anos da chave (formato: "anoInicio-anoFim")
+            const match = chavePeriodo.match(/(\d{4})-(\d{4})/);
+            if (match) {
+                const anoInicio = parseInt(match[1]);
+                const anoFim = parseInt(match[2]);
+                const anosDoIntervalo = anoFim - anoInicio;
+                const numQuinquenios = Math.ceil(anosDoIntervalo / 5);
+                totalDiasGanhos += numQuinquenios * 90;
+            } else {
+                // Fallback: assumir 1 quinquênio (90 dias)
+                totalDiasGanhos += 90;
+            }
+        });
+
         const periodos = Array.from(periodosAquisitivosMap.values());
 
         // O saldo disponível é o RESTANDO do ÚLTIMO período aquisitivo
@@ -2589,7 +2733,7 @@ class ModalManager {
 
         return {
             dias: ultimoPeriodo ? ultimoPeriodo.ultimoRestando : 0,
-            diasGanhos: periodos.length * 90, // Cada período aquisitivo = 90 dias
+            diasGanhos: totalDiasGanhos, // Soma considerando múltiplos quinquênios
             diasUsados: periodos.reduce((sum, p) => sum + p.diasUsados, 0),
             periodosTotal: periodos.length
         };

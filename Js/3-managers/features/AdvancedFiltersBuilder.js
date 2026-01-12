@@ -2318,21 +2318,41 @@ class AdvancedFiltersBuilder {
      */
     checkUnifiedHierarchyFilter(servidor, filterValue) {
         if (!filterValue) return true;
-        
+
         const { subsecretarias = [], superintendencias = [], lotacoes = [] } = filterValue;
-        
+
         // Se não há nenhuma seleção, passa todos
         if (subsecretarias.length === 0 && superintendencias.length === 0 && lotacoes.length === 0) {
             return true;
         }
-        
+
         const lotacao = this._getField(servidor, ['lotacao', 'Lotacao', 'LOTACAO', 'lotação', 'Lotação', 'LOTAÇÃO', 'unidade', 'Unidade']) || servidor.lotacao || servidor.unidade || null;
-        if (!lotacao) return false;
+
+        // DEBUG: Log primeiro servidor que falhar
+        if (!lotacao) {
+            if (!this._loggedNoLotacao) {
+                console.warn('[checkUnifiedHierarchyFilter] Servidor sem lotação:', servidor);
+                this._loggedNoLotacao = true;
+            }
+            return false;
+        }
         
         // Buscar informações hierárquicas da lotação do servidor
-        const lotacaoInfo = this.hierarchyManager.findLotacao(lotacao);
+        const lotacaoInfo = this.hierarchyManager?.findLotacao(lotacao);
         const normalizedLotacao = this.normalizeText(String(lotacao));
-        
+
+        // DEBUG: Log exemplo para entender o problema
+        if (!this._loggedExample) {
+            console.log('[checkUnifiedHierarchyFilter] DEBUG exemplo:');
+            console.log('  - Lotação servidor:', lotacao);
+            console.log('  - Lotação normalizada:', normalizedLotacao);
+            console.log('  - LotacaoInfo encontrado:', lotacaoInfo);
+            console.log('  - Filtro subsecretarias:', subsecretarias);
+            console.log('  - Filtro superintendencias:', superintendencias);
+            console.log('  - Filtro lotacoes:', lotacoes);
+            this._loggedExample = true;
+        }
+
         // Verificar se a lotação está diretamente selecionada
         if (lotacoes.some(l => {
             const normalized = this.normalizeText(String(l));
@@ -2340,7 +2360,7 @@ class AdvancedFiltersBuilder {
         })) {
             return true;
         }
-        
+
         // Se temos info hierárquica, verificar nos níveis superiores
         if (lotacaoInfo) {
             // Verificar se a superintendência do servidor está selecionada
@@ -2351,7 +2371,7 @@ class AdvancedFiltersBuilder {
             })) {
                 return true;
             }
-            
+
             // Verificar se a subsecretaria do servidor está selecionada
             if (lotacaoInfo.subsecretaria && subsecretarias.some(sub => {
                 const normalized = this.normalizeText(String(sub));

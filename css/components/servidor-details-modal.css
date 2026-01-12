@@ -525,6 +525,59 @@
     font-weight: 600;
 }
 
+/* Item de dias não registrados */
+#detailsModal .gozo-nao-registrado .gozo-content {
+    background: rgba(251, 146, 60, 0.08);
+    border: 1px dashed rgba(251, 146, 60, 0.3);
+}
+
+#detailsModal .gozo-nao-registrado::before {
+    background: rgba(251, 146, 60, 0.6);
+    border-color: rgba(251, 146, 60, 0.3);
+}
+
+#detailsModal .gozo-nao-registrado .gozo-dates {
+    color: #fb923c;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+#detailsModal .gozo-nao-registrado .gozo-dias-inferido {
+    color: #fb923c;
+}
+
+#detailsModal .gozo-nao-registrado .gozo-nota {
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+#detailsModal .gozo-info {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+/* Tema escuro */
+[data-theme="dark"] #detailsModal .gozo-nao-registrado .gozo-content {
+    background: rgba(251, 146, 60, 0.12);
+    border-color: rgba(251, 146, 60, 0.4);
+}
+
+[data-theme="dark"] #detailsModal .gozo-nao-registrado .gozo-dates {
+    color: #fdba74;
+}
+
+[data-theme="dark"] #detailsModal .gozo-nao-registrado .gozo-dias-inferido {
+    color: #fdba74;
+}
+
 /* Resumo do período */
 #detailsModal .periodo-resumo {
     margin-top: 0.75rem;
@@ -940,6 +993,23 @@
     vertical-align: middle;
 }
 
+/* Indicador discreto de períodos múltiplos */
+.periodo-count {
+    display: inline;
+    color: var(--text-secondary, #94a3b8);
+    font-size: 0.85em;
+    font-weight: 500;
+    opacity: 0.8;
+    cursor: help;
+    white-space: pre-line; /* Preserva quebras de linha no tooltip */
+}
+
+.periodo-count:hover {
+    opacity: 1;
+    color: var(--primary-color, #3b82f6);
+    transition: all 0.2s ease;
+}
+
 /* Indicador visual diferenciado */
 .periodo-indicator.inferido {
     background: linear-gradient(135deg, var(--warning-color, #f59e0b) 0%, #f97316 100%);
@@ -1002,4 +1072,12 @@
 
 [data-theme="dark"] .badge-inferido {
     background: #d97706;
+}
+
+[data-theme="dark"] .periodo-count {
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .periodo-count:hover {
+    color: #60a5fa;
 }

@@ -282,7 +282,10 @@ const DataTransformer = (function () {
                             diasGozadosRegistrados: 0,
                             anoInicio: anoInicio,
                             anoFim: anoFim,
-                            licencas: []
+                            licencas: [],
+                            temDuplicacao: false,
+                            diasMinimo: 0,
+                            diasMaximo: 0
                         });
                         licencasPorPeriodo.set(key, []);
                     }
@@ -293,6 +296,55 @@ const DataTransformer = (function () {
                 }
             });
         }
+        
+        // ETAPA 1.5: Detectar licenças canceladas/duplicadas por RESTANDO estagnado
+        periodosReais.forEach((periodo, key) => {
+            const licencas = periodo.licencas;
+            
+            // Ordenar por data de gozo (A_PARTIR)
+            licencas.sort((a, b) => {
+                const dataA = ensureDate(a.dataInicio || a.inicio || a.A_PARTIR || a.aPartir);
+                const dataB = ensureDate(b.dataInicio || b.inicio || b.A_PARTIR || b.aPartir);
+                if (!dataA || !dataB) return 0;
+                return dataA - dataB;
+            });
+            
+            let restanteAnterior = null;
+            let diasSemDuplicacao = 0;
+            let diasComDuplicacao = 0;
+            const licencasInvalidas = [];
+            
+            licencas.forEach((lic, index) => {
+                const gozoDias = lic.diasGozados || lic.dias || parseInt(lic.GOZO || lic.gozo || 0);
+                const restante = parseInt(String(lic.restando || lic.RESTANDO || '0').replace(/\D/g, '') || 0);
+                
+                diasComDuplicacao += gozoDias;
+                
+                if (restanteAnterior !== null && restante >= restanteAnterior) {
+                    // RESTANDO não diminuiu = licença possivelmente cancelada
+                    periodo.temDuplicacao = true;
+                    lic._invalidada = true; // Marcar como inválida
+                    lic._motivoInvalidacao = `RESTANDO não diminuiu (${restanteAnterior} → ${restante})`;
+                    licencasInvalidas.push({
+                        index: index,
+                        dataInicio: lic.dataInicio || lic.inicio || lic.A_PARTIR || lic.aPartir,
+                        gozo: gozoDias
+                    });
+                } else {
+                    // Licença válida
+                    diasSemDuplicacao += gozoDias;
+                    lic._invalidada = false;
+                }
+                
+                restanteAnterior = restante;
+            });
+            
+            periodo.diasMinimo = diasSemDuplicacao;
+            periodo.diasMaximo = diasComDuplicacao;
+            // IMPORTANTE: Usar diasSemDuplicacao como valor oficial
+            periodo.diasGozadosRegistrados = diasSemDuplicacao;
+            periodo.licencasInvalidas = licencasInvalidas;
+        });
         
         if (periodosReais.size === 0) {
             // Fallback: sem períodos aquisitivos encontrados
@@ -320,7 +372,7 @@ const DataTransformer = (function () {
 
         // ETAPA 2: Processar cada período e detectar inconsistências
         periodosReais.forEach((periodo, key) => {
-            const diasGerados = 90;
+            let diasGerados = 90; // Inicialmente assumir 1 quinquênio
             let diasGozadosTotal = 0;
             let ultimoRestando = null;
 
@@ -382,6 +434,13 @@ const DataTransformer = (function () {
                 }
             });
 
+            // MELHORIA: Calcular número de quinquênios baseado no intervalo de anos ANTES de processar RESTANDO
+            const anosDoIntervalo = periodo.anoFim - periodo.anoInicio;
+            let numQuinquenios = Math.ceil(anosDoIntervalo / 5);
+
+            // Atualizar diasGerados para refletir o intervalo real de anos
+            diasGerados = numQuinquenios * 90;
+
             // CASO 2: Detectar licenças antigas não registradas (via RESTANDO)
             if (ultimoRestando !== null) {
                 const restanteCalculado = Math.max(0, diasGerados - diasGozadosTotal);
@@ -390,28 +449,44 @@ const DataTransformer = (function () {
                     const divergencia = restanteCalculado - ultimoRestando;
 
                     if (divergencia > 0) {
-                        // CASO 2.1: Há licenças antigas não registradas
-                        const diasFaltantes = divergencia;
+                        // CASO 2.1: restanteCalculado > ultimoRestando
+                        // Significa que há GOZO não registrado no período ATUAL
+                        // (ex: planilha mostra RESTANDO=0 mas só temos 30 dias de GOZO registrado → faltam 60 dias)
+                        // CORREÇÃO: Ajustar diasGozadosTotal para refletir o uso real
+                        diasGozadosTotal = diasGerados - ultimoRestando;
+
+                        // NÃO criar período anterior - os dias faltantes pertencem ao período atual
+                    } else if (divergencia < 0) {
+                        // CASO 2.2: restanteCalculado < ultimoRestando
+                        // Servidor tem mais dias disponíveis do que o calculado
+                        // Isso indica que há saldo de período(s) ANTERIOR(es) não registrado(s)
+                        const diasDeOutroPeriodo = Math.abs(divergencia);
 
                         const periodoAntigoInferido = {
                             label: `Anterior a ${periodo.anoInicio}`,
                             anoInicio: periodo.anoInicio - 5,
                             anoFim: periodo.anoInicio,
                             diasGerados: 90,
-                            diasGozados: diasFaltantes,
-                            disponivel: Math.max(0, 90 - diasFaltantes),
+                            diasGozados: 0, // Período não foi usado, saldo foi transferido
+                            disponivel: diasDeOutroPeriodo,
                             tipo: 'inferido',
-                            motivo: 'licencas_antigas',
-                            nota: `Licenças não registradas (detectadas via RESTANDO)`
+                            motivo: 'saldo_transferido',
+                            nota: `Saldo de período anterior (${diasDeOutroPeriodo} dias acumulados)`
                         };
 
                         periodosInferidos.push(periodoAntigoInferido);
                     }
-                    // CASO 2.2: restanteCalculado < ultimoRestando
-                    // Servidor tem mais dias disponíveis do que o calculado
-                    // (Possível acúmulo de períodos anteriores - ignorar por enquanto)
                 }
             }
+
+            // Se após ajuste via RESTANDO o GOZO exceder a capacidade, recalcular quinquênios
+            if (diasGozadosTotal > diasGerados) {
+                const numQuinqueniosNecessarios = Math.ceil(diasGozadosTotal / 90);
+                numQuinquenios = Math.max(numQuinquenios, numQuinqueniosNecessarios);
+                diasGerados = numQuinquenios * 90;
+            }
+
+            const diasTotaisDisponiveis = diasGerados;
 
             // Criar período principal (registrado)
             const disponivel = Math.max(0, diasGerados - diasGozadosTotal);
@@ -423,11 +498,20 @@ const DataTransformer = (function () {
                 fim: periodo.fim,
                 anoInicio: periodo.anoInicio,
                 anoFim: periodo.anoFim,
-                diasGerados: diasGerados,
+                diasGerados: diasGerados, // Agora reflete múltiplos quinquênios se necessário
                 diasGozados: diasGozadosTotal,
                 disponivel: disponivel,
                 estaVencido: periodo.fim < hoje,
-                tipo: 'registrado'
+                tipo: 'registrado',
+                // Novos campos para exibição correta
+                numQuinquenios: numQuinquenios,
+                diasTotais: diasTotaisDisponiveis, // Capacidade total (90 * num quinquênios)
+                isPeriodoMultiplo: numQuinquenios > 1, // Flag para indicadores visuais
+                // Campos de detecção de duplicação/cancelamento
+                temDuplicacao: periodo.temDuplicacao,
+                diasMinimo: periodo.diasMinimo,
+                diasMaximo: periodo.diasMaximo,
+                avisoRegistroDuvidoso: periodo.temDuplicacao ? 'Registro com RESTANDO duplicado detectado' : null
             });
         });
 
@@ -657,28 +741,40 @@ const DataTransformer = (function () {
         // Calcula estatísticas de licenças (se disponível)
         if (enriched.licencas && Array.isArray(enriched.licencas)) {
             enriched.totalLicencas = enriched.licencas.length;
-            // `totalGozados` é a fonte-única canônica para total de dias consumidos
-            enriched.totalGozados = enriched.licencas.reduce((sum, lic) => sum + (lic.diasGozados || 0), 0);
 
-            // Calcular total gerado por períodos aquisitivos
-            // Identificar períodos aquisitivos únicos e assumir 90 dias gerados por período
-            // IMPORTANTE: Agrupar por ANO para evitar que pequenas diferenças de dias
-            // (ex: 04/04/2013 vs 06/04/2013) criem períodos duplicados
-            const uniqueAquisitivos = new Set();
-            enriched.licencas.forEach(lic => {
-                if (lic.aquisitivoInicio instanceof Date || lic.aquisitivoFim instanceof Date) {
-                    // Usar APENAS o ano para agrupar períodos (tolerância para diferenças de dias)
-                    const anoInicio = lic.aquisitivoInicio ? lic.aquisitivoInicio.getFullYear() : '';
-                    const anoFim = lic.aquisitivoFim ? lic.aquisitivoFim.getFullYear() : '';
-                    uniqueAquisitivos.add(`${anoInicio}-${anoFim}`);
-                } else if (lic.inicio instanceof Date) {
-                    // fallback: use year window
-                    uniqueAquisitivos.add(`aquisitivo-${lic.inicio.getFullYear()}`);
-                }
-            });
+            // Calcular total gerado e total gozado usando períodos aquisitivos
+            // (inclui ajustes automáticos de GOZO não registrado detectado via RESTANDO)
+            let totalGerado = 0;
+            let totalGozadosCalculado = 0;
 
-            const diasPorAquisitivo = 90;
-            const totalGerado = uniqueAquisitivos.size * diasPorAquisitivo;
+            if (enriched.periodosAquisitivos && Array.isArray(enriched.periodosAquisitivos)) {
+                enriched.periodosAquisitivos
+                    .filter(p => p.tipo === 'registrado' || p.tipo === 'inferido')
+                    .forEach(periodo => {
+                        // Somar diasTotais (considera múltiplos quinquênios)
+                        totalGerado += (periodo.diasTotais || periodo.diasGerados || 90);
+                        // Somar diasGozados (inclui uso não registrado detectado via RESTANDO)
+                        totalGozadosCalculado += (periodo.diasGozados || 0);
+                    });
+
+                // Usar total gozado dos períodos (que já considera dias não registrados)
+                enriched.totalGozados = totalGozadosCalculado;
+            } else {
+                // Fallback: lógica antiga (caso periodosAquisitivos não esteja disponível)
+                const uniqueAquisitivos = new Set();
+                enriched.licencas.forEach(lic => {
+                    if (lic.aquisitivoInicio instanceof Date || lic.aquisitivoFim instanceof Date) {
+                        const anoInicio = lic.aquisitivoInicio ? lic.aquisitivoInicio.getFullYear() : '';
+                        const anoFim = lic.aquisitivoFim ? lic.aquisitivoFim.getFullYear() : '';
+                        uniqueAquisitivos.add(`${anoInicio}-${anoFim}`);
+                    } else if (lic.inicio instanceof Date) {
+                        uniqueAquisitivos.add(`aquisitivo-${lic.inicio.getFullYear()}`);
+                    }
+                });
+                totalGerado = uniqueAquisitivos.size * 90;
+                // Fallback: somar dias gozados diretamente das licenças
+                enriched.totalGozados = enriched.licencas.reduce((sum, lic) => sum + (lic.diasGozados || 0), 0);
+            }
 
             // totalSaldo = totalGerado - totalGozados (clamp >= 0)
             enriched.totalSaldo = Math.max(0, totalGerado - enriched.totalGozados);

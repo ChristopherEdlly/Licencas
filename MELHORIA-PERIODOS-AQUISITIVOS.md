@@ -39,7 +39,7 @@ Para cada período:
     CASO 1: restante_calculado > restante_da_planilha
       // Há licenças antigas não registradas
       dias_faltantes = restante_calculado - restante_da_planilha
-    
+  
       // Criar período indeterminado
       periodo_indeterminado = {
         label: "Anterior a " + ano_inicio,
@@ -144,57 +144,62 @@ Período 2002-2012:
 
 ## ✅ Implementação Concluída
 
-- [x] Modificar `DataTransformer.calcularPeriodosAquisitivos()`
-- [x] Adicionar detecção de licenças não registradas
-- [x] Implementar divisão de GOZO > 90
-- [x] Criar períodos "indeterminados" quando necessário
-- [x] Atualizar ModalManager para exibir períodos indeterminados
-- [x] Adicionar ícone/badge diferenciado para períodos indeterminados
+- [X] Modificar `DataTransformer.calcularPeriodosAquisitivos()`
+- [X] Adicionar detecção de licenças não registradas
+- [X] Implementar divisão de GOZO > 90
+- [X] Criar períodos "indeterminados" quando necessário
+- [X] Atualizar ModalManager para exibir períodos indeterminados
+- [X] Adicionar ícone/badge diferenciado para períodos indeterminados
+- [X] **MELHORIA (2026-01-08):** Calcular e exibir corretamente períodos múltiplos (> 5 anos)
 
 ### Arquivos Modificados
 
 **1. DataTransformer.js** (linhas 258-467)
-   - Refatoração completa da função `calcularPeriodosAquisitivos()`
-   - Implementação de 4 etapas:
-     1. Agrupamento de licenças por período (por ANO)
-     2. Processamento e detecção de inconsistências (GOZO > 90 e RESTANDO)
-     3. Mesclagem de períodos registrados + inferidos
-     4. Adição de período futuro
-   - Novos campos nos períodos:
-     - `tipo`: 'registrado' | 'inferido' | 'futuro' | 'generico'
-     - `motivo`: 'gozo_multiplo' | 'licencas_antigas' (apenas inferidos)
-     - `nota`: Descrição detalhada da inferência
+
+- Refatoração completa da função `calcularPeriodosAquisitivos()`
+- Implementação de 4 etapas:
+  1. Agrupamento de licenças por período (por ANO)
+  2. Processamento e detecção de inconsistências (GOZO > 90 e RESTANDO)
+  3. Mesclagem de períodos registrados + inferidos
+  4. Adição de período futuro
+- Novos campos nos períodos:
+  - `tipo`: 'registrado' | 'inferido' | 'futuro' | 'generico'
+  - `motivo`: 'gozo_multiplo' | 'licencas_antigas' (apenas inferidos)
+  - `nota`: Descrição detalhada da inferência
 
 **2. ModalManager.js** (linhas 1543-1589)
-   - Detecção de períodos inferidos (`periodo.tipo === 'inferido'`)
-   - Badges diferenciados:
-     - 🔮 para períodos inferidos
-     - 📅 para períodos futuros
-     - Número ordinal para períodos registrados
-   - Exibição de nota de inferência com ícone de informação
-   - Classes CSS especiais: `.periodo-inferido`, `.badge-inferido`, `.inferido-badge`
+
+- Detecção de períodos inferidos (`periodo.tipo === 'inferido'`)
+- Badges diferenciados:
+  - 🔮 para períodos inferidos
+  - 📅 para períodos futuros
+  - Número ordinal para períodos registrados
+- Exibição de nota de inferência com ícone de informação
+- Classes CSS especiais: `.periodo-inferido`, `.badge-inferido`, `.inferido-badge`
 
 **3. servidor-details-modal.css** (linhas 918-1005)
-   - Estilos visuais diferenciados para períodos inferidos:
-     - Borda laranja (`--warning-color`)
-     - Gradiente de fundo sutil
-     - Badge "Calculado" com destaque
-     - Nota de inferência com ícone ℹ️
-     - Animação de pulse ao hover
-   - Suporte para tema escuro
+
+- Estilos visuais diferenciados para períodos inferidos:
+  - Borda laranja (`--warning-color`)
+  - Gradiente de fundo sutil
+  - Badge "Calculado" com destaque
+  - Nota de inferência com ícone ℹ️
+  - Animação de pulse ao hover
+- Suporte para tema escuro
 
 ---
 
 ## Questões Respondidas
 
 1. **Períodos anteriores podem acumular?**
-   - ✅ Resposta: NÃO, cada período é isolado (90 dias fixos)
 
+   - ✅ Resposta: NÃO, cada período é isolado (90 dias fixos)
 2. **Como ordenar períodos indeterminados?**
+
    - ✅ Implementado: Ordenação por `anoInicio` (linha 438 do DataTransformer)
    - Períodos inferidos aparecem ANTES dos registrados na timeline
-
 3. **Mostrar aviso quando há inconsistências?**
+
    - ✅ Implementado: Badge "Calculado" + nota explicativa para cada período inferido
 
 # Casos de Períodos Aquisitivos
@@ -311,5 +316,85 @@ AQUISITIVO_FIM: 04/04/2018     |
 1. **Cada período gera exatamente 90 dias** (não acumula)
 2. **RESTANDO = saldo global** (todos os períodos somados)
 3. **Gozo pode acontecer anos depois** do período aquisitivo
-4. **GOZO > 90** indica uso de múltiplos períodos consecutivos
+4. **GOZO > 90 e itervalo de periodo aquisitivo >5 anos** indica uso de múltiplos períodos aquisitivos, ex: 2003-2013 indica uso de 2003-2008 e 2008-2013
 5. **Diferença entre calculado e RESTANDO** indica licenças antigas não registradas
+
+---
+
+## 🆕 Melhoria: Períodos Múltiplos (2026-01-08)
+
+### Problema Identificado
+
+Períodos aquisitivos com **intervalo > 5 anos** (ex: 1984-1994 = 10 anos) representam **múltiplos quinquênios**, mas o sistema mostrava incorretamente:
+
+```
+❌ ANTES:
+Período 1984-1994
+180/90 dias utilizados (200% - impossível!)
+```
+
+### Solução Implementada
+
+**Cálculo automático de quinquênios:**
+
+```javascript
+// DataTransformer.js (linhas 420-439)
+const anosDoIntervalo = periodo.anoFim - periodo.anoInicio;
+const numQuinquenios = Math.ceil(anosDoIntervalo / 5);
+const diasTotaisDisponiveis = numQuinquenios * 90; // Ex: 2 quinquênios = 180 dias
+
+periodo.numQuinquenios = numQuinquenios;
+periodo.diasTotais = diasTotaisDisponiveis;
+periodo.isPeriodoMultiplo = numQuinquenios > 1;
+```
+
+**Exibição correta:**
+
+```
+✅ AGORA:
+Período 1984-1994 (2)
+180/180 dias utilizados (100% - Completo)
+```
+
+### Indicadores Visuais
+
+**Contador discreto** indica período múltiplo:
+- Formato: `(2)` entre parênteses após o período
+- Cor: Cinza discreto (#94a3b8), azul ao hover (#3b82f6)
+- Tooltip: "2 quinquênios (2 × 90 = 180 dias)"
+- Cursor: help (ponto de interrogação)
+- Design: Integrado ao texto, não chama atenção excessiva
+
+**Arquivos modificados:**
+
+1. **DataTransformer.js** (linhas 420-440)
+   - Cálculo de `numQuinquenios`
+   - Novos campos: `diasTotais`, `isPeriodoMultiplo`
+
+2. **ModalManager.js** (linhas 1544-1581)
+   - Uso de `diasTotais` para exibição
+   - Contador `.periodo-count` integrado ao texto
+
+3. **servidor-details-modal.css** (linhas 943-957, 1023-1029)
+   - Estilos `.periodo-count` (discreto)
+   - Suporte tema escuro
+
+### Exemplo Real
+
+**Entrada (planilha):**
+```
+AQUISITIVO: 1984-1994
+GOZO: 180 dias
+RESTANDO: 0 dias
+```
+
+**Saída (sistema):**
+```
+1º  Período Aquisitivo: 1984-1994 (2)
+    180/180 dias utilizados
+    ████████████████████ 100%
+    ✅ Completo
+
+    Tooltip ao passar em "(2)":
+    "2 quinquênios (2 × 90 = 180 dias)"
+```

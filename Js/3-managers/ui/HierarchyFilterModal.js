@@ -46,10 +46,44 @@ class HierarchyFilterModal {
             return;
         }
 
-        // Carregar dados normalmente
+        // Carregar dados da hierarquia do SharePoint
         this.data.subsecretarias = this.hierarchyManager.getSubsecretarias();
         this.data.superintendencias = this.hierarchyManager.getSuperintendencias();
         this.data.lotacoes = this.hierarchyManager.getGerencias();
+
+        // MELHORIA: Adicionar lotações dos dados que não estão na hierarquia
+        // Isso garante que TODAS as lotações presentes nos dados apareçam no filtro
+        if (window.app?.dataStateManager?.getAllServidores || window.app?.allServidores) {
+            const allServidores = window.app?.dataStateManager?.getAllServidores?.() || window.app?.allServidores || [];
+
+            // Extrair lotações únicas dos servidores
+            const lotacoesDosDados = new Set();
+            allServidores.forEach(servidor => {
+                const lotacao = servidor.lotacao || servidor.Lotacao || servidor.LOTACAO ||
+                               servidor.lotação || servidor.Lotação || servidor.LOTAÇÃO ||
+                               servidor.unidade || servidor.Unidade || null;
+                if (lotacao && lotacao !== 'nan') {
+                    lotacoesDosDados.add(String(lotacao).trim());
+                }
+            });
+
+            // Adicionar lotações que não estão na hierarquia
+            const lotacoesNaHierarquia = new Set(this.data.lotacoes.map(l => l.name));
+            lotacoesDosDados.forEach(lotacao => {
+                if (!lotacoesNaHierarquia.has(lotacao)) {
+                    // Tentar buscar informações hierárquicas
+                    const info = this.hierarchyManager.findLotacao(lotacao);
+                    this.data.lotacoes.push({
+                        name: lotacao,
+                        code: info?.code || null,
+                        subsecretaria: info?.subsecretaria || null,
+                        superintendencia: info?.superintendencia || null
+                    });
+                }
+            });
+
+            console.log(`[HierarchyFilterModal] Lotações adicionadas dos dados: ${lotacoesDosDados.size - lotacoesNaHierarquia.size}`);
+        }
 
         console.log(`[HierarchyFilterModal] Dados carregados:`, {
             subsecretarias: this.data.subsecretarias.length,
