@@ -142,28 +142,60 @@ Período 2002-2012:
 
 ---
 
-## Implementação Pendente
+## ✅ Implementação Concluída
 
-- [ ] Modificar `DataTransformer.calcularPeriodosAquisitivos()`
-- [ ] Adicionar detecção de licenças não registradas
-- [ ] Implementar divisão de GOZO > 90
-- [ ] Criar períodos "indeterminados" quando necessário
-- [ ] Atualizar ModalManager para exibir períodos indeterminados
-- [ ] Adicionar ícone/badge diferenciado para períodos indeterminados
+- [x] Modificar `DataTransformer.calcularPeriodosAquisitivos()`
+- [x] Adicionar detecção de licenças não registradas
+- [x] Implementar divisão de GOZO > 90
+- [x] Criar períodos "indeterminados" quando necessário
+- [x] Atualizar ModalManager para exibir períodos indeterminados
+- [x] Adicionar ícone/badge diferenciado para períodos indeterminados
+
+### Arquivos Modificados
+
+**1. DataTransformer.js** (linhas 258-467)
+   - Refatoração completa da função `calcularPeriodosAquisitivos()`
+   - Implementação de 4 etapas:
+     1. Agrupamento de licenças por período (por ANO)
+     2. Processamento e detecção de inconsistências (GOZO > 90 e RESTANDO)
+     3. Mesclagem de períodos registrados + inferidos
+     4. Adição de período futuro
+   - Novos campos nos períodos:
+     - `tipo`: 'registrado' | 'inferido' | 'futuro' | 'generico'
+     - `motivo`: 'gozo_multiplo' | 'licencas_antigas' (apenas inferidos)
+     - `nota`: Descrição detalhada da inferência
+
+**2. ModalManager.js** (linhas 1543-1589)
+   - Detecção de períodos inferidos (`periodo.tipo === 'inferido'`)
+   - Badges diferenciados:
+     - 🔮 para períodos inferidos
+     - 📅 para períodos futuros
+     - Número ordinal para períodos registrados
+   - Exibição de nota de inferência com ícone de informação
+   - Classes CSS especiais: `.periodo-inferido`, `.badge-inferido`, `.inferido-badge`
+
+**3. servidor-details-modal.css** (linhas 918-1005)
+   - Estilos visuais diferenciados para períodos inferidos:
+     - Borda laranja (`--warning-color`)
+     - Gradiente de fundo sutil
+     - Badge "Calculado" com destaque
+     - Nota de inferência com ícone ℹ️
+     - Animação de pulse ao hover
+   - Suporte para tema escuro
 
 ---
 
-## Questões em Aberto
+## Questões Respondidas
 
 1. **Períodos anteriores podem acumular?**
+   - ✅ Resposta: NÃO, cada período é isolado (90 dias fixos)
 
-   - Resposta: NÃO, cada período é isolado (90 dias fixos)
 2. **Como ordenar períodos indeterminados?**
+   - ✅ Implementado: Ordenação por `anoInicio` (linha 438 do DataTransformer)
+   - Períodos inferidos aparecem ANTES dos registrados na timeline
 
-   - Sugestão: Sempre antes do período registrado mais antigo
 3. **Mostrar aviso quando há inconsistências?**
-
-   - Sugestão: Badge "⚠️ Dados parciais" em períodos com licenças não registradas
+   - ✅ Implementado: Badge "Calculado" + nota explicativa para cada período inferido
 
 # Casos de Períodos Aquisitivos
 

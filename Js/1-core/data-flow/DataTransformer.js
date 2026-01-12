@@ -247,106 +247,61 @@ const DataTransformer = (function () {
 
     /**
      * Calcula períodos aquisitivos de licença prêmio (5 anos de ciclos)
+     * Implementa lógica de inferência para:
+     * - Dividir licenças com GOZO > 90 entre múltiplos períodos
+     * - Detectar licenças antigas não registradas (via RESTANDO)
+     * - Criar períodos "inferidos" quando necessário
+     *
      * @param {Object} servidor - Servidor com licenças
      * @returns {Array<Object>} Array de períodos aquisitivos
      */
     function calcularPeriodosAquisitivos(servidor) {
         const periodos = [];
+        const periodosInferidos = [];
         const hoje = new Date();
-        
-        // Primeiro, tentar extrair períodos reais das licenças existentes
+
+        // ETAPA 1: Agrupar licenças por período (por ANO)
         const periodosReais = new Map();
+        const licencasPorPeriodo = new Map(); // Para rastrear licenças individuais
         
         if (servidor.licencas && Array.isArray(servidor.licencas)) {
             servidor.licencas.forEach(lic => {
                 const aquisitivoInicio = ensureDate(lic.aquisitivoInicio || lic.AQUISITIVO_INICIO);
                 const aquisitivoFim = ensureDate(lic.aquisitivoFim || lic.AQUISITIVO_FIM);
-                
+
                 if (aquisitivoInicio && aquisitivoFim) {
-                    // IMPORTANTE: Agrupar por ANO para evitar duplicados por diferença de dias
-                    // (ex: 04/04/2013-04/04/2018 vs 06/04/2013-05/04/2018 devem ser o mesmo período)
+                    // Agrupar por ANO (evita duplicação por dias diferentes)
                     const anoInicio = aquisitivoInicio.getFullYear();
                     const anoFim = aquisitivoFim.getFullYear();
                     const key = `${anoInicio}_${anoFim}`;
-                    
+
                     if (!periodosReais.has(key)) {
                         periodosReais.set(key, {
                             inicio: aquisitivoInicio,
                             fim: aquisitivoFim,
-                            diasGozados: 0,
+                            diasGozadosRegistrados: 0,
                             anoInicio: anoInicio,
-                            anoFim: anoFim
+                            anoFim: anoFim,
+                            licencas: []
                         });
+                        licencasPorPeriodo.set(key, []);
                     }
-                    // Somar dias gozados neste período
-                    periodosReais.get(key).diasGozados += (lic.diasGozados || lic.dias || 0);
+
+                    // Armazenar licença completa para análise posterior
+                    periodosReais.get(key).licencas.push(lic);
+                    licencasPorPeriodo.get(key).push(lic);
                 }
             });
         }
         
-        // Se encontrou períodos reais, usar eles
-        if (periodosReais.size > 0) {
-            // Debug desabilitado para evitar spam no console
-            // console.log(`[DataTransformer] Encontrados ${periodosReais.size} períodos aquisitivos reais para ${servidor.nome || servidor.NOME}`);
-            
-            periodosReais.forEach((periodo, key) => {
-                const diasGerados = 90;
-                const disponivel = Math.max(0, diasGerados - periodo.diasGozados);
-                
-                // Usar anos já armazenados no período
-                const anoInicio = periodo.anoInicio;
-                const anoFim = periodo.anoFim;
-                const label = anoInicio === anoFim ? `${anoInicio}` : `${anoInicio}-${anoFim}`;
-                
-                periodos.push({
-                    label: label,
-                    inicio: periodo.inicio,
-                    fim: periodo.fim,
-                    anoInicio: anoInicio,
-                    anoFim: anoFim,
-                    diasGerados: diasGerados,
-                    diasGozados: periodo.diasGozados,
-                    disponivel: disponivel,
-                    estaVencido: periodo.fim < hoje
-                });
-            });
-            
-            // Ordenar por data de início
-            periodos.sort((a, b) => a.inicio - b.inicio);
-            
-            // Adicionar próximo período (futuro)
-            if (periodos.length > 0) {
-                const ultimoPeriodo = periodos[periodos.length - 1];
-                const proximoInicio = new Date(ultimoPeriodo.fim);
-                proximoInicio.setDate(proximoInicio.getDate() + 1);
-                
-                const proximoFim = new Date(proximoInicio);
-                proximoFim.setFullYear(proximoFim.getFullYear() + 5);
-                proximoFim.setDate(proximoFim.getDate() - 1);
-                
-                periodos.push({
-                    label: `${proximoInicio.getFullYear()}-${proximoFim.getFullYear()}`,
-                    inicio: proximoInicio,
-                    fim: proximoFim,
-                    anoInicio: proximoInicio.getFullYear(),
-                    anoFim: proximoFim.getFullYear(),
-                    diasGerados: 90,
-                    diasGozados: 0,
-                    disponivel: 90,
-                    estaVencido: false
-                });
-            }
-        } else {
-            // Fallback: gerar períodos genéricos de 1 ano (últimos 5 anos)
-            // Debug desabilitado para evitar spam no console
-            // console.log(`[DataTransformer] Sem períodos reais, gerando períodos genéricos para ${servidor.nome || servidor.NOME}`);
-            
+        if (periodosReais.size === 0) {
+            // Fallback: sem períodos aquisitivos encontrados
             const anoAtual = hoje.getFullYear();
             for (let i = 0; i < 5; i++) {
                 const anoInicio = anoAtual - (4 - i);
                 const inicio = new Date(anoInicio, 0, 1);
                 const fim = new Date(anoInicio, 11, 31);
-                
+
                 periodos.push({
                     label: `${anoInicio}`,
                     inicio: inicio,
@@ -356,12 +311,160 @@ const DataTransformer = (function () {
                     diasGerados: 90,
                     diasGozados: 0,
                     disponivel: 90,
-                    estaVencido: fim < hoje
+                    estaVencido: fim < hoje,
+                    tipo: 'generico'
+                });
+            }
+            return periodos;
+        }
+
+        // ETAPA 2: Processar cada período e detectar inconsistências
+        periodosReais.forEach((periodo, key) => {
+            const diasGerados = 90;
+            let diasGozadosTotal = 0;
+            let ultimoRestando = null;
+
+            // Processar cada licença deste período
+            periodo.licencas.forEach(lic => {
+                const gozo = lic.diasGozados || lic.dias || 0;
+
+                // CASO 1: GOZO > 90 → Dividir entre múltiplos períodos
+                if (gozo > 90) {
+                    let gozoRestante = gozo;
+                    let offsetAnos = 0;
+
+                    while (gozoRestante > 0) {
+                        const diasDesteperiodo = Math.min(gozoRestante, 90);
+
+                        if (offsetAnos === 0) {
+                            // Primeiro período (o registrado)
+                            diasGozadosTotal += diasDesteperiodo;
+                        } else {
+                            // Períodos anteriores (inferidos)
+                            const anoInicioInferido = periodo.anoInicio - (offsetAnos * 5);
+                            const anoFimInferido = periodo.anoFim - (offsetAnos * 5);
+                            const keyInferido = `${anoInicioInferido}_${anoFimInferido}_inferido_${offsetAnos}`;
+
+                            // Verificar se período inferido já existe
+                            let periodoInferido = periodosInferidos.find(p => p.key === keyInferido);
+                            if (!periodoInferido) {
+                                periodoInferido = {
+                                    key: keyInferido,
+                                    label: `Anterior a ${periodo.anoInicio}`,
+                                    anoInicio: anoInicioInferido,
+                                    anoFim: anoFimInferido,
+                                    diasGerados: 90,
+                                    diasGozados: 0,
+                                    disponivel: 90,
+                                    tipo: 'inferido',
+                                    motivo: 'gozo_multiplo',
+                                    nota: `Usado em licença de ${periodo.anoInicio}-${periodo.anoFim}`
+                                };
+                                periodosInferidos.push(periodoInferido);
+                            }
+
+                            periodoInferido.diasGozados += diasDesteperiodo;
+                            periodoInferido.disponivel = Math.max(0, 90 - periodoInferido.diasGozados);
+                        }
+
+                        gozoRestante -= diasDesteperiodo;
+                        offsetAnos++;
+                    }
+                } else {
+                    // GOZO normal (≤ 90)
+                    diasGozadosTotal += gozo;
+                }
+
+                // Capturar último RESTANDO (para detecção de licenças antigas)
+                const restando = lic.saldo; // Já foi parseado como número em enrichServidor
+                if (restando !== null && restando !== undefined && !isNaN(restando)) {
+                    ultimoRestando = restando;
+                }
+            });
+
+            // CASO 2: Detectar licenças antigas não registradas (via RESTANDO)
+            if (ultimoRestando !== null) {
+                const restanteCalculado = Math.max(0, diasGerados - diasGozadosTotal);
+
+                if (restanteCalculado !== ultimoRestando) {
+                    const divergencia = restanteCalculado - ultimoRestando;
+
+                    if (divergencia > 0) {
+                        // CASO 2.1: Há licenças antigas não registradas
+                        const diasFaltantes = divergencia;
+
+                        const periodoAntigoInferido = {
+                            label: `Anterior a ${periodo.anoInicio}`,
+                            anoInicio: periodo.anoInicio - 5,
+                            anoFim: periodo.anoInicio,
+                            diasGerados: 90,
+                            diasGozados: diasFaltantes,
+                            disponivel: Math.max(0, 90 - diasFaltantes),
+                            tipo: 'inferido',
+                            motivo: 'licencas_antigas',
+                            nota: `Licenças não registradas (detectadas via RESTANDO)`
+                        };
+
+                        periodosInferidos.push(periodoAntigoInferido);
+                    }
+                    // CASO 2.2: restanteCalculado < ultimoRestando
+                    // Servidor tem mais dias disponíveis do que o calculado
+                    // (Possível acúmulo de períodos anteriores - ignorar por enquanto)
+                }
+            }
+
+            // Criar período principal (registrado)
+            const disponivel = Math.max(0, diasGerados - diasGozadosTotal);
+            const label = periodo.anoInicio === periodo.anoFim ? `${periodo.anoInicio}` : `${periodo.anoInicio}-${periodo.anoFim}`;
+
+            periodos.push({
+                label: label,
+                inicio: periodo.inicio,
+                fim: periodo.fim,
+                anoInicio: periodo.anoInicio,
+                anoFim: periodo.anoFim,
+                diasGerados: diasGerados,
+                diasGozados: diasGozadosTotal,
+                disponivel: disponivel,
+                estaVencido: periodo.fim < hoje,
+                tipo: 'registrado'
+            });
+        });
+
+        // ETAPA 3: Mesclar períodos registrados + inferidos
+        const todosPeriodos = [...periodosInferidos, ...periodos];
+
+        // Ordenar por ano de início
+        todosPeriodos.sort((a, b) => a.anoInicio - b.anoInicio);
+
+        // ETAPA 4: Adicionar próximo período (futuro)
+        if (periodos.length > 0) {
+            const periodosRegistrados = todosPeriodos.filter(p => p.tipo === 'registrado');
+            if (periodosRegistrados.length > 0) {
+                const ultimoPeriodo = periodosRegistrados[periodosRegistrados.length - 1];
+                const proximoInicio = new Date(ultimoPeriodo.fim);
+                proximoInicio.setDate(proximoInicio.getDate() + 1);
+
+                const proximoFim = new Date(proximoInicio);
+                proximoFim.setFullYear(proximoFim.getFullYear() + 5);
+                proximoFim.setDate(proximoFim.getDate() - 1);
+
+                todosPeriodos.push({
+                    label: `${proximoInicio.getFullYear()}-${proximoFim.getFullYear()}`,
+                    inicio: proximoInicio,
+                    fim: proximoFim,
+                    anoInicio: proximoInicio.getFullYear(),
+                    anoFim: proximoFim.getFullYear(),
+                    diasGerados: 90,
+                    diasGozados: 0,
+                    disponivel: 90,
+                    estaVencido: false,
+                    tipo: 'futuro'
                 });
             }
         }
-        
-        return periodos;
+
+        return todosPeriodos;
     }
 
     /**

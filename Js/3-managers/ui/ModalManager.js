@@ -1547,10 +1547,16 @@ class ModalManager {
                 const percentual = Math.min(100, Math.round((diasGozados / diasDireito) * 100));
                 const progressClassPeriodo = percentual < 50 ? 'baixo' : percentual < 80 ? 'medio' : 'alto';
                 const isFirst = periodoIndex === 0;
-                
+
                 // Usar label já calculado ou construir um
                 const periodoLabel = periodo.label || `${periodo.anoInicio || '?'} - ${periodo.anoFim || '?'}`;
                 const numeroOrdinal = periodoIndex + 1;
+
+                // Detectar se é período inferido
+                const isInferido = periodo.tipo === 'inferido';
+                const isFuturo = periodo.tipo === 'futuro';
+                const motivoInferencia = periodo.motivo || '';
+                const notaInferencia = periodo.nota || '';
                 
                 // Buscar licenças deste período
                 const licencasDoPeriodo = (servidor.licencas || []).filter(lic => {
@@ -1560,19 +1566,23 @@ class ModalManager {
                 });
                 
                 periodosHTML += `
-                    <div class="periodo-accordion ${isFirst ? 'active' : ''}">
+                    <div class="periodo-accordion ${isFirst ? 'active' : ''} ${isInferido ? 'periodo-inferido' : ''}">
                         <div class="periodo-accordion-header">
-                            <div class="periodo-indicator ${diasRestantes > 0 ? 'parcial' : 'completo'}">
-                                ${numeroOrdinal}º
+                            <div class="periodo-indicator ${diasRestantes > 0 ? 'parcial' : 'completo'} ${isInferido ? 'inferido' : ''}">
+                                ${isInferido ? '🔮' : (isFuturo ? '📅' : numeroOrdinal + 'º')}
                             </div>
                             <div class="periodo-info">
-                                <div class="periodo-dates">Período Aquisitivo: ${periodoLabel}</div>
+                                <div class="periodo-dates">
+                                    ${isInferido ? '<span class="badge-inferido" title="Período calculado automaticamente">Calculado</span> ' : ''}
+                                    Período Aquisitivo: ${periodoLabel}
+                                </div>
                                 <div class="periodo-summary">${diasGozados}/${diasDireito} dias utilizados</div>
+                                ${isInferido && notaInferencia ? `<div class="periodo-nota-inferencia"><i class="bi bi-info-circle"></i> ${notaInferencia}</div>` : ''}
                             </div>
                             <div class="periodo-progress-mini">
                                 <div class="periodo-progress-mini-fill ${progressClassPeriodo}" style="width: ${percentual}%"></div>
                             </div>
-                            <span class="periodo-saldo-badge ${diasRestantes > 0 ? 'positivo' : 'zerado'}">
+                            <span class="periodo-saldo-badge ${diasRestantes > 0 ? 'positivo' : 'zerado'} ${isInferido ? 'inferido-badge' : ''}">
                                 ${diasRestantes > 0 ? `${diasRestantes}d restantes` : 'Completo'}
                             </span>
                             <i class="bi bi-chevron-down periodo-expand-icon"></i>

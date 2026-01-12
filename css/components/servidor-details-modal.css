@@ -914,3 +914,92 @@
         display: none;
     }
 }
+
+/* ==================== PERÍODOS INFERIDOS ==================== */
+
+/* Destaque visual para períodos calculados automaticamente */
+.periodo-accordion.periodo-inferido {
+    background: linear-gradient(to right, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+    border-left: 3px solid var(--warning-color, #f59e0b);
+    margin-bottom: 0.75rem;
+}
+
+/* Badge "Calculado" */
+.badge-inferido {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15rem 0.5rem;
+    background: var(--warning-color, #f59e0b);
+    color: white;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+}
+
+/* Indicador visual diferenciado */
+.periodo-indicator.inferido {
+    background: linear-gradient(135deg, var(--warning-color, #f59e0b) 0%, #f97316 100%);
+    color: white;
+    font-size: 1.2rem;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Nota de inferência */
+.periodo-nota-inferencia {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-tertiary, rgba(0, 0, 0, 0.05));
+    border-left: 3px solid var(--info-color, #3b82f6);
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.periodo-nota-inferencia i {
+    color: var(--info-color, #3b82f6);
+    font-size: 1rem;
+}
+
+/* Badge de saldo para períodos inferidos */
+.periodo-saldo-badge.inferido-badge {
+    background: linear-gradient(135deg, var(--warning-color, #f59e0b) 0%, #f97316 100%);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+/* Animação sutil para chamar atenção */
+@keyframes pulse-inferido {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(245, 158, 11, 0);
+    }
+}
+
+.periodo-accordion.periodo-inferido:hover {
+    animation: pulse-inferido 2s infinite;
+}
+
+/* Ajustes para tema escuro */
+[data-theme="dark"] .periodo-accordion.periodo-inferido {
+    background: linear-gradient(to right, var(--bg-secondary) 0%, rgba(245, 158, 11, 0.05) 100%);
+}
+
+[data-theme="dark"] .periodo-nota-inferencia {
+    background: rgba(59, 130, 246, 0.1);
+    border-left-color: #60a5fa;
+}
+
+[data-theme="dark"] .badge-inferido {
+    background: #d97706;
+}
