@@ -263,6 +263,14 @@ class App {
             await this._initAuthenticationService();
         }
 
+        // SharePointNFGenerator (DEPOIS do AuthenticationService)
+        if (typeof SharePointNFGenerator !== 'undefined' && this.authService) {
+            this.nfGenerator = new SharePointNFGenerator(this.authService);
+            console.log('✅ SharePointNFGenerator disponível');
+        } else {
+            console.warn('⚠️ SharePointNFGenerator não disponível - geração de NF desabilitada');
+        }
+
         // HierarchyService (carrega hierarquia de lotação do SharePoint) - OBRIGATÓRIO
         if (typeof HierarchyService !== 'undefined' && this.authService && this.sharePointExcelService) {
             this.hierarchyService = new HierarchyService(this.authService, this.sharePointExcelService);
@@ -1877,6 +1885,56 @@ class App {
             
             if (this.notificationService) {
                 this.notificationService.error('Erro ao atualizar dados: ' + error.message);
+            }
+            
+            throw error;
+        }
+    }
+
+    /**
+     * Gera NF em PDF para uma licença
+     * @param {Object} licenseData - Dados da licença
+     */
+    async generateNFPDF(licenseData) {
+        try {
+            if (!this.nfGenerator) {
+                throw new Error('Gerador de NF não disponível');
+            }
+            
+            const metadata = this.dataStateManager?.getSourceMetadata();
+            if (!metadata || !metadata.fileId) {
+                throw new Error('Metadados do arquivo não disponíveis. Recarregue os dados.');
+            }
+            
+            console.log('[App] Gerando NF para:', licenseData);
+            
+            const pdfBlob = await this.nfGenerator.generateNFPDF(metadata.fileId, licenseData);
+            
+            // Gerar nome do arquivo
+            const nome = (licenseData.nome || licenseData.NOME || 'SERVIDOR')
+                .toUpperCase()
+                .replace(/\s+/g, '_')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^A-Z0-9_]/g, '');
+            
+            const numero = (licenseData.numero || licenseData.NUMERO || '')
+                .replace(/[^0-9]/g, '');
+            
+            const fileName = `NF_${nome}_${numero}.pdf`;
+            
+            // Download
+            SharePointNFGenerator.downloadPDF(pdfBlob, fileName);
+            
+            if (this.notificationService) {
+                this.notificationService.success('NF gerada com sucesso!');
+            }
+            
+        } catch (error) {
+            console.error('[App] Erro ao gerar NF:', error);
+            
+            if (this.notificationService) {
+                this.notificationService.error('Erro ao gerar NF: ' + error.message);
             }
             
             throw error;

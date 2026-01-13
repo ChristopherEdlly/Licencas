@@ -15,6 +15,9 @@ class SharePointExcelService {
     // Timestamp of last interactive/auth error logged to reduce console spam
     static lastAuthInteractiveErrorTs = 0;
 
+    // ID do arquivo Excel atualmente carregado (usado pelo SharePointNFGenerator)
+    static currentFileId = null;
+
     /**
      * Converte número serial do Excel para Date JavaScript
      * Excel conta dias desde 01/01/1900 (com bug: 1900 não é bissexto, mas Excel trata como se fosse)

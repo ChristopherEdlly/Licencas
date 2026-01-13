@@ -1,0 +1,371 @@
+/**
+ * Estilos para o Modal de Preview da NF (Notificação de Licença)
+ */
+
+/* === MODAL CONTAINER === */
+.nf-preview-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.nf-preview-modal.active {
+    display: flex;
+}
+
+/* === OVERLAY === */
+.nf-preview-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.3s ease;
+}
+
+/* === DIALOG === */
+.nf-preview-dialog {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    max-width: 900px;
+    width: 90%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.3s ease;
+    z-index: 10001;
+}
+
+/* === HEADER === */
+.nf-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e0e0e0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px 12px 0 0;
+}
+
+.nf-preview-header h3 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: white;
+}
+
+.nf-close-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.nf-close-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg);
+}
+
+/* === CONTENT === */
+.nf-preview-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    background: #f9fafb;
+}
+
+/* === NF DOCUMENT === */
+.nf-preview-container {
+    display: flex;
+    justify-content: center;
+}
+
+.nf-document {
+    position: relative;
+    background: white;
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    max-width: 800px;
+    width: 100%;
+    font-family: 'Times New Roman', serif;
+    line-height: 1.6;
+}
+
+.nf-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+}
+
+.nf-header-text {
+    flex: 1;
+    text-align: center;
+}
+
+.nf-header-text div {
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: #1a1a1a;
+    line-height: 1.4;
+}
+
+.nf-numero-header {
+    position: absolute;
+    top: 40px;
+    right: 40px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #1a1a1a;
+}
+
+.nf-info-section {
+    margin-bottom: 25px;
+    padding: 12px 0;
+}
+
+.nf-info-line {
+    display: flex;
+    align-items: baseline;
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.nf-info-line:last-child {
+    margin-bottom: 0;
+}
+
+.nf-label {
+    font-weight: bold;
+    color: #1a1a1a;
+    margin-right: 8px;
+}
+
+.nf-value {
+    color: #333;
+}
+
+.nf-body {
+    text-align: justify;
+    font-size: 1rem;
+    color: #1a1a1a;
+    line-height: 2;
+}
+
+.nf-body p {
+    margin: 0 0 15px 0;
+}
+
+.nf-body strong {
+    font-weight: bold;
+    color: #000;
+}
+
+/* === FOOTER === */
+.nf-preview-footer {
+    display: flex;
+    gap: 12px;
+    padding: 20px 24px;
+    border-top: 1px solid #e0e0e0;
+    background: white;
+    border-radius: 0 0 12px 12px;
+    justify-content: flex-end;
+}
+
+.nf-download-btn,
+.nf-cancel-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nf-download-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.nf-download-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.nf-download-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.nf-download-btn.success {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.nf-download-btn.error {
+    background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+}
+
+.nf-cancel-btn {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.nf-cancel-btn:hover {
+    background: #e0e0e0;
+}
+
+/* === ANIMATIONS === */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 768px) {
+    .nf-preview-dialog {
+        width: 95%;
+        max-height: 95vh;
+    }
+
+    .nf-document {
+        padding: 20px;
+    }
+
+    .nf-info-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .nf-preview-footer {
+        flex-direction: column-reverse;
+    }
+
+    .nf-download-btn,
+    .nf-cancel-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* === DARK MODE === */
+[data-theme="dark"] .nf-preview-dialog {
+    background: #2a2d3a;
+}
+
+[data-theme="dark"] .nf-preview-header {
+    border-bottom-color: #3d4153;
+}
+
+[data-theme="dark"] .nf-preview-content {
+    background: #1e2029;
+}
+
+[data-theme="dark"] .nf-document {
+    background: #2a2d3a;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .nf-header {
+    border-bottom-color: #666;
+}
+
+[data-theme="dark"] .nf-header h2,
+[data-theme="dark"] .nf-header h3,
+[data-theme="dark"] .nf-numero,
+[data-theme="dark"] .nf-body {
+    color: #e0e0e0;
+}
+
+[data-theme="dark"] .nf-info-grid {
+    background: #1e2029;
+    border-color: #3d4153;
+}
+
+[data-theme="dark"] .nf-info-row span {
+    color: #c0c0c0;
+}
+
+[data-theme="dark"] .nf-info-row strong,
+[data-theme="dark"] .nf-body strong {
+    color: #ffffff;
+}
+
+[data-theme="dark"] .nf-preview-footer {
+    background: #2a2d3a;
+    border-top-color: #3d4153;
+}
+
+[data-theme="dark"] .nf-cancel-btn {
+    background: #3d4153;
+    color: #e0e0e0;
+}
+
+[data-theme="dark"] .nf-cancel-btn:hover {
+    background: #4a4d63;
+}
+
+/* === HIGH CONTRAST MODE === */
+[data-high-contrast="true"] .nf-document {
+    border: 3px solid #000;
+}
+
+[data-high-contrast="true"] .nf-header {
+    border-bottom: 3px solid #000;
+}
+
+[data-high-contrast="true"] .nf-info-grid {
+    border: 2px solid #000;
+}
+
+[data-high-contrast="true"] .nf-download-btn {
+    background: #000;
+    color: #fff;
+    border: 2px solid #000;
+}
+
+[data-high-contrast="true"] .nf-cancel-btn {
+    background: #fff;
+    color: #000;
+    border: 2px solid #000;
+}

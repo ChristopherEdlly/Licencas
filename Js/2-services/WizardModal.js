@@ -2283,10 +2283,14 @@ class WizardModal {
                 // Adicionar nova licença
                 await this.app.addNewLicense(licenseData);
                 this._showNotification('Licença adicionada com sucesso!', 'success');
+
+                // Mostrar preview da NF após adicionar nova licença
+                this._showNFPreview(licenseData);
+                return; // Não fechar o modal automaticamente - usuário fecha após ver/baixar NF
             }
 
-            
-            // Fechar modal
+
+            // Fechar modal (apenas para modos de edição)
             setTimeout(() => this.close(), 1500);
 
         } catch (error) {
@@ -2467,6 +2471,40 @@ class WizardModal {
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+    }
+
+    /**
+     * Mostra preview da NF (Notificação de Licença) após criar novo registro
+     * @param {Object} licenseData - Dados da licença recém-criada
+     */
+    _showNFPreview(licenseData) {
+        try {
+            // Verificar se NFPreviewModal está disponível
+            if (typeof NFPreviewModal === 'undefined') {
+                console.warn('[WizardModal] NFPreviewModal não está disponível');
+                // Fechar modal normalmente
+                setTimeout(() => this.close(), 1500);
+                return;
+            }
+
+            // Criar instância do modal de NF se não existir
+            if (!this.nfPreviewModal) {
+                this.nfPreviewModal = new NFPreviewModal();
+            }
+
+            // Fechar o wizard modal primeiro
+            this.close();
+
+            // Aguardar animação de fechamento antes de abrir NF preview
+            setTimeout(() => {
+                this.nfPreviewModal.show(licenseData);
+            }, 300);
+
+        } catch (error) {
+            console.error('[WizardModal] Erro ao mostrar preview da NF:', error);
+            // Fechar modal normalmente em caso de erro
+            setTimeout(() => this.close(), 1500);
+        }
     }
 }
 

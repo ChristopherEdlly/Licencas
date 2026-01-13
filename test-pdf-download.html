@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Download PDF</title>
+    <script src="https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste de Download de PDF via Graph API</h1>
+    
+    <div>
+        <button onclick="login()">1. Login</button>
+        <button onclick="testPDFConversion()">2. Testar Conversão PDF</button>
+        <button onclick="clearLog()">Limpar Log</button>
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <script>
+        // Configuração MSAL (use as mesmas configs do seu env.config.js)
+        const msalConfig = {
+            auth: {
+                clientId: 'ed17eba6-3f5d-42bf-866e-01fc039865d6',
+                authority: 'https://login.microsoftonline.com/85795021-1de9-44cf-9dd4-21c3cfce52c5',
+                redirectUri: window.location.origin + window.location.pathname
+            },
+            cache: {
+                cacheLocation: 'localStorage',
+                storeAuthStateInCookie: false
+            }
+        };
+
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            logEl.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        async function login() {
+            try {
+                log('🔐 Iniciando login...');
+                const loginResponse = await msalInstance.loginPopup({
+                    scopes: ['Files.ReadWrite', 'User.Read']
+                });
+                log(`✅ Login bem-sucedido: ${loginResponse.account.username}`, 'success');
+            } catch (error) {
+                log(`❌ Erro no login: ${error.message}`, 'error');
+            }
+        }
+
+        async function getToken() {
+            const accounts = msalInstance.getAllAccounts();
+            if (accounts.length === 0) {
+                throw new Error('Nenhuma conta conectada. Faça login primeiro.');
+            }
+
+            const response = await msalInstance.acquireTokenSilent({
+                scopes: ['Files.ReadWrite'],
+                account: accounts[0]
+            });
+
+            return response.accessToken;
+        }
+
+        async function testPDFConversion() {
+            clearLog();
+            log('🧪 Iniciando teste de conversão PDF...');
+
+            try {
+                // 1. Get token
+                log('🔑 Obtendo token...');
+                const token = await getToken();
+                log('✅ Token obtido', 'success');
+
+                // 2. Buscar arquivo pelo nome
+                log('🔍 Buscando arquivo "download de Licença Prêmio - v1"...');
+                const searchResponse = await fetch(
+                    `https://graph.microsoft.com/v1.0/me/drive/root/search(q='download de Licença Prêmio - v1')`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    }
+                );
+
+                if (!searchResponse.ok) {
+                    throw new Error(`Erro ao buscar arquivo: ${searchResponse.status}`);
+                }
+
+                const searchData = await searchResponse.json();
+                if (!searchData.value || searchData.value.length === 0) {
+                    throw new Error('Arquivo não encontrado');
+                }
+
+                const fileId = searchData.value[0].id;
+                const fileName = searchData.value[0].name;
+                log(`✅ Arquivo encontrado: ${fileName} (ID: ${fileId})`, 'success');
+
+                // 3. Tentar converter para PDF
+                log('📄 Tentando converter para PDF...');
+                const pdfResponse = await fetch(
+                    `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/content?format=pdf`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/pdf'
+                        }
+                    }
+                );
+
+                log(`📊 Status da resposta: ${pdfResponse.status} ${pdfResponse.statusText}`);
+
+                if (pdfResponse.ok) {
+                    log('✅ PDF gerado com sucesso!', 'success');
+                    const pdfBlob = await pdfResponse.blob();
+                    log(`📦 Tamanho do PDF: ${(pdfBlob.size / 1024).toFixed(2)} KB`, 'success');
+
+                    // Fazer download
+                    const url = URL.createObjectURL(pdfBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'download_de_Licenca_Premio_v1.pdf';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+
+                    log('💾 Download do PDF iniciado!', 'success');
+                } else {
+                    const errorText = await pdfResponse.text();
+                    log(`❌ Erro ao converter PDF (${pdfResponse.status}):`, 'error');
+                    log(errorText, 'error');
+                    
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        log(`Código do erro: ${errorJson.error.code}`, 'error');
+                        log(`Mensagem: ${errorJson.error.message}`, 'error');
+                    } catch (e) {}
+                }
+
+            } catch (error) {
+                log(`❌ Erro: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>

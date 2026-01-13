@@ -1821,11 +1821,16 @@ class ModalManager {
                                         <span class="gozo-dias"><i class="bi bi-calendar-check"></i> ${diasGozo} dias</span>
                                     </div>
                                 </div>
-                                ${rowIndex !== null ? `
-                                    <button class="btn-edit-license" data-row-index="${rowIndex}" title="Editar esta licença">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                ` : ''}
+                                <div class="gozo-actions">
+                                    ${rowIndex !== null ? `
+                                        <button class="btn-edit-license" data-row-index="${rowIndex}" title="Editar esta licença">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn-download-nf" data-row-index="${rowIndex}" title="Gerar NF em PDF">
+                                            <i class="bi bi-file-earmark-pdf"></i>
+                                        </button>
+                                    ` : ''}
+                                </div>
                             </div>
                         </div>
                     `;
@@ -2729,7 +2734,117 @@ class ModalManager {
                     this.app.wizardModal.open('edit-servidor', primeiraLicenca, primeiraLicenca);
                 }
             }
+            
+            // Event delegation para botão de download NF
+            const downloadNFBtn = e.target.closest('.btn-download-nf');
+            if (downloadNFBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const rowIndex = parseInt(downloadNFBtn.dataset.rowIndex);
+                if (isNaN(rowIndex)) {
+                    console.error('[ModalManager] rowIndex inválido:', downloadNFBtn.dataset.rowIndex);
+                    return;
+                }
+                
+                console.log('[ModalManager] 🔍 Buscando licença com rowIndex:', rowIndex);
+                
+                // FALLBACK: Se __rowIndex não estiver disponível nas licenças,
+                // buscar usando a estrutura do modal (CPF do servidor + data)
+                const modal = document.getElementById('detailsModal');
+                if (!modal) {
+                    console.error('[ModalManager] Modal não encontrado');
+                    return;
+                }
+                
+                // Pegar CPF do servidor do modal
+                const cpfElement = modal.querySelector('[data-servidor-cpf]');
+                const cpf = cpfElement?.dataset.servidorCpf;
+                
+                if (!cpf) {
+                    console.error('[ModalManager] CPF do servidor não encontrado');
+                    return;
+                }
+                
+                // Buscar servidor por CPF
+                const allServidores = this.app?.dataStateManager?.getAllServidores() || [];
+                const servidor = allServidores.find(s => (s.CPF || s.cpf) === cpf);
+                
+                if (!servidor || !servidor.licencas) {
+                    console.error('[ModalManager] Servidor não encontrado para CPF:', cpf);
+                    return;
+                }
+                
+                // Buscar licença por __rowIndex OU usar índice do botão
+                let licencaEncontrada = servidor.licencas.find(lic => lic.__rowIndex === rowIndex);
+                
+                if (!licencaEncontrada) {
+                    // FALLBACK: Buscar pelo contexto do botão (período aquisitivo)
+                    const gozoItem = downloadNFBtn.closest('.gozo-timeline-item');
+                    if (gozoItem) {
+                        const datesText = gozoItem.querySelector('.gozo-dates')?.textContent;
+                        console.log('[ModalManager] Buscando por data:', datesText);
+                        
+                        // Extrair data de início
+                        const match = datesText?.match(/(\d{2}\/\d{2}\/\d{4})/);
+                        if (match) {
+                            const dataInicio = match[1];
+                            licencaEncontrada = servidor.licencas.find(lic => {
+                                const licData = lic.inicio instanceof Date ? 
+                                    lic.inicio.toLocaleDateString('pt-BR') : 
+                                    lic.inicio;
+                                return licData === dataInicio || licData?.includes(dataInicio);
+                            });
+                        }
+                    }
+                }
+                
+                if (!licencaEncontrada) {
+                    console.error('[ModalManager] ❌ Licença não encontrada');
+                    return;
+                }
+                
+                console.log('[ModalManager] ✅ Licença encontrada:', licencaEncontrada);
+                
+                // Adicionar dados do servidor se não estiverem presentes
+                if (!licencaEncontrada.NOME) licencaEncontrada.NOME = servidor.nome;
+                if (!licencaEncontrada.CPF) licencaEncontrada.CPF = servidor.cpf;
+                if (!licencaEncontrada.CARGO) licencaEncontrada.CARGO = servidor.cargo;
+                if (!licencaEncontrada.LOTACAO) licencaEncontrada.LOTACAO = servidor.lotacao;
+                
+                // Gerar NF em PDF
+                await this._generateNF(licencaEncontrada);
+            }
         });
+    }
+
+    /**
+     * Gera Notificação de Férias em PDF
+     * @private
+     */
+    async _generateNF(licenseData) {
+        try {
+            if (!this.app?.generateNFPDF) {
+                throw new Error('Gerador de NF não disponível');
+            }
+            
+            // Mostrar loading
+            if (this.app?.notificationService) {
+                this.app.notificationService.info('Gerando NF em PDF...');
+            }
+            
+            // Chamar método do App
+            await this.app.generateNFPDF(licenseData);
+            
+        } catch (error) {
+            console.error('[ModalManager] Erro ao gerar NF:', error);
+            
+            if (this.app?.notificationService) {
+                this.app.notificationService.error(`Erro ao gerar NF: ${error.message}`);
+            } else {
+                alert(`Erro ao gerar NF: ${error.message}`);
+            }
+        }
     }
 
     // ==================== CÁLCULO DE SALDO (Portado do dashboard.js) ====================

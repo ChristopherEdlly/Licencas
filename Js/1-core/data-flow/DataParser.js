@@ -292,6 +292,12 @@ class DataParser {
         const servidoresMap = new Map();
 
         rows.forEach((row, index) => {
+            // DEBUG: Ver se NUMERO existe
+            if (index === 0) {
+                console.log('[DataParser] Primeira linha recebida:', row);
+                console.log('[DataParser] Campos disponíveis:', Object.keys(row));
+            }
+            
             // Identificar servidor (usar CPF se disponível, senão NOME)
             const cpf = row.CPF || row.cpf;
             const nome = row.NOME || row.nome || row.SERVIDOR || row.servidor;
@@ -336,7 +342,7 @@ class DataParser {
 
             // Ignorar linhas com data "1899-12-30" (marca de "sem licença")
             if (inicioRaw && !inicioRaw.toString().includes('1899')) {
-                // Adicionar licença ao array
+                // Adicionar licença ao array (incluir __rowIndex para identificar linha original)
                 servidor.licencas.push({
                     inicio: inicioRaw,  // String ainda, será convertida no Transformer
                     fim: fimRaw,
@@ -344,7 +350,14 @@ class DataParser {
                     restando: restante,
                     aquisitivoInicio: row.AQUISITIVO_INICIO || row.aquisitivoInicio,
                     aquisitivoFim: row.AQUISITIVO_FIM || row.aquisitivoFim,
-                    tipo: 'periodo-gozo'
+                    tipo: 'periodo-gozo',
+                    __rowIndex: index,  // ✅ Índice da linha original na planilha
+                    // Preservar dados completos da linha para NF
+                    NUMERO: row.NUMERO || row.numero,
+                    NOME: row.NOME || row.nome,
+                    CPF: row.CPF || row.cpf,
+                    CARGO: row.CARGO || row.cargo,
+                    LOTACAO: row.LOTACAO || row.lotacao
                 });
             }
 

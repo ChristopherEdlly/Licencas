@@ -710,7 +710,14 @@ const DataTransformer = (function () {
                     return isNaN(s) ? 0 : Math.round(s);
                 })(lic.restando || lic.RESTANDO || lic.saldo || 0),
                 aquisitivoInicio: ensureDate(lic.aquisitivoInicio),
-                aquisitivoFim: ensureDate(lic.aquisitivoFim)
+                aquisitivoFim: ensureDate(lic.aquisitivoFim),
+                // ✅ Preservar campos extras do parsing original (NUMERO, __rowIndex, etc)
+                __rowIndex: lic.__rowIndex,
+                NUMERO: lic.NUMERO || lic.numero,
+                NOME: lic.NOME || lic.nome,
+                CPF: lic.CPF || lic.cpf,
+                CARGO: lic.CARGO || lic.cargo,
+                LOTACAO: lic.LOTACAO || lic.lotacao
             };
 
             // Se não tem fim mas tem inicio e dias, calcular fim

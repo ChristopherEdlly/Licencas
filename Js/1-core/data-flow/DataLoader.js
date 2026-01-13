@@ -542,6 +542,12 @@ const DataLoader = (function () {
                 }
             }
 
+            // Salvar fileId atual para uso pelo SharePointNFGenerator
+            if (resolvedFileId) {
+                SharePointExcelService.currentFileId = resolvedFileId;
+                console.log(`[DataLoader] 📁 FileId salvo: ${resolvedFileId}`);
+            }
+
             let tableInfo;
             let rows;
             try {
