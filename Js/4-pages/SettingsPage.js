@@ -395,6 +395,22 @@ class SettingsPage {
             });
         }
 
+        // Análise de Lotações
+        const analyzeLotacoesBtn = document.getElementById('analyzeLotacoesBtn');
+        if (analyzeLotacoesBtn) {
+            const analyzeHandler = () => {
+                this._analyzeLotacoes();
+            };
+
+            analyzeLotacoesBtn.addEventListener('click', analyzeHandler);
+
+            this.eventListeners.push({
+                element: analyzeLotacoesBtn,
+                event: 'click',
+                handler: analyzeHandler
+            });
+        }
+
         // Microsoft Login
         if (this.elements.microsoftLoginButton) {
             const loginHandler = () => {
@@ -848,6 +864,81 @@ class SettingsPage {
         }
 
         return this.settingsManager.getSettings();
+    }
+
+    /**
+     * Analisa duplicatas de lotações
+     * @private
+     */
+    _analyzeLotacoes() {
+        const servidores = this.app?.dataStateManager?.getAllServidores() || [];
+
+        if (servidores.length === 0) {
+            alert('Nenhum dado carregado. Carregue um arquivo primeiro.');
+            return;
+        }
+
+        if (!window.lotacaoNormalizer) {
+            alert('Serviço de normalização não disponível.');
+            return;
+        }
+
+        // Obter estatísticas
+        const stats = window.lotacaoNormalizer.getStats(servidores);
+
+        // Exibir estatísticas
+        const statsEl = document.getElementById('lotacaoStats');
+        const statsTextEl = document.getElementById('lotacaoStatsText');
+
+        if (statsEl && statsTextEl) {
+            statsTextEl.innerHTML = `
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div><strong>${stats.total}</strong> lotações originais</div>
+                    <div><strong>${stats.unique}</strong> únicas após normalização</div>
+                    <div><strong>${stats.duplicates}</strong> duplicatas removidas (${stats.savingsPercent}%)</div>
+                </div>
+            `;
+            statsEl.style.display = 'block';
+        }
+
+        // Analisar duplicatas
+        const duplicates = window.lotacaoNormalizer.analyzeDuplicates(servidores);
+        const duplicatesContainer = document.getElementById('lotacaoDuplicatesContainer');
+
+        if (!duplicatesContainer) return;
+
+        // Se não houver duplicatas
+        if (Object.keys(duplicates).length === 0) {
+            duplicatesContainer.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #28a745;">
+                    <i class="bi bi-check-circle" style="font-size: 24px;"></i>
+                    <p style="margin: 10px 0 0 0;">Nenhuma duplicata encontrada!</p>
+                </div>
+            `;
+            duplicatesContainer.style.display = 'block';
+            return;
+        }
+
+        // Renderizar duplicatas
+        let html = '<div style="font-size: 14px;">';
+        html += `<p style="margin-bottom: 10px;"><strong>${Object.keys(duplicates).length}</strong> grupos de duplicatas encontrados:</p>`;
+
+        Object.entries(duplicates).forEach(([normalized, originals]) => {
+            html += `
+                <div style="margin-bottom: 15px; padding: 10px; background: white; border-left: 3px solid #007bff; border-radius: 4px;">
+                    <div style="font-weight: 600; color: #007bff; margin-bottom: 5px;">
+                        ✓ ${normalized}
+                    </div>
+                    <div style="font-size: 13px; color: #666; margin-left: 15px;">
+                        ${originals.map(orig => `<div>→ ${orig}</div>`).join('')}
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        duplicatesContainer.innerHTML = html;
+        duplicatesContainer.style.display = 'block';
     }
 
     /**

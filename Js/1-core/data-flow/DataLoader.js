@@ -91,6 +91,11 @@ const DataLoader = (function () {
                 throw new Error('CSV vazio ou inválido');
             }
 
+            // Normalizar lotações (se disponível)
+            if (typeof window !== 'undefined' && window.lotacaoNormalizer) {
+                window.lotacaoNormalizer.normalizeServidores(dados);
+            }
+
             return {
                 source: DATA_SOURCES.CSV,
                 state: LOADING_STATES.SUCCESS,
@@ -650,6 +655,11 @@ const DataLoader = (function () {
                 }
             } catch (e) {
                 console.warn('Não foi possível setar source metadata no DataStateManager:', e && e.message);
+            }
+
+            // Normalizar lotações (se disponível)
+            if (typeof window !== 'undefined' && window.lotacaoNormalizer) {
+                window.lotacaoNormalizer.normalizeServidores(data);
             }
 
             return {

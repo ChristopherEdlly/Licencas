@@ -981,6 +981,9 @@ class App {
                     // Atualizar botão "Adicionar"
                     await this._updateNewRecordButton();
 
+                    // Atualizar botão "Reload Cache"
+                    await this._updateReloadCacheButton();
+
                     // Aguardar a tabela ser renderizada e então aplicar permissões
                     // Usar setTimeout mais longo para garantir renderização completa
                     setTimeout(async () => {
@@ -1225,6 +1228,9 @@ class App {
             // 7. Atualizar botão de adicionar
             await this._updateNewRecordButton();
 
+            // 8. Atualizar botão de reload cache
+            await this._updateReloadCacheButton();
+
         } catch (error) {
             console.warn('Auto-load failure:', error && (error.message || error));
             
@@ -1402,6 +1408,9 @@ class App {
             // Mostrar botão de novo registro se usuário autenticado e tem dados do SharePoint
             this._updateNewRecordButton();
 
+            // Mostrar botão de reload cache
+            this._updateReloadCacheButton();
+
         } else {
             // Estado não autenticado
             if (userAvatar) {
@@ -1427,6 +1436,10 @@ class App {
             // Esconder botão de adicionar
             const addRecordButton = document.getElementById('addRecordButton');
             if (addRecordButton) addRecordButton.style.display = 'none';
+
+            // Esconder botão de reload cache
+            const reloadCacheButton = document.getElementById('reloadCacheButton');
+            if (reloadCacheButton) reloadCacheButton.style.display = 'none';
         }
     }
 
@@ -1496,6 +1509,96 @@ class App {
         } catch (error) {
             console.error('[App] ❌ Erro ao atualizar botão de adicionar:', error);
             addRecordButton.style.display = 'none';
+        }
+    }
+
+    /**
+     * Atualiza visibilidade do botão de reload cache
+     * @private
+     */
+    async _updateReloadCacheButton() {
+        const reloadCacheButton = document.getElementById('reloadCacheButton');
+        if (!reloadCacheButton) return;
+
+        try {
+            // Verificar se há dados carregados
+            const allServidores = this.dataStateManager?.getAllServidores() || [];
+            const meta = this.dataStateManager?.getSourceMetadata();
+
+            if (allServidores.length > 0 && meta?.fileId) {
+                reloadCacheButton.style.display = 'inline-flex';
+
+                // Adicionar event listener (apenas uma vez)
+                if (!reloadCacheButton._clickListenerAttached) {
+                    reloadCacheButton.addEventListener('click', () => this._handleReloadCache());
+                    reloadCacheButton._clickListenerAttached = true;
+                    console.log('[App] 🎧 Event listener adicionado ao botão de reload cache');
+                }
+            } else {
+                reloadCacheButton.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('[App] ❌ Erro ao atualizar botão de reload cache:', error);
+            reloadCacheButton.style.display = 'none';
+        }
+    }
+
+    /**
+     * Recarrega dados do cache
+     * @private
+     */
+    async _handleReloadCache() {
+        const reloadCacheButton = document.getElementById('reloadCacheButton');
+        const originalHtml = reloadCacheButton?.innerHTML;
+
+        try {
+            // Desabilitar botão e mostrar loading
+            if (reloadCacheButton) {
+                reloadCacheButton.disabled = true;
+                const icon = reloadCacheButton.querySelector('i');
+                if (icon) {
+                    icon.style.animation = 'spin 1s linear infinite';
+                }
+            }
+
+            NotificationService.show('Recarregando dados do cache...', 'info');
+
+            // Buscar cache mais recente
+            const cached = await this.cacheService.getLatestCache();
+            if (!cached || !cached.data) {
+                NotificationService.show('Nenhum cache disponível', 'warning');
+                return;
+            }
+
+            // Re-enriquecer dados
+            let restored = cached.data;
+            if (DataTransformer.enrichServidoresBatch) {
+                restored = DataTransformer.enrichServidoresBatch(restored);
+            }
+
+            // Atualizar estado
+            this.dataStateManager.setAllServidores(restored);
+            this.dataStateManager.setFilteredServidores(restored);
+
+            NotificationService.show(`${restored.length} registros recarregados do cache`, 'success');
+
+            console.log('[App] ✅ Cache recarregado:', {
+                total: restored.length,
+                timestamp: cached.timestamp
+            });
+
+        } catch (error) {
+            console.error('[App] ❌ Erro ao recarregar cache:', error);
+            NotificationService.show('Erro ao recarregar cache', 'error');
+        } finally {
+            // Restaurar botão
+            if (reloadCacheButton) {
+                reloadCacheButton.disabled = false;
+                const icon = reloadCacheButton.querySelector('i');
+                if (icon) {
+                    icon.style.animation = '';
+                }
+            }
         }
     }
 
@@ -1682,14 +1785,27 @@ class App {
             
             console.log('[App] Linha adicionada com sucesso:', result);
             
-            // Limpar dados antigos para evitar duplicação
-            if (this.dataStateManager) {
-                this.dataStateManager.setAllServidores([]);
-                this.dataStateManager.setFilteredServidores([]);
+            // NÃO limpar dados - apenas reprocessar o cache atual adicionando a nova linha
+            // Evita reload completo que causa lentidão
+            
+            // Atualizar timestamp do cache para evitar auto-reload
+            if (this.cacheService && metadata) {
+                const cacheKey = `excel_data_${metadata.fileId}`;
+                await this.cacheService.updateTimestamp(cacheKey);
             }
             
-            // Recarregar dados
-            await this._loadPrimaryData();
+            // Recarregar dados do cache (rápido - não acessa SharePoint)
+            console.log('[App] Recarregando dados do cache após adicionar...');
+            const cached = await this.cacheService.getLatestCache();
+            if (cached && cached.data) {
+                let restored = cached.data;
+                if (typeof DataTransformer !== 'undefined' && DataTransformer.enrichServidoresBatch) {
+                    restored = DataTransformer.enrichServidoresBatch(restored);
+                }
+                this.dataStateManager.setAllServidores(restored);
+                this.dataStateManager.setFilteredServidores(restored);
+                console.log('[App] ✅ Dados recarregados do cache:', restored.length, 'servidores');
+            }
             
             // Mostrar notificação de sucesso
             if (this.notificationService) {
@@ -1892,7 +2008,49 @@ class App {
     }
 
     /**
+     * Prepara a NF para download posterior (ETAPA 1: update E9, recalculate, verify)
+     * Chame após salvar novo registro para ganhar tempo
+     * @param {Object} licenseData - Dados da licença
+     * @returns {Promise<Object>} Dados preparados
+     */
+    async prepareNFForDownload(licenseData) {
+        try {
+            if (!this.nfGenerator) {
+                throw new Error('Gerador de NF não disponível');
+            }
+            
+            const metadata = this.dataStateManager?.getSourceMetadata();
+            if (!metadata || !metadata.fileId) {
+                throw new Error('Metadados do arquivo não disponíveis. Recarregue os dados.');
+            }
+            
+            console.log('[App] 🔧 Preparando NF em background para:', licenseData.NOME);
+            NotificationService.show('Preparando NF para download...', 'info', { duration: 3000 });
+            
+            // Preparar NF (update E9, recalculate, verify - demora ~3-5s)
+            this._preparedNFData = await this.nfGenerator.prepareNF(metadata.fileId, licenseData);
+            
+            console.log('[App] ✅ NF preparada! Status:', {
+                verified: this._preparedNFData.verified,
+                elapsed: Date.now() - this._preparedNFData.timestamp
+            });
+            
+            NotificationService.show('NF preparada! Clique em "Baixar PDF" quando quiser.', 'success', { duration: 3000 });
+            
+            return this._preparedNFData;
+            
+        } catch (error) {
+            console.error('[App] ❌ Erro ao preparar NF:', error);
+            NotificationService.show(`Erro ao preparar NF: ${error.message}`, 'error', { duration: 5000 });
+            this._preparedNFData = null;
+            throw error;
+        }
+    }
+
+    /**
      * Gera NF em PDF para uma licença
+     * Se já foi preparada (prepareNFForDownload), apenas exporta (rápido!)
+     * Senão, faz o fluxo completo
      * @param {Object} licenseData - Dados da licença
      */
     async generateNFPDF(licenseData) {
@@ -1908,35 +2066,49 @@ class App {
             
             console.log('[App] Gerando NF para:', licenseData);
             
-            const pdfBlob = await this.nfGenerator.generateNFPDF(metadata.fileId, licenseData);
+            let result;
             
-            // Gerar nome do arquivo
-            const nome = (licenseData.nome || licenseData.NOME || 'SERVIDOR')
-                .toUpperCase()
-                .replace(/\s+/g, '_')
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^A-Z0-9_]/g, '');
+            // Verificar se temos NF preparada e se é para o mesmo servidor
+            const numeroProcesso = licenseData.NUMERO || licenseData.numero || licenseData.Numero;
+            if (this._preparedNFData && this._preparedNFData.nomeServidor) {
+                const preparedFor = this._preparedNFData.nomeServidor.toUpperCase();
+                const requestedFor = (licenseData.NOME || licenseData.nome || '').toUpperCase();
+                
+                // Verificar se é para o mesmo servidor e se não está muito antiga (< 5 minutos)
+                const elapsed = Date.now() - this._preparedNFData.timestamp;
+                const isValid = preparedFor === requestedFor && elapsed < 5 * 60 * 1000;
+                
+                if (isValid) {
+                    console.log('[App] ⚡ Usando NF já preparada (rápido!)');
+                    NotificationService.show('Exportando PDF...', 'info', { duration: 2000 });
+                    
+                    // ETAPA 2 apenas: exportar PDF (rápido! ~1s)
+                    result = await this.nfGenerator.exportPreparedNF(this._preparedNFData);
+                    
+                    // Limpar preparação usada
+                    this._preparedNFData = null;
+                } else {
+                    console.log('[App] ⚠️ NF preparada inválida ou expirada, gerando nova');
+                    result = await this.nfGenerator.generateNFPDF(metadata.fileId, licenseData);
+                    this._preparedNFData = null;
+                }
+            } else {
+                console.log('[App] 📄 Gerando NF completa (prepare + export)');
+                result = await this.nfGenerator.generateNFPDF(metadata.fileId, licenseData);
+            }
             
-            const numero = (licenseData.numero || licenseData.NUMERO || '')
-                .replace(/[^0-9]/g, '');
+            // Suportar tanto formato novo (objeto) quanto antigo (blob direto)
+            const pdfBlob = result.pdfBlob || result;
+            const nomeServidor = result.nomeServidor || licenseData.NOME || licenseData.nome || 'SERVIDOR';
             
-            const fileName = `NF_${nome}_${numero}.pdf`;
+            // Formato obrigatório: "NF - NOME DO SERVIDOR.pdf"
+            const fileName = `NF - ${nomeServidor.toUpperCase()}.pdf`;
             
             // Download
             SharePointNFGenerator.downloadPDF(pdfBlob, fileName);
             
-            if (this.notificationService) {
-                this.notificationService.success('NF gerada com sucesso!');
-            }
-            
         } catch (error) {
             console.error('[App] Erro ao gerar NF:', error);
-            
-            if (this.notificationService) {
-                this.notificationService.error('Erro ao gerar NF: ' + error.message);
-            }
-            
             throw error;
         }
     }

@@ -2746,9 +2746,7 @@ class ModalManager {
                     console.error('[ModalManager] rowIndex inválido:', downloadNFBtn.dataset.rowIndex);
                     return;
                 }
-                
-                console.log('[ModalManager] 🔍 Buscando licença com rowIndex:', rowIndex);
-                
+
                 // FALLBACK: Se __rowIndex não estiver disponível nas licenças,
                 // buscar usando a estrutura do modal (CPF do servidor + data)
                 const modal = document.getElementById('detailsModal');
@@ -2769,9 +2767,8 @@ class ModalManager {
                 // Buscar servidor por CPF
                 const allServidores = this.app?.dataStateManager?.getAllServidores() || [];
                 const servidor = allServidores.find(s => (s.CPF || s.cpf) === cpf);
-                
+
                 if (!servidor || !servidor.licencas) {
-                    console.error('[ModalManager] Servidor não encontrado para CPF:', cpf);
                     return;
                 }
                 

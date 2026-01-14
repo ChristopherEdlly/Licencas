@@ -49,12 +49,51 @@ class NFPreviewModal {
             previewContainer.innerHTML = previewHTML;
         }
 
+        // Resetar botão de download para estado inicial
+        const downloadBtn = this.modal.querySelector('.nf-download-btn');
+        if (downloadBtn) {
+            downloadBtn.disabled = false;
+            downloadBtn.innerHTML = '<i class="bi bi-download"></i> Baixar PDF';
+            downloadBtn.classList.remove('success', 'error');
+        }
+
+        // Mostrar indicador de preparação se estiver preparando
+        const statusIndicator = this.modal.querySelector('.nf-preparation-status');
+        if (statusIndicator && window.app && window.app._preparedNFData) {
+            // Verificar se é para o mesmo servidor
+            const preparedFor = window.app._preparedNFData.nomeServidor?.toUpperCase();
+            const currentFor = (data.NOME || data.nome || '').toUpperCase();
+            
+            if (preparedFor !== currentFor) {
+                // Preparando para servidor diferente, mostrar indicador
+                statusIndicator.style.display = 'flex';
+                statusIndicator.style.alignItems = 'center';
+                statusIndicator.style.gap = '0.5rem';
+                
+                // Aguardar preparação completar e esconder indicador
+                const checkInterval = setInterval(() => {
+                    if (window.app._preparedNFData && window.app._preparedNFData.nomeServidor?.toUpperCase() === currentFor) {
+                        statusIndicator.style.display = 'none';
+                        statusIndicator.innerHTML = '<i class="bi bi-check-circle"></i><span>PDF pronto!</span>';
+                        statusIndicator.style.color = 'var(--success)';
+                        statusIndicator.style.display = 'flex';
+                        setTimeout(() => {
+                            statusIndicator.style.display = 'none';
+                        }, 2000);
+                        clearInterval(checkInterval);
+                    }
+                }, 500);
+                
+                // Timeout de 10 segundos
+                setTimeout(() => clearInterval(checkInterval), 10000);
+            }
+        }
+
         // Mostrar modal
         this.modal.classList.add('active');
         document.body.style.overflow = 'hidden';
 
         // Focus no botão de download
-        const downloadBtn = this.modal.querySelector('.nf-download-btn');
         if (downloadBtn) {
             setTimeout(() => downloadBtn.focus(), 100);
         }
@@ -90,6 +129,10 @@ class NFPreviewModal {
                     </div>
 
                     <div class="nf-preview-footer">
+                        <div class="nf-preparation-status" style="display: none; margin-right: auto; color: var(--accent); font-size: 0.875rem;">
+                            <i class="bi bi-hourglass-split"></i>
+                            <span>Preparando PDF em background...</span>
+                        </div>
                         <button class="nf-download-btn">
                             <i class="bi bi-download"></i>
                             Baixar PDF
@@ -160,88 +203,25 @@ class NFPreviewModal {
             downloadBtn.disabled = true;
             downloadBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Gerando PDF...';
 
-            // Tentar usar SharePointNFGenerator primeiro (se disponível e arquivo carregado do SharePoint)
-            this._initSharePointGenerator();
+            // Usar a nova implementação do SharePointNFGenerator via App
+            if (window.app && typeof window.app.generateNFPDF === 'function') {
+                console.log('[NFPreviewModal] 🚀 Usando nova implementação via App.generateNFPDF()');
+                
+                // Chamar método do App que usa SharePointNFGenerator
+                await window.app.generateNFPDF(this.currentData);
+                
+                // Feedback de sucesso
+                downloadBtn.innerHTML = '<i class="bi bi-check-lg"></i> PDF Baixado!';
+                downloadBtn.classList.add('success');
 
-            let pdfBlob;
-            let fileName;
-            let usedSharePoint = false;
+                // Fechar modal após 2s
+                setTimeout(() => {
+                    this.close();
+                }, 2000);
 
-            // Debug: verificar condições para usar SharePoint
-            console.log('[NFPreviewModal] 🔍 Debug:');
-            console.log('  - sharePointNFGenerator:', !!this.sharePointNFGenerator);
-            console.log('  - SharePointExcelService:', typeof SharePointExcelService !== 'undefined');
-            console.log('  - currentFileId:', SharePointExcelService?.currentFileId);
-
-            if (this.sharePointNFGenerator && typeof SharePointExcelService !== 'undefined' && SharePointExcelService.currentFileId) {
-                try {
-                    console.log('[NFPreviewModal] 🔄 Usando SharePointNFGenerator...');
-                    const result = await this.sharePointNFGenerator.generatePDF(this.currentData);
-
-                    // Verificar tipo de resposta
-                    if (result.type === 'pdf-blob') {
-                        console.log('[NFPreviewModal] ✅ PDF gerado via Graph API!');
-                        pdfBlob = result.blob;
-                        fileName = this.sharePointNFGenerator.generateFileName(this.currentData);
-                        usedSharePoint = true;
-
-                    } else if (result.type === 'sharepoint-options') {
-                        console.log('[NFPreviewModal] ✅ Opções do SharePoint disponíveis!');
-
-                        // Mostrar modal com opções
-                        this._showSharePointOptions(result.options);
-
-                        // Restaurar botão
-                        downloadBtn.disabled = false;
-                        downloadBtn.innerHTML = originalText;
-                        return; // Não prosseguir com download automático
-                    }
-
-                } catch (spError) {
-                    console.warn('[NFPreviewModal] ⚠️ Falha ao usar SharePoint, usando gerador local:', spError);
-                    console.warn('[NFPreviewModal] ⚠️ Erro detalhado:', spError.stack);
-                    // Fallback para gerador local
-                    pdfBlob = await this.nfGenerator.generatePDF(this.currentData);
-                    fileName = this.nfGenerator.generateFileName(this.currentData);
-                }
             } else {
-                // Usar gerador local (jsPDF)
-                console.log('[NFPreviewModal] 📄 Usando gerador local (jsPDF)...');
-                if (!this.sharePointNFGenerator) {
-                    console.log('[NFPreviewModal] ℹ️ Motivo: SharePointNFGenerator não inicializado');
-                }
-                if (typeof SharePointExcelService === 'undefined') {
-                    console.log('[NFPreviewModal] ℹ️ Motivo: SharePointExcelService não disponível');
-                }
-                if (!SharePointExcelService?.currentFileId) {
-                    console.log('[NFPreviewModal] ℹ️ Motivo: Nenhum arquivo SharePoint carregado (currentFileId ausente)');
-                }
-                pdfBlob = await this.nfGenerator.generatePDF(this.currentData);
-                fileName = this.nfGenerator.generateFileName(this.currentData);
+                throw new Error('Sistema de geração de NF não disponível. Recarregue a página.');
             }
-
-            // Trigger download (apenas se for blob local)
-            if (pdfBlob) {
-                const url = URL.createObjectURL(pdfBlob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = fileName;
-                a.click();
-
-                // Cleanup
-                URL.revokeObjectURL(url);
-            }
-
-            // Feedback de sucesso
-            downloadBtn.innerHTML = '<i class="bi bi-check-lg"></i> PDF Baixado!';
-            downloadBtn.classList.add('success');
-
-            // Restaurar botão após 2s
-            setTimeout(() => {
-                downloadBtn.disabled = false;
-                downloadBtn.innerHTML = originalText;
-                downloadBtn.classList.remove('success');
-            }, 2000);
 
         } catch (error) {
             console.error('[NFPreviewModal] Erro ao gerar PDF:', error);
@@ -256,14 +236,6 @@ class NFPreviewModal {
                 downloadBtn.innerHTML = originalText;
                 downloadBtn.classList.remove('error');
             }, 2000);
-
-            // Notificar usuário
-            if (window.dashboard && window.dashboard.notificationManager) {
-                window.dashboard.notificationManager.show(
-                    'Erro ao gerar PDF: ' + error.message,
-                    'error'
-                );
-            }
         }
     }
 

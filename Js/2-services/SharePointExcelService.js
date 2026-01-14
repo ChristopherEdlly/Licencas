@@ -715,6 +715,20 @@ class SharePointExcelService {
             console.debug('📍 Strategy D (search) - not found');
         }
 
+        // Strategy E: buscar na pasta "Licenca Premio" (novo local do arquivo)
+        try {
+            const decodedName = decodeURIComponent(relativePath.split('/').pop());
+            const licencaPremioPath = `/me/drive/root:/Documents/Licenca Premio/${decodedName}`;
+            const itemJson = await this._graphFetch(licencaPremioPath, { method: 'GET' }, ['Files.Read']);
+            const fileId = itemJson && itemJson.id;
+            if (fileId) {
+                console.log('✅ Arquivo encontrado via Strategy E (pasta Licenca Premio)');
+                return { siteId: null, fileId, tableName };
+            }
+        } catch (e) {
+            console.debug('📍 Strategy E (Licenca Premio folder) - not found');
+        }
+
         throw new Error('Could not resolve fileId from env config via any known strategy');
     }
 }

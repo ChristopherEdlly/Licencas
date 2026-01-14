@@ -1761,6 +1761,49 @@ body.sidebar-collapsed .sidebar .nav-link.active {
     font-size: 1rem;
 }
 
+/* Botão Reload Cache */
+.btn-reload-cache {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-reload-cache:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateY(-1px);
+}
+
+.btn-reload-cache:active {
+    transform: translateY(0);
+}
+
+.btn-reload-cache i {
+    font-size: 1rem;
+    transition: transform 0.3s ease;
+}
+
+.btn-reload-cache:hover i {
+    transform: rotate(180deg);
+}
+
+.btn-reload-cache:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
 /* Botão SharePoint */
 .btn-sharepoint {
     display: inline-flex;

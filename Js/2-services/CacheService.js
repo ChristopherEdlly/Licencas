@@ -316,6 +316,44 @@ class CacheService {
     }
 
     /**
+     * Atualiza timestamp do cache para evitar expiração
+     * @param {string} cacheKey - Chave do cache (ex: excel_data_fileId)
+     */
+    static async updateTimestamp(cacheKey) {
+        try {
+            const db = await this.init();
+
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([this.CONFIG.STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(this.CONFIG.STORE_NAME);
+
+                const getRequest = store.get(cacheKey);
+
+                getRequest.onsuccess = () => {
+                    const record = getRequest.result;
+                    if (record) {
+                        record.timestamp = Date.now();
+                        record.lastUsed = new Date().toISOString();
+                        
+                        const putRequest = store.put(record);
+                        putRequest.onsuccess = () => {
+                            console.log(`✅ Cache timestamp atualizado: ${cacheKey}`);
+                            resolve();
+                        };
+                        putRequest.onerror = () => reject(putRequest.error);
+                    } else {
+                        resolve(); // Não existe no cache
+                    }
+                };
+
+                getRequest.onerror = () => reject(getRequest.error);
+            });
+        } catch (error) {
+            console.warn('Erro ao atualizar timestamp:', error);
+        }
+    }
+
+    /**
      * Obtém tamanho total do cache
      * @returns {Promise<{count: number, sizeBytes: number}>}
      */

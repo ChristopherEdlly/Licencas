@@ -1,0 +1,94 @@
+Código,Sigla,Nome da Lotação,Tipo,Superior
+SEFAZ,SEFAZ,Secretaria de Estado da Fazenda,Secretaria,
+GABSEC,GABSEC,Gabinete da Secretária de Estado da Fazenda,Gabinete,SEFAZ
+CRAFI,CRAFI,Conselho de Reestruturação e Ajuste Fiscal,Conselho,GABSEC
+SE,SE,Secretaria Executiva,Secretaria Executiva,SEFAZ
+ASCOM,ASCOM,Assessoria de Comunicação,Assessoria,SEFAZ
+NEDFI,NEDFI,Núcleo de Educação Fiscal,Unidade,ASCOM
+ASFAZ,ASFAZ,Assessoria Fazendária,Assessoria,SEFAZ
+SIND,SIND,Sindicato,Sindicato,SEFAZ
+PESSOAL_DISP_SIND,,Pessoal à Disposição,Lotação Especial,SIND
+SURE,SURE,Subsecretaria da Receita Estadual,Subsecretaria,SEFAZ
+ASSPAF,ASSPAF,Assessoria de Pesquisa e Análise Fiscal,Assessoria,SURE
+SUFI,SUFI,Superintendência de Fiscalização e Atendimento ao Contribuinte,Superintendência,SURE
+DISP_SINDAT,,À Disposição do SINDAT,Lotação Especial,SUFI
+ASGERAF,ASGERAF,Assessoria da Gerência Executiva de Auditoria Fiscal,Assessoria,SUFI
+ASSGEST,ASSGEST,Assessoria de Estratégia de Gestão Tributária,Assessoria,SUFI
+CENTRAL_CMD_SUFI,,Central de Comando Especial,Unidade,SUFI
+COMANDO_FISCAL_ITABAIANA,,Comando Fiscal Itabaiana,Comando Fiscal,SUFI
+COASUTRI,COASUTRI,Coordenadoria de Auditoria da Substituição Tributária,Coordenadoria,SUFI
+COAGRE,COAGRE,Coordenadoria de Auditoria de Grandes Empresas,Coordenadoria,SUFI
+COAPRAVS,COAPRAVS,"Coordenadoria de Auditoria dos Segmentos de Produtor Rural, Restaurantes, Atacadistas, Varejistas e Serviços de Transporte",Coordenadoria,SUFI
+DIFAL,DIFAL,Diferencial de Alíquota (DIFAL),Unidade,SUFI
+GERAF,GERAF,Gerência de Auditoria Fiscal do ICMS,Gerência,SUFI
+GIPVA,GIPVA,Gerência de Auditoria do IPVA,Gerência,SUFI
+GITCMD_SUFI,GITCMD,Gerência de Auditoria do ITCMD,Gerência,SUFI
+GERAT_SUFI,GERAT,Gerência de Fiscalização do Trânsito de Mercadorias,Gerência,SUFI
+GEINFSUFI,GEINF,Gerência de Informações Fiscais,Gerência,SUFI
+CEAC_SEFAZ,CEAC/SEFAZ,CEAC/SEFAZ,CEAC,SUFI
+CEAC_ESTANCIA,CEAC Estância,CEAC Estância,CEAC,SUFI
+CEAC_GLORIA,CEAC Glória,CEAC Glória,CEAC,SUFI
+CEAC_ITABAIANA,CEAC Itabaiana,CEAC Itabaiana,CEAC,SUFI
+CEAC_LAGARTO,CEAC Lagarto,CEAC Lagarto,CEAC,SUFI
+CEAC_PROPRIA,CEAC Propriá,CEAC Propriá,CEAC,SUFI
+CEAC_RIOMAR,CEAC Rio Mar,CEAC Rio Mar,CEAC,SUFI
+CEAC_TOBIAS,CEAC Tobias,CEAC Tobias Barreto,CEAC,SUFI
+POSTO_59,Posto 59,Posto Fiscal 59,Posto Fiscal,SUFI
+POSTO_CORREIOS_SUFI,Posto Correios,Posto Fiscal Correios,Posto Fiscal,SUFI
+POSTO_CRISTINAPOLIS,Posto Cristinápolis,Posto Fiscal Cristinápolis,Posto Fiscal,SUFI
+POSTO_CARIRA,Posto Carira,Posto Fiscal de Carira,Posto Fiscal,SUFI
+POSTO_GOV_CELSO,Posto Gov. Celso,Posto Fiscal Gov. Celso Carvalho,Posto Fiscal,SUFI
+POSTO_PROPRIA_FRONTEIRA,Posto Propriá,Posto Fiscal Propriá Fronteira,Posto Fiscal,SUFI
+SUPLAF,SUPLAF,"Superintendência de Planejamento Fiscal, Arrecadação e Informações Fiscais",Superintendência,SURE
+ASSESS_GERAL_TRIB,,Assessoria Geral de Gestão Tributária,Assessoria,SUPLAF
+GERPLAF,GERPLAF,Gerência de Planejamento Fiscal,Gerência,SUPLAF
+GERAR,GERAR,Gerência de Arrecadação,Gerência,SUPLAF
+GITCMD_SUPLAF,GITCMD,Gerência de Auditoria do ITCMD,Gerência,SUPLAF
+GERAT_SUPLAF,GERAT,Gerência de Fiscalização do Trânsito de Mercadorias,Gerência,SUPLAF
+GEINF_SUPLAF,GEINF,Gerência de Informações Fiscais,Gerência,SUPLAF
+GEFIN,GEFIN,Gerência de Finanças,Gerência,SUPLAF
+GECRET_SUPLAF,GECRET,Gerência de Recuperação de Crédito Tributário e Contencioso Fiscal,Gerência,SUPLAF
+GECAP_SUPLAF,GECAP,"Gerência de Suporte, Controle e Acompanhamento de Processos",Gerência,SUPLAF
+GETES,GETES,Gerência da Tesouraria Estadual,Gerência,SUFIP
+GESFE,GESFE,Gerência de Sistemas e Modernização das Finanças Estaduais,Gerência,SUFIP
+GEDIF,GEDIF,Gerência da Dívida Pública e Informações Fiscais,Gerência,SUFIP
+GERAC,GERAC,Gerência de Aquisições e Contratos,Gerência,SUCEF
+GEDEPE,GEDEPE,Gerência da Despesa com Pessoal,Gerência,SUFIP
+GEINF,GEINF,Gerência de Informações Fiscais,Gerência,SUFI
+CGE,CGE,Contadoria Geral do Estado,Unidade,SUFIP
+GEMAC,GEMAC,Gerência de Monitoramento e Atendimento Contábil,Gerência,SUFIP
+GERP,GERP,Gerência de Pessoal,Gerência,SUGEP
+GENOC,GENOC,Gerência de Normas e Procedimentos Contábeis,Gerência,SUFIP
+GEDIC,GEDIC,Gerência de Desenvolvimento Institucional e Capacitação,Gerência,SUPLAN
+GEDOM,GEDOM,Gerência de Diretrizes Orçamentárias e Metas Fiscais,Gerência,SUPFI
+GEFIS,GEFIS,Gerência de Controle Fiscal,Gerência,SUPFI
+GPTI,GPTI,Gerência de Gestão e Políticas de Tecnologia da Informação,Gerência,SUTEC
+GEROT,GEROT,Gerência de Orientação Tributária,Gerência,SUTRI
+GELEG,GELEG,Gerência de Legislação Tributária,Gerência,SUTRI
+GECRET,GECRET,Gerência de Recuperação de Crédito Tributário e Contencioso Fiscal,Gerência,SUCOF
+ASFUN,ASFUN,Assessoria de Fundos,Assessoria,SUFIP
+GETIMP,GETIMP,Gerência de Tributos Imobiliários e Patrimoniais,Gerência,SUTRI
+GITCD,GITCD,Gerência de Auditoria do ITCD,Gerência,SUFI
+GEFINA,GEFINA,Gerência de Finalização,Gerência,SUFI
+GEDFP,GEDFP,Gerência de Disseminação e Formação de Preços,Gerência,SUPLAF
+GETRANS,GETRANS,Gerência de Transportes,Gerência,SUPAG
+GEINFRA,GEINFRA,Gerência de Serviços de Infraestrutura,Gerência,SUPAG
+GEMAP,GEMAP,Gerência de Material e Patrimônio,Gerência,SUPAG
+GERAFI,GERAFI,Gerência de Remuneração e Administração Financeira,Gerência,SUGEP
+GESFIS,GESFIS,Gerência de Sistemas Fiscais,Gerência,SUTEC
+GEDIG,GEDIG,Gerência de Digitalização de Processos,Gerência,SUTEC
+GESUPP,GESUPP,Gerência de Infraestrutura e Suporte,Gerência,SUTEC
+GECRI,GECRI,Gerência de Contratos e Inovação,Gerência,SUTEC
+GEBER,GEBER,Gerência de Benefícios e Relações de Trabalho,Gerência,SUGEP
+GEADP,GEADP,Gerência de Análise e Desenvolvimento de Pessoas,Gerência,SUGEP
+GEDES,GEDES,Gerência de Despesa Pública,Gerência,SUPFI
+GECED,GECED,Gerência de Conta Especial e Depósitos,Gerência,SUFIP
+SUTRI,SUTRI,Superintendência de Tributação Estadual,Superintendência,SURE
+SUPFI,SUPFI,Superintendência de Política Fiscal,Superintendência,STE
+SUCEF,SUCEF,Superintendência de Contratos e Execução Financeira,Superintendência,SUGT
+SUTEC,SUTEC,Superintendência da Tecnologia da Informação,Superintendência,SUGT
+SUPLAN,SUPLAN,"Superintendência de Planejamento, Projetos e Modernização Institucional",Superintendência,SUGT
+SUGEP,SUGEP,Superintendência de Gestão de Pessoas,Superintendência,SUGT
+SUINT,SUINT,Superintendência de Integridade Pública,Superintendência,SUGT
+SURIS,SURIS,Superintendência de Riscos Institucionais,Superintendência,SUGT
+UCP,UCP,Unidade de Coordenação de Projeto,Unidade,SUPLAN

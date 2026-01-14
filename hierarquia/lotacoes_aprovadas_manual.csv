@@ -1,0 +1,44 @@
+Código,Sigla,Nome da Lotação,Tipo,Superior
+GETES,GETES,Gerência da Tesouraria Estadual,Gerência,SUFIP
+GESFE,GESFE,Gerência de Sistemas e Modernização das Finanças Estaduais,Gerência,SUFIP
+GEDIF,GEDIF,Gerência da Dívida Pública e Informações Fiscais,Gerência,SUFIP
+GERAC,GERAC,Gerência de Aquisições e Contratos,Gerência,SUCEF
+GEDEPE,GEDEPE,Gerência da Despesa com Pessoal,Gerência,SUFIP
+GEINF,GEINF,Gerência de Informações Fiscais,Gerência,SUFI
+CGE,CGE,Contadoria Geral do Estado,Unidade,SUFIP
+GEMAC,GEMAC,Gerência de Monitoramento e Atendimento Contábil,Gerência,SUFIP
+GERP,GERP,Gerência de Pessoal,Gerência,SUGEP
+GENOC,GENOC,Gerência de Normas e Procedimentos Contábeis,Gerência,SUFIP
+GEDIC,GEDIC,Gerência de Desenvolvimento Institucional e Capacitação,Gerência,SUPLAN
+GEDOM,GEDOM,Gerência de Diretrizes Orçamentárias e Metas Fiscais,Gerência,SUPFI
+GEFIS,GEFIS,Gerência de Controle Fiscal,Gerência,SUPFI
+GPTI,GPTI,Gerência de Gestão e Políticas de Tecnologia da Informação,Gerência,SUTEC
+GEROT,GEROT,Gerência de Orientação Tributária,Gerência,SUTRI
+GELEG,GELEG,Gerência de Legislação Tributária,Gerência,SUTRI
+GECRET,GECRET,Gerência de Recuperação de Crédito Tributário e Contencioso Fiscal,Gerência,SUCOF
+ASFUN,ASFUN,Assessoria de Fundos,Assessoria,SUFIP
+GETIMP,GETIMP,Gerência de Tributos Imobiliários e Patrimoniais,Gerência,SUTRI
+GITCD,GITCD,Gerência de Auditoria do ITCD,Gerência,SUFI
+GEFINA,GEFINA,Gerência de Finalização,Gerência,SUFI
+GEDFP,GEDFP,Gerência de Disseminação e Formação de Preços,Gerência,SUPLAF
+GETRANS,GETRANS,Gerência de Transportes,Gerência,SUPAG
+GEINFRA,GEINFRA,Gerência de Serviços de Infraestrutura,Gerência,SUPAG
+GEMAP,GEMAP,Gerência de Material e Patrimônio,Gerência,SUPAG
+GERAFI,GERAFI,Gerência de Remuneração e Administração Financeira,Gerência,SUGEP
+GESFIS,GESFIS,Gerência de Sistemas Fiscais,Gerência,SUTEC
+GEDIG,GEDIG,Gerência de Digitalização de Processos,Gerência,SUTEC
+GESUPP,GESUPP,Gerência de Infraestrutura e Suporte,Gerência,SUTEC
+GECRI,GECRI,Gerência de Contratos e Inovação,Gerência,SUTEC
+GEBER,GEBER,Gerência de Benefícios e Relações de Trabalho,Gerência,SUGEP
+GEADP,GEADP,Gerência de Análise e Desenvolvimento de Pessoas,Gerência,SUGEP
+GEDES,GEDES,Gerência de Despesa Pública,Gerência,SUPFI
+GECED,GECED,Gerência de Conta Especial e Depósitos,Gerência,SUFIP
+SUTRI,SUTRI,Superintendência de Tributação Estadual,Superintendência,SURE
+SUPFI,SUPFI,Superintendência de Política Fiscal,Superintendência,STE
+SUCEF,SUCEF,Superintendência de Contratos e Execução Financeira,Superintendência,SUGT
+SUTEC,SUTEC,Superintendência da Tecnologia da Informação,Superintendência,SUGT
+SUPLAN,SUPLAN,"Superintendência de Planejamento, Projetos e Modernização Institucional",Superintendência,SUGT
+SUGEP,SUGEP,Superintendência de Gestão de Pessoas,Superintendência,SUGT
+SUINT,SUINT,Superintendência de Integridade Pública,Superintendência,SUGT
+SURIS,SURIS,Superintendência de Riscos Institucionais,Superintendência,SUGT
+UCP,UCP,Unidade de Coordenação de Projeto,Unidade,SUPLAN

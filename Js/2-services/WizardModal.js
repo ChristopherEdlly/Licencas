@@ -146,6 +146,15 @@ class WizardModal {
         const nextBtn = this.modal.querySelector('.wizard-button-next');
         const saveBtn = this.modal.querySelector('.wizard-button-save');
         
+        // Resetar estado do botão Salvar
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="bi bi-check"></i> Salvar';
+        }
+        
+        // Resetar flag de salvamento
+        this._isSaving = false;
+        
         if (mode === 'edit') {
             // Modo edit legado (compatível) - mostra tudo
             titleText.textContent = '✏️ Editar Licença';
@@ -2283,6 +2292,44 @@ class WizardModal {
                 // Adicionar nova licença
                 await this.app.addNewLicense(licenseData);
                 this._showNotification('Licença adicionada com sucesso!', 'success');
+
+                // Restaurar botão antes de mostrar preview
+                const saveBtn = this.modal.querySelector('.wizard-button-save');
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i class="bi bi-check"></i> Salvar';
+                }
+
+                // Resetar flag
+                this._isSaving = false;
+
+                // 🚀 PREPARAR NF EM BACKGROUND (update E9, recalculate, verify)
+                // IMPORTANTE: Fazer ANTES de abrir o preview para ganhar tempo!
+                console.log('[WizardModal] 🔍 Debug preparação:', {
+                    hasApp: !!this.app,
+                    appIsObject: typeof this.app === 'object',
+                    hasMethod: this.app && 'prepareNFForDownload' in this.app,
+                    methodType: this.app && typeof this.app.prepareNFForDownload,
+                    windowApp: !!window.app,
+                    windowAppMethod: window.app && typeof window.app.prepareNFForDownload
+                });
+                
+                // Tentar via this.app primeiro, depois window.app
+                const appInstance = this.app || window.app;
+                
+                if (appInstance && typeof appInstance.prepareNFForDownload === 'function') {
+                    console.log('[WizardModal] 🔧 Iniciando preparação da NF em background...');
+                    
+                    // Disparar preparação SEM AWAIT (paralelo, não bloqueia)
+                    appInstance.prepareNFForDownload(licenseData).then(() => {
+                        console.log('[WizardModal] ✅ Preparação concluída em background');
+                    }).catch(err => {
+                        console.error('[WizardModal] ⚠️ Erro ao preparar NF (não crítico):', err);
+                        // Não bloquear o fluxo - se falhar aqui, tentará novamente no download
+                    });
+                } else {
+                    console.warn('[WizardModal] ⚠️ prepareNFForDownload não disponível');
+                }
 
                 // Mostrar preview da NF após adicionar nova licença
                 this._showNFPreview(licenseData);
