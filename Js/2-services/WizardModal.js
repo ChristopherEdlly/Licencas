@@ -123,8 +123,6 @@ class WizardModal {
      * @param {Object} licenseData - Dados da licença (se editar)
      */
     open(mode = 'add', servidorData = null, licenseData = null) {
-        console.log('[WizardModal] Abrindo modal:', { mode, servidorData, licenseData });
-        
         this.mode = mode;
         this.servidorData = servidorData;
         this.originalLicenseData = licenseData;
@@ -2241,7 +2239,8 @@ class WizardModal {
                     A_PARTIR: this.data.a_partir,
                     GOZO: this.data.gozo,
                     TERMINO: this.data.termino,
-                    RESTANDO: this.data.restando
+                    RESTANDO: this.data.restando,
+                    REF: this.data.ref
                 };
             } else if (this.mode === 'edit-servidor') {
                 // Modo edit-servidor: atualizar SÓ campos do servidor

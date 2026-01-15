@@ -79,13 +79,8 @@ class SharePointExcelService {
      * Obtém metadados da tabela (worksheet, range, colunas)
      */
     static async getTableInfo(fileId, tableName) {
-        const path = `/me/drive/items/${fileId}/workbook/tables/${encodeURIComponent(tableName)}`;
+        const path = `/me/drive/items/${fileId}/workbook/tables/${encodeURIComponent(tableName)}?$expand=columns`;
         const result = await this._graphFetch(path, { method: 'GET' });
-        
-        if (!result.columns || result.columns.length === 0) {
-            console.warn(`[SharePointExcelService] ⚠️ getTableInfo "${tableName}": Nenhuma coluna retornada pela API`);
-        }
-        
         return result;
     }
 
@@ -652,8 +647,50 @@ class SharePointExcelService {
 
         // Try multiple resolution strategies because files can live in team sites, site collections or user's OneDrive
         const rel = relativePath.split('/').map(encodeURIComponent).join('/');
+        const decodedName = decodeURIComponent(relativePath.split('/').pop());
 
-        // Strategy A: resolve as site path -> drive root
+        // Strategy D (renomeada para A): Buscar por nome primeiro (MAIS RÁPIDO e funciona na maioria dos casos)
+        try {
+            if (decodedName) {
+                const searchPath = `/me/drive/root/search(q='${encodeURIComponent(decodedName)}')`;
+                const searchJson = await this._graphFetch(searchPath, { method: 'GET' }, ['Files.Read']);
+                const items = (searchJson && searchJson.value) || [];
+                if (items.length > 0) {
+                    // prefer exact name match
+                    const exact = items.find(i => i.name && i.name.toLowerCase() === decodedName.toLowerCase());
+                    const chosen = exact || items[0];
+                    return { siteId: null, fileId: chosen.id, tableName };
+                }
+            }
+        } catch (e) {
+            // Strategy A falhou, tentar próxima
+        }
+
+        // Strategy B: Buscar na pasta "Licenca Premio" (novo local comum)
+        try {
+            const licencaPremioPath = `/me/drive/root:/Documents/Licenca Premio/${decodedName}`;
+            const itemJson = await this._graphFetch(licencaPremioPath, { method: 'GET' }, ['Files.Read']);
+            const fileId = itemJson && itemJson.id;
+            if (fileId) {
+                return { siteId: null, fileId, tableName };
+            }
+        } catch (e) {
+            // Strategy B falhou, tentar próxima
+        }
+
+        // Strategy C: user's personal drive (OneDrive for Business) via /me/drive
+        try {
+            const itemEndpoint = `/me/drive/root:/${rel}`;
+            const itemJson = await this._graphFetch(itemEndpoint, { method: 'GET' }, ['Files.Read']);
+            const fileId = itemJson && itemJson.id;
+            if (fileId) {
+                return { siteId: null, fileId, tableName };
+            }
+        } catch (e) {
+            // Strategy C falhou, tentar próxima
+        }
+
+        // Strategy D: resolve as site path -> drive root
         try {
             const sitePathEncoded = encodeURIComponent(sitePath);
             const siteEndpoint = `/sites/${hostname}:/${sitePathEncoded}`;
@@ -666,67 +703,19 @@ class SharePointExcelService {
                 if (fileId) return { siteId, fileId, tableName };
             }
         } catch (e) {
-            // Estratégia A falhou, tentar próxima (debug apenas - não é erro)
-            console.debug('📍 Strategy A (site path) - not found, trying next...');
+            // Strategy D falhou, tentar próxima
         }
 
-        // Strategy B: user's personal drive (OneDrive for Business) via /me/drive
-        try {
-            const itemEndpoint = `/me/drive/root:/${rel}`;
-            const itemJson = await this._graphFetch(itemEndpoint, { method: 'GET' }, ['Files.Read']);
-            const fileId = itemJson && itemJson.id;
-            if (fileId) {
-                console.log('✅ Arquivo encontrado via Strategy B (OneDrive pessoal)');
-                return { siteId: null, fileId, tableName };
-            }
-        } catch (e) {
-            console.debug('📍 Strategy B (user drive) - not found, trying next...');
-        }
-
-        // Strategy C: attempt to treat sitePath as a site-id directly
+        // Strategy E: attempt to treat sitePath as a site-id directly
         try {
             const itemEndpoint = `/sites/${sitePath}/drive/root:/${rel}`;
             const itemJson = await this._graphFetch(itemEndpoint, { method: 'GET' }, ['Files.Read']);
             const fileId = itemJson && itemJson.id;
             if (fileId) {
-                console.log('✅ Arquivo encontrado via Strategy C (site ID direto)');
                 return { siteId: sitePath, fileId, tableName };
             }
         } catch (e) {
-            console.debug('📍 Strategy C (direct site-id) - not found, trying next...');
-        }
-
-        // Strategy D: attempt search by file name in user's drive (useful for personal OneDrive or when path differs)
-        try {
-            const decodedName = decodeURIComponent(relativePath.split('/').pop());
-            if (decodedName) {
-                const searchPath = `/me/drive/root/search(q='${encodeURIComponent(decodedName)}')`;
-                const searchJson = await this._graphFetch(searchPath, { method: 'GET' }, ['Files.Read']);
-                const items = (searchJson && searchJson.value) || [];
-                if (items.length > 0) {
-                    // prefer exact name match
-                    const exact = items.find(i => i.name && i.name.toLowerCase() === decodedName.toLowerCase());
-                    const chosen = exact || items[0];
-                    console.log('✅ Arquivo encontrado via Strategy D (busca por nome)');
-                    return { siteId: null, fileId: chosen.id, tableName };
-                }
-            }
-        } catch (e) {
-            console.debug('📍 Strategy D (search) - not found');
-        }
-
-        // Strategy E: buscar na pasta "Licenca Premio" (novo local do arquivo)
-        try {
-            const decodedName = decodeURIComponent(relativePath.split('/').pop());
-            const licencaPremioPath = `/me/drive/root:/Documents/Licenca Premio/${decodedName}`;
-            const itemJson = await this._graphFetch(licencaPremioPath, { method: 'GET' }, ['Files.Read']);
-            const fileId = itemJson && itemJson.id;
-            if (fileId) {
-                console.log('✅ Arquivo encontrado via Strategy E (pasta Licenca Premio)');
-                return { siteId: null, fileId, tableName };
-            }
-        } catch (e) {
-            console.debug('📍 Strategy E (Licenca Premio folder) - not found');
+            // Strategy E falhou
         }
 
         throw new Error('Could not resolve fileId from env config via any known strategy');

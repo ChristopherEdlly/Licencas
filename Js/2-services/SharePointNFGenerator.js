@@ -71,7 +71,7 @@ class SharePointNFGenerator {
             { address: 'D34', value: getValue('AQUISITIVO_INICIO') || getValue('aquisitivo_inicio') },
             { address: 'F34', value: getValue('AQUISITIVO_FIM') || getValue('aquisitivo_fim') },
             { address: 'C36', value: getValue('INICIO_LICENCA') || getValue('inicio_licenca') || getValue('A_PARTIR') || getValue('a_partir') },
-            { address: 'B38', value: getValue('FIM_LICENCA') || getValue('fim_licenca') || getValue('ATE') || getValue('ate') },
+            { address: 'B38', value: getValue('TERMINO') || getValue('termino') || getValue('FIM_LICENCA') || getValue('fim_licenca') || getValue('ATE') || getValue('ate') },
             { address: 'E38', value: getValue('RESTANDO') || getValue('restando') }
         ];
 

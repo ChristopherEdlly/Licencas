@@ -29,6 +29,7 @@
     <link href="css/components/servidor-details-modal.css" rel="stylesheet">
     <link href="css/components/license-edit-modal.css" rel="stylesheet">
     <link href="css/components/wizard-modal.css" rel="stylesheet">
+    <link href="css/components/inactive-servers.css" rel="stylesheet">
     <!-- Modelo Layout - Deve ser o ÚLTIMO CSS para sobrescrever tudo -->
     <link href="css/components/sidebar-modelo.css" rel="stylesheet">
     <link href="css/components/modelo-layout.css" rel="stylesheet">
@@ -451,6 +452,15 @@
                 <div class="server-count">
                     <i class="bi bi-people"></i>
                     <span id="totalServidores">0</span>
+                </div>
+
+                <!-- Toggle Incluir Inativos -->
+                <div class="inactive-servers-toggle" title="Incluir servidores inativos (aposentados, desligados, etc.)">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="includeInactiveServersToggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">Incluir inativos</span>
                 </div>
 
                 <!-- Busca -->
@@ -1776,6 +1786,7 @@
     <script src="Js/2-services/SharePointService.js"></script>
     <script src="Js/2-services/SharePointExcelService.js"></script>
     <script src="Js/2-services/HierarchyService.js"></script>
+    <script src="Js/2-services/ServidorMasterDataService.js"></script>
     <script src="Js/2-services/PermissionsService.js"></script>
     <script src="Js/2-services/AuthenticationService.js"></script>
     <script src="Js/2-services/CustomDatePicker.js"></script>

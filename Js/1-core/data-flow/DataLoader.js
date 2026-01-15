@@ -559,11 +559,8 @@ const DataLoader = (function () {
                 // Buscar tableInfo primeiro
                 tableInfo = await SharePointExcelService.getTableInfo(resolvedFileId, resolvedTableName);
                 
-                // 🔧 CORREÇÃO CRÍTICA: Se tableInfo.columns está vazio, criar fallback ANTES de processar linhas
+                // 🔧 CORREÇÃO: Se tableInfo.columns está vazio, criar fallback ANTES de processar linhas
                 if (!tableInfo.columns || tableInfo.columns.length === 0) {
-                    console.error('🚨 [DataLoader] tableInfo.columns VAZIO! Criando fallback antes de processar linhas...');
-                    console.error('   tableInfo original:', JSON.stringify(tableInfo, null, 2));
-                    
                     // Criar colunas padrão da BD_LPREMIO
                     const fallbackColumnNames = [
                         'NUMERO', 'EMISSAO', 'UNIDADE', 'LOTACAO', 'NOME', 'CARGO', 'REF',
@@ -572,7 +569,6 @@ const DataLoader = (function () {
                     ];
                     
                     tableInfo.columns = fallbackColumnNames.map(name => ({ name }));
-                    console.log('   ✅ Fallback aplicado:', tableInfo.columns.length, 'colunas criadas');
                 }
                 
                 // Passar tableInfo (já corrigido se necessário) para getTableRows evitar chamada duplicada

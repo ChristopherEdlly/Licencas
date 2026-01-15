@@ -71,8 +71,6 @@ class App {
         // Authentication state
         this.isAuthenticated = false;
         this.currentUser = null;
-
-        console.log('✅ App instanciado');
     }
 
     // ==================== INICIALIZAÇÃO ====================
@@ -83,11 +81,8 @@ class App {
      */
     async init() {
         if (this.isInitialized) {
-            console.warn('⚠️ App já foi inicializado');
             return;
         }
-
-        console.log('🚀 Inicializando aplicação...');
 
         try {
             // 1. Carregar feature flags
@@ -131,7 +126,6 @@ class App {
             }
 
             this.isInitialized = true;
-            console.log('✅ Aplicação inicializada com sucesso');
 
             // Emitir evento de inicialização
             if (this.eventBus) {
@@ -161,10 +155,8 @@ class App {
             if (typeof window !== 'undefined') {
                 window.FEATURE_FLAGS = this.featureFlags;
             }
-
-            console.log('🚩 Feature flags carregadas:', this.featureFlags);
         } catch (error) {
-            console.warn('⚠️ Erro ao carregar feature flags:', error);
+            // Ignora erro silenciosamente
         }
     }
 
@@ -174,16 +166,12 @@ class App {
      */
     _initEventBus() {
         if (!this.featureFlags.USE_EVENT_BUS) {
-            console.log('⏭️ EventBus desabilitado por feature flag');
             return;
         }
 
         if (typeof EventBus !== 'undefined') {
             this.eventBus = EventBus.getInstance();
             this.eventBus.setDebugMode(this.featureFlags.DEBUG_MODE);
-            console.log('✅ EventBus inicializado');
-        } else {
-            console.warn('⚠️ EventBus não disponível');
         }
     }
 
@@ -195,28 +183,16 @@ class App {
         // DataStateManager (Singleton global)
         if (typeof window !== 'undefined' && window.dataStateManager) {
             this.dataStateManager = window.dataStateManager;
-            console.log('✅ DataStateManager conectado');
-        } else {
-            console.error('❌ DataStateManager não disponível');
         }
-
-        // LotacaoHierarchyManager - Inicialização será feita depois do HierarchyService
-        // (veja abaixo após AuthenticationService)
 
         // FilterStateManager (Singleton global)
         if (typeof window !== 'undefined' && window.filterStateManager) {
             this.filterStateManager = window.filterStateManager;
-            console.log('✅ FilterStateManager conectado');
-        } else {
-            console.warn('⚠️ FilterStateManager não disponível');
         }
 
         // UIStateManager (Singleton global)
         if (typeof window !== 'undefined' && window.uiStateManager) {
             this.uiStateManager = window.uiStateManager;
-            console.log('✅ UIStateManager conectado');
-        } else {
-            console.warn('⚠️ UIStateManager não disponível');
         }
     }
 
@@ -228,33 +204,26 @@ class App {
         // FileService
         if (typeof FileService !== 'undefined') {
             this.fileService = FileService;
-            console.log('✅ FileService disponível');
         }
 
         // CacheService
         if (typeof CacheService !== 'undefined') {
             this.cacheService = CacheService;
-            console.log('✅ CacheService disponível');
         }
 
         // ExportService
         if (typeof ExportService !== 'undefined') {
             this.exportService = ExportService;
-            console.log('✅ ExportService disponível');
         }
 
         // NotificationService
         if (typeof NotificationService !== 'undefined') {
             this.notificationService = NotificationService;
-            console.log('✅ NotificationService disponível');
         }
 
         // SharePointExcelService
         if (typeof SharePointExcelService !== 'undefined') {
             this.sharePointExcelService = SharePointExcelService;
-            console.log('✅ SharePointExcelService disponível');
-        } else {
-            console.warn('⚠️ SharePointExcelService não disponível - operações de CRUD desabilitadas');
         }
 
         // AuthenticationService
@@ -266,15 +235,19 @@ class App {
         // SharePointNFGenerator (DEPOIS do AuthenticationService)
         if (typeof SharePointNFGenerator !== 'undefined' && this.authService) {
             this.nfGenerator = new SharePointNFGenerator(this.authService);
-            console.log('✅ SharePointNFGenerator disponível');
-        } else {
-            console.warn('⚠️ SharePointNFGenerator não disponível - geração de NF desabilitada');
+        }
+
+        // ServidorMasterDataService (carrega planilha externa LOTAÇÃO GERAL SERVIDORES)
+        if (typeof ServidorMasterDataService !== 'undefined' && this.authService && this.sharePointExcelService) {
+            if (!window.servidorMasterDataService) {
+                window.servidorMasterDataService = new ServidorMasterDataService(this.authService, this.sharePointExcelService);
+            }
+            this.servidorMasterDataService = window.servidorMasterDataService;
         }
 
         // HierarchyService (carrega hierarquia de lotação do SharePoint) - OBRIGATÓRIO
         if (typeof HierarchyService !== 'undefined' && this.authService && this.sharePointExcelService) {
             this.hierarchyService = new HierarchyService(this.authService, this.sharePointExcelService);
-            console.log('✅ HierarchyService inicializado');
         } else {
             console.error('❌ HierarchyService não disponível - hierarquia organizacional NÃO funcionará');
             console.error('   Verifique: AuthenticationService e SharePointExcelService devem estar disponíveis');
@@ -288,27 +261,25 @@ class App {
                 window.lotacaoHierarchyManager = new LotacaoHierarchyManager(this.hierarchyService);
             }
             this.lotacaoHierarchyManager = window.lotacaoHierarchyManager;
-            console.log('✅ LotacaoHierarchyManager inicializado');
 
-            // Carregar hierarquia do SharePoint (assíncrono, em background)
-            this.hierarchyService.loadHierarchy().then(() => {
-                console.log('✅ Hierarquia carregada do SharePoint');
-                return this.lotacaoHierarchyManager.loadFromSharePoint();
-            }).then(() => {
-                console.log('✅ LotacaoHierarchyManager atualizado com dados do SharePoint');
-            }).catch(error => {
-                console.error('❌ ERRO CRÍTICO ao carregar hierarquia do SharePoint:', error);
-                console.error('   A hierarquia organizacional NÃO está disponível!');
-                console.error('   Verifique se a aba "hierarquia" e tabela "lotacao" existem no SharePoint');
-
-                // Mostrar notificação visual ao usuário
-                if (this.notificationService) {
-                    this.notificationService.error(
-                        'Erro ao carregar hierarquia organizacional',
-                        'Verifique se a aba "hierarquia" existe no SharePoint com a tabela "lotacao"'
-                    );
-                }
-            });
+            // SÓ carregar hierarquia se usuário estiver autenticado
+            if (this.isAuthenticated) {
+                // Carregar hierarquia do SharePoint (assíncrono, em background)
+                this.hierarchyService.loadHierarchy().then(() => {
+                    return this.lotacaoHierarchyManager.loadFromSharePoint();
+                }).then(() => {
+                    // Hierarquia carregada com sucesso
+                }).catch(error => {
+                    console.error('❌ ERRO ao carregar hierarquia do SharePoint:', error);
+                    // Mostrar notificação visual ao usuário
+                    if (this.notificationService) {
+                        this.notificationService.error(
+                            'Erro ao carregar hierarquia organizacional',
+                            'Verifique se a aba "hierarquia" existe no SharePoint com a tabela "lotacao"'
+                        );
+                    }
+                });
+            }
         } else {
             console.error('❌ LotacaoHierarchyManager não disponível');
             throw new Error('LotacaoHierarchyManager não pode ser inicializado');
@@ -347,14 +318,12 @@ class App {
             if (this.authService.isAuthenticated()) {
                 this.isAuthenticated = true;
                 this.currentUser = this.authService.getCurrentUser();
-                console.log('✅ Usuário já autenticado:', this.currentUser.username);
+
                 this._updateAuthUI();
             } else {
                 // Mostrar tela de login se não autenticado
                 this._showLoginScreen();
             }
-
-            console.log('✅ AuthenticationService inicializado');
 
         } catch (error) {
             console.error('❌ Erro ao inicializar AuthenticationService:', error);
@@ -369,25 +338,22 @@ class App {
         // TableManager
         if (typeof TableManager !== 'undefined') {
             this.tableManager = new TableManager(this);
-            console.log('✅ TableManager inicializado');
         }
 
         // ChartManager
         if (typeof ChartManager !== 'undefined') {
             this.chartManager = new ChartManager(this);
-            console.log('✅ ChartManager inicializado');
         }
 
         // ModalManager
         if (typeof ModalManager !== 'undefined') {
             this.modalManager = new ModalManager(this);
-            console.log('✅ ModalManager inicializado');
 
             // Inicializar internamente para registrar listeners e preparar modais
             try {
                 if (typeof this.modalManager.init === 'function') this.modalManager.init();
             } catch (e) {
-                console.warn('⚠️ Falha ao inicializar ModalManager:', e);
+                // Silent fail
             }
 
             // Backward compatibility for customModal
@@ -400,9 +366,8 @@ class App {
                 try {
                     this.licenseEditModal = new LicenseEditModal(this);
                     if (typeof this.licenseEditModal.init === 'function') this.licenseEditModal.init();
-                    console.log('✅ LicenseEditModal inicializado');
                 } catch (e) {
-                    console.warn('⚠️ Falha ao inicializar LicenseEditModal:', e);
+                    // Silent fail
                 }
             }
             
@@ -410,9 +375,8 @@ class App {
             if (typeof WizardModal !== 'undefined') {
                 try {
                     this.wizardModal = new WizardModal(this);
-                    console.log('✅ WizardModal inicializado');
                 } catch (e) {
-                    console.warn('⚠️ Falha ao inicializar WizardModal:', e);
+                    // Silent fail
                 }
             }
         }
@@ -421,14 +385,12 @@ class App {
         if (typeof HeaderManager !== 'undefined') {
             this.headerManager = new HeaderManager(this);
             this.headerManager.init();
-            console.log('✅ HeaderManager inicializado');
         }
 
         // SidebarManager
         if (typeof SidebarManager !== 'undefined') {
             this.sidebarManager = new SidebarManager(this);
             this.sidebarManager.init();
-            console.log('✅ SidebarManager inicializado');
         }
     }
 
@@ -440,31 +402,23 @@ class App {
         // SearchManager
         if (typeof SearchManager !== 'undefined') {
             this.searchManager = new SearchManager(this);
-            console.log('✅ SearchManager inicializado');
         }
 
         // FilterManager
         if (typeof FilterManager !== 'undefined') {
             this.filterManager = new FilterManager(this);
-            console.log('✅ FilterManager inicializado');
         }
 
         // AdvancedFilterManager (portado from legacy)
         if (typeof AdvancedFilterManager !== 'undefined') {
             this.advancedFilterManager = new AdvancedFilterManager(this);
             window.advancedFilterManager = this.advancedFilterManager;
-            console.log('✅ AdvancedFilterManager inicializado');
-        } else {
-            console.log('ℹ️ AdvancedFilterManager não disponível');
         }
 
         // AdvancedFiltersBuilder (UI para construção visual de filtros)
         if (typeof AdvancedFiltersBuilder !== 'undefined') {
             this.advancedFiltersBuilder = new AdvancedFiltersBuilder(this);
             window.advancedFiltersBuilder = this.advancedFiltersBuilder;
-            console.log('✅ AdvancedFiltersBuilder inicializado');
-        } else {
-            console.log('ℹ️ AdvancedFiltersBuilder não disponível');
         }
 
         // Ensure a single HierarchyFilterModal instance is available and wired
@@ -486,9 +440,8 @@ class App {
                             } catch (e) { console.warn('Erro no onApply do HierarchyFilterModal', e); }
                         }
                     });
-                    console.log('✅ HierarchyFilterModal singleton criado');
                 } catch (e) {
-                    console.warn('⚠️ Falha ao instanciar HierarchyFilterModal:', e);
+                    // Silent fail
                 }
             }
         }
@@ -496,27 +449,22 @@ class App {
         // CalendarManager
         if (typeof CalendarManager !== 'undefined') {
             this.calendarManager = new CalendarManager(this);
-            console.log('✅ CalendarManager inicializado');
         }
 
         // TimelineManager
         if (typeof TimelineManager !== 'undefined') {
             this.timelineManager = new TimelineManager(this);
-            console.log('✅ TimelineManager inicializado');
         }
 
         // ReportsManager
         if (typeof ReportsManager !== 'undefined') {
             this.reportsManager = new ReportsManager(this);
-            console.log('✅ ReportsManager inicializado');
         }
 
         // KeyboardManager
         if (typeof KeyboardManager !== 'undefined') {
             this.keyboardManager = new KeyboardManager(this);
-            console.log('✅ KeyboardManager inicializado');
         }
-
     }
 
     /**
@@ -528,42 +476,42 @@ class App {
         if (typeof HomePage !== 'undefined') {
             this.pages.home = new HomePage(this);
             this.pages.home.init();
-            console.log('✅ HomePage inicializado');
+
         }
 
         // CalendarPage
         if (typeof CalendarPage !== 'undefined') {
             this.pages.calendar = new CalendarPage(this);
             this.pages.calendar.init();
-            console.log('✅ CalendarPage inicializado');
+
         }
 
         // TimelinePage
         if (typeof TimelinePage !== 'undefined') {
             this.pages.timeline = new TimelinePage(this);
             this.pages.timeline.init();
-            console.log('✅ TimelinePage inicializado');
+
         }
 
         // ReportsPage
         if (typeof ReportsPage !== 'undefined') {
             this.pages.reports = new ReportsPage(this);
             this.pages.reports.init();
-            console.log('✅ ReportsPage inicializado');
+
         }
 
         // SettingsPage
         if (typeof SettingsPage !== 'undefined') {
             this.pages.settings = new SettingsPage(this);
             this.pages.settings.init();
-            console.log('✅ SettingsPage inicializado');
+
         }
 
         // TipsPage
         if (typeof TipsPage !== 'undefined') {
             this.pages.tips = new TipsPage(this);
             this.pages.tips.init();
-            console.log('✅ TipsPage inicializado');
+
         }
     }
 
@@ -573,7 +521,7 @@ class App {
      */
     _initRouter() {
         if (!this.featureFlags.USE_ROUTER) {
-            console.log('⏭️ Router desabilitado por feature flag');
+
             return;
         }
 
@@ -586,7 +534,6 @@ class App {
             // Inicializar router (vai processar rota inicial)
             this.router.init(this.eventBus);
 
-            console.log('✅ Router inicializado');
         } else {
             console.warn('⚠️ Router não disponível');
         }
@@ -619,7 +566,6 @@ class App {
             }
         });
 
-        console.log('✅ Rotas registradas');
     }
 
     /**
@@ -639,12 +585,11 @@ class App {
 
             // Listener para mudanças de tema
             this.eventBus.on('ui:theme-changed', (theme) => {
-                console.log('🎨 Tema alterado:', theme);
+
             });
 
-            console.log('✅ EventBus listeners configurados');
         } else {
-            console.log('ℹ️ EventBus não disponível — registrando listeners DOM');
+
         }
 
         // Apply advanced filters to the dataset when filters change (register on document regardless of EventBus)
@@ -654,16 +599,9 @@ class App {
                 if (!mgr || !this.dataStateManager) return;
                 const all = this.dataStateManager.getAllServidores() || [];
                 const beforeCount = all.length;
-                // Log incoming event detail if present
-                if (ev && ev.detail && ev.detail.filters) {
-                    console.log('🔔 advanced-filters-changed payload:', ev.detail.filters);
-                } else {
-                    console.log('🔔 advanced-filters-changed (no payload) — using manager state');
-                }
-                console.log('🔍 Applying filters (active):', mgr.activeFilters || mgr.getStats && mgr.getStats().activeFilters);
                 const filtered = mgr.applyFilters ? mgr.applyFilters(all || []) : all || [];
                 this.dataStateManager.setFilteredServidores(filtered || []);
-                console.log(`🔁 Advanced filters applied — before: ${beforeCount}, after: ${filtered.length}`);
+
             } catch (e) {
                 console.warn('Erro ao aplicar advanced-filters-changed:', e);
             }
@@ -698,7 +636,6 @@ class App {
             }
         });
 
-        console.log('✅ Event listeners de upload configurados');
     }
 
     // ==================== CARREGAMENTO DE DADOS ====================
@@ -712,8 +649,6 @@ class App {
         if (!file) {
             throw new Error('Arquivo não fornecido');
         }
-
-        console.log('📂 Carregando arquivo:', file.name);
 
         try {
             this.isLoading = true;
@@ -759,7 +694,6 @@ class App {
                     timestamp: Date.now()
                 });
 
-                console.log('[App] 💾 Arquivo local salvo no cache:', file.name);
             }
 
             // Emitir evento de sucesso
@@ -776,8 +710,6 @@ class App {
                     `Arquivo carregado: ${transformedData.length} registros`
                 );
             }
-
-            console.log(`✅ Arquivo carregado: ${transformedData.length} registros`);
 
         } catch (error) {
             console.error('❌ Erro ao carregar arquivo:', error);
@@ -846,23 +778,19 @@ class App {
             if (typeof rawData === 'string') {
                 // 1. Parse do CSV (cada linha vira um objeto)
                 const rawRows = DataParser.parseCSV(rawData);
-                console.log(`📋 CSV parseado: ${rawRows.length} linhas`);
 
                 // 2. Agrupar por servidor (agregando licenças)
                 const servidores = DataParser.groupByServidor(rawRows);
-                console.log(`👥 Servidores agregados: ${servidores.length} servidores`);
 
                 return servidores;
             }
             
             // Se for array, são dados já parseados (ex: SharePoint) que só precisam ser agrupados
             if (Array.isArray(rawData)) {
-                console.log(`📋 Array recebido: ${rawData.length} linhas`);
-                
+
                 // Agrupar por servidor
                 const servidores = DataParser.groupByServidor(rawData);
-                console.log(`👥 Servidores agregados: ${servidores.length} servidores`);
-                
+
                 return servidores;
             }
         }
@@ -882,14 +810,75 @@ class App {
      * @returns {Promise<Array>}
      */
     async _transformData(parsedData) {
+        let enrichedData = parsedData;
+
+        // 1. Enriquecimento básico com DataTransformer
         if (typeof DataTransformer !== 'undefined') {
-            // Use enrichServidoresBatch para enriquecer array de servidores
-            return DataTransformer.enrichServidoresBatch(parsedData);
+            enrichedData = DataTransformer.enrichServidoresBatch(parsedData);
+        } else {
+            console.warn('⚠️ DataTransformer não disponível, dados não serão enriquecidos');
         }
 
-        // Fallback: retornar dados sem transformação
-        console.warn('⚠️ DataTransformer não disponível, dados não serão enriquecidos');
-        return parsedData;
+        // 2. Enriquecimento com planilha externa (dados de servidores ativos)
+        try {
+            if (typeof window !== 'undefined' && window.servidorMasterDataService) {
+                const masterDataService = window.servidorMasterDataService;
+
+                // Carregar planilha externa se ainda não foi carregada
+                if (!masterDataService.isLoaded && !masterDataService.isLoading) {
+
+                    const loaded = await masterDataService.loadMasterData();
+
+                    if (loaded) {
+                        const stats = masterDataService.getStats();
+
+                    } else {
+                        console.warn('⚠️ [App] Não foi possível carregar planilha externa.');
+                    }
+                }
+
+                // Se conseguiu carregar, enriquecer servidores
+                if (masterDataService.isLoaded) {
+
+                    // Verificar ABILIO antes do enriquecimento
+                    const abilioAntes = enrichedData.find(s => {
+                        const cpf = (s.cpf || s.CPF || '').replace(/\D/g, '');
+                        return cpf === '85446629868';
+                    });
+                    if (abilioAntes) {
+                        console.log('📌 [App] ABILIO ANTES do enriquecimento:', {
+                            nome: abilioAntes.nome,
+                            cargo: abilioAntes.cargo,
+                            lotacao: abilioAntes.lotacao
+                        });
+                    }
+                    
+                    enrichedData = masterDataService.enrichServidores(enrichedData);
+                    
+                    // Verificar ABILIO depois do enriquecimento
+                    const abilioDepois = enrichedData.find(s => {
+                        const cpf = (s.cpf || s.CPF || '').replace(/\D/g, '');
+                        return cpf === '85446629868';
+                    });
+                    if (abilioDepois) {
+                        console.log('📌 [App] ABILIO DEPOIS do enriquecimento:', {
+                            nome: abilioDepois.nome,
+                            cargo: abilioDepois.cargo,
+                            lotacao: abilioDepois.lotacao,
+                            _status: abilioDepois._status
+                        });
+                    }
+                    
+                    const stats = masterDataService.getStats();
+
+                }
+            }
+        } catch (error) {
+            console.error('❌ [App] Erro ao enriquecer com planilha externa:', error);
+            // Continuar com dados não enriquecidos
+        }
+
+        return enrichedData;
     }
 
     /**
@@ -905,15 +894,7 @@ class App {
         try {
             const cached = await this.cacheService.getLatestCache();
 
-            console.log('[App] 🔍 Cache obtido:', {
-                hasCached: !!cached,
-                hasData: !!(cached && cached.data),
-                hasMetadata: !!(cached && cached.metadata),
-                fileId: cached?.metadata?.fileId
-            });
-
             if (cached && cached.data) {
-                console.log('💾 Restaurando dados do cache...');
 
                 let restored = cached.data;
                 
@@ -929,7 +910,7 @@ class App {
                 try {
                     if (typeof DataTransformer !== 'undefined' && DataTransformer.enrichServidoresBatch) {
                         restored = DataTransformer.enrichServidoresBatch(restored);
-                        console.log(`💠 Dados do cache enriquecidos: ${restored.length} registros`);
+
                     }
                 } catch (e) {
                     console.warn('⚠️ Falha ao enriquecer dados do cache, usando dados originais', e);
@@ -949,11 +930,6 @@ class App {
 
                         this.dataStateManager.setSourceMetadata(sourceMetadata);
 
-                        console.log('[App] ✅ Metadados restaurados do cache:', {
-                            fileId: fileId,
-                            tableName: tableName,
-                            columnCount: tableInfo?.columns?.length || 0
-                        });
                     } else {
                         console.warn('[App] ⚠️ Cache tem metadata mas faltam campos críticos:', {
                             hasFileId: !!fileId,
@@ -972,11 +948,8 @@ class App {
                     this.notificationService.info('Dados anteriores restaurados do cache');
                 }
 
-                console.log(`✅ Cache restaurado: ${cached.data.length} registros`);
-
                 // CRÍTICO: Atualizar UI após restaurar metadados
                 if (cached.metadata && cached.metadata.fileId) {
-                    console.log('[App] 🔄 Atualizando UI com metadados restaurados...');
 
                     // Atualizar botão "Adicionar"
                     await this._updateNewRecordButton();
@@ -987,18 +960,16 @@ class App {
                     // Aguardar a tabela ser renderizada e então aplicar permissões
                     // Usar setTimeout mais longo para garantir renderização completa
                     setTimeout(async () => {
-                        console.log('[App] 🔍 Iniciando verificação de permissões após timeout...');
 
                         if (this.tableManager) {
                             // Verificar permissões (assíncrono)
                             if (typeof this.tableManager._checkEditPermissions === 'function') {
                                 await this.tableManager._checkEditPermissions();
-                                console.log('[App] ✅ Permissões verificadas');
 
                                 // APÓS verificar, aplicar estado nos botões
                                 if (typeof this.tableManager._applyEditButtonsState === 'function') {
                                     this.tableManager._applyEditButtonsState();
-                                    console.log('[App] ✅ Estado dos botões de edição aplicado');
+
                                 }
                             }
                         } else {
@@ -1046,7 +1017,6 @@ class App {
             });
         }
 
-        console.log(`🔍 Filtros aplicados: ${filtered.length} resultados`);
     }
 
     // ==================== NAVEGAÇÃO ====================
@@ -1075,8 +1045,6 @@ class App {
 
         // Navegar usando o router
         this.router.navigate(route);
-
-        console.log(`🧭 Navegando para: ${page} (rota: ${route})`);
     }
 
     // ==================== TRATAMENTO DE ERROS ====================
@@ -1107,6 +1075,11 @@ class App {
     async _loadPrimaryData() {
         try {
             if (!this.dataStateManager) return;
+            
+            // Não tentar carregar do SharePoint se não estiver autenticado
+            if (!this.isAuthenticated) {
+                return;
+            }
 
             // 1. VERIFICAR CACHE PRIMEIRO
             if (this.cacheService) {
@@ -1117,8 +1090,6 @@ class App {
 
                     // Se cache ainda é válido (< 10 min), usar dados em cache
                     if (cacheAge < CACHE_TTL) {
-                        console.log(`💾 Auto-load: Cache válido (${Math.round(cacheAge / 1000)}s), usando dados em cache`);
-                        
                         // Restaurar do cache com enriquecimento
                         let restored = cached.data;
                         if (typeof DataTransformer !== 'undefined' && DataTransformer.enrichServidoresBatch) {
@@ -1133,15 +1104,12 @@ class App {
                         }
                         
                         return;
-                    } else {
-                        console.log(`⏱️ Auto-load: Cache expirado (${Math.round(cacheAge / 1000)}s), recarregando do SharePoint`);
                     }
                 }
             }
 
             // 2. SE CACHE INVÁLIDO/INEXISTENTE, CARREGAR DO SHAREPOINT
             if (this.dataStateManager.hasData()) {
-                console.log('Auto-load: dados já presentes (sem cache), pulando carregamento automático');
                 return;
             }
 
@@ -1153,11 +1121,9 @@ class App {
 
             const silentToken = await this.authService.acquireTokenSilentOnly(['Files.Read']);
             if (!silentToken) {
-                console.log('Auto-load: token silencioso não disponível — não iniciando fluxo interativo automaticamente');
+
                 return;
             }
-
-            console.log('Auto-load: token silencioso disponível — iniciando carregamento do SharePoint');
 
             if (typeof DataLoader === 'undefined' || !DataLoader.loadFromSource) {
                 console.warn('DataLoader não disponível para carregar dados primários');
@@ -1171,18 +1137,14 @@ class App {
                 return;
             }
 
-            console.log(`📥 Auto-load: ${rawData.length} linhas carregadas do SharePoint (RAW)`);
-
             // 2. PROCESSAR DADOS usando MESMO CAMINHO que upload local
             // Agrupar por servidor
-            console.log('👥 Auto-load: Agrupando por servidor...');
+
             const parsedData = DataParser.groupByServidor(rawData);
-            console.log(`✓ ${parsedData.length} servidores agrupados`);
 
             // 3. Enriquecer dados
-            console.log('💎 Auto-load: Enriquecendo dados...');
+
             const transformedData = await this._transformData(parsedData);
-            console.log(`✓ ${transformedData.length} servidores enriquecidos`);
 
             // ✅ GARANTIR que todos têm __rowIndex
             transformedData.forEach((servidor, index) => {
@@ -1209,11 +1171,6 @@ class App {
                     tableInfo: sourceMetadata?.tableInfo
                 });
 
-                console.log('[App] 💾 Cache salvo com metadados:', {
-                    fileId: sourceMetadata?.fileId,
-                    tableName: sourceMetadata?.tableName,
-                    hasTableInfo: !!sourceMetadata?.tableInfo
-                });
             }
 
             // 6. Notificar usuário
@@ -1222,8 +1179,6 @@ class App {
                     `Dados carregados do SharePoint: ${transformedData.length} servidores`
                 );
             }
-
-            console.log('✅ Auto-load: Fluxo completo finalizado - dados prontos para uso');
 
             // 7. Atualizar botão de adicionar
             await this._updateNewRecordButton();
@@ -1302,13 +1257,27 @@ class App {
             this.isAuthenticated = true;
             this.currentUser = userInfo;
 
-            console.log('✅ Login realizado com sucesso:', userInfo.username);
-
             this._hideLoginScreen();
             this._updateAuthUI();
 
             if (this.notificationService) {
                 this.notificationService.success(`Bem-vindo, ${userInfo.name || userInfo.username}!`);
+            }
+
+            // Carregar hierarquia após login bem-sucedido
+            if (this.hierarchyService && this.lotacaoHierarchyManager) {
+                this.hierarchyService.loadHierarchy().then(() => {
+                    return this.lotacaoHierarchyManager.loadFromSharePoint();
+                }).catch(error => {
+                    console.warn('Erro ao carregar hierarquia após login:', error);
+                });
+            }
+
+            // Carregar dados primários após login
+            try {
+                await this._loadPrimaryData();
+            } catch (error) {
+                console.warn('Erro ao carregar dados após login:', error);
             }
 
         } catch (error) {
@@ -1448,7 +1417,6 @@ class App {
      * @private
      */
     async _updateNewRecordButton() {
-        console.log('[App] 🔍 _updateNewRecordButton chamado');
 
         const addRecordButton = document.getElementById('addRecordButton');
         if (!addRecordButton) {
@@ -1456,49 +1424,40 @@ class App {
             return;
         }
 
-        console.log('[App] ✅ Botão addRecordButton encontrado');
-
         try {
             // Verificar se tem metadados do SharePoint (fileId disponível)
             const meta = this.dataStateManager && typeof this.dataStateManager.getSourceMetadata === 'function'
                 ? this.dataStateManager.getSourceMetadata()
                 : null;
 
-            console.log('[App] 📊 Metadados do SharePoint:', {
-                hasMeta: !!meta,
-                hasFileId: !!meta?.fileId,
-                fileId: meta?.fileId
-            });
-
             if (!meta || !meta.fileId) {
-                console.log('[App] ⚠️ Sem metadados do SharePoint, escondendo botão');
+
                 addRecordButton.style.display = 'none';
                 return;
             }
 
             // Verificar permissões de escrita
             if (typeof window !== 'undefined' && window.PermissionsService && typeof window.PermissionsService.canEdit === 'function') {
-                console.log('[App] 🔐 Verificando permissões com PermissionsService...');
+
                 const canEdit = await window.PermissionsService.canEdit(meta.fileId);
-                console.log('[App] 🔑 Permissão para editar:', canEdit);
 
                 if (canEdit) {
-                    console.log('[App] ✅ Mostrando botão adicionar');
+
                     addRecordButton.style.display = 'inline-flex';
 
                     // Adicionar event listener (apenas uma vez)
                     if (!addRecordButton._clickListenerAttached) {
                         addRecordButton.addEventListener('click', () => this._handleNewRecord());
                         addRecordButton._clickListenerAttached = true;
-                        console.log('[App] 🎧 Event listener adicionado ao botão');
+
                     }
                 } else {
-                    console.log('[App] ⛔ Sem permissão para editar, escondendo botão');
+
                     addRecordButton.style.display = 'none';
                 }
             } else {
                 // Se PermissionsService não disponível, mostrar o botão
-                console.log('[App] ⚠️ PermissionsService não disponível, mostrando botão de qualquer forma');
+
                 addRecordButton.style.display = 'inline-flex';
 
                 if (!addRecordButton._clickListenerAttached) {
@@ -1532,7 +1491,7 @@ class App {
                 if (!reloadCacheButton._clickListenerAttached) {
                     reloadCacheButton.addEventListener('click', () => this._handleReloadCache());
                     reloadCacheButton._clickListenerAttached = true;
-                    console.log('[App] 🎧 Event listener adicionado ao botão de reload cache');
+
                 }
             } else {
                 reloadCacheButton.style.display = 'none';
@@ -1582,11 +1541,6 @@ class App {
 
             NotificationService.show(`${restored.length} registros recarregados do cache`, 'success');
 
-            console.log('[App] ✅ Cache recarregado:', {
-                total: restored.length,
-                timestamp: cached.timestamp
-            });
-
         } catch (error) {
             console.error('[App] ❌ Erro ao recarregar cache:', error);
             NotificationService.show('Erro ao recarregar cache', 'error');
@@ -1609,10 +1563,9 @@ class App {
     _handleNewRecord() {
         // Preferir WizardModal se disponível
         if (this.wizardModal && typeof this.wizardModal.open === 'function') {
-            console.log('[App] Abrindo WizardModal (add mode)');
             this.wizardModal.open('add');
         } else if (this.licenseEditModal && typeof this.licenseEditModal.open === 'function') {
-            console.log('[App] Fallback para LicenseEditModal');
+
             this.licenseEditModal.open({ mode: 'create', row: null, rowIndex: null });
         } else {
             console.warn('Nenhum modal de edição disponível');
@@ -1675,7 +1628,6 @@ class App {
      * @param {string} statusKey - Chave do status clicado (agendadas, emAndamento, concluidas, naoAgendadas)
      */
     onStatusChartClick(statusKey) {
-        console.log(`📊 Clique no gráfico de status: ${statusKey}`);
 
         // Verificar se AdvancedFiltersBuilder está disponível
         const advancedFiltersBuilder = this.pages?.home?.advancedFiltersBuilder;
@@ -1729,8 +1681,7 @@ class App {
      * @param {Object} licenseData - Dados da licença
      */
     async addNewLicense(licenseData) {
-        console.log('[App] addNewLicense chamado:', licenseData);
-        
+
         try {
             // Validar dados obrigatórios
             if (!licenseData.NOME || !licenseData.CPF) {
@@ -1752,12 +1703,6 @@ class App {
                 throw new Error('Informações de colunas da tabela não disponíveis. Recarregue os dados.');
             }
             
-            console.log('[App] Adicionando linha ao SharePoint:', {
-                fileId: metadata.fileId,
-                tableName: metadata.tableName,
-                columns: metadata.tableInfo.columns.map(c => c.name)
-            });
-            
             // Verificar se SharePointExcelService está disponível
             if (!this.sharePointExcelService) {
                 throw new Error('SharePointExcelService não disponível');
@@ -1768,9 +1713,7 @@ class App {
                 licenseData,
                 metadata.tableInfo
             );
-            
-            console.log('[App] Array de valores para inserir:', rowValuesArray);
-            
+
             // Adicionar linha ao SharePoint
             const result = await this.sharePointExcelService.addTableRow(
                 metadata.fileId,
@@ -1782,9 +1725,7 @@ class App {
             if (typeof AuditService !== 'undefined' && AuditService.logAction) {
                 AuditService.logAction('CREATE', 'License', licenseData);
             }
-            
-            console.log('[App] Linha adicionada com sucesso:', result);
-            
+
             // NÃO limpar dados - apenas reprocessar o cache atual adicionando a nova linha
             // Evita reload completo que causa lentidão
             
@@ -1795,7 +1736,7 @@ class App {
             }
             
             // Recarregar dados do cache (rápido - não acessa SharePoint)
-            console.log('[App] Recarregando dados do cache após adicionar...');
+
             const cached = await this.cacheService.getLatestCache();
             if (cached && cached.data) {
                 let restored = cached.data;
@@ -1804,7 +1745,7 @@ class App {
                 }
                 this.dataStateManager.setAllServidores(restored);
                 this.dataStateManager.setFilteredServidores(restored);
-                console.log('[App] ✅ Dados recarregados do cache:', restored.length, 'servidores');
+
             }
             
             // Mostrar notificação de sucesso
@@ -1839,8 +1780,7 @@ class App {
      * @param {Object} updatedData - Dados atualizados
      */
     async updateLicense(originalData, updatedData) {
-        console.log('[App] updateLicense chamado:', { originalData, updatedData });
-        
+
         try {
             // Validar dados obrigatórios
             if (!updatedData.NOME || !updatedData.CPF) {
@@ -1866,13 +1806,7 @@ class App {
                 // TODO: Implementar busca da linha no Excel se necessário
                 throw new Error('Índice da linha não disponível');
             }
-            
-            console.log('[App] Atualizando linha do SharePoint:', {
-                fileId: metadata.fileId,
-                tableName: metadata.tableName,
-                rowIndex: rowIndex
-            });
-            
+
             // Verificar se SharePointExcelService está disponível
             if (!this.sharePointExcelService) {
                 throw new Error('SharePointExcelService não disponível');
@@ -1885,9 +1819,7 @@ class App {
                 rowIndex,
                 updatedData
             );
-            
-            console.log('[App] Linha atualizada com sucesso:', result);
-            
+
             // Limpar dados antigos para evitar duplicação
             if (this.dataStateManager) {
                 this.dataStateManager.setAllServidores([]);
@@ -1921,8 +1853,7 @@ class App {
      * @param {Object} servidorData - Dados a atualizar (NOME, CPF, RG, CARGO, LOTACAO, UNIDADE, REF)
      */
     async updateServidorData(cpf, servidorData) {
-        console.log('[App] updateServidorData chamado:', { cpf, servidorData });
-        
+
         try {
             // Validar dados obrigatórios
             if (!cpf) {
@@ -1952,9 +1883,7 @@ class App {
             if (licensesToUpdate.length === 0) {
                 throw new Error('Nenhuma licença encontrada para este servidor');
             }
-            
-            console.log(`[App] Encontradas ${licensesToUpdate.length} licenças para atualizar`);
-            
+
             // Atualizar cada linha no SharePoint
             const updatePromises = licensesToUpdate.map(license => {
                 const rowIndex = license.__rowIndex;
@@ -1963,9 +1892,7 @@ class App {
                     console.warn('[App] Licença sem __rowIndex, pulando:', license);
                     return Promise.resolve(null);
                 }
-                
-                console.log(`[App] Atualizando linha ${rowIndex}...`);
-                
+
                 return this.sharePointExcelService.updateTableRow(
                     metadata.fileId,
                     metadata.tableName,
@@ -1977,9 +1904,7 @@ class App {
             // Aguardar todas as atualizações
             const results = await Promise.all(updatePromises);
             const successCount = results.filter(r => r !== null).length;
-            
-            console.log(`[App] ${successCount} linhas atualizadas com sucesso`);
-            
+
             // Limpar dados antigos
             if (this.dataStateManager) {
                 this.dataStateManager.setAllServidores([]);
@@ -2023,17 +1948,11 @@ class App {
             if (!metadata || !metadata.fileId) {
                 throw new Error('Metadados do arquivo não disponíveis. Recarregue os dados.');
             }
-            
-            console.log('[App] 🔧 Preparando NF em background para:', licenseData.NOME);
+
             NotificationService.show('Preparando NF para download...', 'info', { duration: 3000 });
             
             // Preparar NF (update E9, recalculate, verify - demora ~3-5s)
             this._preparedNFData = await this.nfGenerator.prepareNF(metadata.fileId, licenseData);
-            
-            console.log('[App] ✅ NF preparada! Status:', {
-                verified: this._preparedNFData.verified,
-                elapsed: Date.now() - this._preparedNFData.timestamp
-            });
             
             NotificationService.show('NF preparada! Clique em "Baixar PDF" quando quiser.', 'success', { duration: 3000 });
             
@@ -2063,9 +1982,7 @@ class App {
             if (!metadata || !metadata.fileId) {
                 throw new Error('Metadados do arquivo não disponíveis. Recarregue os dados.');
             }
-            
-            console.log('[App] Gerando NF para:', licenseData);
-            
+
             let result;
             
             // Verificar se temos NF preparada e se é para o mesmo servidor
@@ -2079,7 +1996,6 @@ class App {
                 const isValid = preparedFor === requestedFor && elapsed < 5 * 60 * 1000;
                 
                 if (isValid) {
-                    console.log('[App] ⚡ Usando NF já preparada (rápido!)');
                     NotificationService.show('Exportando PDF...', 'info', { duration: 2000 });
                     
                     // ETAPA 2 apenas: exportar PDF (rápido! ~1s)
@@ -2088,12 +2004,10 @@ class App {
                     // Limpar preparação usada
                     this._preparedNFData = null;
                 } else {
-                    console.log('[App] ⚠️ NF preparada inválida ou expirada, gerando nova');
                     result = await this.nfGenerator.generateNFPDF(metadata.fileId, licenseData);
                     this._preparedNFData = null;
                 }
             } else {
-                console.log('[App] 📄 Gerando NF completa (prepare + export)');
                 result = await this.nfGenerator.generateNFPDF(metadata.fileId, licenseData);
             }
             

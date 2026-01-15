@@ -21,6 +21,9 @@ class HomePage {
         this.isActive = false;
         this.isInitialized = false;
 
+        // Estado do filtro de servidores inativos
+        this.includeInactiveServers = false;
+
         // Referências aos managers (serão inicializados no init)
         this.dataStateManager = null;
         this.tableManager = null;
@@ -37,13 +40,13 @@ class HomePage {
             urgencyChart: null,
             cargoChart: null,
             urgencyTotal: null,
-            cargoTotal: null
+            cargoTotal: null,
+            includeInactiveToggle: null
         };
 
         // Event listeners registrados (para cleanup)
         this.eventListeners = [];
 
-        console.log('✅ HomePage instanciado');
     }
 
     /**
@@ -56,8 +59,6 @@ class HomePage {
             return;
         }
 
-        console.log('🔧 Inicializando HomePage...');
-
         // 1. Cache de elementos do DOM
         this._cacheElements();
 
@@ -68,7 +69,7 @@ class HomePage {
         this._setupEventListeners();
 
         this.isInitialized = true;
-        console.log('✅ HomePage inicializado');
+
     }
 
     /**
@@ -84,6 +85,7 @@ class HomePage {
         this.elements.cargoChart = document.getElementById('cargoChart');
         this.elements.urgencyTotal = document.getElementById('urgencyTotal');
         this.elements.cargoTotal = document.getElementById('cargoTotal');
+        this.elements.includeInactiveToggle = document.getElementById('includeInactiveServersToggle');
 
         // Validar elementos críticos
         if (!this.elements.page) {
@@ -167,8 +169,23 @@ class HomePage {
                 handler: filterChangeHandler
             });
         }
+// Listener para toggle de servidores inativos
+        if (this.elements.includeInactiveToggle) {
+            const toggleHandler = (e) => {
+                this.includeInactiveServers = e.target.checked;
 
-        console.log('✅ Event listeners configurados');
+                this.render();
+            };
+
+            this.elements.includeInactiveToggle.addEventListener('change', toggleHandler);
+
+            this.eventListeners.push({
+                element: this.elements.includeInactiveToggle,
+                event: 'change',
+                handler: toggleHandler
+            });
+        }
+
     }
 
     /**
@@ -180,8 +197,6 @@ class HomePage {
             console.warn('⚠️ HomePage não foi inicializado. Chamando init()...');
             this.init();
         }
-
-        console.log('🎨 Renderizando HomePage...');
 
         // 1. Obter dados filtrados do DataStateManager
         const servidores = this._getFilteredData();
@@ -195,7 +210,6 @@ class HomePage {
         // 4. Renderizar gráficos
         this._renderCharts(servidores);
 
-        console.log(`✅ HomePage renderizado com ${servidores.length} servidores`);
     }
 
     /**
@@ -227,7 +241,17 @@ class HomePage {
         }
 
         // Obter dados filtrados (já aplicados pelo FilterStateManager)
-        return this.dataStateManager.getFilteredData() || [];
+        let servidores = this.dataStateManager.getFilteredData() || [];
+
+        // Aplicar filtro de servidores inativos
+        if (!this.includeInactiveServers) {
+            servidores = servidores.filter(s => {
+                // Servidores sem a flag _status ou com _status === 'ativo' são considerados ativos
+                return !s._status || s._status === 'ativo';
+            });
+        }
+
+        return servidores;
     }
 
     /**
@@ -331,8 +355,6 @@ class HomePage {
             this.init();
         }
 
-        console.log('👁️ Mostrando HomePage');
-
         // Tornar página visível
         if (this.elements.page) {
             this.elements.page.classList.add('active');
@@ -349,7 +371,6 @@ class HomePage {
      * Chamado pelo Router quando usuário navega para outra página
      */
     hide() {
-        console.log('🙈 Escondendo HomePage');
 
         // Esconder página
         if (this.elements.page) {
@@ -364,7 +385,6 @@ class HomePage {
      * Chamado quando a página é destruída (se necessário)
      */
     destroy() {
-        console.log('🧹 Destruindo HomePage...');
 
         // Remover todos os event listeners registrados
         this.eventListeners.forEach(({ element, event, handler }) => {
@@ -375,7 +395,6 @@ class HomePage {
         this.isInitialized = false;
         this.isActive = false;
 
-        console.log('✅ HomePage destruído');
     }
 }
 

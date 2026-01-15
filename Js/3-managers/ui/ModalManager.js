@@ -1327,8 +1327,23 @@ class ModalManager {
             : 0;
         const progressClass = percentualUsado < 50 ? 'baixo' : percentualUsado < 80 ? 'medio' : 'alto';
 
+        // Banner de servidor inativo (se aplicável)
+        let inactiveBannerHTML = '';
+        if (servidor._status === 'historico') {
+            inactiveBannerHTML = `
+                <div class="servidor-details-inactive-banner">
+                    <i class="bi bi-archive"></i>
+                    <div class="banner-text">
+                        <div class="banner-title">Servidor Inativo</div>
+                        <div class="banner-description">Este servidor não consta na base de servidores ativos (aposentado, desligado ou transferido)</div>
+                    </div>
+                </div>
+            `;
+        }
+
         // ==================== HERO CARD (COPIADO EXATO DO DASHBOARD.JS) ====================
         let heroHTML = `
+            ${inactiveBannerHTML}
             <div class="hero-header">
                 <div class="hero-info">
                     ${cargo ? `<div class="hero-cargo">${this.escapeHtml(cargo)}</div>` : ''}
@@ -1510,6 +1525,12 @@ class ModalManager {
                         <span class="licenca-aquisitivo">
                             <i class="bi bi-calendar-range" style="color:#3b82f6;"></i> Período Aquisitivo: ${periodoAquisitivo}
                         </span>
+                        <button class="btn-view-period-data" 
+                                data-cargo="${this.escapeHtml(licenca.CARGO || cargo)}" 
+                                data-lotacao="${this.escapeHtml(licenca.LOTACAO || lotacao)}"
+                                title="Ver cargo e lotação registrados neste período">
+                            <i class="bi bi-clock-history"></i> Ver dados na época
+                        </button>
                     </div>
                 </div>
             `;
@@ -1963,8 +1984,96 @@ class ModalManager {
         }
         setTimeout(() => {
             this._setupAccordionListeners(modalId);
+            this._setupPeriodDataButtons(modalId);
         }, 100);
         this.open(modalId);
+    }
+
+    /**
+     * Configura event listeners para botões "Ver dados na época"
+     * @private
+     * @param {string} modalId - ID do modal
+     */
+    _setupPeriodDataButtons(modalId) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+
+        // Event delegation para botões "Ver dados na época"
+        modal.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-view-period-data');
+            if (!btn) return;
+
+            const cargo = btn.dataset.cargo || 'Não informado';
+            const lotacao = btn.dataset.lotacao || 'Não informado';
+
+            this._showPeriodDataModal(cargo, lotacao);
+        });
+    }
+
+    /**
+     * Mostra modal com dados da época (cargo e lotação registrados)
+     * @private
+     * @param {string} cargo - Cargo registrado na época
+     * @param {string} lotacao - Lotação registrada na época
+     */
+    _showPeriodDataModal(cargo, lotacao) {
+        // Criar backdrop
+        const backdrop = document.createElement('div');
+        backdrop.className = 'period-data-backdrop';
+        backdrop.onclick = () => {
+            backdrop.remove();
+            periodModal.remove();
+        };
+
+        // Criar modal
+        const periodModal = document.createElement('div');
+        periodModal.className = 'period-data-modal';
+        periodModal.innerHTML = `
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="bi bi-clock-history"></i> Dados na Época do Registro
+                </h3>
+                <button class="modal-close" onclick="this.closest('.period-data-backdrop').click()">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="data-grid">
+                    <div class="data-field">
+                        <div class="field-label">Cargo</div>
+                        <div class="field-value">${this.escapeHtml(cargo)}</div>
+                    </div>
+                    <div class="data-field">
+                        <div class="field-label">Lotação</div>
+                        <div class="field-value">${this.escapeHtml(lotacao)}</div>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(var(--color-accent-rgb), 0.1); border-left: 3px solid var(--color-accent); border-radius: 6px;">
+                    <div style="font-size: 0.875rem; color: var(--color-text-secondary);">
+                        <i class="bi bi-info-circle"></i> Estes são os dados de cargo e lotação que estavam registrados na planilha no momento em que esta licença foi cadastrada.
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(backdrop);
+        document.body.appendChild(periodModal);
+
+        // Animar entrada
+        requestAnimationFrame(() => {
+            backdrop.style.opacity = '1';
+            periodModal.style.opacity = '1';
+            periodModal.style.transform = 'translate(-50%, -50%) scale(1)';
+        });
+
+        // Fechar com ESC
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                backdrop.click();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
     }
 
     /**

@@ -22,7 +22,6 @@ class DataParser {
      * @returns {Array<Object>} - Array de objetos com dados parseados
      */
     static parseCSV(csvString) {
-        console.log('[DataParser] Iniciando parse do CSV...');
 
         if (!csvString || typeof csvString !== 'string') {
             console.error('[DataParser] CSV inválido');
@@ -43,11 +42,9 @@ class DataParser {
         const semiCount = (firstLine.match(/;/g) || []).length;
         const delimiter = semiCount > commaCount ? ';' : ','; // Preferência por msg_count se empate
 
-        console.log(`[DataParser] Delimitador detectado: "${delimiter}"`);
-
         // Primeira linha = headers
         const headers = this._parseCSVLine(firstLine, delimiter);
-        console.log(`[DataParser] Headers encontrados: ${headers.length}`);
+
         console.log(`[DataParser] Colunas: ${headers.join(', ')}`);
 
         // Parse das linhas de dados
@@ -69,7 +66,6 @@ class DataParser {
             data.push(row);
         }
 
-        console.log(`[DataParser] ✓ Parseadas ${data.length} linhas de dados`);
         return data;
     }
 
@@ -117,7 +113,6 @@ class DataParser {
      * @returns {Object} - Mapa de headers (original → padronizado)
      */
     static mapHeaders(headers) {
-        console.log('[DataParser] Mapeando headers...');
 
         const headerMap = {};
         const mappings = {
@@ -156,7 +151,7 @@ class DataParser {
             for (const [key, variations] of Object.entries(mappings)) {
                 if (variations.includes(normalized)) {
                     headerMap[header] = key;
-                    console.log(`[DataParser]   "${header}" → "${key}"`);
+
                     return;
                 }
             }
@@ -239,8 +234,6 @@ class DataParser {
             return [];
         }
 
-        console.log(`[DataParser] Parsing licenças: "${licencasStr}"`);
-
         // Split por vírgula ou ponto-e-vírgula
         const periodos = licencasStr.split(/[,;]/).map(p => p.trim()).filter(p => p);
 
@@ -268,7 +261,7 @@ class DataParser {
                         fimStr: DateUtils.formatBrazilianDate(fim, 'short'),
                         raw: periodo
                     });
-                    console.log(`[DataParser]   ✓ ${inicioStr} → ${fimStr}`);
+
                 }
             }
         });
@@ -282,7 +275,6 @@ class DataParser {
      * @returns {Array<Object>} - Array de servidores com licencas agregadas
      */
     static groupByServidor(rows) {
-        console.log('[DataParser] Agrupando linhas por servidor...');
 
         if (!Array.isArray(rows) || rows.length === 0) {
             console.warn('[DataParser] Nenhuma linha para agrupar');
@@ -294,13 +286,23 @@ class DataParser {
         rows.forEach((row, index) => {
             // DEBUG: Ver se NUMERO existe
             if (index === 0) {
-                console.log('[DataParser] Primeira linha recebida:', row);
+
                 console.log('[DataParser] Campos disponíveis:', Object.keys(row));
             }
             
             // Identificar servidor (usar CPF se disponível, senão NOME)
             const cpf = row.CPF || row.cpf;
             const nome = row.NOME || row.nome || row.SERVIDOR || row.servidor;
+
+            // Log específico para ABILIO
+            if (nome && nome.includes('ABILIO')) {
+
+
+
+
+
+
+            }
 
             if (!nome) {
                 console.warn(`[DataParser] Linha ${index}: sem nome, pulando`);
@@ -321,6 +323,15 @@ class DataParser {
                     unidade: row.UNIDADE || row.unidade || '',
                     licencas: []
                 });
+                
+                // Log quando ABILIO é criado no map
+                if (nome && nome.includes('ABILIO')) {
+
+
+
+
+
+                }
             }
 
             const servidor = servidoresMap.get(chave);
@@ -382,8 +393,6 @@ class DataParser {
             servidor.__rowIndex = index;
         });
 
-        console.log(`[DataParser] ✓ Agrupadas ${rows.length} linhas em ${servidoresArray.length} servidores`);
-        console.log(`[DataParser] Exemplo: ${servidoresArray[0]?.nome} tem ${servidoresArray[0]?.licencas.length} licenças`);
 
         return servidoresArray;
     }

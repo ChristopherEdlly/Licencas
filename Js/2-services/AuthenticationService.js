@@ -346,6 +346,20 @@ class AuthenticationService {
     static async getUserPhoto() {
         try {
             const token = await this.acquireToken(['User.Read']);
+            
+            // Primeiro verificar se a foto existe via metadata (sem baixar a imagem)
+            const metaResponse = await fetch('https://graph.microsoft.com/v1.0/me/photo', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!metaResponse.ok) {
+                // Usuário não tem foto - retornar null sem erro
+                return null;
+            }
+            
+            // Foto existe, agora baixar a imagem
             const response = await fetch('https://graph.microsoft.com/v1.0/me/photo/$value', {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -353,10 +367,6 @@ class AuthenticationService {
             });
 
             if (!response.ok) {
-                // 404 é esperado quando usuário não tem foto - não é erro
-                if (response.status !== 404) {
-                    console.debug(`Photo API returned ${response.status}, using default avatar`);
-                }
                 return null;
             }
 

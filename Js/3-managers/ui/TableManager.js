@@ -216,6 +216,11 @@ class TableManager {
         row.className = 'fade-in';
         row.dataset.index = index;
 
+        // Adicionar classe se servidor for inativo
+        if (servidor._status === 'historico') {
+            row.classList.add('servidor-inactive');
+        }
+
         // Sanitização
         const escapeHtml = (str) => (str || '').toString().replace(/\"/g, '&quot;').replace(/\'/g, '&#39;');
 
@@ -258,6 +263,11 @@ class TableManager {
             ? `<span style="font-size:0.8rem;color:var(--text-tertiary);padding-left:0.25rem;font-weight:600;"> (${numLicencas})</span>` 
             : '';
 
+        // 🏷️ Badge de servidor inativo
+        const inactiveBadge = servidor._status === 'historico' 
+            ? `<span class="servidor-status-tag inactive" style="margin-left:0.5rem;"><i class="bi bi-archive"></i> Inativo</span>` 
+            : '';
+
         if (this.isLicencaPremio) {
             // ================== LAYOUT LICENÇA PRÊMIO ==================
             // Formatar Próxima Licença
@@ -289,7 +299,7 @@ class TableManager {
             const saldoTexto = saldoDias > 0 ? `${saldoDias} dias` : '0';
 
             row.innerHTML = `
-                <td><strong class="servidor-nome-cell" data-nome="${nomeEscapado}">${nomeEscapado}${contadorBadge}</strong></td>
+                <td><strong class="servidor-nome-cell" data-nome="${nomeEscapado}">${nomeEscapado}${contadorBadge}${inactiveBadge}</strong></td>
                 <td><span class="cargo-badge">${cargoEscapado}</span></td>
                 <td><span class="lotacao-badge">${lotacaoEscapada}</span></td>
                 <td>${proximaLicencaHtml}</td>
@@ -306,7 +316,7 @@ class TableManager {
             const nivelUrgencia = urgenciaRaw || '';
             const periodoLicencaCompleto = this._formatarPeriodoLicencaCompleto(servidor);
 
-            let rowHtml = `<td><strong class="servidor-nome-cell" data-nome="${nomeEscapado}">${nomeEscapado}${contadorBadge}</strong></td>`;
+            let rowHtml = `<td><strong class="servidor-nome-cell" data-nome="${nomeEscapado}">${nomeEscapado}${contadorBadge}${inactiveBadge}</strong></td>`;
             rowHtml += `<td><span class="cargo-badge">${cargoEscapado}</span></td>`;
 
             if (this.visibleColumns.idade) {
